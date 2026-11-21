@@ -111,6 +111,13 @@ class CargoUnitTests(unittest.TestCase):
         parser = Parser(self.workspace, self.layout.target, output)
         parser.feed([b'1 execve("/bin/true", ["true", "secret-argument"], ["GH_TOKEN=secret-token"]) = 0\n'])
         self.assertNotIn("secret", output.getvalue())
+        escaped = self.layout.target / ".." / "secret-outside" / "tool"
+        self.assertIsNone(parser.executable_in_target(
+            f'1 execve("{escaped}", ["tool"], ["GH_TOKEN=secret-token"]) = 0\n'.encode()))
+        folded = self.layout.target / "debug" / ".." / "debug" / "build_script_build"
+        self.assertEqual(parser.executable_in_target(
+            f'1 execve("{folded}", ["build_script_build"], []) = 0\n'.encode()),
+            "debug/build_script_build")
 
     def test_trace_errors_report_only_sanitized_events(self) -> None:
         output = io.StringIO()
@@ -576,6 +583,72 @@ class CargoUnitTests(unittest.TestCase):
                 events = [json.loads(line) for line in output.getvalue().splitlines()]
                 self.assertEqual(events[-1]["errors"], 1)
                 self.assertEqual(events[1]["reason"], "Unknown build script unit layout")
+
+    def test_trace_matches_a_build_script_for_an_explicit_target(self) -> None:
+        target = self.layout.target
+        triple = "aarch64-unknown-linux-gnu"
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        run = target / f"{triple}/debug/build/demo/fedcba9876543210/fingerprint"
+        run.mkdir(parents=True)
+        classic_run = target / f"{triple}/debug/.fingerprint/demo-bbbbbbbbbbbbbbbb"
+        classic_run.mkdir(parents=True)
+        nested_compile = target / "tests/trybuild/debug/build/demo/1111111111111111/fingerprint"
+        nested_compile.mkdir(parents=True)
+        (nested_compile / "build-script-build-script-build").write_text("1111111111111111")
+        nested_run = target / f"tests/trybuild/{triple}/debug/build/demo/2222222222222222/fingerprint"
+        nested_run.mkdir(parents=True)
+        cases = (
+            (compile_dir.parent / "out/build_script_build", run.parent / "out",
+             f"{triple}/debug/build/demo/fedcba9876543210/fingerprint"),
+            (target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-build",
+             target / f"{triple}/debug/build/demo-bbbbbbbbbbbbbbbb/out",
+             f"{triple}/debug/.fingerprint/demo-bbbbbbbbbbbbbbbb"),
+            (nested_compile.parent / "out/build_script_build", nested_run.parent / "out",
+             f"tests/trybuild/{triple}/debug/build/demo/2222222222222222/fingerprint"),
+        )
+        for executable, out, expected in cases:
+            with self.subTest(expected=expected):
+                output = io.StringIO()
+                parser = Parser(self.workspace, target, output)
+                parser.feed([(
+                    f'1 execve("{executable}", ["{executable}"], '
+                    f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]) = 0\n'
+                ).encode()])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                units = [event for event in events if event["event"] == "unit"]
+                self.assertEqual(events[-1]["errors"], 0)
+                self.assertEqual([(event["kind"], event["unit"]) for event in units], [
+                    ("run", expected),
+                ])
+
+    def test_trace_rejects_a_build_script_whose_profiles_do_not_match(self) -> None:
+        target = self.layout.target
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        executable = compile_dir.parent / "out/build_script_build"
+        nested_out = target / "tests/trybuild/aarch64-unknown-linux-gnu/debug/build/demo/fedcba9876543210/out"
+        other_out = target / "aarch64-unknown-linux-gnu/debug/build/other/fedcba9876543210/out"
+        release_out = target / "release/build/demo/fedcba9876543210/out"
+        short_out = target / "desktop-dev/debug/build/demo/fedcba9876543210/out"
+        for out in (nested_out, other_out, release_out, short_out):
+            with self.subTest(out=out.relative_to(target).as_posix()):
+                output = io.StringIO()
+                parser = Parser(self.workspace, target, output)
+                parser.feed([(
+                    f'1 execve("{executable}", ["{executable}"], '
+                    f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]) = 0\n'
+                ).encode()])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                self.assertEqual(events[-1]["errors"], 1)
+                self.assertEqual(events[1]["reason"], "Unknown build script unit layout")
+                self.assertEqual(
+                    events[1]["path"],
+                    "debug/build/demo/0123456789abcdef/out/build_script_build",
+                )
+                self.assertFalse(any(event["event"] == "unit" for event in events))
 
     def test_trace_ignores_an_autocfg_probe_in_a_build_unit_out_dir(self) -> None:
         target = self.layout.target

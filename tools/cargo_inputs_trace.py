@@ -124,6 +124,9 @@ def extra_filename(arguments: list[str]) -> str | None:
 
 UNIT_ID = re.compile(r"[0-9a-f]{16}")
 CLASSIC_DIR = re.compile(r"-[0-9a-f]{16}$")
+# A Rust target triple has at least three hyphen-separated parts, such as
+# `x86_64-unknown-linux-gnu`. A profile name does not match this shape.
+TARGET_TRIPLE = re.compile(r"[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+){2,}")
 
 
 def cargo_rustc_metadata(arguments: list[str]) -> bool:
@@ -177,6 +180,22 @@ def profile_inside_target(target: Path, profile: Path) -> bool:
     return profile.is_relative_to(target) and profile != target
 
 
+def profiles_match(host_profile: Path, out_profile: Path) -> bool:
+    """Return true when both directories are one Cargo build's profiles.
+
+    Without `--target`, the build script and `OUT_DIR` share one profile.
+    With `--target`, Cargo writes the host script under `<root>/<profile>`
+    and `OUT_DIR` under `<root>/<triple>/<profile>`.
+    `<root>` is the traced target, or a nested target directory inside it.
+    """
+    if out_profile == host_profile:
+        return True
+    if out_profile.name != host_profile.name:
+        return False
+    triple = out_profile.parent
+    return triple.parent == host_profile.parent and TARGET_TRIPLE.fullmatch(triple.name) is not None
+
+
 def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Path,
                                       cargo_package: str) -> Path | None:
     """Return the classic run fingerprint for one build-script executable.
@@ -184,6 +203,8 @@ def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Pa
     Cargo 1.99 runs `<profile>/build/<package>-<16 hex>/build-script-<stem>`.
     `OUT_DIR` is `<profile>/build/<package>-<16 hex>/out` for the run unit.
     Those two suffixes are different directories of one package.
+    With `--target`, the script profile is `<root>/<profile>` and `OUT_DIR`
+    is under `<root>/<triple>/<profile>`. The run fingerprint follows `OUT_DIR`.
     The package name in that path must equal CARGO_PKG_NAME.
     Return None when `executable` is not in that place.
     """
@@ -198,17 +219,21 @@ def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Pa
     if not profile_inside_target(target, profile):
         raise TraceError("Unknown build script unit layout")
     out_package = classic_package_dir(out_dir.parent.name)
+    out_build = out_dir.parent.parent
+    out_profile = out_build.parent
     if (
         out_dir.name != "out"
         or out_package is None
         or out_package[0] != package
-        or out_dir.parent.parent != script_dir.parent
+        or out_build.name != "build"
+        or not profiles_match(profile, out_profile)
+        or not profile_inside_target(target, out_profile)
         or not out_dir.is_relative_to(target)
     ):
         raise TraceError("Unknown build script unit layout")
     if package != cargo_package:
         raise TraceError(f"The target package {package} does not match CARGO_PKG_NAME {cargo_package}")
-    return profile / ".fingerprint" / out_dir.parent.name
+    return out_profile / ".fingerprint" / out_dir.parent.name
 
 
 def fingerprint_names(fingerprint: Path, prefix: str) -> bool:
@@ -278,6 +303,8 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
     Cargo 1.100 runs `<profile>/build/<package>/<compile id>/out/build_script_<stem>`.
     That compile unit's fingerprint holds a `build-script-*` file.
     `OUT_DIR` is `<profile>/build/<package>/<run id>/out` for a different id.
+    With `--target`, the script profile is `<root>/<profile>` and `OUT_DIR`
+    is under `<root>/<triple>/<profile>`. The run fingerprint follows `OUT_DIR`.
     The package name in that path must equal CARGO_PKG_NAME.
     Return None when `executable` is not in that place.
     """
@@ -304,11 +331,17 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
     if not fingerprint_names(compile_fingerprint, "build-script-"):
         return None
     run_id = out_dir.parent.name
+    out_package = out_dir.parent.parent
+    out_build = out_package.parent
+    out_profile = out_build.parent
     if (
         out_dir.name != "out"
         or not UNIT_ID.fullmatch(run_id)
         or run_id == compile_dir.name
-        or out_dir.parent.parent != package_dir
+        or out_build.name != "build"
+        or out_package.name != package_dir.name
+        or not profiles_match(profile, out_profile)
+        or not profile_inside_target(target, out_profile)
         or not out_dir.is_relative_to(target)
     ):
         raise TraceError("Unknown build script unit layout")
@@ -532,18 +565,40 @@ class Parser:
         self.emit({"event": "open", "unit": process.unit, "path": opened,
                    "write": writing, "read": access[1] != "WRONLY"})
 
+    def executable_in_target(self, raw: bytes) -> str | None:
+        """Return the execve path relative to the target, or None.
+
+        The raw line can hold credentials in its arguments and environment.
+        Only an absolute executable inside the traced target is safe to keep.
+        """
+        if b"execve(" not in raw:
+            return None
+        try:
+            executable, _ = string_at(raw.decode("utf-8", errors="surrogateescape"))
+        except (TraceError, ValueError):
+            return None
+        path = Path(os.path.normpath(executable))
+        if not path.is_absolute() or not path.is_relative_to(self.target):
+            return None
+        return path.relative_to(self.target).as_posix()
+
     def feed(self, stream) -> None:
         for raw in stream:
             try:
                 self.consume(raw.decode("utf-8", errors="surrogateescape").rstrip("\n"))
             except (TraceError, ValueError, SyntaxError, IndexError, KeyError, OSError) as error:
-                # A raw line can contain credentials. Record no part of it.
+                # A raw line can contain credentials. Record no argument and no environment value.
+                # An executable under the traced target has no credential, so keep that relative path.
                 self.errors += 1
                 match = re.match(rb"\s*(\d+)(?:<[^>]*>)?\s+(\w+)\(", raw)
-                self.emit({"event": "trace-error", "pid": int(match[1]) if match else None,
-                           "operation": match[2].decode("ascii") if match else "resumed",
-                           "unit": self.processes.get(int(match[1]), Process(str(self.workspace))).unit if match else None,
-                           "reason": str(error) if isinstance(error, TraceError) else type(error).__name__})
+                event = {"event": "trace-error", "pid": int(match[1]) if match else None,
+                         "operation": match[2].decode("ascii") if match else "resumed",
+                         "unit": self.processes.get(int(match[1]), Process(str(self.workspace))).unit if match else None,
+                         "reason": str(error) if isinstance(error, TraceError) else type(error).__name__}
+                relative = self.executable_in_target(raw)
+                if relative is not None:
+                    event["path"] = relative
+                self.emit(event)
         if self.pending or self.waiting:
             self.errors += len(self.pending) + len(self.waiting)
             self.emit({"event": "incomplete-processes",

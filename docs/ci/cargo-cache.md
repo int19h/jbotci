@@ -2,7 +2,7 @@
 
 A Cargo unit is one target, profile, feature set, and compilation mode.
 Each unit keeps a SHA-256 input record in its fingerprint directory.
-The record describes the content that produced that unit, even when later jobs select different units.
+When later jobs select different units, the record still describes the content that produced that unit.
 CI uses Rust 1.100.0 and one target directory for each cached job.
 The CLI release workflow never restores a target cache.
 
@@ -12,13 +12,13 @@ The job environment does not use the unavailable `runner` context.
 Cargo and DX paths use the container's `RUNNER_TEMP`, outside the checkout.
 The cache actions use those exported paths.
 Copied native sources cannot discover the checkout as a parent Git repository.
-One `GIT_CONFIG_GLOBAL` file under `RUNNER_TEMP` keeps Git trust unchanged when Render changes `HOME`.
+When Render changes `HOME`, one `GIT_CONFIG_GLOBAL` file under `RUNNER_TEMP` keeps Git trust unchanged.
 It trusts only the exact checkout and `vendor/cll` paths.
 The trust step exercises recursive file listing and Git metadata reads before Cargo work.
 
 The CLI release tooling job installs actionlint 1.7.12 and compares the archive with its pinned SHA-256 before extraction.
 It runs actionlint on every workflow with ShellCheck enabled.
-The local Python workflow tests run the same command when actionlint is installed.
+When actionlint is installed, the local Python workflow tests run the same command.
 Install ShellCheck too before you run those tests.
 
 Each cached job writes a time marker before its first Cargo call.
@@ -66,6 +66,9 @@ A deliberate undeclared read fails the regression fixture.
 An unreadable input record for a workspace or vendored unit fails the contract check.
 The trace parser retains file paths, unit metadata, and process identities.
 It records the executable, parent PID, and argument count without argument values or environment values.
+When the executable is inside the traced target, a rejected operation also records that path.
+A build script started with `--target` uses the host profile for its binary and the target triple for `OUT_DIR`.
+The trace records the run unit next to `OUT_DIR`.
 Strace's `-Y` option supplies process names, including names for short-lived threads.
 For an unknown PID, the reader also attempts a live `/proc` snapshot for diagnostics.
 Unavailable identity fields remain null. These snapshots never determine a Cargo unit's ownership.
@@ -74,13 +77,13 @@ An incomplete-process error prints these identities and any interrupted parent f
 
 A process-wide exit can interrupt a clone before strace reports the new thread ID.
 The new thread then emits only teardown placeholders and a termination event.
-The parser closes that PID only if every buffered event matches those exact forms.
+If every buffered event matches those exact forms, the parser closes that PID.
 Its journal records the accepted placeholders and the explicit termination as `unattributed-exit`.
 It never discards an exec, directory change, file open, or other unknown operation through this rule.
 Those events remain buffered until the reported parent context arrives.
 
 An abbreviated or genuinely incomplete trace still fails CI and prevents a cache save.
-An undeclared read must fail the input contract, even when the tests pass.
+When the tests pass, an undeclared read must still fail the input contract.
 Missing coverage cannot establish that contract, so CI does not replace this failure with a cache warning.
 Each job also requires the checkout's tracked content to stay unchanged while it builds.
 
