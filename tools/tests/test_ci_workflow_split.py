@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -272,6 +273,15 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertNotIn("actions/cache", release.read_text())
         self.assertFalse((REPOSITORY_ROOT / ".github/actions/cargo-cache-mtimes").exists())
 
+    def test_release_tooling_uses_the_pinned_build_image(self) -> None:
+        job = self.test_workflow.split("  cli-release-tool:\n", 1)[1].split("\n  build-image:\n", 1)[0]
+        self.assertIn("needs: build-image\n", job)
+        self.assertIn("image: ${{ needs.build-image.outputs.image }}\n", job)
+        self.assertNotIn("sudo apt-get", job)
+        self.assertIn("shellcheck", job)
+        self.assertIn("g++", job)
+        self.assertIn("jq", job)
+
     def test_cache_regression_target_is_set_in_the_runner_step(self) -> None:
         self.assertIn(
             "      - name: Run release tooling tests\n"
@@ -279,6 +289,43 @@ class CiWorkflowSplitTests(unittest.TestCase):
             "          CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-cache\n",
             self.test_workflow,
         )
+
+    def test_ci_rust_images_match_the_toolchain_channel(self) -> None:
+        toolchain = (REPOSITORY_ROOT / "rust-toolchain.toml").read_text(encoding="utf-8")
+        channel = re.search(r'(?m)^channel = "([^"]+)"$', toolchain)
+        self.assertIsNotNone(channel)
+        version = channel.group(1)
+        self.assertRegex(version, r"^[0-9]+\.[0-9]+\.[0-9]+$")
+        prepare = (REPOSITORY_ROOT / ".github/workflows/prepare-cli-release.yml").read_text(encoding="utf-8")
+        dockerfile = (REPOSITORY_ROOT / "deploy/render/Dockerfile").read_text(encoding="utf-8")
+        named = {
+            "test": self.test_workflow,
+            "render": self.render_workflow,
+            "prepare": prepare,
+            "dockerfile": dockerfile,
+        }
+        for name, text in named.items():
+            with self.subTest(file=name):
+                tags = re.findall(r"rust:([^\s@\\]+)", text)
+                self.assertGreater(len(tags), 0, name)
+                for tag in tags:
+                    self.assertEqual(tag.split("-", 1)[0], version, f"{name} names rust:{tag}")
+        self.assertIn(f"rust:{version}-bookworm", self.test_workflow)
+        self.assertIn(f"rust:{version}-bookworm", self.render_workflow)
+        self.assertIn(f"rust:{version}-trixie", self.render_workflow)
+        self.assertIn(f"rust:{version}-alpine3.24", prepare)
+        self.assertIn(f"FROM rust:{version}-bookworm AS build\n", dockerfile)
+        toolchains = re.findall(r"RUSTUP_TOOLCHAIN(?:=|:)\s*([0-9]+\.[0-9]+\.[0-9]+)", prepare)
+        self.assertGreaterEqual(len(toolchains), 3)
+        self.assertEqual(set(toolchains), {version})
+        releases = re.findall(
+            r'release: //p"\)" = "([0-9]+\.[0-9]+\.[0-9]+)"',
+            prepare,
+        )
+        self.assertEqual(releases, [version])
+        compilers = re.findall(r"rustc ([0-9]+\.[0-9]+\.[0-9]+) \(", prepare)
+        self.assertGreaterEqual(len(compilers), 2)
+        self.assertEqual(set(compilers), {version})
 
 
 if __name__ == "__main__":

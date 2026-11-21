@@ -382,7 +382,7 @@ fn main() {
         self.env["NESTED_PROFILE"] = self.profile
         self._build(subcommand="run")
         units = cargo_inputs.inventory(self.layout)
-        child_units = [unit for unit in units.values() if unit.directory.name.startswith("nested-input-child-")]
+        child_units = [unit for unit in units.values() if "nested-input-child" in unit.key]
         self.assertTrue(child_units)
         self.assertTrue(all((unit.directory / cargo_inputs.RECORD).exists() for unit in child_units))
 

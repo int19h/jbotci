@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v6
       - name: Resolve the image manifest
         id: image
-        run: python3 -m tools.cargo_cache_identity resolve-image rust:1-bookworm
+        run: python3 -m tools.cargo_cache_identity resolve-image rust:1.100.0-bookworm
 
   build-bundle:
     name: Build Dioxus server bundle
@@ -233,7 +233,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
-      image: rust:1-trixie
+      image: rust:1.100.0-trixie
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/f2llm-lavapipe
       CARGO_BUILD_JOBS: 4

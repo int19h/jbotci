@@ -52,6 +52,7 @@ pub enum Sequence<'tree, S, R, V, P> {
     },
 }
 impl<S, R, V, P> Copy for Sequence<'_, S, R, V, P> {}
+#[allow(clippy::non_canonical_clone_impl)]
 impl<S, R, V, P> Clone for Sequence<'_, S, R, V, P> {
     #[requires(true)]
     #[ensures(true)]

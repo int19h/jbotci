@@ -3419,35 +3419,18 @@ fn walk_wrapper_functions(
         }
     });
     let with_free_modifiers_function = include_with_free_modifiers.then(|| {
-        if include_recovered {
-            quote! {
-                pub fn with_free_modifiers<'tree, W, T, F>(
-                    walker: &mut W,
-                    value: &'tree WithFreeModifiers<T, F>,
-                )
-                where
-                    W: TreeWalker<'tree> + ?Sized,
-                    T: TreeWalkable<'tree>,
-                    F: TreeWalkable<'tree>,
-                {
-                    TreeWalkable::walk_with(&value.value, walker);
-                    TreeWalkable::walk_with(&value.free_modifiers, walker);
-                }
-            }
-        } else {
-            quote! {
-                pub fn with_free_modifiers<'tree, W, T, F>(
-                    walker: &mut W,
-                    value: &'tree WithFreeModifiers<T, F>,
-                )
-                where
-                    W: TreeWalker<'tree> + ?Sized,
-                    T: TreeWalkable<'tree>,
-                    F: TreeWalkable<'tree>,
-                {
-                    TreeWalkable::walk_with(&value.value, walker);
-                    TreeWalkable::walk_with(&value.free_modifiers, walker);
-                }
+        quote! {
+            pub fn with_free_modifiers<'tree, W, T, F>(
+                walker: &mut W,
+                value: &'tree WithFreeModifiers<T, F>,
+            )
+            where
+                W: TreeWalker<'tree> + ?Sized,
+                T: TreeWalkable<'tree>,
+                F: TreeWalkable<'tree>,
+            {
+                TreeWalkable::walk_with(&value.value, walker);
+                TreeWalkable::walk_with(&value.free_modifiers, walker);
             }
         }
     });
@@ -3836,34 +3819,17 @@ fn tree_walkable_wrapper_impls(
         }
     });
     let with_free_modifiers_impl = include_with_free_modifiers.then(|| {
-        if include_recovered {
-            quote! {
-                impl<'tree, T, F> TreeWalkable<'tree> for WithFreeModifiers<T, F>
+        quote! {
+            impl<'tree, T, F> TreeWalkable<'tree> for WithFreeModifiers<T, F>
+            where
+                T: TreeWalkable<'tree>,
+                F: TreeWalkable<'tree>,
+            {
+                fn walk_with<W>(&'tree self, walker: &mut W)
                 where
-                    T: TreeWalkable<'tree>,
-                    F: TreeWalkable<'tree>,
+                    W: TreeWalker<'tree> + ?Sized,
                 {
-                    fn walk_with<W>(&'tree self, walker: &mut W)
-                    where
-                        W: TreeWalker<'tree> + ?Sized,
-                    {
-                        walk::with_free_modifiers(walker, self);
-                    }
-                }
-            }
-        } else {
-            quote! {
-                impl<'tree, T, F> TreeWalkable<'tree> for WithFreeModifiers<T, F>
-                where
-                    T: TreeWalkable<'tree>,
-                    F: TreeWalkable<'tree>,
-                {
-                    fn walk_with<W>(&'tree self, walker: &mut W)
-                    where
-                        W: TreeWalker<'tree> + ?Sized,
-                    {
-                        walk::with_free_modifiers(walker, self);
-                    }
+                    walk::with_free_modifiers(walker, self);
                 }
             }
         }
