@@ -17,13 +17,19 @@ concurrency:
 jobs:
   cli-release-tool:
     name: CLI release tooling
+    needs: build-image
     runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build-image.outputs.image }}
     steps:
+      - name: Install workflow tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates cmake curl g++ git python3 shellcheck strace
+          rm -rf /var/lib/apt/lists/*
+
       - name: Check out source
         uses: actions/checkout@v6
-
-      - name: Install workflow tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake shellcheck strace
 
       - name: Install pinned actionlint
         shell: bash

@@ -272,6 +272,14 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertNotIn("actions/cache", release.read_text())
         self.assertFalse((REPOSITORY_ROOT / ".github/actions/cargo-cache-mtimes").exists())
 
+    def test_release_tooling_uses_the_pinned_build_image(self) -> None:
+        job = self.test_workflow.split("  cli-release-tool:\n", 1)[1].split("\n  build-image:\n", 1)[0]
+        self.assertIn("needs: build-image\n", job)
+        self.assertIn("image: ${{ needs.build-image.outputs.image }}\n", job)
+        self.assertNotIn("sudo apt-get", job)
+        self.assertIn("shellcheck", job)
+        self.assertIn("g++", job)
+
     def test_cache_regression_target_is_set_in_the_runner_step(self) -> None:
         self.assertIn(
             "      - name: Run release tooling tests\n"
