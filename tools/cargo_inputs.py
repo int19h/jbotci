@@ -236,6 +236,9 @@ def inventory(layout: Layout) -> dict[str, Unit]:
     Cleanup uses the retained hashes of one profile for that profile only.
     Cleanup skips a profile directory that eviction removed.
     Save rejects a trace unit that inventory does not return.
+    If a unit was built in this session, save requires the trace kind to equal the fingerprint kind.
+    Save uses `package`, `cwd`, `dep_info`, and `via_dx` from the trace.
+    Inventory does not store those fields.
     """
     result: dict[str, Unit] = {}
 
@@ -748,10 +751,15 @@ def save(layout: Layout, session: Path, scrub: bool = True) -> dict[str, int]:
             if key not in descriptors:
                 unknown.add(key)
                 continue
+            descriptor = descriptors[key]
+            trace_kind = descriptor.get("kind")
+            if trace_kind != unit.kind.value:
+                raise InputError(
+                    f"The trace kind {trace_kind} does not match the fingerprint kind {unit.kind.value}: {key}")
             try:
-                record = make_record(layout, unit, descriptors[key], snapshots)
+                record = make_record(layout, unit, descriptor, snapshots)
             except (OSError, KeyError, ValueError, StopIteration, InputError) as error:
-                package = Path(descriptors[key]["package"])
+                package = Path(descriptor["package"])
                 cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo")).absolute()
                 if package.is_relative_to(layout.workspace) and not package.is_relative_to(cargo_home):
                     raise InputError(f"Cannot record the input contract for {key}: {error}") from error

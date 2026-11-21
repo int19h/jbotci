@@ -1009,6 +1009,82 @@ class CargoUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(c.InputError, "inventory did not"):
             c.save(self.layout, session, scrub=False)
 
+    def test_save_rejects_a_run_descriptor_whose_fingerprint_is_compile(self) -> None:
+        self.commit_demo_package()
+        target = self.layout.target
+        fingerprint = target / "debug/.fingerprint/demo-0123456789abcdef"
+        fingerprint.mkdir(parents=True)
+        executable = target / "debug/build/demo-aaaaaaaaaaaaaaaa/build-script-build"
+        out = target / "debug/build/demo-0123456789abcdef/out"
+        session = self.root / "session-run-to-compile"
+        c.begin(self.layout, session)
+        line = (
+            f'1 execve("{executable}", ["{executable}"], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR={self.workspace}", "OUT_DIR={out}"]) = 0\n'
+        )
+        self.write_trace(session, "run-to-compile", line)
+        marker = fingerprint / "bin-demo"
+        marker.write_text("0123456789abcdef")
+        (fingerprint / "bin-demo.json").write_text('{"deps":[]}')
+        self.touch_after_marker(session, marker)
+        key = fingerprint.relative_to(target).as_posix()
+        self.assertEqual(c.inventory(self.layout)[key].kind, c.Kind.COMPILE)
+        with self.assertRaisesRegex(
+                c.InputError, r"^The trace kind run does not match the fingerprint kind compile:"):
+            c.save(self.layout, session, scrub=False)
+        self.assertFalse((fingerprint / c.RECORD).is_file())
+
+    def test_save_rejects_a_compile_descriptor_whose_fingerprint_is_run(self) -> None:
+        self.commit_demo_package()
+        target = self.layout.target
+        unit_id = "0123456789abcdef"
+        fingerprint = target / f"debug/build/demo/{unit_id}/fingerprint"
+        fingerprint.mkdir(parents=True)
+        out = fingerprint.parent / "out"
+        session = self.root / "session-compile-to-run"
+        c.begin(self.layout, session)
+        line = (
+            f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{out}", '
+            f'"-C", "metadata={unit_id}"], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR={self.workspace}"]) = 0\n'
+        )
+        self.write_trace(session, "compile-to-run", line)
+        marker = fingerprint / "run-build-script-build-script-build"
+        marker.write_text(unit_id)
+        (fingerprint / f"{marker.name}.json").write_text('{"deps":[],"local":[]}')
+        stdout = fingerprint.parent / "run/stdout"
+        stdout.parent.mkdir(parents=True)
+        stdout.write_text("cargo:rerun-if-changed=build.rs\n")
+        self.touch_after_marker(session, marker)
+        key = fingerprint.relative_to(target).as_posix()
+        self.assertEqual(c.inventory(self.layout)[key].kind, c.Kind.RUN)
+        with self.assertRaisesRegex(
+                c.InputError, r"^The trace kind compile does not match the fingerprint kind run:"):
+            c.save(self.layout, session, scrub=False)
+        self.assertFalse((fingerprint / c.RECORD).is_file())
+
+    def commit_demo_package(self) -> None:
+        self.ensure_git()
+        (self.workspace / "Cargo.toml").write_text('[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2021"\n')
+        (self.workspace / "src").mkdir()
+        (self.workspace / "src/lib.rs").write_text("pub fn demo() {}\n")
+        (self.workspace / "build.rs").write_text("fn main() {}\n")
+        subprocess.run(["git", "add", "."], cwd=self.workspace, check=True)
+        subprocess.run(["git", "commit", "-qm", "Add the demo package"], cwd=self.workspace, check=True)
+
+    def write_trace(self, session: Path, name: str, line: str) -> None:
+        with (session / f"trace-{name}.jsonl").open("w") as journal:
+            parser = Parser(self.workspace, self.layout.target, journal)
+            parser.feed([line.encode()])
+        with (session / f"trace-{name}.jsonl").open() as journal:
+            events = [json.loads(item) for item in journal]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual(sum(event["event"] == "unit" for event in events), 1)
+
+    def touch_after_marker(self, session: Path, path: Path) -> None:
+        marker_ns = json.loads((session / "session.json").read_text())["marker_ns"]
+        os.utime(path, ns=(marker_ns + 2_000_000_000, marker_ns + 2_000_000_000))
+
 
 if __name__ == "__main__":
     unittest.main()
