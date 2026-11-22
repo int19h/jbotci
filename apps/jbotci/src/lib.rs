@@ -183,8 +183,8 @@ use clap::{
 };
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{
-    CllError, CllLinkRenderMode, CllRenderFormat, CuktaRequest, CuktaSearchMode, CuktaSearchWindow,
-    CuktaTargetFilter, DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site,
+    CllError, CllLinkRenderMode, CllRenderRequest, CuktaRequest, CuktaSearchMode,
+    CuktaSearchWindow, CuktaTargetFilter, DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site,
 };
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
@@ -915,14 +915,13 @@ pub enum CuktaCliFormat {
     Raw,
 }
 
-impl From<CuktaCliFormat> for CllRenderFormat {
+impl From<CuktaCliFormat> for CllRenderRequest {
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(matches!(value, CuktaCliFormat::Html) == matches!(ret, CllRenderRequest::Html(_)))]
     fn from(value: CuktaCliFormat) -> Self {
         match value {
-            CuktaCliFormat::Markdown => Self::Markdown,
-            CuktaCliFormat::Html => Self::Html,
-            CuktaCliFormat::Raw => Self::Raw,
+            CuktaCliFormat::Markdown | CuktaCliFormat::Raw => Self::GitHub,
+            CuktaCliFormat::Html => Self::Html(CllLinkRenderMode::Plain),
         }
     }
 }

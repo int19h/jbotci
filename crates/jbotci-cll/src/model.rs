@@ -1297,21 +1297,24 @@ pub enum CllLinkRenderMode {
 
 use crate::search::CllSearchChunk;
 
+/// One render target.
+///
+/// HTML carries a link mode. Markdown does not. GitHub Markdown is what the
+/// CLI and the MCP tool emit. Discord Markdown is what a Discord message
+/// shows. Both Markdown targets omit link destinations.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CllRenderFormat {
-    /// GitHub-flavoured Markdown: pipe tables, `$…$` math, the book's text
-    /// verbatim. What the CLI and the MCP tool emit.
-    Markdown,
-    Html,
-    Raw,
-    /// Discord's Markdown dialect: no tables, math or HTML, `-#` subtext, and
-    /// every text run escaped so the client cannot misread it as formatting.
-    DiscordMarkdown,
+#[invariant(::Html(_) => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CllRenderRequest {
+    /// HTML. `Web` keeps the interactive links. `Plain` omits destinations.
+    Html(CllLinkRenderMode),
+    /// GitHub-flavoured Markdown. Pipe tables, `$…$` math, and no link destinations.
+    GitHub,
+    /// Discord Markdown. No tables, math, HTML, or link destinations.
+    Discord,
 }
 
-/// The Markdown dialect a text format renders in.
+/// The Markdown dialect a text target renders in.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CllMarkdownDialect {
@@ -1319,15 +1322,15 @@ pub enum CllMarkdownDialect {
     Discord,
 }
 
-impl CllRenderFormat {
-    /// The Markdown dialect of a text format; `None` for HTML.
+impl CllRenderRequest {
+    /// The Markdown dialect of a text target. HTML has none.
     #[requires(true)]
-    #[ensures(ret.is_none() == (self == CllRenderFormat::Html))]
+    #[ensures(ret.is_none() == matches!(self, CllRenderRequest::Html(_)))]
     pub fn markdown_dialect(self) -> Option<CllMarkdownDialect> {
         match self {
-            CllRenderFormat::Html => None,
-            CllRenderFormat::Markdown | CllRenderFormat::Raw => Some(CllMarkdownDialect::GitHub),
-            CllRenderFormat::DiscordMarkdown => Some(CllMarkdownDialect::Discord),
+            CllRenderRequest::Html(_) => None,
+            CllRenderRequest::GitHub => Some(CllMarkdownDialect::GitHub),
+            CllRenderRequest::Discord => Some(CllMarkdownDialect::Discord),
         }
     }
 }

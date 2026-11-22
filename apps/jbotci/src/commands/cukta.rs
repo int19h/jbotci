@@ -37,7 +37,6 @@ pub(crate) fn run_cukta<WOut: Write, WErr: Write>(
             jbotci_cll::render_search_output_with_limit(
                 &output,
                 input.format.into(),
-                CllLinkRenderMode::Plain,
                 render_limits.text,
             )?
         }
@@ -45,7 +44,6 @@ pub(crate) fn run_cukta<WOut: Write, WErr: Write>(
             site,
             &request,
             input.format.into(),
-            CllLinkRenderMode::Plain,
             render_limits.text,
         ) {
             Ok(rendered) => rendered,

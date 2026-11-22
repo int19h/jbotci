@@ -11,9 +11,8 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
-    CllLinkRenderMode, CllParagraphRole, CllRenderFormat, CllSearchChunkKind,
-    cll_section_chapter_title, render_example_with_limit, render_section_with_limit,
-    search_chunk_kind_label,
+    CllParagraphRole, CllRenderRequest, CllSearchChunkKind, cll_section_chapter_title,
+    render_example_with_limit, render_section_with_limit, search_chunk_kind_label,
 };
 
 use super::markdown::{
@@ -124,8 +123,7 @@ pub(crate) fn render_in_scope(
                     render_section_with_limit(
                         site,
                         section,
-                        CllRenderFormat::DiscordMarkdown,
-                        CllLinkRenderMode::Plain,
+                        CllRenderRequest::Discord,
                         text_scope.limit(),
                     ),
                     text_scope,
@@ -143,8 +141,7 @@ pub(crate) fn render_in_scope(
                 render_section_with_limit(
                     site,
                     section,
-                    CllRenderFormat::Markdown,
-                    CllLinkRenderMode::Plain,
+                    CllRenderRequest::GitHub,
                     text_scope.limit(),
                 ),
                 text_scope,
@@ -162,8 +159,7 @@ pub(crate) fn render_in_scope(
                     render_example_with_limit(
                         site,
                         example,
-                        CllRenderFormat::DiscordMarkdown,
-                        CllLinkRenderMode::Plain,
+                        CllRenderRequest::Discord,
                         text_scope.limit(),
                     ),
                     text_scope,
@@ -174,8 +170,7 @@ pub(crate) fn render_in_scope(
                 render_example_with_limit(
                     site,
                     example,
-                    CllRenderFormat::Markdown,
-                    CllLinkRenderMode::Plain,
+                    CllRenderRequest::GitHub,
                     text_scope.limit(),
                 ),
                 text_scope,

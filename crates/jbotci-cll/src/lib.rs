@@ -335,13 +335,12 @@ pub fn cll_next_section_id<'a>(site: &'a CllSite, section_id: &str) -> Option<&'
 pub(crate) fn render_cukta_request_in_scope(
     site: &CllSite,
     request: &CuktaRequest,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     scope: &jbotci_budget::TextScope,
 ) -> Result<String, CllError> {
     match request {
-        CuktaRequest::Toc => Ok(render_toc_in_scope(site, format, link_mode, scope)),
-        CuktaRequest::Index => Ok(render_index_in_scope(site, format, link_mode, scope)),
+        CuktaRequest::Toc => Ok(render_toc_in_scope(site, target, scope)),
+        CuktaRequest::Index => Ok(render_index_in_scope(site, target, scope)),
         CuktaRequest::Section { reference } => {
             let section_id = cll_resolve_section_reference(site, reference).ok_or_else(|| {
                 CllError::NotFound(scope.format(format_args!("CLL section not found: {reference}")))
@@ -349,9 +348,7 @@ pub(crate) fn render_cukta_request_in_scope(
             let section = cll_lookup_section(site, &section_id).ok_or_else(|| {
                 CllError::NotFound(scope.format(format_args!("CLL section not found: {reference}")))
             })?;
-            Ok(render_section_in_scope(
-                site, section, format, link_mode, scope,
-            ))
+            Ok(render_section_in_scope(site, section, target, scope))
         }
         CuktaRequest::Example { reference } => {
             let example_id = cll_resolve_example_reference(site, reference).ok_or_else(|| {
@@ -360,9 +357,7 @@ pub(crate) fn render_cukta_request_in_scope(
             let example = cll_lookup_example(site, &example_id).ok_or_else(|| {
                 CllError::NotFound(scope.format(format_args!("CLL example not found: {reference}")))
             })?;
-            Ok(render_example_in_scope(
-                site, example, format, link_mode, scope,
-            ))
+            Ok(render_example_in_scope(site, example, target, scope))
         }
         CuktaRequest::Search {
             mode,
@@ -381,8 +376,7 @@ pub(crate) fn render_cukta_request_in_scope(
                     CuktaSearchWindow::first(*count),
                     *targets,
                 ),
-                format,
-                link_mode,
+                target,
                 scope,
             ))
         }
@@ -471,12 +465,11 @@ fn push_markdown_toc_sections(
 #[ensures(true)]
 pub(crate) fn render_toc_in_scope(
     site: &CllSite,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     scope: &jbotci_budget::TextScope,
 ) -> String {
-    match format.markdown_dialect() {
-        None => {
+    match target {
+        CllRenderRequest::Html(link_mode) => {
             let edition = &site.metadata.edition;
             let mut output = scope.buffer_with(&(scope.format(format_args!(
                 "<nav class=\"cll-toc-rendered\"><h1>{}</h1><p class=\"cll-edition\">{}</p><p class=\"cll-edition-lineage\">{}</p><h2>Table of Contents</h2><ol>",
@@ -496,7 +489,10 @@ pub(crate) fn render_toc_in_scope(
             output.push_str("</ol></nav>\n");
             output.into_piece()
         }
-        Some(dialect) => {
+        CllRenderRequest::GitHub | CllRenderRequest::Discord => {
+            let dialect = target
+                .markdown_dialect()
+                .expect("a Markdown target has a dialect");
             let edition = &site.metadata.edition;
             let heading = top_heading(dialect);
             let mut output = scope.buffer_with(
@@ -533,12 +529,11 @@ pub(crate) fn render_toc_in_scope(
 #[ensures(true)]
 pub(crate) fn render_index_in_scope(
     site: &CllSite,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     scope: &jbotci_budget::TextScope,
 ) -> String {
-    match format.markdown_dialect() {
-        None => {
+    match target {
+        CllRenderRequest::Html(link_mode) => {
             let mut output = scope.buffer_with(&("<section class=\"cll-index\"><h1>Index</h1>"));
             for entry in &site.index_entries {
                 output.push_str("<p><strong>");
@@ -575,7 +570,10 @@ pub(crate) fn render_index_in_scope(
             output.push_str("</section>\n");
             output.into_piece()
         }
-        Some(dialect) => {
+        CllRenderRequest::GitHub | CllRenderRequest::Discord => {
+            let dialect = target
+                .markdown_dialect()
+                .expect("a Markdown target has a dialect");
             let mut output = scope
                 .buffer_with(&(scope.format(format_args!("{} Index\n\n", top_heading(dialect)))));
             for entry in &site.index_entries {
@@ -607,12 +605,11 @@ pub(crate) fn render_index_in_scope(
 pub(crate) fn render_section_in_scope(
     site: &CllSite,
     section: &CllSection,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     scope: &jbotci_budget::TextScope,
 ) -> String {
-    match format.markdown_dialect() {
-        None => {
+    match target {
+        CllRenderRequest::Html(link_mode) => {
             let mut output = scope.buffer();
             output.push_str(
                 "<article class=\"cll-section-content\"><div class=\"cll-section-heading\"><h1>",
@@ -650,7 +647,10 @@ pub(crate) fn render_section_in_scope(
             output.push_str("</article>\n");
             output.into_piece()
         }
-        Some(dialect) => {
+        CllRenderRequest::GitHub | CllRenderRequest::Discord => {
+            let dialect = target
+                .markdown_dialect()
+                .expect("a Markdown target has a dialect");
             let mut output = scope.buffer_with(
                 &(scope.format(format_args!(
                     "{} {}\n\n",
@@ -662,16 +662,11 @@ pub(crate) fn render_section_in_scope(
                     )
                 ))),
             );
-            if link_mode == CllLinkRenderMode::Web
-                && let Some(parse_href) = chrestomathy_section_parse_href(site, section)
-            {
-                output.push_str(&scope.format(format_args!("[Parse]({parse_href})\n\n")));
-            }
             for block in cll_section_prelude_blocks(site, section) {
-                render::render_block_markdown_to(site, block, &mut output, 0, link_mode, dialect);
+                render::render_block_markdown_to(site, block, &mut output, 0, dialect);
             }
             for block in &section.blocks {
-                render::render_block_markdown_to(site, block, &mut output, 0, link_mode, dialect);
+                render::render_block_markdown_to(site, block, &mut output, 0, dialect);
             }
             output.into_piece()
         }
@@ -683,12 +678,11 @@ pub(crate) fn render_section_in_scope(
 pub(crate) fn render_example_in_scope(
     site: &CllSite,
     example: &CllExample,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     scope: &jbotci_budget::TextScope,
 ) -> String {
-    match format.markdown_dialect() {
-        None => {
+    match target {
+        CllRenderRequest::Html(link_mode) => {
             let mut output = scope.buffer_with(&(scope.format(format_args!(
                 "<figure id=\"{}\" class=\"cll-example\"><figcaption class=\"cll-example-head\"><span class=\"cll-example-title\">{}</span>",
                 escape_html_in_scope(&example.anchor_id, &scope),
@@ -712,9 +706,12 @@ pub(crate) fn render_example_in_scope(
             output.push_str("</figure>\n");
             output.into_piece()
         }
-        Some(dialect) => {
+        CllRenderRequest::GitHub | CllRenderRequest::Discord => {
+            let dialect = target
+                .markdown_dialect()
+                .expect("a Markdown target has a dialect");
             let mut output = scope.buffer();
-            render::render_example_markdown_to(site, example, &mut output, link_mode, dialect);
+            render::render_example_markdown_to(site, example, &mut output, dialect);
             output.into_piece()
         }
     }
@@ -724,12 +721,11 @@ pub(crate) fn render_example_in_scope(
 #[ensures(true)]
 pub(crate) fn render_search_output_in_scope(
     output: &CuktaSearchOutput,
-    format: CllRenderFormat,
-    _link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     scope: &jbotci_budget::TextScope,
 ) -> String {
-    match format.markdown_dialect() {
-        None => {
+    match target {
+        CllRenderRequest::Html(_) => {
             let mut rendered = scope.buffer_with(&("<section class=\"cll-search-results\">"));
             if let Some(message) = &output.message {
                 rendered.push_str("<p>");
@@ -775,7 +771,10 @@ pub(crate) fn render_search_output_in_scope(
             rendered.push_str("</section>\n");
             rendered.into_piece()
         }
-        Some(dialect) => {
+        CllRenderRequest::GitHub | CllRenderRequest::Discord => {
+            let dialect = target
+                .markdown_dialect()
+                .expect("a Markdown target has a dialect");
             let mut rendered = scope.buffer();
             if let Some(message) = &output.message {
                 rendered.push_str(&render::dialect_text_in_scope(message, dialect, &scope));
@@ -1435,13 +1434,12 @@ mod tests {
             })
             .expect("some section teaches a rule that carries a status note");
 
-        let markdown = render_section(
+        let markdown = render_section(site, section, CllRenderRequest::GitHub);
+        let html = render_section(
             site,
             section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Plain,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
         );
-        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
 
         assert!(markdown.contains(&format!("> **{CLL_STATUS_NOTE_LABEL}.** ")));
         assert!(html.contains("<aside"));
@@ -1494,24 +1492,22 @@ mod tests {
             has_more: false,
         };
 
-        let markdown =
-            render_search_output(&output, CllRenderFormat::Markdown, CllLinkRenderMode::Plain);
-        let html = render_search_output(&output, CllRenderFormat::Html, CllLinkRenderMode::Plain);
+        let markdown = render_search_output(&output, CllRenderRequest::GitHub);
+        let html = render_search_output(&output, CllRenderRequest::Html(CllLinkRenderMode::Plain));
 
         assert!(markdown.contains(&format!("> **{CLL_STATUS_NOTE_LABEL}.** ")));
-        for (format, expected) in [
-            (CllRenderFormat::Markdown, &markdown),
-            (CllRenderFormat::Html, &html),
+        for (target, expected) in [
+            (CllRenderRequest::GitHub, &markdown),
+            (CllRenderRequest::Html(CllLinkRenderMode::Plain), &html),
         ] {
             let exact = jbotci_budget::ByteLimit::new(expected.len()).unwrap();
             assert_eq!(
-                render_search_output_with_limit(&output, format, CllLinkRenderMode::Plain, exact)
-                    .unwrap(),
+                render_search_output_with_limit(&output, target, exact).unwrap(),
                 *expected,
             );
             let small = jbotci_budget::ByteLimit::new(16).unwrap();
             assert!(matches!(
-                render_search_output_with_limit(&output, format, CllLinkRenderMode::Plain, small),
+                render_search_output_with_limit(&output, target, small),
                 Err(CllError::OutputLimit { .. }),
             ));
         }
@@ -1553,9 +1549,8 @@ mod tests {
             has_more: false,
         };
 
-        let markdown =
-            render_search_output(&output, CllRenderFormat::Markdown, CllLinkRenderMode::Plain);
-        let html = render_search_output(&output, CllRenderFormat::Html, CllLinkRenderMode::Plain);
+        let markdown = render_search_output(&output, CllRenderRequest::GitHub);
+        let html = render_search_output(&output, CllRenderRequest::Html(CllLinkRenderMode::Plain));
 
         assert!(!markdown.contains(CLL_STATUS_NOTE_LABEL));
         assert!(!html.contains(CLL_STATUS_NOTE_LABEL));
@@ -1600,13 +1595,13 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let edition = &site.metadata.edition;
 
-        let markdown = render_toc(site, CllRenderFormat::Markdown, CllLinkRenderMode::Plain);
+        let markdown = render_toc(site, CllRenderRequest::GitHub);
         assert!(markdown.starts_with(&format!("# {}\n", edition.title)));
         assert!(markdown.contains(&edition.version));
         assert!(markdown.contains(&edition.publisher));
         assert!(markdown.contains(&format!("Lineage: {}", edition.lineage())));
 
-        let html = render_toc(site, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let html = render_toc(site, CllRenderRequest::Html(CllLinkRenderMode::Web));
         assert!(html.contains(&escape_html(&edition.title)));
         assert!(html.contains(&escape_html(&edition.publisher)));
         assert!(html.contains("<h2>Table of Contents</h2>"));
@@ -1690,18 +1685,12 @@ mod tests {
             block,
             &mut block_markdown,
             0,
-            CllLinkRenderMode::Web,
             CllMarkdownDialect::GitHub,
         );
 
         assert_eq!(
             block_markdown,
-            render_example(
-                site,
-                example,
-                CllRenderFormat::Markdown,
-                CllLinkRenderMode::Web,
-            )
+            render_example(site, example, CllRenderRequest::GitHub,)
         );
     }
 
@@ -1726,12 +1715,7 @@ mod tests {
                 .unwrap_or_else(|| panic!("section {reference} should resolve"));
             let section =
                 cll_lookup_section(site, &section_id).expect("resolved section should exist");
-            let rendered = render_section(
-                site,
-                section,
-                CllRenderFormat::Markdown,
-                CllLinkRenderMode::Plain,
-            );
+            let rendered = render_section(site, section, CllRenderRequest::GitHub);
 
             assert!(
                 !rendered.contains("]("),
@@ -1763,8 +1747,7 @@ mod tests {
         let html = render_section(
             site,
             section,
-            CllRenderFormat::Html,
-            CllLinkRenderMode::Plain,
+            CllRenderRequest::Html(CllLinkRenderMode::Plain),
         );
 
         assert!(!html.contains("<a "), "{html}");
@@ -1772,8 +1755,8 @@ mod tests {
         assert!(html.contains("<table"), "{html}");
         assert!(html.contains(">mi<"), "{html}");
 
-        let toc = render_toc(site, CllRenderFormat::Html, CllLinkRenderMode::Plain);
-        let index = render_index(site, CllRenderFormat::Html, CllLinkRenderMode::Plain);
+        let toc = render_toc(site, CllRenderRequest::Html(CllLinkRenderMode::Plain));
+        let index = render_index(site, CllRenderRequest::Html(CllLinkRenderMode::Plain));
         assert!(!toc.contains("<a "), "{toc}");
         assert!(!index.contains("<a "), "{index}");
     }
@@ -1833,14 +1816,7 @@ mod tests {
                 text: "linked content".to_owned(),
             };
             let mut markdown = String::new();
-            render_block_markdown(
-                site,
-                &block,
-                &mut markdown,
-                0,
-                CllLinkRenderMode::Plain,
-                CllMarkdownDialect::GitHub,
-            );
+            render_block_markdown(site, &block, &mut markdown, 0, CllMarkdownDialect::GitHub);
             let html = render_block_html(site, &block, CllLinkRenderMode::Plain);
 
             assert_eq!(markdown.contains("*linked content*"), keeps_content);
@@ -1853,46 +1829,56 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn web_markdown_matches_reviewed_section_hashes() {
+    fn reviewed_sections_keep_pack_chunk_inputs() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        // These hashes pin the reviewed v1.3.7 source. The grammar rules keep
-        // their subsection pages. Section 9.6 now uses the xorlo descriptors.
+        // The published packs hash each search chunk's label and the document
+        // built from its text. These hashes pin that label and that text for
+        // the reviewed sections. They do not pin Markdown.
         let cases = [
             (
                 "1.8",
-                "18f959f1d46bccde09d57f5084dfe7b2045c74353b1a598f11a6ad3a7b035b90",
+                "e1c65317fc1bea35fe097d9eed51576a26561f5e0f8b535a472aa2fd2c8412fe",
             ),
             (
                 "2.1",
-                "023795f7d45976303dd5d8d29eedfdeab602372060e16f1e63eeed45cae63e56",
+                "41c849e2ebb3577a947386393da252690906870bb22fe4d1e334a579e25ffd8a",
             ),
             (
                 "9.6",
-                "4a5968dc7f4bb59e72d6c87723d106977b036200051051d815861db61c95d067",
+                "3403aad2f6d8c5ca1429dff29430abfb05b4d226d1d866b96adc4a2f9ce2e6d0",
             ),
             (
                 "section-EBNF",
-                "8be62e2e13a915ecb445091193aebc71c41b48370b74a6739655080889994d51",
+                "c667ade1bce0613ab4101fd578bb4443e33e939f5cd79de19198952136706064",
             ),
             (
                 "ebnf-text",
-                "f197c0d57ebac2e2c51daffd4ad7292b58cd0dd97c5e8d31bca08234b388d687",
+                "05eb5662d0ab5d57dd5d527fe515f251e6f2254cd8ead2d188c456dce0975264",
             ),
         ];
 
         for (reference, expected_sha256) in cases {
             let section_id = cll_resolve_section_reference(site, reference)
                 .unwrap_or_else(|| panic!("section {reference} should resolve"));
-            let section =
-                cll_lookup_section(site, &section_id).expect("resolved section should exist");
-            let rendered = render_section(
-                site,
-                section,
-                CllRenderFormat::Markdown,
-                CllLinkRenderMode::Web,
+            let mut hasher = Sha256::new();
+            let mut saw_chunk = false;
+            for chunk in site
+                .search_chunks
+                .iter()
+                .filter(|chunk| chunk.section_id == section_id)
+            {
+                saw_chunk = true;
+                hasher.update(chunk.label.as_bytes());
+                hasher.update([0]);
+                hasher.update(chunk.text.as_bytes());
+                hasher.update([0]);
+            }
+            assert!(saw_chunk, "{reference}");
+            assert_eq!(
+                format!("{:x}", hasher.finalize()),
+                expected_sha256,
+                "{reference}"
             );
-
-            assert_eq!(sha256_hex(&rendered), expected_sha256, "{reference}");
         }
     }
 
@@ -1931,8 +1917,11 @@ mod tests {
                 .unwrap_or_else(|| panic!("section {reference} should resolve"));
             let section =
                 cll_lookup_section(site, &section_id).expect("resolved section should exist");
-            let rendered =
-                render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
+            let rendered = render_section(
+                site,
+                section,
+                CllRenderRequest::Html(CllLinkRenderMode::Web),
+            );
 
             assert_eq!(sha256_hex(&rendered), expected_sha256, "{reference}");
         }
@@ -2077,7 +2066,7 @@ mod tests {
     fn ebnf_subsection_links_resolve_to_the_pages_that_define_the_rules() {
         let site = embedded_cll_site().expect("embedded CLL");
         let text = &site.sections_by_id["ebnf-text"];
-        let html = render_section(site, text, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let html = render_section(site, text, CllRenderRequest::Html(CllLinkRenderMode::Web));
         assert!(
             html.contains("section/ebnf-statements#ebnf-rule-statement"),
             "{html}"
@@ -2085,7 +2074,11 @@ mod tests {
         assert!(html.contains("#ebnf-rule-text-1"), "{html}");
         let all_html = ebnf_sections(site)
             .map(|section| {
-                render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web)
+                render_section(
+                    site,
+                    section,
+                    CllRenderRequest::Html(CllLinkRenderMode::Web),
+                )
             })
             .collect::<String>();
         for section in ebnf_sections(site) {
@@ -2112,8 +2105,7 @@ mod tests {
                                 let rendered = render_section(
                                     site,
                                     target,
-                                    CllRenderFormat::Html,
-                                    CllLinkRenderMode::Web,
+                                    CllRenderRequest::Html(CllLinkRenderMode::Web),
                                 );
                                 assert!(
                                     rendered.contains(&format!("id=\"{anchor}\"")),
@@ -2352,8 +2344,7 @@ mod tests {
                 &CuktaRequest::Section {
                     reference: reference.to_owned(),
                 },
-                CllRenderFormat::Markdown,
-                CllLinkRenderMode::Plain,
+                CllRenderRequest::GitHub,
             )
             .unwrap_or_else(|error| panic!("{reference} should render through cukta: {error}"));
             assert!(
@@ -2520,12 +2511,7 @@ mod tests {
 
         // cukta renders the front matter above the first section, exactly where
         // the web shows it, and searching finds it under that section.
-        let rendered = render_section(
-            site,
-            first_section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Plain,
-        );
+        let rendered = render_section(site, first_section, CllRenderRequest::GitHub);
         assert!(
             rendered.starts_with("# The North Wind and the Sun\n\nThis chrestomathy reprints"),
             "{rendered}"
@@ -2590,12 +2576,7 @@ mod tests {
         // colojban 1.3.5, so that reference carries its number.
         let rafsi_for_fuivla = cll_lookup_section(site, "section-rafsi-fuhivla")
             .expect("chapter 4's fu'ivla rafsi section should exist");
-        let rendered = render_section(
-            site,
-            rafsi_for_fuivla,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Plain,
-        );
+        let rendered = render_section(site, rafsi_for_fuivla, CllRenderRequest::GitHub);
         assert!(
             rendered.contains("PEG word-form grammar in 21.2. PEG word-form grammar"),
             "{rendered}"
@@ -2812,12 +2793,15 @@ mod tests {
         let rendered_cross_reference = render_section(
             site,
             cross_reference,
-            CllRenderFormat::Html,
-            CllLinkRenderMode::Web,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
         );
         let rendered_ebnf = ebnf_sections(site)
             .map(|section| {
-                render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web)
+                render_section(
+                    site,
+                    section,
+                    CllRenderRequest::Html(CllLinkRenderMode::Web),
+                )
             })
             .collect::<String>();
         for anchor_id in referenced_anchor_ids {
@@ -2880,12 +2864,7 @@ mod tests {
     fn xrefs_render_as_reference_labels_not_xml_ids() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, "section-bridi").expect("section should exist");
-        let rendered = render_section(
-            site,
-            section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Web,
-        );
+        let rendered = render_section(site, section, CllRenderRequest::GitHub);
         assert!(rendered.contains("Example 2.1"));
         assert!(rendered.contains("John is the father of Sam."));
         assert!(!rendered.contains("[example-random-id-qIuj]"));
@@ -2898,18 +2877,11 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section =
             cll_lookup_section(site, "section-what-is-cll").expect("section should exist");
-        let rendered = render_section(
-            site,
-            section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Web,
-        );
+        let rendered = render_section(site, section, CllRenderRequest::GitHub);
 
-        assert!(
-            rendered
-                .contains("[Chapter 21](section/section-grammars-introduction#chapter-grammars)")
-        );
-        assert!(rendered.contains("[Chapter 2](section/section-bridi#chapter-tour)"));
+        assert!(rendered.contains("Chapter 21"));
+        assert!(rendered.contains("Chapter 2"));
+        assert!(!rendered.contains("]("));
         assert!(!rendered.contains("[chapter-grammars]"));
         assert!(!rendered.contains("[chapter-tour]"));
     }
@@ -2956,7 +2928,11 @@ mod tests {
             ]
         );
 
-        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let html = render_section(
+            site,
+            section,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
+        );
         assert!(!html.contains("<th>cmavo</th>"));
         assert!(html.contains(
             "<tr><td><a href=\"../vlacku/coi\" class=\"spa-cll-link spa-cll-link-dictionary\">coi</a></td><td>greetings</td></tr>"
@@ -2965,18 +2941,12 @@ mod tests {
             "<tr><td><a href=\"../vlacku/ju'i\" class=\"spa-cll-link spa-cll-link-dictionary\">ju'i</a></td><td>[<a href=\"../vlacku/jundi\" class=\"spa-cll-link spa-cll-link-dictionary\">jundi</a>]</td><td>attention</td><td>at ease</td><td>ignore me/us</td></tr>"
         ));
 
-        let markdown = render_section(
-            site,
-            section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Web,
-        );
+        let markdown = render_section(site, section, CllRenderRequest::GitHub);
         assert!(!markdown.contains("| cmavo |"));
         assert!(!markdown.contains("| --- |"));
-        assert!(markdown.contains("[coi](../vlacku/coi) | greetings\n\n"));
-        assert!(markdown.contains(
-            "[ju'i](../vlacku/ju'i) | [[jundi](../vlacku/jundi)] | attention | at ease | ignore me/us\n\n"
-        ));
+        assert!(markdown.contains("coi | greetings\n\n"));
+        assert!(markdown.contains("ju'i | [jundi] | attention | at ease | ignore me/us\n\n"));
+        assert!(!markdown.contains("]("));
 
         let plain_text = blocks_plain_text(site, &section.blocks);
         assert!(plain_text.contains("cmavo selma'o coi greetings"));
@@ -3010,15 +2980,14 @@ mod tests {
             ]
         );
 
-        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
-        assert!(html.contains("<th>cmavo</th><th>gismu</th><th>comments</th>"));
-
-        let markdown = render_section(
+        let html = render_section(
             site,
             section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Web,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
         );
+        assert!(html.contains("<th>cmavo</th><th>gismu</th><th>comments</th>"));
+
+        let markdown = render_section(site, section, CllRenderRequest::GitHub);
         assert!(markdown.contains("| cmavo | gismu | comments |"));
         assert!(markdown.contains("| --- | --- | --- |"));
     }
@@ -3063,7 +3032,11 @@ mod tests {
                 } if id == "NAI" && title.contains("selma'o NAI")
             )
         }));
-        let rendered = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let rendered = render_section(
+            site,
+            section,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
+        );
         assert!(rendered.contains("id=\"NAI\""));
         assert!(rendered.contains("selma'o NAI"));
         assert!(section.blocks.iter().any(|block| {
@@ -3091,8 +3064,12 @@ mod tests {
                 .all(|href| href.starts_with("../gentufa?text=") && !href.contains("dialect="))
         );
         assert!(
-            render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web,)
-                .contains("class=\"cll-parse-example spa-cll-link spa-cll-link-parse\"")
+            render_section(
+                site,
+                section,
+                CllRenderRequest::Html(CllLinkRenderMode::Web),
+            )
+            .contains("class=\"cll-parse-example spa-cll-link spa-cll-link-parse\"")
         );
     }
 
@@ -3110,8 +3087,12 @@ mod tests {
         assert!(parse_href.contains("ba%27e%20mi%20viska%20la%20.djordj."));
         assert!(!parse_href.contains("dialect="));
         assert!(
-            render_example(site, example, CllRenderFormat::Html, CllLinkRenderMode::Web,)
-                .contains("class=\"cll-parse-example spa-cll-link spa-cll-link-parse\"")
+            render_example(
+                site,
+                example,
+                CllRenderRequest::Html(CllLinkRenderMode::Web),
+            )
+            .contains("class=\"cll-parse-example spa-cll-link spa-cll-link-parse\"")
         );
     }
 
@@ -3123,19 +3104,19 @@ mod tests {
         let section = cll_lookup_section(site, "section-quantifier-grouping")
             .expect("quantifier grouping section should exist");
 
-        let markdown = render_section(
+        let markdown = render_section(site, section, CllRenderRequest::GitHub);
+        assert!(markdown.contains("### Example 16.45"));
+        assert!(markdown.contains("jbo: - ci"));
+        assert!(markdown.contains("jbo: nu'i"));
+        assert!(markdown.contains("gloss: - Three dogs [plus] two men, - - bite."));
+        assert!(!markdown.contains("| - ci"));
+        assert!(!markdown.contains("]("));
+
+        let html = render_section(
             site,
             section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Web,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
         );
-        assert!(markdown.contains("### Example 16.45"));
-        assert!(markdown.contains("jbo: - [ci](../vlacku/ci)"));
-        assert!(markdown.contains("jbo: [nu'i](../vlacku/nu'i)"));
-        assert!(markdown.contains("gloss: - Three dogs [plus] two men, - - bite."));
-        assert!(!markdown.contains("| - [ci](../vlacku/ci)"));
-
-        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
         let example_start = html
             .find("Example 16.45")
             .expect("Example 16.45 should render in HTML");
@@ -3173,19 +3154,18 @@ mod tests {
 
         assert_eq!(code_text, expected);
 
-        let markdown = render_section(
-            site,
-            section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Web,
-        );
+        let markdown = render_section(site, section, CllRenderRequest::GitHub);
         assert!(markdown.contains(&format!("```\n{expected}\n```")));
         assert!(
             !markdown
                 .contains("Affirmations (positive) Negations (negative) |-----------|-----------|")
         );
 
-        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let html = render_section(
+            site,
+            section,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
+        );
         assert!(html.contains(&format!(
             "<pre class=\"cll-code\"><code>{expected}</code></pre>"
         )));
@@ -3200,18 +3180,14 @@ mod tests {
         assert!(!section.plain_text.contains(".alf."));
         assert!(!blocks_plain_text(site, &section.blocks).contains(".alf."));
         assert!(
-            !render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web,)
-                .contains(".alf.")
-        );
-        assert!(
             !render_section(
                 site,
                 section,
-                CllRenderFormat::Markdown,
-                CllLinkRenderMode::Web,
+                CllRenderRequest::Html(CllLinkRenderMode::Web),
             )
             .contains(".alf.")
         );
+        assert!(!render_section(site, section, CllRenderRequest::GitHub,).contains(".alf."));
         assert!(
             site.search_chunks
                 .iter()
@@ -3304,7 +3280,11 @@ mod tests {
         assert!(body_rows[7][0].parse_href.is_some());
         assert!(body_rows[8][0].parse_href.is_none());
 
-        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        let html = render_section(
+            site,
+            section,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
+        );
         assert!(html.contains("cll-parse-section"));
         assert!(html.contains("cll-parse-group-start"));
         assert!(html.contains("cll-parse-group-continuation"));
@@ -3889,7 +3869,8 @@ mod tests {
         assert_eq!(inline_plain_text(paragraph_inlines(&linked)), "[ jundi ]");
         assert_eq!(cmavo_cell_plain_text(paragraph_inlines(&linked)), "[jundi]");
         let markdown = github_markdown(site, &linked);
-        assert_eq!(markdown, "[[jundi](../vlacku/jundi)]\n\n");
+        assert_eq!(markdown, "[jundi]\n\n");
+        assert!(!markdown.contains("]("));
         assert!(!markdown.contains("\\["));
         assert!(!markdown.contains("\\]"));
 
@@ -3993,24 +3974,14 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let vocative = cll_lookup_section(site, "section-vocative-scales")
             .expect("section 13.14 should exist");
-        let vocative_plain = render_section(
-            site,
-            vocative,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Plain,
-        );
+        let vocative_plain = render_section(site, vocative, CllRenderRequest::GitHub);
         assert!(vocative_plain.contains("[jundi]"));
         assert!(!vocative_plain.contains("\\[jundi\\]"));
         assert!(!vocative_plain.contains("](../vlacku/jundi)"));
 
         let content_words = cll_lookup_section(site, "section-content-words-brivla")
             .expect("section 5.1 should exist");
-        let content_words_plain = render_section(
-            site,
-            content_words,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Plain,
-        );
+        let content_words_plain = render_section(site, content_words, CllRenderRequest::GitHub);
         assert!(content_words_plain.contains("| You | are-a-mother-of | me |"));
         assert!(content_words_plain.contains("| That | is-a-(boat)-schooner. |"));
         assert!(!content_words_plain.contains("\\["));
@@ -4018,12 +3989,8 @@ mod tests {
 
         let place_conversion = cll_lookup_section(site, "section-place-conversion")
             .expect("section 5.11 should exist");
-        let place_conversion_plain = render_section(
-            site,
-            place_conversion,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Plain,
-        );
+        let place_conversion_plain =
+            render_section(site, place_conversion, CllRenderRequest::GitHub);
         assert!(place_conversion_plain.contains("gloss: The market - is-a-[swap--x~1~/x~2~]"));
         assert!(
             place_conversion_plain
@@ -4034,12 +4001,7 @@ mod tests {
 
         let mekso = cll_lookup_section(site, "section-connectives-within-mekso")
             .expect("section 18.17 should exist");
-        let mekso_plain = render_section(
-            site,
-            mekso,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Plain,
-        );
+        let mekso_plain = render_section(site, mekso, CllRenderRequest::GitHub);
         assert!(mekso_plain.contains(
             "| then | the-number | x | equals | the-number | [ | the-negation-of( | b | ) |"
         ));
@@ -4096,13 +4058,12 @@ mod tests {
             }
         }
 
-        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
-        let markdown = render_section(
+        let html = render_section(
             site,
             section,
-            CllRenderFormat::Markdown,
-            CllLinkRenderMode::Web,
+            CllRenderRequest::Html(CllLinkRenderMode::Web),
         );
+        let markdown = render_section(site, section, CllRenderRequest::GitHub);
         for word in [
             "ba'i", "basti", "bai", "bapli", "do'e", "ra'a", "srana", "ra'i", "krasi",
         ] {
@@ -4110,9 +4071,10 @@ mod tests {
                 "<a href=\"../vlacku/{word}\" class=\"spa-cll-link spa-cll-link-dictionary\">{word}</a>"
             );
             assert!(html.contains(&anchor), "{word} html link");
+            assert!(markdown.contains(word), "{word} markdown text");
             assert!(
-                markdown.contains(&format!("[{word}](../vlacku/{word})")),
-                "{word} markdown link"
+                !markdown.contains(&format!("[{word}](")),
+                "{word} markdown has no link"
             );
         }
         assert!(html.contains("<td><a href=\"../vlacku/do'e\" class=\"spa-cll-link spa-cll-link-dictionary\">do'e</a></td><td>-----</td>"));
@@ -4403,14 +4365,7 @@ mod tests {
     #[ensures(true)]
     fn github_markdown(site: &CllSite, block: &CllBlock) -> String {
         let mut markdown = String::new();
-        render_block_markdown(
-            site,
-            block,
-            &mut markdown,
-            0,
-            CllLinkRenderMode::Web,
-            CllMarkdownDialect::GitHub,
-        );
+        render_block_markdown(site, block, &mut markdown, 0, CllMarkdownDialect::GitHub);
         markdown
     }
 
@@ -4657,12 +4612,12 @@ mod tests {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRenderMode) -> String {
+pub fn render_toc(site: &CllSite, target: CllRenderRequest) -> String {
     let scope = jbotci_budget::TextScope::new(
         jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
     scope
-        .finish(render_toc_in_scope(site, format, link_mode, &scope))
+        .finish(render_toc_in_scope(site, target, &scope))
         .expect("unrestricted CLL rendering")
 }
 
@@ -4670,28 +4625,23 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
 pub fn render_toc_with_limit(
     site: &CllSite,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     limit: jbotci_budget::ByteLimit,
 ) -> Result<String, CllError> {
     let scope = jbotci_budget::TextScope::new(limit);
     scope
-        .finish(render_toc_in_scope(site, format, link_mode, &scope))
+        .finish(render_toc_in_scope(site, target, &scope))
         .map_err(|_| CllError::OutputLimit { limit })
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn render_index(
-    site: &CllSite,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
-) -> String {
+pub fn render_index(site: &CllSite, target: CllRenderRequest) -> String {
     let scope = jbotci_budget::TextScope::new(
         jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
     scope
-        .finish(render_index_in_scope(site, format, link_mode, &scope))
+        .finish(render_index_in_scope(site, target, &scope))
         .expect("unrestricted CLL rendering")
 }
 
@@ -4699,31 +4649,23 @@ pub fn render_index(
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
 pub fn render_index_with_limit(
     site: &CllSite,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     limit: jbotci_budget::ByteLimit,
 ) -> Result<String, CllError> {
     let scope = jbotci_budget::TextScope::new(limit);
     scope
-        .finish(render_index_in_scope(site, format, link_mode, &scope))
+        .finish(render_index_in_scope(site, target, &scope))
         .map_err(|_| CllError::OutputLimit { limit })
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn render_section(
-    site: &CllSite,
-    section: &CllSection,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
-) -> String {
+pub fn render_section(site: &CllSite, section: &CllSection, target: CllRenderRequest) -> String {
     let scope = jbotci_budget::TextScope::new(
         jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
     scope
-        .finish(render_section_in_scope(
-            site, section, format, link_mode, &scope,
-        ))
+        .finish(render_section_in_scope(site, section, target, &scope))
         .expect("unrestricted CLL rendering")
 }
 
@@ -4732,33 +4674,23 @@ pub fn render_section(
 pub fn render_section_with_limit(
     site: &CllSite,
     section: &CllSection,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     limit: jbotci_budget::ByteLimit,
 ) -> Result<String, CllError> {
     let scope = jbotci_budget::TextScope::new(limit);
     scope
-        .finish(render_section_in_scope(
-            site, section, format, link_mode, &scope,
-        ))
+        .finish(render_section_in_scope(site, section, target, &scope))
         .map_err(|_| CllError::OutputLimit { limit })
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn render_example(
-    site: &CllSite,
-    example: &CllExample,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
-) -> String {
+pub fn render_example(site: &CllSite, example: &CllExample, target: CllRenderRequest) -> String {
     let scope = jbotci_budget::TextScope::new(
         jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
     scope
-        .finish(render_example_in_scope(
-            site, example, format, link_mode, &scope,
-        ))
+        .finish(render_example_in_scope(site, example, target, &scope))
         .expect("unrestricted CLL rendering")
 }
 
@@ -4767,32 +4699,23 @@ pub fn render_example(
 pub fn render_example_with_limit(
     site: &CllSite,
     example: &CllExample,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     limit: jbotci_budget::ByteLimit,
 ) -> Result<String, CllError> {
     let scope = jbotci_budget::TextScope::new(limit);
     scope
-        .finish(render_example_in_scope(
-            site, example, format, link_mode, &scope,
-        ))
+        .finish(render_example_in_scope(site, example, target, &scope))
         .map_err(|_| CllError::OutputLimit { limit })
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn render_search_output(
-    output: &CuktaSearchOutput,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
-) -> String {
+pub fn render_search_output(output: &CuktaSearchOutput, target: CllRenderRequest) -> String {
     let scope = jbotci_budget::TextScope::new(
         jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
     scope
-        .finish(render_search_output_in_scope(
-            output, format, link_mode, &scope,
-        ))
+        .finish(render_search_output_in_scope(output, target, &scope))
         .expect("unrestricted CLL rendering")
 }
 
@@ -4800,15 +4723,12 @@ pub fn render_search_output(
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
 pub fn render_search_output_with_limit(
     output: &CuktaSearchOutput,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     limit: jbotci_budget::ByteLimit,
 ) -> Result<String, CllError> {
     let scope = jbotci_budget::TextScope::new(limit);
     scope
-        .finish(render_search_output_in_scope(
-            output, format, link_mode, &scope,
-        ))
+        .finish(render_search_output_in_scope(output, target, &scope))
         .map_err(|_| CllError::OutputLimit { limit })
 }
 
@@ -4817,14 +4737,12 @@ pub fn render_search_output_with_limit(
 pub fn render_cukta_request(
     site: &CllSite,
     request: &CuktaRequest,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
 ) -> Result<String, CllError> {
     render_cukta_request_with_limit(
         site,
         request,
-        format,
-        link_mode,
+        target,
         jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     )
 }
@@ -4833,12 +4751,11 @@ pub fn render_cukta_request(
 pub fn render_cukta_request_with_limit(
     site: &CllSite,
     request: &CuktaRequest,
-    format: CllRenderFormat,
-    link_mode: CllLinkRenderMode,
+    target: CllRenderRequest,
     limit: jbotci_budget::ByteLimit,
 ) -> Result<String, CllError> {
     let scope = jbotci_budget::TextScope::new(limit);
-    let output = render_cukta_request_in_scope(site, request, format, link_mode, &scope)?;
+    let output = render_cukta_request_in_scope(site, request, target, &scope)?;
     scope
         .finish(output)
         .map_err(|_| CllError::OutputLimit { limit })

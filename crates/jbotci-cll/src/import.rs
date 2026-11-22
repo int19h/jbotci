@@ -5284,41 +5284,14 @@ mod tests {
         assert!(!html_plain.contains("<a "), "{html_plain}");
         assert!(!html_plain.contains("roi nai"), "{html_plain}");
 
-        let mut web = String::new();
-        render::render_block_markdown(
-            site,
-            block,
-            &mut web,
-            0,
-            CllLinkRenderMode::Web,
-            CllMarkdownDialect::GitHub,
-        );
-        assert!(
-            web.contains("[roi](../vlacku/roi)[nai](../vlacku/nai)"),
-            "{web}"
-        );
         let mut plain = String::new();
-        render::render_block_markdown(
-            site,
-            block,
-            &mut plain,
-            0,
-            CllLinkRenderMode::Plain,
-            CllMarkdownDialect::GitHub,
-        );
+        render::render_block_markdown(site, block, &mut plain, 0, CllMarkdownDialect::GitHub);
         assert!(plain.contains("roinai"), "{plain}");
         assert!(!plain.contains("]("), "{plain}");
         assert!(!plain.contains("roi nai"), "{plain}");
 
         let mut discord = String::new();
-        render::render_block_markdown(
-            site,
-            block,
-            &mut discord,
-            0,
-            CllLinkRenderMode::Plain,
-            CllMarkdownDialect::Discord,
-        );
+        render::render_block_markdown(site, block, &mut discord, 0, CllMarkdownDialect::Discord);
         assert!(discord.contains("roinai"), "{discord}");
         assert!(!discord.contains("]("), "{discord}");
 
@@ -5424,9 +5397,7 @@ mod tests {
                 "roinai",
                 format!("{}{}", link("roi"), link("nai")),
                 "roinai".to_owned(),
-                format!("{}{}", md_link("roi"), md_link("nai")),
                 "roinai".to_owned(),
-                format!("{}{}", md_link("roi"), md_link("nai")),
                 "roinai".to_owned(),
             ),
             (
@@ -5436,8 +5407,6 @@ mod tests {
                 format!("{}{}", span("roi"), span("nai")),
                 format!("{}{}", span("roi"), span("nai")),
                 "roinai".to_owned(),
-                "roinai".to_owned(),
-                "*roinai*".to_owned(),
                 "*roinai*".to_owned(),
             ),
             (
@@ -5446,9 +5415,7 @@ mod tests {
                 "roinai",
                 format!("{}{}", link("roi"), span("nai")),
                 format!("roi{}", span("nai")),
-                format!("{}nai", md_link("roi")),
                 "roinai".to_owned(),
-                format!("{}*nai*", md_link("roi")),
                 "roinai".to_owned(),
             ),
             (
@@ -5457,9 +5424,7 @@ mod tests {
                 "roinaimi,o",
                 format!("{}{}{}", link("roi"), link("nai"), span("mi,o")),
                 format!("roinai{}", span("mi,o")),
-                format!("{}{}mi,o", md_link("roi"), md_link("nai")),
                 "roinaimi,o".to_owned(),
-                format!("{}{}*mi,o*", md_link("roi"), md_link("nai")),
                 "roinaimi,o".to_owned(),
             ),
             (
@@ -5468,9 +5433,7 @@ mod tests {
                 "roimi,o",
                 format!("{}{}", link("roi"), span("mi,o")),
                 format!("roi{}", span("mi,o")),
-                format!("{}mi,o", md_link("roi")),
                 "roimi,o".to_owned(),
-                format!("{}*mi,o*", md_link("roi")),
                 "roimi,o".to_owned(),
             ),
             (
@@ -5479,9 +5442,7 @@ mod tests {
                 "roinai",
                 format!("{}{}", link("roi"), span("nai")),
                 format!("roi{}", span("nai")),
-                format!("{}nai", md_link("roi")),
                 "roinai".to_owned(),
-                format!("{}*nai*", md_link("roi")),
                 "roinai".to_owned(),
             ),
             (
@@ -5490,13 +5451,7 @@ mod tests {
                 "roi[x](https://example.invalid)",
                 format!("{}{}", link("roi"), span("[x](https://example.invalid)")),
                 format!("roi{}", span("[x](https://example.invalid)")),
-                format!("{}{}", md_link("roi"), r"\[x\]\(https://example.invalid\)"),
                 format!("roi{}", r"\[x\]\(https://example.invalid\)"),
-                format!(
-                    "{}*{}*",
-                    md_link("roi"),
-                    r"\[x\]\(https\://example.invalid\)"
-                ),
                 format!("roi{}", r"\[x\]\(https\://example.invalid\)"),
             ),
             (
@@ -5512,32 +5467,11 @@ mod tests {
                     "roi{}",
                     span("&lt;a href=&quot;https://example.invalid&quot;&gt;")
                 ),
-                format!(
-                    "{}{}",
-                    md_link("roi"),
-                    r#"\<a href="https://example.invalid"\>"#
-                ),
                 format!("roi{}", r#"\<a href="https://example.invalid"\>"#),
-                format!(
-                    "{}*{}*",
-                    md_link("roi"),
-                    r#"\<a href="https\://example.invalid"\>"#
-                ),
                 format!("roi{}", r#"\<a href="https\://example.invalid"\>"#),
             ),
         ];
-        for (
-            name,
-            cmavo,
-            plain,
-            html_web,
-            html_plain,
-            github_web,
-            github_plain,
-            discord_web,
-            discord_plain,
-        ) in cases
-        {
+        for (name, cmavo, plain, html_web, html_plain, github, discord) in cases {
             for header in [false, true] {
                 let block = cmavo_list_with_gloss(cmavo, header);
                 let CllBlock::CmavoList { rows, .. } = &block else {
@@ -5561,70 +5495,30 @@ mod tests {
                     render::render_block_html(site, &block, CllLinkRenderMode::Plain);
                 assert_html_cell(&html_web_text, header, &html_web, name, where_);
                 assert_html_cell(&html_plain_text, header, &html_plain, name, where_);
+                let github_text = markdown_of(site, &block, CllMarkdownDialect::GitHub);
                 assert_eq!(
-                    markdown_of(
-                        site,
-                        &block,
-                        CllLinkRenderMode::Web,
-                        CllMarkdownDialect::GitHub
-                    ),
-                    github_list(header, &github_web),
-                    "{name} github web {where_}"
+                    github_text,
+                    github_list(header, &github),
+                    "{name} github {where_}"
                 );
-                assert_eq!(
-                    markdown_of(
-                        site,
-                        &block,
-                        CllLinkRenderMode::Plain,
-                        CllMarkdownDialect::GitHub
-                    ),
-                    github_list(header, &github_plain),
-                    "{name} github plain {where_}"
-                );
-                let discord_web_text = markdown_of(
-                    site,
-                    &block,
-                    CllLinkRenderMode::Web,
-                    CllMarkdownDialect::Discord,
-                );
-                let discord_plain_text = markdown_of(
-                    site,
-                    &block,
-                    CllLinkRenderMode::Plain,
-                    CllMarkdownDialect::Discord,
-                );
+                assert!(!github_text.contains("]("), "{name} {github_text}");
+                let discord_text = markdown_of(site, &block, CllMarkdownDialect::Discord);
                 if header {
                     let fenced = format!("```\ncmavo | gloss\n{plain} | never\n```\n\n");
-                    assert_eq!(discord_web_text, fenced, "{name} discord web header");
-                    assert_eq!(discord_plain_text, fenced, "{name} discord plain header");
+                    assert_eq!(discord_text, fenced, "{name} discord header");
                     assert!(!fenced.contains('*'), "{name}");
                     if !plain.contains("](") {
                         assert!(!fenced.contains("]("), "{name}");
                     }
                 } else {
                     assert_eq!(
-                        discord_web_text,
-                        format!("{discord_web} · never\n\n"),
-                        "{name} discord web"
+                        discord_text,
+                        format!("{discord} · never\n\n"),
+                        "{name} discord"
                     );
-                    assert_eq!(
-                        discord_plain_text,
-                        format!("{discord_plain} · never\n\n"),
-                        "{name} discord plain"
-                    );
-                    assert!(
-                        !discord_web_text.contains("*roi**nai*"),
-                        "{discord_web_text}"
-                    );
-                    assert!(
-                        !discord_plain_text.contains("*roi**nai*"),
-                        "{discord_plain_text}"
-                    );
-                    assert!(!discord_web_text.contains("roi*nai*"), "{discord_web_text}");
-                    assert!(
-                        !discord_plain_text.contains("roi*nai*"),
-                        "{discord_plain_text}"
-                    );
+                    assert!(!discord_text.contains("*roi**nai*"), "{discord_text}");
+                    assert!(!discord_text.contains("roi*nai*"), "{discord_text}");
+                    assert!(!discord_text.contains("]("), "{discord_text}");
                 }
             }
         }
@@ -5652,17 +5546,9 @@ mod tests {
             "<cmavo><valsi>na'e</valsi><valsi></valsi><valsi>bo</valsi></cmavo>",
             false,
         );
-        let web = markdown_of(
-            &site,
-            &block,
-            CllLinkRenderMode::Web,
-            CllMarkdownDialect::GitHub,
-        );
-        assert_eq!(
-            web,
-            github_list(false, &format!("{}{}", md_link("na'e"), md_link("bo")))
-        );
-        assert!(!web.contains("](../vlacku/na'ebo)"), "{web}");
+        let rendered = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
+        assert_eq!(rendered, github_list(false, "na'ebo"));
+        assert!(!rendered.contains("]("), "{rendered}");
     }
 
     #[test]
@@ -5670,19 +5556,13 @@ mod tests {
     #[ensures(true)]
     fn a_dictionary_token_stays_plain_and_line_start_markup_stays_text() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        let ui = "[.ui](../vlacku/ui)";
-        let nai = md_link("nai");
-        let roi = md_link("roi");
-        let linked = format!("{ui}{nai}");
         let cases = [
             (
                 "linked pause",
                 "<cmavo><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
                 false,
                 ".uinai",
-                linked.clone(),
                 ".uinai".to_owned(),
-                linked.clone(),
                 ".uinai".to_owned(),
             ),
             (
@@ -5690,9 +5570,7 @@ mod tests {
                 "<cmavo><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
                 true,
                 ".uinai",
-                linked.clone(),
                 ".uinai".to_owned(),
-                String::new(),
                 String::new(),
             ),
             (
@@ -5701,8 +5579,6 @@ mod tests {
                 false,
                 ".uinai",
                 ".uinai".to_owned(),
-                ".uinai".to_owned(),
-                "*.uinai*".to_owned(),
                 "*.uinai*".to_owned(),
             ),
             (
@@ -5711,8 +5587,6 @@ mod tests {
                 true,
                 ".uinai",
                 ".uinai".to_owned(),
-                ".uinai".to_owned(),
-                String::new(),
                 String::new(),
             ),
             (
@@ -5720,9 +5594,7 @@ mod tests {
                 "<cmavo><valsi># a</valsi><valsi>roi</valsi></cmavo>",
                 false,
                 "# aroi",
-                format!("\\# a<!-- -->{roi}"),
                 r"\# aroi".to_owned(),
-                format!("*\\# a*{roi}"),
                 r"\# aroi".to_owned(),
             ),
             (
@@ -5730,9 +5602,7 @@ mod tests {
                 "<cmavo><valsi># a</valsi><valsi>roi</valsi></cmavo>",
                 true,
                 "# aroi",
-                format!("# a<!-- -->{roi}"),
                 "# aroi".to_owned(),
-                String::new(),
                 String::new(),
             ),
             (
@@ -5740,9 +5610,7 @@ mod tests {
                 "<cmavo><valsi>- a</valsi><valsi>roi</valsi></cmavo>",
                 false,
                 "- aroi",
-                format!("\\- a<!-- -->{roi}"),
                 r"\- aroi".to_owned(),
-                format!("*\\- a*{roi}"),
                 r"\- aroi".to_owned(),
             ),
             (
@@ -5750,9 +5618,7 @@ mod tests {
                 "<cmavo><valsi>- a</valsi><valsi>roi</valsi></cmavo>",
                 true,
                 "- aroi",
-                format!("- a<!-- -->{roi}"),
                 "- aroi".to_owned(),
-                String::new(),
                 String::new(),
             ),
             (
@@ -5760,9 +5626,7 @@ mod tests {
                 "<cmavo><valsi>roi</valsi><valsi>^2^</valsi></cmavo>",
                 false,
                 "roi^2^",
-                format!("{roi}\\^2\\^"),
                 r"roi\^2\^".to_owned(),
-                format!("{roi}*^2^*"),
                 "roi^2^".to_owned(),
             ),
             (
@@ -5770,9 +5634,7 @@ mod tests {
                 "<cmavo><valsi>roi</valsi><valsi>&amp;copy;</valsi></cmavo>",
                 false,
                 "roi&copy;",
-                format!("{roi}\\&copy;"),
                 r"roi\&copy;".to_owned(),
-                format!("{roi}*&copy;*"),
                 "roi&copy;".to_owned(),
             ),
             (
@@ -5780,9 +5642,7 @@ mod tests {
                 "<cmavo><valsi>1</valsi><valsi>. a</valsi><valsi>roi</valsi></cmavo>",
                 false,
                 "1. aroi",
-                format!("1\\. a<!-- -->{roi}"),
                 r"1\. aroi".to_owned(),
-                format!("*1\\. a*{roi}"),
                 r"1\. aroi".to_owned(),
             ),
             (
@@ -5790,9 +5650,7 @@ mod tests {
                 "<cmavo><valsi>1</valsi><valsi>. a</valsi><valsi>roi</valsi></cmavo>",
                 true,
                 "1. aroi",
-                format!("1. a<!-- -->{roi}"),
                 "1. aroi".to_owned(),
-                String::new(),
                 String::new(),
             ),
             (
@@ -5800,9 +5658,7 @@ mod tests {
                 "<cmavo><valsi>roi</valsi><valsi>-nai</valsi></cmavo>",
                 false,
                 "roi-nai",
-                format!("{roi}-nai"),
                 "roi-nai".to_owned(),
-                format!("{roi}*-nai*"),
                 "roi-nai".to_owned(),
             ),
             (
@@ -5811,8 +5667,6 @@ mod tests {
                 false,
                 "---",
                 r"\---".to_owned(),
-                r"\---".to_owned(),
-                "*---*".to_owned(),
                 "*---*".to_owned(),
             ),
             (
@@ -5821,8 +5675,6 @@ mod tests {
                 true,
                 "---",
                 "---".to_owned(),
-                "---".to_owned(),
-                String::new(),
                 String::new(),
             ),
             (
@@ -5830,9 +5682,7 @@ mod tests {
                 "<cmavo><valsi>#a</valsi><valsi>roi</valsi></cmavo>",
                 false,
                 "#aroi",
-                format!("#a<!-- -->{roi}"),
                 "#aroi".to_owned(),
-                format!("*#a*{roi}"),
                 "#aroi".to_owned(),
             ),
             (
@@ -5840,9 +5690,7 @@ mod tests {
                 "<cmavo><valsi>-nai</valsi><valsi>roi</valsi></cmavo>",
                 false,
                 "-nairoi",
-                format!("-nai<!-- -->{roi}"),
                 "-nairoi".to_owned(),
-                format!("*-nai*{roi}"),
                 "-nairoi".to_owned(),
             ),
             (
@@ -5851,22 +5699,10 @@ mod tests {
                 false,
                 "1.a",
                 "1.a".to_owned(),
-                "1.a".to_owned(),
-                "*1.a*".to_owned(),
                 "*1.a*".to_owned(),
             ),
         ];
-        for (
-            name,
-            cmavo,
-            header,
-            plain_word,
-            github_web,
-            github_plain,
-            discord_web,
-            discord_plain,
-        ) in cases
-        {
+        for (name, cmavo, header, plain_word, github, discord) in cases {
             let block = cmavo_list_with_gloss(cmavo, header);
             assert_eq!(
                 crate::cmavo_cell_plain_text(match &block {
@@ -5876,53 +5712,20 @@ mod tests {
                 plain_word,
                 "{name}"
             );
-            assert_eq!(
-                markdown_of(
-                    &site,
-                    &block,
-                    CllLinkRenderMode::Web,
-                    CllMarkdownDialect::GitHub
-                ),
-                github_list(header, &github_web),
-                "{name} github web"
-            );
-            assert_eq!(
-                markdown_of(
-                    &site,
-                    &block,
-                    CllLinkRenderMode::Plain,
-                    CllMarkdownDialect::GitHub
-                ),
-                github_list(header, &github_plain),
-                "{name} github plain"
-            );
-            let discord_web_text = markdown_of(
-                &site,
-                &block,
-                CllLinkRenderMode::Web,
-                CllMarkdownDialect::Discord,
-            );
-            let discord_plain_text = markdown_of(
-                &site,
-                &block,
-                CllLinkRenderMode::Plain,
-                CllMarkdownDialect::Discord,
-            );
+            let github_text = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
+            assert_eq!(github_text, github_list(header, &github), "{name} github");
+            assert!(!github_text.contains("]("), "{name} {github_text}");
+            let discord_text = markdown_of(&site, &block, CllMarkdownDialect::Discord);
             if header {
                 let fenced = format!("```\ncmavo | gloss\n{plain_word} | never\n```\n\n");
-                assert_eq!(discord_web_text, fenced, "{name} discord web");
-                assert_eq!(discord_plain_text, fenced, "{name} discord plain");
+                assert_eq!(discord_text, fenced, "{name} discord");
             } else {
                 assert_eq!(
-                    discord_web_text,
-                    format!("{discord_web} · never\n\n"),
-                    "{name} discord web"
+                    discord_text,
+                    format!("{discord} · never\n\n"),
+                    "{name} discord"
                 );
-                assert_eq!(
-                    discord_plain_text,
-                    format!("{discord_plain} · never\n\n"),
-                    "{name} discord plain"
-                );
+                assert!(!discord_text.contains("]("), "{discord_text}");
             }
         }
     }
@@ -5935,41 +5738,15 @@ mod tests {
         let cmavo = "<cmavo><valsi>-</valsi><valsi>--</valsi></cmavo>";
         for header in [false, true] {
             let block = cmavo_list_cell_only(cmavo, header);
-            let github_web = markdown_of(
-                &site,
-                &block,
-                CllLinkRenderMode::Web,
-                CllMarkdownDialect::GitHub,
-            );
-            let github_plain = markdown_of(
-                &site,
-                &block,
-                CllLinkRenderMode::Plain,
-                CllMarkdownDialect::GitHub,
-            );
-            let discord_web = markdown_of(
-                &site,
-                &block,
-                CllLinkRenderMode::Web,
-                CllMarkdownDialect::Discord,
-            );
-            let discord_plain = markdown_of(
-                &site,
-                &block,
-                CllLinkRenderMode::Plain,
-                CllMarkdownDialect::Discord,
-            );
+            let github = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
+            let discord = markdown_of(&site, &block, CllMarkdownDialect::Discord);
             if header {
-                assert_eq!(github_web, "| cmavo |\n| --- |\n| --- |\n\n");
-                assert_eq!(github_plain, "| cmavo |\n| --- |\n| --- |\n\n");
+                assert_eq!(github, "| cmavo |\n| --- |\n| --- |\n\n");
                 let fenced = "```\ncmavo\n---\n```\n\n";
-                assert_eq!(discord_web, fenced);
-                assert_eq!(discord_plain, fenced);
+                assert_eq!(discord, fenced);
             } else {
-                assert_eq!(github_web, "\\---\n\n");
-                assert_eq!(github_plain, "\\---\n\n");
-                assert_eq!(discord_web, "*---*\n\n");
-                assert_eq!(discord_plain, "*---*\n\n");
+                assert_eq!(github, "\\---\n\n");
+                assert_eq!(discord, "*---*\n\n");
             }
         }
     }
@@ -5990,19 +5767,9 @@ mod tests {
             }),
             "Title =="
         );
-        let github = markdown_of(
-            &site,
-            &block,
-            CllLinkRenderMode::Plain,
-            CllMarkdownDialect::GitHub,
-        );
+        let github = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
         assert_eq!(github, "Title == | never\n\n");
-        let discord = markdown_of(
-            &site,
-            &block,
-            CllLinkRenderMode::Plain,
-            CllMarkdownDialect::Discord,
-        );
+        let discord = markdown_of(&site, &block, CllMarkdownDialect::Discord);
         assert_eq!(discord, "*Title ==* · never\n\n");
     }
 
@@ -6018,12 +5785,6 @@ mod tests {
             "<cmavo-list>{head}<cmavo-entry>{cmavo}</cmavo-entry></cmavo-list>"
         ));
         blocks.into_iter().next().expect("one cmavo list")
-    }
-
-    #[requires(!word.is_empty())]
-    #[ensures(ret.contains(word))]
-    fn md_link(word: &str) -> String {
-        format!("[{word}](../vlacku/{word})")
     }
 
     #[requires(true)]
@@ -6059,14 +5820,9 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn markdown_of(
-        site: &CllSite,
-        block: &CllBlock,
-        link_mode: CllLinkRenderMode,
-        dialect: CllMarkdownDialect,
-    ) -> String {
+    fn markdown_of(site: &CllSite, block: &CllBlock, dialect: CllMarkdownDialect) -> String {
         let mut output = String::new();
-        render::render_block_markdown(site, block, &mut output, 0, link_mode, dialect);
+        render::render_block_markdown(site, block, &mut output, 0, dialect);
         output
     }
 

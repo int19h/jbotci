@@ -6,9 +6,9 @@
 //! GitHub escaper so markup in the run stays text. Discord's dialect has none
 //! of those, escapes ordinary text so the
 //! client cannot misread it as formatting, and folds tabular content into code
-//! blocks. Everything that is book semantics rather than syntax (which link
-//! kinds survive a route-free rendering, how a rule-status note is labelled,
-//! the example line kinds) is shared between the two.
+//! blocks. Both dialects omit link destinations. HTML rendering is separate
+//! and can keep them. Which link kinds survive, how a rule-status note is
+//! labelled, and the example line kinds are shared between the two dialects.
 
 use std::borrow::Cow;
 
@@ -48,7 +48,6 @@ pub(crate) fn render_block_markdown_to(
     block: &CllBlock,
     output: &mut jbotci_budget::TextBuffer,
     depth: usize,
-    link_mode: CllLinkRenderMode,
     dialect: CllMarkdownDialect,
 ) {
     let scope = output.scope();
@@ -62,9 +61,7 @@ pub(crate) fn render_block_markdown_to(
             let body = if inlines.is_empty() {
                 dialect_text_in_scope(text, dialect, &scope)
             } else {
-                Cow::Owned(render_inlines_markdown(
-                    site, inlines, link_mode, dialect, &scope,
-                ))
+                Cow::Owned(render_inlines_markdown(site, inlines, dialect, &scope))
             };
             if role.as_ref().is_some_and(CllParagraphRole::is_status_note) {
                 push_status_note_markdown(output, &body);
@@ -85,14 +82,7 @@ pub(crate) fn render_block_markdown_to(
                 output.push(' ');
                 let mut item_text = scope.buffer();
                 for block in item {
-                    render_block_markdown_to(
-                        site,
-                        block,
-                        &mut item_text,
-                        depth + 1,
-                        link_mode,
-                        dialect,
-                    );
+                    render_block_markdown_to(site, block, &mut item_text, depth + 1, dialect);
                 }
                 output.push_str(item_text.trim());
                 output.push('\n');
@@ -101,7 +91,7 @@ pub(crate) fn render_block_markdown_to(
         }
         CllBlock::Example { example_id } => {
             if let Some(example) = cll_lookup_example(site, example_id) {
-                render_example_markdown_to(site, example, output, link_mode, dialect);
+                render_example_markdown_to(site, example, output, dialect);
             }
         }
         CllBlock::Table {
@@ -110,20 +100,13 @@ pub(crate) fn render_block_markdown_to(
             body_rows,
             ..
         } => match dialect {
-            CllMarkdownDialect::GitHub => render_table_markdown(
-                site,
-                caption.as_deref(),
-                header_rows,
-                body_rows,
-                output,
-                link_mode,
-            ),
+            CllMarkdownDialect::GitHub => {
+                render_table_markdown(site, caption.as_deref(), header_rows, body_rows, output)
+            }
             CllMarkdownDialect::Discord => {
                 if let Some(caption) = caption {
                     output.push_str("**");
-                    output.push_str(&render_inlines_markdown(
-                        site, caption, link_mode, dialect, &scope,
-                    ));
+                    output.push_str(&render_inlines_markdown(site, caption, dialect, &scope));
                     output.push_str("**\n\n");
                 }
                 push_discord_rows(
@@ -143,7 +126,7 @@ pub(crate) fn render_block_markdown_to(
         },
         CllBlock::SimpleListTable { rows, .. } => match dialect {
             CllMarkdownDialect::GitHub => {
-                render_simple_list_table_markdown(site, rows, output, link_mode);
+                render_simple_list_table_markdown(site, rows, output);
             }
             CllMarkdownDialect::Discord => push_discord_rows(
                 rows.iter().map(|row| {
@@ -166,34 +149,20 @@ pub(crate) fn render_block_markdown_to(
         CllBlock::VariableList { entries, .. } => {
             for entry in entries {
                 output.push_str("**");
-                output.push_str(&render_inlines_markdown(
-                    site,
-                    &entry.term,
-                    link_mode,
-                    dialect,
-                    &scope,
-                ));
+                output.push_str(&render_inlines_markdown(site, &entry.term, dialect, &scope));
                 output.push_str("**\n\n");
                 for block in &entry.blocks {
-                    render_block_markdown_to(site, block, output, depth, link_mode, dialect);
+                    render_block_markdown_to(site, block, output, depth, dialect);
                 }
             }
         }
-        CllBlock::Media {
-            title, src, alt, ..
-        } => {
-            // Discord does not render Markdown images, so its dialect always
-            // carries the description.
-            if link_mode == CllLinkRenderMode::Web && dialect == CllMarkdownDialect::GitHub {
-                output.push_str(&scope.format(format_args!("![{}]({})\n\n", alt, src)));
-            } else {
-                push_text(output, alt, dialect);
-                output.push_str("\n\n");
-            }
+        CllBlock::Media { title, alt, .. } => {
+            // Neither dialect writes an image link. The description is the
+            // content a reader can use.
+            push_text(output, alt, dialect);
+            output.push_str("\n\n");
             if let Some(title) = title {
-                output.push_str(&render_inlines_markdown(
-                    site, title, link_mode, dialect, &scope,
-                ));
+                output.push_str(&render_inlines_markdown(site, title, dialect, &scope));
                 output.push_str("\n\n");
             }
         }
@@ -202,7 +171,7 @@ pub(crate) fn render_block_markdown_to(
             push_text(output, term, dialect);
             output.push_str("**\n\n");
             for block in body {
-                render_block_markdown_to(site, block, output, depth, link_mode, dialect);
+                render_block_markdown_to(site, block, output, depth, dialect);
             }
         }
         CllBlock::Code { text, .. } => {
@@ -228,15 +197,13 @@ pub(crate) fn render_block_markdown_to(
             };
             output.push_str(&scope.repeat("#", level));
             output.push(' ');
-            output.push_str(&render_inlines_markdown(
-                site, inlines, link_mode, dialect, &scope,
-            ));
+            output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
             output.push_str("\n\n");
         }
         CllBlock::BlockQuote { blocks, .. } => {
             let mut inner = scope.buffer();
             for block in blocks {
-                render_block_markdown_to(site, block, &mut inner, depth, link_mode, dialect);
+                render_block_markdown_to(site, block, &mut inner, depth, dialect);
             }
             // The inner blocks end with a blank line. trim removes it.
             // The quote writes that blank line again after its own lines.
@@ -249,31 +216,21 @@ pub(crate) fn render_block_markdown_to(
             }
         }
         CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
-            output.push_str(&render_inlines_markdown(
-                site, body, link_mode, dialect, &scope,
-            ));
+            output.push_str(&render_inlines_markdown(site, body, dialect, &scope));
             output.push_str("\n\n");
         }
         CllBlock::InterlinearGloss {
             aligned,
-            parse_href,
             rows,
             natlang,
             comments,
             ..
         } => match dialect {
-            CllMarkdownDialect::GitHub => render_interlinear_markdown(
-                site,
-                *aligned,
-                parse_href.as_deref(),
-                rows,
-                natlang,
-                comments,
-                output,
-                link_mode,
-            ),
+            CllMarkdownDialect::GitHub => {
+                render_interlinear_markdown(site, *aligned, rows, natlang, comments, output)
+            }
             CllMarkdownDialect::Discord => {
-                render_interlinear_discord(site, rows, natlang, comments, output, link_mode);
+                render_interlinear_discord(site, rows, natlang, comments, output);
             }
         },
         CllBlock::CmavoList {
@@ -283,29 +240,25 @@ pub(crate) fn render_block_markdown_to(
             ..
         } => match dialect {
             CllMarkdownDialect::GitHub => {
-                render_cmavo_list_markdown(site, titles, headers, rows, output, link_mode);
+                render_cmavo_list_markdown(site, titles, headers, rows, output);
             }
             CllMarkdownDialect::Discord => {
-                render_cmavo_list_discord(site, titles, headers, rows, output, link_mode);
+                render_cmavo_list_discord(site, titles, headers, rows, output);
             }
         },
         CllBlock::Lojbanization { lines, .. } => match dialect {
             CllMarkdownDialect::GitHub => {
-                render_lojbanization_markdown(site, lines, output, link_mode);
+                render_lojbanization_markdown(site, lines, output);
             }
             CllMarkdownDialect::Discord => {
                 for line in lines {
                     output.push_str("- **");
                     output.push_str(line.kind.as_str());
                     output.push_str("**: ");
-                    output.push_str(&render_inlines_markdown(
-                        site, &line.body, link_mode, dialect, &scope,
-                    ));
+                    output.push_str(&render_inlines_markdown(site, &line.body, dialect, &scope));
                     if let Some(comment) = &line.comment {
                         output.push_str(" — ");
-                        output.push_str(&render_inlines_markdown(
-                            site, comment, link_mode, dialect, &scope,
-                        ));
+                        output.push_str(&render_inlines_markdown(site, comment, dialect, &scope));
                     }
                     output.push('\n');
                 }
@@ -317,15 +270,13 @@ pub(crate) fn render_block_markdown_to(
                 output.push_str("- **");
                 output.push_str(part.kind.as_str());
                 output.push_str("**: ");
-                output.push_str(&render_inlines_markdown(
-                    site, &part.body, link_mode, dialect, &scope,
-                ));
+                output.push_str(&render_inlines_markdown(site, &part.body, dialect, &scope));
                 output.push('\n');
             }
             output.push('\n');
         }
         CllBlock::Ebnf { entries, .. } => match dialect {
-            CllMarkdownDialect::GitHub => render_ebnf_markdown(site, entries, output, link_mode),
+            CllMarkdownDialect::GitHub => render_ebnf_markdown(entries, output),
             CllMarkdownDialect::Discord => render_ebnf_discord(entries, output),
         },
     }
@@ -339,19 +290,12 @@ pub(crate) fn render_example_markdown_to(
     site: &CllSite,
     example: &CllExample,
     output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
     dialect: CllMarkdownDialect,
 ) {
     let scope = output.scope();
     match dialect {
         CllMarkdownDialect::GitHub => {
-            output.push_str(&scope.format(format_args!("### {}", example.label)));
-            if link_mode == CllLinkRenderMode::Web
-                && let Some(parse_href) = &example.parse_href
-            {
-                output.push_str(&scope.format(format_args!(" [Parse]({parse_href})")));
-            }
-            output.push_str("\n\n");
+            output.push_str(&scope.format(format_args!("### {}\n\n", example.label)));
         }
         // Discord headings are large; a bold line keeps a section with many
         // examples readable, and the example title becomes subtext.
@@ -367,7 +311,7 @@ pub(crate) fn render_example_markdown_to(
         }
     }
     for block in &example.blocks {
-        render_block_markdown_to(site, block, output, 0, link_mode, dialect);
+        render_block_markdown_to(site, block, output, 0, dialect);
     }
     if example.blocks.is_empty() {
         for line in &example.lines {
@@ -404,7 +348,6 @@ pub(crate) fn render_example_markdown_to(
 pub(crate) fn render_inlines_markdown(
     site: &CllSite,
     inlines: &[CllInline],
-    link_mode: CllLinkRenderMode,
     dialect: CllMarkdownDialect,
     scope: &jbotci_budget::TextScope,
 ) -> String {
@@ -414,32 +357,24 @@ pub(crate) fn render_inlines_markdown(
             CllInline::Text(text) => push_text(&mut output, text, dialect),
             CllInline::Emphasis { inlines, .. } => {
                 output.push('*');
-                output.push_str(&render_inlines_markdown(
-                    site, inlines, link_mode, dialect, &scope,
-                ));
+                output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
                 output.push('*');
             }
             CllInline::Quote { inlines, .. } => {
                 output.push('"');
-                output.push_str(&render_inlines_markdown(
-                    site, inlines, link_mode, dialect, &scope,
-                ));
+                output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
                 output.push('"');
             }
             CllInline::LanguageSpan { inlines, .. } | CllInline::CiteTitle { inlines } => {
                 match dialect {
                     CllMarkdownDialect::GitHub => {
-                        output.push_str(&render_inlines_markdown(
-                            site, inlines, link_mode, dialect, &scope,
-                        ));
+                        output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
                     }
                     // The web reader sets Lojban and foreign phrases and cited
                     // titles in italics; Discord can do the same.
                     CllMarkdownDialect::Discord => {
                         output.push('*');
-                        output.push_str(&render_inlines_markdown(
-                            site, inlines, link_mode, dialect, &scope,
-                        ));
+                        output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
                         output.push('*');
                     }
                 }
@@ -447,29 +382,21 @@ pub(crate) fn render_inlines_markdown(
             CllInline::Subscript { inlines } => match dialect {
                 CllMarkdownDialect::GitHub => {
                     output.push('~');
-                    output.push_str(&render_inlines_markdown(
-                        site, inlines, link_mode, dialect, &scope,
-                    ));
+                    output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
                     output.push('~');
                 }
                 CllMarkdownDialect::Discord => {
-                    output.push_str(&render_inlines_markdown(
-                        site, inlines, link_mode, dialect, &scope,
-                    ));
+                    output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
                 }
             },
             CllInline::Superscript { inlines } => match dialect {
                 CllMarkdownDialect::GitHub => {
                     output.push('^');
-                    output.push_str(&render_inlines_markdown(
-                        site, inlines, link_mode, dialect, &scope,
-                    ));
+                    output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
                     output.push('^');
                 }
                 CllMarkdownDialect::Discord => {
-                    output.push_str(&render_inlines_markdown(
-                        site, inlines, link_mode, dialect, &scope,
-                    ));
+                    output.push_str(&render_inlines_markdown(site, inlines, dialect, &scope));
                 }
             },
             CllInline::Link {
@@ -477,22 +404,15 @@ pub(crate) fn render_inlines_markdown(
                 inlines,
                 kind,
             } => {
-                let text = render_inlines_markdown(site, inlines, link_mode, dialect, &scope);
+                let text = render_inlines_markdown(site, inlines, dialect, &scope);
                 let text = if text.is_empty() {
                     dialect_text_in_scope(target, dialect, &scope)
                 } else {
                     Cow::Owned(text)
                 };
-                match link_mode {
-                    CllLinkRenderMode::Web => output.push_str(&scope.format(format_args!(
-                        "[{}]({})",
-                        markdown_link_label_text(&text, &scope),
-                        cll_link_href(site, *kind, target)
-                    ))),
-                    CllLinkRenderMode::Plain => match kind.plain_disposition() {
-                        CllPlainLinkDisposition::KeepContent => output.push_str(&text),
-                        CllPlainLinkDisposition::Drop => {}
-                    },
+                match kind.plain_disposition() {
+                    CllPlainLinkDisposition::KeepContent => output.push_str(&text),
+                    CllPlainLinkDisposition::Drop => {}
                 }
             }
             CllInline::Code(text) => match dialect {
@@ -504,7 +424,7 @@ pub(crate) fn render_inlines_markdown(
                 }
             },
             CllInline::Elidable { shown, inlines, .. } => {
-                let text = render_inlines_markdown(site, inlines, link_mode, dialect, &scope);
+                let text = render_inlines_markdown(site, inlines, dialect, &scope);
                 output.push('[');
                 if text.is_empty() {
                     push_text(&mut output, shown, dialect);
@@ -597,7 +517,6 @@ fn render_table_markdown(
     header_rows: &[Vec<CllTableCell>],
     body_rows: &[Vec<CllTableCell>],
     output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
 ) {
     let scope = output.scope();
     if let Some(caption) = caption {
@@ -605,7 +524,6 @@ fn render_table_markdown(
         output.push_str(&render_inlines_markdown(
             site,
             caption,
-            link_mode,
             CllMarkdownDialect::GitHub,
             &scope,
         ));
@@ -620,7 +538,7 @@ fn render_table_markdown(
     render_markdown_table_rows(
         header_rows.iter().chain(body_rows.iter()).map(|row| {
             row.iter()
-                .map(|cell| table_cell_markdown_text(site, cell, link_mode, &scope))
+                .map(|cell| table_cell_markdown_text(site, cell, &scope))
                 .collect::<Vec<_>>()
         }),
         output,
@@ -634,7 +552,6 @@ fn render_simple_list_table_markdown(
     site: &CllSite,
     rows: &[Vec<Option<Vec<CllInline>>>],
     output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
 ) {
     let scope = output.scope();
     let width = rows.iter().map(Vec::len).max().unwrap_or(0);
@@ -648,7 +565,6 @@ fn render_simple_list_table_markdown(
                                 &render_inlines_markdown(
                                     site,
                                     inlines,
-                                    link_mode,
                                     CllMarkdownDialect::GitHub,
                                     &scope,
                                 ),
@@ -758,36 +674,12 @@ fn markdown_table_cell_text(text: &str, scope: &jbotci_budget::TextScope) -> Str
 fn table_cell_markdown_text(
     site: &CllSite,
     cell: &CllTableCell,
-    link_mode: CllLinkRenderMode,
     scope: &jbotci_budget::TextScope,
 ) -> String {
-    let mut text = scope.buffer_with(&markdown_table_cell_text(
+    markdown_table_cell_text(
         &blocks_plain_text_in_scope(site, &cell.blocks, &scope),
         &scope,
-    ));
-    if link_mode == CllLinkRenderMode::Web
-        && let Some(parse_href) = &cell.parse_href
-    {
-        if !text.is_empty() {
-            text.push(' ');
-        }
-        text.push_str(&scope.format(format_args!("[Parse]({parse_href})")));
-    }
-    text.into_piece()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn markdown_link_label_text(text: &str, scope: &jbotci_budget::TextScope) -> String {
-    let mut output = scope.buffer();
-    for character in text.chars() {
-        match character {
-            '[' => output.push_str("\\["),
-            ']' => output.push_str("\\]"),
-            character => output.push(character),
-        }
-    }
-    output.into_piece()
+    )
 }
 
 #[requires(true)]
@@ -795,28 +687,19 @@ fn markdown_link_label_text(text: &str, scope: &jbotci_budget::TextScope) -> Str
 fn render_interlinear_markdown(
     site: &CllSite,
     aligned: bool,
-    parse_href: Option<&str>,
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
     output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
 ) {
     let scope = output.scope();
     let dialect = CllMarkdownDialect::GitHub;
-    if link_mode == CllLinkRenderMode::Web
-        && let Some(parse_href) = parse_href
-    {
-        output.push_str("[Parse](");
-        output.push_str(parse_href);
-        output.push_str(")\n\n");
-    }
     if !aligned {
         for row in rows {
             let body = scope.join(
                 row.cells
                     .iter()
-                    .map(|cell| render_inlines_markdown(site, cell, link_mode, dialect, &scope))
+                    .map(|cell| render_inlines_markdown(site, cell, dialect, &scope))
                     .filter(|cell| !cell.is_empty()),
                 " ",
             );
@@ -829,16 +712,12 @@ fn render_interlinear_markdown(
         }
         for line in comments {
             output.push_str("comment: ");
-            output.push_str(&render_inlines_markdown(
-                site, line, link_mode, dialect, &scope,
-            ));
+            output.push_str(&render_inlines_markdown(site, line, dialect, &scope));
             output.push('\n');
         }
         for line in natlang {
             output.push_str("natlang: ");
-            output.push_str(&render_inlines_markdown(
-                site, line, link_mode, dialect, &scope,
-            ));
+            output.push_str(&render_inlines_markdown(site, line, dialect, &scope));
             output.push('\n');
         }
         output.push('\n');
@@ -851,7 +730,7 @@ fn render_interlinear_markdown(
             .iter()
             .map(|cell| {
                 markdown_table_cell_text(
-                    &render_inlines_markdown(site, cell, link_mode, dialect, &scope),
+                    &render_inlines_markdown(site, cell, dialect, &scope),
                     &scope,
                 )
             })
@@ -860,16 +739,12 @@ fn render_interlinear_markdown(
     render_markdown_table_rows(table_rows, output, width);
     for line in comments {
         output.push_str("_");
-        output.push_str(&render_inlines_markdown(
-            site, line, link_mode, dialect, &scope,
-        ));
+        output.push_str(&render_inlines_markdown(site, line, dialect, &scope));
         output.push_str("_\n\n");
     }
     for line in natlang {
         output.push_str("> ");
-        output.push_str(&render_inlines_markdown(
-            site, line, link_mode, dialect, &scope,
-        ));
+        output.push_str(&render_inlines_markdown(site, line, dialect, &scope));
         output.push_str("\n\n");
     }
 }
@@ -885,7 +760,6 @@ fn render_interlinear_discord(
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
     output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
 ) {
     let scope = output.scope();
     let dialect = CllMarkdownDialect::Discord;
@@ -893,7 +767,7 @@ fn render_interlinear_discord(
         let body = scope.join(
             row.cells
                 .iter()
-                .map(|cell| render_inlines_markdown(site, cell, link_mode, dialect, &scope))
+                .map(|cell| render_inlines_markdown(site, cell, dialect, &scope))
                 .filter(|cell| !cell.is_empty()),
             " ",
         );
@@ -907,16 +781,12 @@ fn render_interlinear_discord(
     }
     for line in comments {
         output.push_str("- **comment**: ");
-        output.push_str(&render_inlines_markdown(
-            site, line, link_mode, dialect, &scope,
-        ));
+        output.push_str(&render_inlines_markdown(site, line, dialect, &scope));
         output.push('\n');
     }
     for line in natlang {
         output.push_str("- **natlang**: ");
-        output.push_str(&render_inlines_markdown(
-            site, line, link_mode, dialect, &scope,
-        ));
+        output.push_str(&render_inlines_markdown(site, line, dialect, &scope));
         output.push('\n');
     }
     output.push('\n');
@@ -930,15 +800,12 @@ fn render_cmavo_list_markdown(
     headers: &[Vec<CllInline>],
     rows: &[Vec<CllCmavoListCell>],
     output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
 ) {
     let scope = output.scope();
     let dialect = CllMarkdownDialect::GitHub;
     for title in titles {
         output.push_str("**");
-        output.push_str(&render_inlines_markdown(
-            site, title, link_mode, dialect, &scope,
-        ));
+        output.push_str(&render_inlines_markdown(site, title, dialect, &scope));
         output.push_str("**\n\n");
     }
     if headers.is_empty() {
@@ -947,9 +814,9 @@ fn render_cmavo_list_markdown(
             let mut at_line_start = true;
             for cell in row {
                 let rendered = if let Some(parts) = cell.word_parts() {
-                    render_github_cmavo_word_parts(site, &parts, link_mode, &scope, at_line_start)
+                    render_github_cmavo_word_parts(&parts, &scope, at_line_start)
                 } else {
-                    render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
+                    render_inlines_markdown(site, cell.inlines(), dialect, &scope)
                         .trim()
                         .to_owned()
                 };
@@ -971,7 +838,7 @@ fn render_cmavo_list_markdown(
         .iter()
         .map(|cell| {
             markdown_table_cell_text(
-                &render_inlines_markdown(site, cell, link_mode, dialect, &scope),
+                &render_inlines_markdown(site, cell, dialect, &scope),
                 &scope,
             )
         })
@@ -985,13 +852,13 @@ fn render_cmavo_list_markdown(
                     // the cell helper does not escape `|` again. A part has
                     // no line ending, so this text has none.
                     github_pipe_cell_text(
-                        &render_github_cmavo_word_parts(site, &parts, link_mode, &scope, false),
+                        &render_github_cmavo_word_parts(&parts, &scope, false),
                         &scope,
                         false,
                     )
                 } else {
                     markdown_table_cell_text(
-                        &render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope),
+                        &render_inlines_markdown(site, cell.inlines(), dialect, &scope),
                         &scope,
                     )
                 }
@@ -1011,8 +878,8 @@ fn render_cmavo_list_markdown(
 ///
 /// A pause dot is not in this set. `.ui` stays `.ui`. A dot is escaped only
 /// when it completes an ordered-list marker at the start of a line. `!` is
-/// in this set. Web mode can write a link directly after this text. A `!`
-/// at the end of the text would turn that link into an image.
+/// in this set. An unescaped `!` starts a Markdown image. The escaper writes
+/// the character as text.
 #[requires(true)]
 #[ensures(true)]
 fn github_inline_escape(character: char) -> bool {
@@ -1342,93 +1209,22 @@ fn escape_github_markdown_in_scope(
     escaped.into_piece()
 }
 
-/// True when `character` is CommonMark whitespace.
-///
-/// The set is a space, a tab, LF, CR, a vertical tab, or a form feed.
-#[requires(true)]
-#[ensures(ret == matches!(character, ' ' | '\t' | '\n' | '\r' | '\u{000b}' | '\u{000c}'))]
-fn is_commonmark_whitespace(character: char) -> bool {
-    matches!(
-        character,
-        ' ' | '\t' | '\n' | '\r' | '\u{000b}' | '\u{000c}'
-    )
-}
-
-/// True when a link that follows `run` needs a break before it.
-///
-/// An extended autolink cannot continue across CommonMark whitespace. A run
-/// that ends in that whitespace is safe. Any other run can end inside an
-/// autolink. The caller writes an HTML comment in that case. The comment
-/// ends the autolink. GitHub shows nothing for the comment. This check does
-/// not use the autolink start characters.
-#[requires(true)]
-#[ensures(ret == run.chars().next_back().is_none_or(|character| !is_commonmark_whitespace(character)))]
-fn github_unlinked_run_needs_link_break(run: &str) -> bool {
-    run.chars()
-        .next_back()
-        .is_none_or(|character| !is_commonmark_whitespace(character))
-}
-
 /// GitHub text for adjacent valsi parts, as one word.
 ///
-/// Plain mode joins every part, then escapes that word once. Web mode writes
-/// each linked part as a dictionary link. It joins each run of unlinked parts
-/// and escapes that run once. If the run starts the line, a heading, a list,
-/// or a thematic break in that run stays text. No space is added between
-/// parts. A dictionary token such as `.ui` is written as it is. A link can
-/// follow an unlinked run. When that run does not end in CommonMark
-/// whitespace, an HTML comment separates the two. An autolink cannot cross
-/// that whitespace. Any other ending can sit inside an autolink. The
-/// comment ends it. GitHub shows nothing for the comment.
+/// The function joins every part, then escapes that word once. When the word
+/// starts a line, a heading, a list, or a thematic break in it stays text.
+/// No space is added between parts. A dictionary token such as `.ui` is
+/// written as it is.
 #[requires(parts.len() >= 2)]
 #[ensures(scope.is_exceeded() || !ret.is_empty())]
-#[ensures(scope.is_exceeded() || link_mode != CllLinkRenderMode::Plain || !ret.contains("]("))]
+#[ensures(scope.is_exceeded() || !ret.contains("]("))]
 fn render_github_cmavo_word_parts(
-    site: &CllSite,
     parts: &[CllCmavoWordPart<'_>],
-    link_mode: CllLinkRenderMode,
     scope: &jbotci_budget::TextScope,
     at_line_start: bool,
 ) -> String {
-    match link_mode {
-        CllLinkRenderMode::Plain => {
-            let word = crate::cmavo_parts_plain_text(parts, scope);
-            escape_github_markdown_in_scope(&word, scope, at_line_start)
-        }
-        CllLinkRenderMode::Web => {
-            let mut output = scope.buffer();
-            let mut index = 0;
-            let mut at_start = at_line_start;
-            while index < parts.len() {
-                if let Some(target) = parts[index].target {
-                    output.push_str(&scope.format(format_args!(
-                        "[{}]({})",
-                        markdown_link_label_text(parts[index].text, scope),
-                        cll_link_href(site, CllLinkKind::Dictionary, target)
-                    )));
-                    index += 1;
-                    at_start = false;
-                    continue;
-                }
-                let start = index;
-                while index < parts.len() && parts[index].target.is_none() {
-                    index += 1;
-                }
-                let run = crate::cmavo_parts_plain_text(&parts[start..index], scope);
-                output.push_str(&escape_github_markdown_in_scope(&run, scope, at_start));
-                // An extended autolink cannot cross CommonMark whitespace.
-                // Any other ending can sit inside an autolink. The HTML
-                // comment ends that autolink. GitHub shows nothing for the
-                // comment, so the next dictionary link stays a link. The
-                // check does not use the autolink start characters.
-                if index < parts.len() && github_unlinked_run_needs_link_break(&run) {
-                    output.push_str("<!-- -->");
-                }
-                at_start = false;
-            }
-            output.into_piece()
-        }
-    }
+    let word = crate::cmavo_parts_plain_text(parts, scope);
+    escape_github_markdown_in_scope(&word, scope, at_line_start)
 }
 
 #[requires(true)]
@@ -1439,15 +1235,12 @@ fn render_cmavo_list_discord(
     headers: &[Vec<CllInline>],
     rows: &[Vec<CllCmavoListCell>],
     output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
 ) {
     let scope = output.scope();
     let dialect = CllMarkdownDialect::Discord;
     for title in titles {
         output.push_str("**");
-        output.push_str(&render_inlines_markdown(
-            site, title, link_mode, dialect, &scope,
-        ));
+        output.push_str(&render_inlines_markdown(site, title, dialect, &scope));
         output.push_str("**\n\n");
     }
     if headers.is_empty() {
@@ -1456,9 +1249,9 @@ fn render_cmavo_list_discord(
             let mut at_line_start = true;
             for cell in row {
                 let rendered = if let Some(parts) = cell.word_parts() {
-                    render_discord_cmavo_word_parts(site, &parts, link_mode, &scope, at_line_start)
+                    render_discord_cmavo_word_parts(&parts, &scope, at_line_start)
                 } else {
-                    render_inlines_markdown(site, cell.inlines(), link_mode, dialect, &scope)
+                    render_inlines_markdown(site, cell.inlines(), dialect, &scope)
                         .trim()
                         .to_owned()
                 };
@@ -1491,60 +1284,24 @@ fn render_cmavo_list_discord(
 
 /// Discord text for adjacent valsi parts, as one word.
 ///
-/// Plain mode joins the parts, then escapes that word once. It wraps the word
-/// in one italic span when every part is unlinked. Web mode prints each linked
-/// part as a link. It joins each run of unlinked parts, escapes that run once,
-/// and wraps the run in one italic span. If the run starts the line, a heading
-/// or a list in that run stays text. No space is added between parts. A
-/// dictionary token such as `.ui` is written as it is.
+/// The function joins the parts, then escapes that word once. It wraps the
+/// word in one italic span when every part is unlinked. When the word starts
+/// a line, a heading or a list in it stays text. No space is added between
+/// parts. A dictionary token such as `.ui` is written as it is.
 #[requires(parts.len() >= 2)]
 #[ensures(scope.is_exceeded() || !ret.is_empty())]
+#[ensures(scope.is_exceeded() || !ret.contains("]("))]
 fn render_discord_cmavo_word_parts(
-    site: &CllSite,
     parts: &[CllCmavoWordPart<'_>],
-    link_mode: CllLinkRenderMode,
     scope: &jbotci_budget::TextScope,
     at_line_start: bool,
 ) -> String {
-    match link_mode {
-        CllLinkRenderMode::Plain => {
-            let word = crate::cmavo_parts_plain_text(parts, scope);
-            let word = escape_discord_markdown_at(&word, scope, at_line_start);
-            if parts.iter().all(|part| part.target.is_none()) {
-                scope.format(format_args!("*{word}*"))
-            } else {
-                word
-            }
-        }
-        CllLinkRenderMode::Web => {
-            let mut output = scope.buffer();
-            let mut index = 0;
-            let mut at_start = at_line_start;
-            while index < parts.len() {
-                if let Some(target) = parts[index].target {
-                    let label = escape_discord_markdown_at(parts[index].text, scope, false);
-                    output.push_str(&scope.format(format_args!(
-                        "[{}]({})",
-                        markdown_link_label_text(&label, scope),
-                        cll_link_href(site, CllLinkKind::Dictionary, target)
-                    )));
-                    index += 1;
-                    at_start = false;
-                    continue;
-                }
-                let start = index;
-                while index < parts.len() && parts[index].target.is_none() {
-                    index += 1;
-                }
-                let run = crate::cmavo_parts_plain_text(&parts[start..index], scope);
-                let run = escape_discord_markdown_at(&run, scope, at_start);
-                output.push('*');
-                output.push_str(&run);
-                output.push('*');
-                at_start = false;
-            }
-            output.into_piece()
-        }
+    let word = crate::cmavo_parts_plain_text(parts, scope);
+    let word = escape_discord_markdown_at(&word, scope, at_line_start);
+    if parts.iter().all(|part| part.target.is_none()) {
+        scope.format(format_args!("*{word}*"))
+    } else {
+        word
     }
 }
 
@@ -1554,7 +1311,6 @@ fn render_lojbanization_markdown(
     site: &CllSite,
     lines: &[CllLojbanizationLine],
     output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
 ) {
     let scope = output.scope();
     let dialect = CllMarkdownDialect::GitHub;
@@ -1562,14 +1318,14 @@ fn render_lojbanization_markdown(
         vec![
             line.kind.as_str().to_owned(),
             markdown_table_cell_text(
-                &render_inlines_markdown(site, &line.body, link_mode, dialect, &scope),
+                &render_inlines_markdown(site, &line.body, dialect, &scope),
                 &scope,
             ),
             line.comment
                 .as_deref()
                 .map(|comment| {
                     markdown_table_cell_text(
-                        &render_inlines_markdown(site, comment, link_mode, dialect, &scope),
+                        &render_inlines_markdown(site, comment, dialect, &scope),
                         &scope,
                     )
                 })
@@ -1581,12 +1337,7 @@ fn render_lojbanization_markdown(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_ebnf_markdown(
-    site: &CllSite,
-    entries: &[CllEbnfEntry],
-    output: &mut jbotci_budget::TextBuffer,
-    link_mode: CllLinkRenderMode,
-) {
+fn render_ebnf_markdown(entries: &[CllEbnfEntry], output: &mut jbotci_budget::TextBuffer) {
     let scope = output.scope();
     for entry in entries {
         for source_anchor_id in &entry.source_anchor_ids {
@@ -1599,7 +1350,7 @@ fn render_ebnf_markdown(
         output.push_str("** ⩴\n");
         for line in wrap_ebnf_choice_lines(&entry.rhs) {
             output.push_str("  ");
-            output.push_str(&render_ebnf_tokens_markdown(site, &line, link_mode, &scope));
+            output.push_str(&render_ebnf_tokens_markdown(&line, &scope));
             output.push('\n');
         }
         output.push_str("\n\n");
@@ -1650,9 +1401,7 @@ fn ebnf_token_body(token: &CllEbnfToken) -> &str {
 #[requires(true)]
 #[ensures(true)]
 fn render_ebnf_tokens_markdown(
-    site: &CllSite,
     tokens: &[CllEbnfToken],
-    link_mode: CllLinkRenderMode,
     scope: &jbotci_budget::TextScope,
 ) -> String {
     let mut output = scope.buffer();
@@ -1661,19 +1410,9 @@ fn render_ebnf_tokens_markdown(
             CllEbnfToken::Text { body }
             | CllEbnfToken::Operator { body }
             | CllEbnfToken::Hash { body } => output.push_str(body),
-            CllEbnfToken::Terminal { body, href }
-            | CllEbnfToken::ElidableTerminator { body, href }
-            | CllEbnfToken::Nonterminal { body, href } => {
-                if link_mode == CllLinkRenderMode::Web
-                    && let Some(href) = href
-                {
-                    output.push_str(
-                        &scope.format(format_args!("[{body}]({})", render_ebnf_href(site, href))),
-                    );
-                } else {
-                    output.push_str(body);
-                }
-            }
+            CllEbnfToken::Terminal { body, .. }
+            | CllEbnfToken::ElidableTerminator { body, .. }
+            | CllEbnfToken::Nonterminal { body, .. } => output.push_str(body),
         }
     }
     output.into_piece()
@@ -1687,14 +1426,13 @@ pub(crate) fn render_block_markdown(
     block: &CllBlock,
     output: &mut String,
     depth: usize,
-    link_mode: CllLinkRenderMode,
     dialect: CllMarkdownDialect,
 ) {
     let scope = jbotci_budget::TextScope::new(
         jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
     );
     let mut bounded = scope.buffer();
-    render_block_markdown_to(site, block, &mut bounded, depth, link_mode, dialect);
+    render_block_markdown_to(site, block, &mut bounded, depth, dialect);
     output.push_str(
         &scope
             .finish(bounded.into_piece())
@@ -1829,14 +1567,14 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn a_bang_before_the_next_link_stays_text() {
+    fn a_joined_word_has_no_link_and_no_comment() {
         let site = crate::import::embedded_cll_site().expect("embedded CLL site");
         let word = CllCmavoListCell::Word {
             inlines: vec![
                 CllInline::LanguageSpan {
                     kind: CllLanguageSpanKind::JboPhrase,
                     language: None,
-                    inlines: vec![CllInline::Text("ui!".to_owned())],
+                    inlines: vec![CllInline::Text("*www.example.com".to_owned())],
                 },
                 CllInline::Link {
                     target: "roi".to_owned(),
@@ -1857,204 +1595,11 @@ mod tests {
                 },
             ]],
         };
-        let mut web = String::new();
-        render_block_markdown(
-            site,
-            &block,
-            &mut web,
-            0,
-            CllLinkRenderMode::Web,
-            CllMarkdownDialect::GitHub,
-        );
-        assert_eq!(web, "ui\\!<!-- -->[roi](../vlacku/roi) | never\n\n");
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn github_word(
-        unlinked: &str,
-        linked: &str,
-        headered: bool,
-        link_mode: CllLinkRenderMode,
-    ) -> String {
-        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
-        let word = CllCmavoListCell::Word {
-            inlines: vec![
-                CllInline::LanguageSpan {
-                    kind: CllLanguageSpanKind::JboPhrase,
-                    language: None,
-                    inlines: vec![CllInline::Text(unlinked.to_owned())],
-                },
-                CllInline::Link {
-                    target: linked.to_owned(),
-                    inlines: vec![CllInline::Text(linked.to_owned())],
-                    kind: CllLinkKind::Dictionary,
-                },
-            ],
-        };
-        assert!(word.word_parts().is_some(), "{unlinked:?}");
-        let headers = if headered {
-            vec![
-                vec![CllInline::Text("cmavo".to_owned())],
-                vec![CllInline::Text("gloss".to_owned())],
-            ]
-        } else {
-            Vec::new()
-        };
-        let block = CllBlock::CmavoList {
-            id: None,
-            titles: Vec::new(),
-            headers,
-            rows: vec![vec![
-                word,
-                CllCmavoListCell::Other {
-                    inlines: vec![CllInline::Text("never".to_owned())],
-                },
-            ]],
-        };
-        let mut web = String::new();
-        render_block_markdown(
-            site,
-            &block,
-            &mut web,
-            0,
-            link_mode,
-            CllMarkdownDialect::GitHub,
-        );
-        web
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn an_extended_autolink_stops_before_the_next_link() {
-        for prefix in [
-            "https://example.invalid",
-            "HTTPS://EXAMPLE.INVALID",
-            "ftp://example.invalid",
-            "www.example.com",
-        ] {
-            let linked = format!("{prefix}<!-- -->[roi](../vlacku/roi)");
-            assert_eq!(
-                github_word(prefix, "roi", false, CllLinkRenderMode::Web),
-                format!("{linked} | never\n\n"),
-                "{prefix}"
-            );
-            assert_eq!(
-                github_word(prefix, "roi", true, CllLinkRenderMode::Web),
-                format!("| cmavo | gloss |\n| --- | --- |\n| {linked} | never |\n\n"),
-                "{prefix}"
-            );
-        }
-        assert_eq!(
-            github_word(
-                "see https://example.invalid",
-                "roi",
-                false,
-                CllLinkRenderMode::Web
-            ),
-            "see https://example.invalid<!-- -->[roi](../vlacku/roi) | never\n\n"
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn a_delimiter_before_an_address_keeps_the_next_link() {
-        for prefix in [
-            "*www.example.com",
-            "_www.example.com",
-            "~www.example.com",
-            "(www.example.com",
-            "*https://example.invalid",
-        ] {
-            let escaped = github(prefix, true);
-            assert_eq!(
-                github_word(prefix, "roi", false, CllLinkRenderMode::Web),
-                format!("{escaped}<!-- -->[roi](../vlacku/roi) | never\n\n"),
-                "{prefix}"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn an_angle_bracket_before_a_link_stays_text() {
-        for prefix in ["<www.example.com", "<a"] {
-            assert_eq!(
-                github_word(prefix, "roi", false, CllLinkRenderMode::Web),
-                format!("\\{prefix}<!-- -->[roi](../vlacku/roi) | never\n\n"),
-                "{prefix}"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn a_bare_scheme_keeps_the_next_link() {
-        assert_eq!(
-            github_word("https://", "roi", false, CllLinkRenderMode::Web),
-            "https://<!-- -->[roi](../vlacku/roi) | never\n\n"
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn a_run_that_ends_in_a_space_has_no_comment() {
-        for run in ["ui ", "ui\t", "ui\n", "ui\r", "ui\u{000b}", "ui\u{000c}"] {
-            assert!(!github_unlinked_run_needs_link_break(run), "{run:?}");
-        }
-        assert!(github_unlinked_run_needs_link_break("ui"));
-        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
-        let word = CllCmavoListCell::Word {
-            inlines: vec![
-                CllInline::LanguageSpan {
-                    kind: CllLanguageSpanKind::JboPhrase,
-                    language: None,
-                    inlines: vec![CllInline::Text("ui ".to_owned())],
-                },
-                CllInline::Link {
-                    target: "roi".to_owned(),
-                    inlines: vec![CllInline::Text("roi".to_owned())],
-                    kind: CllLinkKind::Dictionary,
-                },
-            ],
-        };
-        // A part cannot end in whitespace, so this cell is not a word-part cell.
-        assert!(word.word_parts().is_none());
-        let block = CllBlock::CmavoList {
-            id: None,
-            titles: Vec::new(),
-            headers: Vec::new(),
-            rows: vec![vec![
-                word,
-                CllCmavoListCell::Other {
-                    inlines: vec![CllInline::Text("never".to_owned())],
-                },
-            ]],
-        };
-        let mut web = String::new();
-        render_block_markdown(
-            site,
-            &block,
-            &mut web,
-            0,
-            CllLinkRenderMode::Web,
-            CllMarkdownDialect::GitHub,
-        );
-        assert!(!web.contains("<!-- -->"), "{web}");
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn a_plain_run_has_no_comment() {
-        let web = github_word("*www.example.com", "roi", false, CllLinkRenderMode::Plain);
-        assert!(!web.contains("<!-- -->"));
-        assert_eq!(web, "\\*www.example.comroi | never\n\n");
+        let mut rendered = String::new();
+        render_block_markdown(site, &block, &mut rendered, 0, CllMarkdownDialect::GitHub);
+        assert_eq!(rendered, "\\*www.example.comroi | never\n\n");
+        assert!(!rendered.contains("<!-- -->"));
+        assert!(!rendered.contains("]("));
     }
 
     #[test]
@@ -2118,14 +1663,7 @@ mod tests {
             ]],
         };
         let mut web = String::new();
-        render_block_markdown(
-            site,
-            &block,
-            &mut web,
-            0,
-            CllLinkRenderMode::Web,
-            CllMarkdownDialect::GitHub,
-        );
+        render_block_markdown(site, &block, &mut web, 0, CllMarkdownDialect::GitHub);
         assert_eq!(
             web,
             "| cmavo | gloss |\n| --- | --- |\n| a\\|bz | never |\n\n"
@@ -2167,14 +1705,7 @@ mod tests {
             ]],
         };
         let mut web = String::new();
-        render_block_markdown(
-            site,
-            &block,
-            &mut web,
-            0,
-            CllLinkRenderMode::Web,
-            CllMarkdownDialect::GitHub,
-        );
+        render_block_markdown(site, &block, &mut web, 0, CllMarkdownDialect::GitHub);
         assert_eq!(
             web,
             "| cmavo | gloss |\n| --- | --- |\n| a\\|b<br>c<br>d<br>ez | never |\n\n"
@@ -2207,14 +1738,7 @@ mod tests {
             ]],
         };
         let mut web = String::new();
-        render_block_markdown(
-            site,
-            &block,
-            &mut web,
-            0,
-            CllLinkRenderMode::Web,
-            CllMarkdownDialect::GitHub,
-        );
+        render_block_markdown(site, &block, &mut web, 0, CllMarkdownDialect::GitHub);
         assert_eq!(
             web,
             "| p\\|q<br>r | c<br>d | e<br>f |\n| --- | --- | --- |\n| g<br>h | i\\|j<br>k | l<br>m |\n\n"
@@ -2226,7 +1750,7 @@ mod tests {
     fn render_dialect(block: &CllBlock, dialect: CllMarkdownDialect) -> String {
         let site = crate::import::embedded_cll_site().expect("embedded CLL site");
         let mut output = String::new();
-        render_block_markdown(site, block, &mut output, 0, CllLinkRenderMode::Web, dialect);
+        render_block_markdown(site, block, &mut output, 0, dialect);
         output
     }
 
