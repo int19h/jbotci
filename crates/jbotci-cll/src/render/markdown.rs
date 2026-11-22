@@ -1342,40 +1342,31 @@ fn escape_github_markdown_in_scope(
     escaped.into_piece()
 }
 
-/// True when the last stretch of `run` starts a GFM extended autolink.
+/// True when `character` is CommonMark whitespace.
 ///
-/// GFM spec section 6.9. The last stretch is the text after the last space,
-/// tab, vertical tab, form feed, or `<`. The stretch starts an autolink when
-/// it begins with `www.`. It also starts one when it begins with `http://`,
-/// `https://`, or `ftp://`. The scheme match ignores ASCII case. The text
-/// `www.` is lowercase only.
-///
-/// An email autolink in that section cannot cross `[`. The characters before
-/// `@` are a letter, a digit, `.`, `-`, `_`, or `+`. The characters after `@`
-/// are a letter, a digit, `-`, `_`, or `.`. `[` is in neither set.
+/// The set is a space, a tab, LF, CR, a vertical tab, or a form feed.
 #[requires(true)]
-#[ensures(!ret || {
-    let bytes = run.as_bytes();
-    bytes.windows(4).any(|window| window.eq_ignore_ascii_case(b"www."))
-        || bytes.windows(6).any(|window| {
-            window.eq_ignore_ascii_case(b"https:")
-                || window.eq_ignore_ascii_case(b"http:/")
-                || window.eq_ignore_ascii_case(b"ftp://")
-        })
-})]
-fn github_run_ends_in_extended_autolink(run: &str) -> bool {
-    let bytes = run.as_bytes();
-    let mut start = 0;
-    for (index, byte) in bytes.iter().enumerate() {
-        if matches!(*byte, b' ' | b'\t' | b'\x0b' | b'\x0c' | b'<') {
-            start = index + 1;
-        }
-    }
-    let tail = &run[start..];
-    tail.starts_with("www.")
-        || tail.len() >= 8 && tail[..8].eq_ignore_ascii_case("https://")
-        || tail.len() >= 7 && tail[..7].eq_ignore_ascii_case("http://")
-        || tail.len() >= 6 && tail[..6].eq_ignore_ascii_case("ftp://")
+#[ensures(ret == matches!(character, ' ' | '\t' | '\n' | '\r' | '\u{000b}' | '\u{000c}'))]
+fn is_commonmark_whitespace(character: char) -> bool {
+    matches!(
+        character,
+        ' ' | '\t' | '\n' | '\r' | '\u{000b}' | '\u{000c}'
+    )
+}
+
+/// True when a link that follows `run` needs a break before it.
+///
+/// An extended autolink cannot continue across CommonMark whitespace. A run
+/// that ends in that whitespace is safe. Any other run can end inside an
+/// autolink. The caller writes an HTML comment in that case. The comment
+/// ends the autolink. GitHub shows nothing for the comment. This check does
+/// not use the autolink start characters.
+#[requires(true)]
+#[ensures(ret == run.chars().next_back().is_none_or(|character| !is_commonmark_whitespace(character)))]
+fn github_unlinked_run_needs_link_break(run: &str) -> bool {
+    run.chars()
+        .next_back()
+        .is_none_or(|character| !is_commonmark_whitespace(character))
 }
 
 /// GitHub text for adjacent valsi parts, as one word.
@@ -1385,9 +1376,10 @@ fn github_run_ends_in_extended_autolink(run: &str) -> bool {
 /// and escapes that run once. If the run starts the line, a heading, a list,
 /// or a thematic break in that run stays text. No space is added between
 /// parts. A dictionary token such as `.ui` is written as it is. A link can
-/// follow a run that ends in a bare address. An HTML comment then separates
-/// the two. GFM spec section 6.9 takes the link into the address when that
-/// comment is absent.
+/// follow an unlinked run. When that run does not end in CommonMark
+/// whitespace, an HTML comment separates the two. An autolink cannot cross
+/// that whitespace. Any other ending can sit inside an autolink. The
+/// comment ends it. GitHub shows nothing for the comment.
 #[requires(parts.len() >= 2)]
 #[ensures(scope.is_exceeded() || !ret.is_empty())]
 #[ensures(scope.is_exceeded() || link_mode != CllLinkRenderMode::Plain || !ret.contains("]("))]
@@ -1424,14 +1416,12 @@ fn render_github_cmavo_word_parts(
                 }
                 let run = crate::cmavo_parts_plain_text(&parts[start..index], scope);
                 output.push_str(&escape_github_markdown_in_scope(&run, scope, at_start));
-                // GFM spec section 6.9. After a valid domain, a URL autolink
-                // or a www autolink continues through `[` and a balanced
-                // pair of parentheses. The next dictionary link then joins
-                // that address. The character `<` ends the autolink. GitHub
-                // shows nothing for this HTML comment. The dictionary link
-                // stays a link. An email address cannot cross `[`, so this
-                // comment is not written for an email.
-                if index < parts.len() && github_run_ends_in_extended_autolink(&run) {
+                // An extended autolink cannot cross CommonMark whitespace.
+                // Any other ending can sit inside an autolink. The HTML
+                // comment ends that autolink. GitHub shows nothing for the
+                // comment, so the next dictionary link stays a link. The
+                // check does not use the autolink start characters.
+                if index < parts.len() && github_unlinked_run_needs_link_break(&run) {
                     output.push_str("<!-- -->");
                 }
                 at_start = false;
@@ -1876,12 +1866,17 @@ mod tests {
             CllLinkRenderMode::Web,
             CllMarkdownDialect::GitHub,
         );
-        assert_eq!(web, "ui\\![roi](../vlacku/roi) | never\n\n");
+        assert_eq!(web, "ui\\!<!-- -->[roi](../vlacku/roi) | never\n\n");
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn web_github_word(unlinked: &str, linked: &str, headered: bool) -> String {
+    fn github_word(
+        unlinked: &str,
+        linked: &str,
+        headered: bool,
+        link_mode: CllLinkRenderMode,
+    ) -> String {
         let site = crate::import::embedded_cll_site().expect("embedded CLL site");
         let word = CllCmavoListCell::Word {
             inlines: vec![
@@ -1923,7 +1918,7 @@ mod tests {
             &block,
             &mut web,
             0,
-            CllLinkRenderMode::Web,
+            link_mode,
             CllMarkdownDialect::GitHub,
         );
         web
@@ -1941,18 +1936,23 @@ mod tests {
         ] {
             let linked = format!("{prefix}<!-- -->[roi](../vlacku/roi)");
             assert_eq!(
-                web_github_word(prefix, "roi", false),
+                github_word(prefix, "roi", false, CllLinkRenderMode::Web),
                 format!("{linked} | never\n\n"),
                 "{prefix}"
             );
             assert_eq!(
-                web_github_word(prefix, "roi", true),
+                github_word(prefix, "roi", true, CllLinkRenderMode::Web),
                 format!("| cmavo | gloss |\n| --- | --- |\n| {linked} | never |\n\n"),
                 "{prefix}"
             );
         }
         assert_eq!(
-            web_github_word("see https://example.invalid", "roi", false),
+            github_word(
+                "see https://example.invalid",
+                "roi",
+                false,
+                CllLinkRenderMode::Web
+            ),
             "see https://example.invalid<!-- -->[roi](../vlacku/roi) | never\n\n"
         );
     }
@@ -1960,25 +1960,101 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn an_email_before_the_next_link_has_no_terminator() {
+    fn a_delimiter_before_an_address_keeps_the_next_link() {
+        for prefix in [
+            "*www.example.com",
+            "_www.example.com",
+            "~www.example.com",
+            "(www.example.com",
+            "*https://example.invalid",
+        ] {
+            let escaped = github(prefix, true);
+            assert_eq!(
+                github_word(prefix, "roi", false, CllLinkRenderMode::Web),
+                format!("{escaped}<!-- -->[roi](../vlacku/roi) | never\n\n"),
+                "{prefix}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_angle_bracket_before_a_link_stays_text() {
+        for prefix in ["<www.example.com", "<a"] {
+            assert_eq!(
+                github_word(prefix, "roi", false, CllLinkRenderMode::Web),
+                format!("\\{prefix}<!-- -->[roi](../vlacku/roi) | never\n\n"),
+                "{prefix}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_bare_scheme_keeps_the_next_link() {
         assert_eq!(
-            web_github_word("user@example.com", "roi", false),
-            "user@example.com[roi](../vlacku/roi) | never\n\n"
+            github_word("https://", "roi", false, CllLinkRenderMode::Web),
+            "https://<!-- -->[roi](../vlacku/roi) | never\n\n"
         );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn a_run_that_ends_in_plain_text_has_no_terminator() {
-        assert_eq!(
-            web_github_word("ui", "roi", false),
-            "ui[roi](../vlacku/roi) | never\n\n"
+    fn a_run_that_ends_in_a_space_has_no_comment() {
+        for run in ["ui ", "ui\t", "ui\n", "ui\r", "ui\u{000b}", "ui\u{000c}"] {
+            assert!(!github_unlinked_run_needs_link_break(run), "{run:?}");
+        }
+        assert!(github_unlinked_run_needs_link_break("ui"));
+        let site = crate::import::embedded_cll_site().expect("embedded CLL site");
+        let word = CllCmavoListCell::Word {
+            inlines: vec![
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase,
+                    language: None,
+                    inlines: vec![CllInline::Text("ui ".to_owned())],
+                },
+                CllInline::Link {
+                    target: "roi".to_owned(),
+                    inlines: vec![CllInline::Text("roi".to_owned())],
+                    kind: CllLinkKind::Dictionary,
+                },
+            ],
+        };
+        // A part cannot end in whitespace, so this cell is not a word-part cell.
+        assert!(word.word_parts().is_none());
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: Vec::new(),
+            rows: vec![vec![
+                word,
+                CllCmavoListCell::Other {
+                    inlines: vec![CllInline::Text("never".to_owned())],
+                },
+            ]],
+        };
+        let mut web = String::new();
+        render_block_markdown(
+            site,
+            &block,
+            &mut web,
+            0,
+            CllLinkRenderMode::Web,
+            CllMarkdownDialect::GitHub,
         );
-        assert_eq!(
-            web_github_word("https://example.invalid text", "roi", false),
-            "https://example.invalid text[roi](../vlacku/roi) | never\n\n"
-        );
+        assert!(!web.contains("<!-- -->"), "{web}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_plain_run_has_no_comment() {
+        let web = github_word("*www.example.com", "roi", false, CllLinkRenderMode::Plain);
+        assert!(!web.contains("<!-- -->"));
+        assert_eq!(web, "\\*www.example.comroi | never\n\n");
     }
 
     #[test]
