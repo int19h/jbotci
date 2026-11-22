@@ -1884,14 +1884,15 @@ fn parse_inline_nodes(nodes: &[Node<'_, '_>]) -> Vec<CllInline> {
                 "valsi" => {
                     let text = visible_text(*child);
                     if !text.is_empty() {
-                        // The same tree choice decides a paragraph valsi, a
-                        // single-word cell, and a rule-12 part. valid="false"
-                        // and valid="maybe" stay unlinked. A lujvo keeps the
-                        // vlacku link. The vlacku page shows the breakdown
-                        // when the word has no dictionary entry. Every other
-                        // marked word stays an unlinked Lojban span.
+                        // A paragraph valsi uses the raw spelling. Brackets
+                        // stay in that spelling. valid="false" and
+                        // valid="maybe" stay unlinked unless the text is one
+                        // bare lujvo. A lujvo keeps the vlacku link.
                         // glossary="false" stays unlinked.
-                        if matches!(tree_link_choice(*child, &text), MarkedWordLink::Unlinked) {
+                        if matches!(
+                            tree_link_choice(*child, &text, TreeSpelling::Raw),
+                            MarkedWordLink::Unlinked
+                        ) {
                             inlines.push(CllInline::LanguageSpan {
                                 kind: CllLanguageSpanKind::JboPhrase,
                                 language: Some("jbo".to_owned()),
@@ -2560,11 +2561,12 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
 /// remaining part stays a rule-12 cell. `glossary="false"` leaves the cell
 /// unlinked. `valid="false"` and `valid="maybe"` also leave it unlinked
 /// unless the text is one bare lujvo. A lujvo keeps the vlacku link. A
-/// single-word cell can unwrap one bracket pair. The brackets stay outside
-/// the link. A rule-12 cell judges the joined spelling and does not unwrap
-/// that pair. The same mark on one part leaves that part unlinked, with the
-/// same lujvo exception. A cell that is not a run of adjacent valsi elements
-/// stays unlinked when the cell, or an element inside it, has one of those
+/// single-word cell unwraps one bracket pair on the cell text and on every
+/// descendant. The brackets stay outside the link. A rule-12 cell judges the
+/// joined spelling and does not unwrap that pair. The same mark on one part
+/// leaves that part unlinked, with the same lujvo exception. A cell that is
+/// not a run of adjacent valsi elements stays unlinked when the cell, or an
+/// element inside it, has one of those
 /// marks, again with the lujvo exception. A lujvo mark whose own word is not
 /// one bare lujvo leaves that cell unlinked. Every other cell keeps the
 /// inline links that the rest of the book uses.
@@ -2641,7 +2643,7 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
             return CllCmavoListCell::Adjacent { inlines };
         }
         let text = cmavo_or_gismu_cell_text(cell);
-        let inlines = match tree_link_choice(cell, cell_decision_word(&text)) {
+        let inlines = match tree_link_choice(cell, &text, TreeSpelling::UnwrapBracket) {
             MarkedWordLink::Unlinked => cmavo_or_gismu_cell_inlines_from(&text, |_| None),
             MarkedWordLink::Lujvo => lujvo_marked_cell_inlines(&text),
             MarkedWordLink::Ordinary => cmavo_or_gismu_cell_inlines(&text),
@@ -2674,7 +2676,7 @@ struct AdjacentValsiPart {
 /// `Some` with fewer than two parts still means rule 12. Whitespace between
 /// elements is text. An empty element is not a part, so it is left out of the
 /// list. An index term, an anchor, and a hidden subtree are not text. Each
-/// part uses the tree choice on its own spelling. Brackets stay in that
+/// part uses the raw tree choice on its own spelling. Brackets stay in that
 /// spelling.
 #[requires(cell.is_element())]
 #[ensures(ret.is_some() -> (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu")))]
@@ -2713,7 +2715,7 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
         if text.is_empty() {
             continue;
         }
-        let choice = tree_link_choice(child, &text);
+        let choice = tree_link_choice(child, &text, TreeSpelling::Raw);
         parts.push(new!(AdjacentValsiPart {
             text,
             opted_out: matches!(choice, MarkedWordLink::Unlinked),
@@ -2729,8 +2731,8 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
 /// stay out unless that element's text is one bare lujvo. A rule-12 cell
 /// uses only the cell element's own mark on the joined spelling. It does not
 /// unwrap a bracket pair. Any other cell uses the tree choice. That choice
-/// can see the inner word of one bracket pair. The same choice builds the
-/// cell.
+/// unwraps one bracket pair on the cell and on every descendant. The same
+/// choice builds the cell.
 #[requires(cell.is_element())]
 #[ensures({
     let text = cmavo_or_gismu_cell_text(cell);
@@ -2738,7 +2740,7 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
         ret == matches!(marked_word_link(cell, &text), MarkedWordLink::Unlinked)
     } else {
         ret == matches!(
-            tree_link_choice(cell, cell_decision_word(&text)),
+            tree_link_choice(cell, &text, TreeSpelling::UnwrapBracket),
             MarkedWordLink::Unlinked
         )
     }
@@ -2749,7 +2751,7 @@ pub(crate) fn cmavo_cell_opted_out(cell: Node<'_, '_>) -> bool {
         return matches!(marked_word_link(cell, &text), MarkedWordLink::Unlinked);
     }
     matches!(
-        tree_link_choice(cell, cell_decision_word(&text)),
+        tree_link_choice(cell, &text, TreeSpelling::UnwrapBracket),
         MarkedWordLink::Unlinked
     )
 }
@@ -2955,43 +2957,74 @@ fn lujvo_bracket_inlines<'word>(text: &str, target: &'word str) -> Vec<CllInline
     cmavo_or_gismu_cell_inlines_from(text, |_| (!target.is_empty()).then_some(target))
 }
 
+/// How a tree choice reads a spelling.
+///
+/// `Raw` keeps the caller spelling and every descendant spelling as written.
+/// A paragraph valsi and a rule-12 part use `Raw`. `UnwrapBracket` reads the
+/// inner word of one bracket pair. A single-word cell uses `UnwrapBracket`
+/// for the cell and for every descendant.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TreeSpelling {
+    Raw,
+    UnwrapBracket,
+}
+
+/// The spelling a mark judges under `mode`.
+///
+/// `Raw` returns `text`. `UnwrapBracket` returns the inner word of one
+/// bracket pair when that word is a dictionary token. Every other spelling
+/// stays as written.
+#[requires(true)]
+#[ensures(match mode {
+    TreeSpelling::Raw => ret == text,
+    TreeSpelling::UnwrapBracket => ret == cell_decision_word(text),
+})]
+fn spelling_for_mark<'a>(text: &'a str, mode: TreeSpelling) -> &'a str {
+    match mode {
+        TreeSpelling::Raw => text,
+        TreeSpelling::UnwrapBracket => cell_decision_word(text),
+    }
+}
+
 /// The strictest mark in this element and its descendants.
 ///
-/// `spelling` is the text this caller shows for the element. A paragraph
-/// passes the spaced text. A single-word cell can pass the inner word of one
-/// bracket pair. A rule-12 part passes its own text, and brackets stay in
-/// that text. Each descendant uses its own text with no added spaces.
-/// Brackets stay in a descendant's text. An opt-out wins. A lujvo mark links
-/// only when `spelling` is one bare lujvo. No mark stays ordinary.
+/// `spelling` is the text this caller shows for the element. `mode` selects
+/// how that text and each descendant text are judged. An opt-out wins. A
+/// lujvo mark links only when the judged caller spelling is one bare lujvo.
+/// No mark stays ordinary.
 #[requires(node.is_element())]
-#[ensures(matches!(ret, MarkedWordLink::Lujvo) -> single_bare_lujvo(spelling))]
+#[ensures(
+    matches!(ret, MarkedWordLink::Lujvo) -> single_bare_lujvo(spelling_for_mark(spelling, mode))
+)]
 #[ensures(attr_value(node, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
 #[ensures(
     attr_value(node, "glossary") != Some("false")
         && matches!(attr_value(node, "valid"), Some("false" | "maybe"))
-        && !single_bare_lujvo(spelling)
+        && !single_bare_lujvo(spelling_for_mark(spelling, mode))
         -> matches!(ret, MarkedWordLink::Unlinked)
 )]
-fn tree_link_choice(node: Node<'_, '_>, spelling: &str) -> MarkedWordLink {
+fn tree_link_choice(node: Node<'_, '_>, spelling: &str, mode: TreeSpelling) -> MarkedWordLink {
+    let decision = spelling_for_mark(spelling, mode);
     let mut saw_lujvo = false;
     for element in node.descendants() {
         if !element.is_element() {
             continue;
         }
         let owned;
-        let judged = if element == node {
+        let raw = if element == node {
             spelling
         } else {
             owned = cmavo_or_gismu_cell_text(element);
             owned.as_str()
         };
-        match marked_word_link(element, judged) {
+        match marked_word_link(element, spelling_for_mark(raw, mode)) {
             MarkedWordLink::Unlinked => return MarkedWordLink::Unlinked,
             MarkedWordLink::Lujvo => saw_lujvo = true,
             MarkedWordLink::Ordinary => {}
         }
     }
-    if saw_lujvo && single_bare_lujvo(spelling) {
+    if saw_lujvo && single_bare_lujvo(decision) {
         MarkedWordLink::Lujvo
     } else if saw_lujvo {
         MarkedWordLink::Unlinked
@@ -7050,5 +7083,44 @@ mod tests {
             "{bracket_cell:?}"
         );
         assert!(entry_opted_out(split_brackets));
+    }
+
+    /// A marked descendant in a single-word cell unwraps one bracket pair.
+    ///
+    /// The paragraph arm and a rule-12 part keep the raw spelling. Brackets
+    /// in those spellings stay unlinked.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_marked_descendant_unwraps_one_bracket_pair() {
+        for cell_xml in [
+            r#"<gismu><phrase valid="maybe">[jbobliku]</phrase></gismu>"#,
+            r#"<gismu><valsi valid="maybe">[jbobliku]</valsi></gismu>"#,
+        ] {
+            let cell = entry_cell(cell_xml);
+            assert!(cell.word_parts().is_none(), "{cell_xml} got {cell:?}");
+            assert_eq!(
+                cell.word_cell().and_then(|word_cell| word_cell.bracket()),
+                Some(("jbobliku", Some("jbobliku"))),
+                "{cell_xml} got {cell:?}"
+            );
+            assert!(!entry_opted_out(cell_xml), "{cell_xml}");
+        }
+
+        let paragraph = r#"<para><valsi valid="maybe">[jbobliku]</valsi></para>"#;
+        let outside = probe_inlines(paragraph);
+        assert!(
+            is_unlinked_lojban_word(&outside, "[jbobliku]"),
+            "a paragraph keeps the brackets, got {outside:?}"
+        );
+
+        let part = r#"<gismu><valsi valid="maybe">[jbobliku]</valsi><valsi>coi</valsi></gismu>"#;
+        let part_cell = entry_cell(part);
+        assert_eq!(
+            part_cell.word_parts().as_deref(),
+            Some([word_part("[jbobliku]", None), word_part("coi", Some("coi")),].as_slice()),
+            "{part_cell:?}"
+        );
+        assert!(!entry_opted_out(part), "{part}");
     }
 }
