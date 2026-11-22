@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -132,9 +133,17 @@ def cargo_rustc_metadata(arguments: list[str]) -> bool:
     return any(re.fullmatch(r"(?:-C)?metadata=[0-9a-f]{16}", argument) for argument in arguments)
 
 
-ACCEPTED_COMPILER_NAMES = ("rustc", "rustc.exe", "rustdoc", "rustdoc.exe")
-COMPILER_OVERRIDE_ENV = ("RUSTC", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER")
+RUSTC_NAMES = ("rustc", "rustc.exe")
+COMPILER_WRAPPER_ENV = ("RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER")
+COMPILER_CONFIG_KEYS = {"rustc", "rustc-wrapper", "rustc-workspace-wrapper"}
 UNSUPPORTED_COMPILER = "The compiler configuration is not supported."
+EXACT_TEST_MARKERS = (
+    "test-lib-",
+    "test-bin-",
+    "test-integration-test-",
+    "test-example-",
+    "test-bench-",
+)
 
 
 def has_flag(arguments: list[str], name: str) -> bool:
@@ -152,12 +161,49 @@ def cargo_compiler_arguments(arguments: list[str]) -> bool:
     return has_flag(arguments, "--crate-name") and cargo_rustc_metadata(arguments)
 
 
-def compiler_override_env(env: dict[str, str]) -> bool:
-    """Return true when the traced command sets a compiler override.
+def is_compiler_exec(executable: Path, real_executable: Path, arguments: list[str]) -> bool:
+    """Return true when this exec runs a compiler.
 
-    An empty value clears a wrapper. Cargo uses that form to keep the default compiler.
+    A `rustc` name, a real path named `rustc`, or Cargo compiler arguments is that exec.
     """
-    return any(env.get(name) for name in COMPILER_OVERRIDE_ENV)
+    if executable.name in RUSTC_NAMES or real_executable.name in RUSTC_NAMES:
+        return True
+    return cargo_compiler_arguments(arguments)
+
+
+def real_path(value: str, cwd: str) -> Path:
+    """Return the real path of one trace path."""
+    return Path(os.path.realpath(normalized_path(value, cwd)))
+
+
+def supported_compiler(workspace: Path) -> Path:
+    """Return the real path of the rustc for this workspace.
+
+    `rustup which rustc` selects the toolchain file in `workspace`.
+    The real path drops a proxy symlink.
+    When `rustup` is absent, `rustc` on `PATH` is that compiler.
+    """
+    rustup = shutil.which("rustup")
+    if rustup is not None:
+        result = subprocess.run(
+            [rustup, "which", "rustc"],
+            cwd=workspace,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        raw = result.stdout.strip()
+        if result.returncode != 0 or not raw:
+            raise TraceError("The pinned compiler is unavailable.")
+    else:
+        found = shutil.which("rustc")
+        if found is None:
+            raise TraceError("The pinned compiler is unavailable.")
+        raw = found
+    path = Path(os.path.realpath(raw))
+    if not path.is_file():
+        raise TraceError("The pinned compiler is unavailable.")
+    return path
 
 
 def build_unit_fingerprint(out_dir: Path) -> Path | None:
@@ -307,23 +353,32 @@ def build_unit_executable_fingerprint(target: Path, executable: Path) -> Path | 
     return compile_dir / "fingerprint"
 
 
-def has_test_marker(fingerprint: Path) -> bool:
-    """Return true when the fingerprint holds a Cargo test or bench marker.
+def test_marker_kind(fingerprint: Path) -> str:
+    """Return `test`, `unknown`, or `absent` for one compile fingerprint.
 
     Cargo 1.100 writes `test-lib-`, `test-bin-`, `test-integration-test-`,
     `test-example-`, and `test-bench-`.
-    A `bench-` file is the same kind from an older Cargo.
-    A `.json` sidecar, a `dep-` file, and an `output-` file are not that marker.
+    `test-bench-` is the bench marker. Cargo runs a bench as a test.
+    Another `test-` or `bench-` name is an unknown shape.
+    A `.json` sidecar is not a marker.
     """
     if not fingerprint.is_dir():
-        return False
+        return "absent"
+    exact = False
+    unknown = False
     for entry in fingerprint.iterdir():
         name = entry.name
         if name.endswith(".json"):
             continue
-        if name.startswith(("test-", "bench-")):
-            return True
-    return False
+        if name.startswith(EXACT_TEST_MARKERS):
+            exact = True
+        elif name.startswith(("test-", "bench-")):
+            unknown = True
+    if unknown:
+        return "unknown"
+    if exact:
+        return "test"
+    return "absent"
 
 
 def has_unit_id_child(path: Path) -> bool:
@@ -434,7 +489,8 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
 
 class Parser:
     def __init__(self, workspace: Path, target: Path, output,
-                 inspect_process: Callable[[int], dict] | None = None):
+                 inspect_process: Callable[[int], dict] | None = None,
+                 compiler: Path = Path("/usr/bin/rustc")):
         self.workspace = workspace
         self.target = target
         self.output = output
@@ -448,6 +504,8 @@ class Parser:
         self.errors = 0
         self.root_pid: int | None = None
         self.cargo_home: Path | None = None
+        # Unit traces use `/usr/bin/rustc` unless the caller passes the resolved compiler.
+        self.compiler = Path(os.path.realpath(compiler))
 
     def emit(self, event: dict) -> None:
         encoded = json.dumps(event, ensure_ascii=True)
@@ -541,16 +599,24 @@ class Parser:
             # Never retain the raw environment or arguments in the journal.
             env = dict(item.split("=", 1) for item in environment if "=" in item)
             if pid == self.root_pid:
-                # Cargo later sets RUSTC on a build script. That value is not the traced command.
-                if compiler_override_env(env):
-                    raise TraceError(UNSUPPORTED_COMPILER)
                 cargo_home = env.get("CARGO_HOME")
                 if cargo_home:
                     self.cargo_home = normalized_path(cargo_home, process.cwd)
+            # A non-empty wrapper is a clearer error than the later compiler exec.
+            # An empty value clears a wrapper. Cargo uses that form to keep the default compiler.
+            if any(env.get(name) for name in COMPILER_WRAPPER_ENV):
+                raise TraceError(UNSUPPORTED_COMPILER)
+            # Cargo sets RUSTC on a build script to the compiler it resolved.
+            # That value must be the supported compiler.
+            rustc_value = env.get("RUSTC")
+            if rustc_value and real_path(rustc_value, process.cwd) != self.compiler:
+                raise TraceError(UNSUPPORTED_COMPILER)
             executable_name = Path(executable).name
-            # The supported names are rustc and rustdoc from the CI toolchain.
-            # Another name with Cargo compiler arguments is an override.
-            if cargo_compiler_arguments(arguments) and executable_name not in ACCEPTED_COMPILER_NAMES:
+            resolved = normalized_path(executable, process.cwd)
+            real_exec = Path(os.path.realpath(resolved))
+            # A compiler exec must use the supported compiler path.
+            # A rustc name, a real path named rustc, or Cargo compiler arguments selects that exec.
+            if is_compiler_exec(resolved, real_exec, arguments) and real_exec != self.compiler:
                 raise TraceError(UNSUPPORTED_COMPILER)
             if executable_name == "dx":
                 process.via_dx = True
@@ -561,13 +627,14 @@ class Parser:
             unit = None
             kind = None
             dep_info = None
-            resolved = normalized_path(executable, process.cwd)
             # A candidate comes from the operation position in the traced target.
             # When its name starts with `build-script-` or `build_script_`, an executable
             # under a profile `build` directory is a build-script candidate.
-            # When that executable is in the Cargo 1.100 unit place and its fingerprint
-            # has a test or bench marker, the execution is not a unit.
-            # A missing fingerprint or an unknown marker is an error.
+            # When that executable is in the Cargo 1.100 unit place, read its fingerprint first.
+            # An exact marker is `test-lib-`, `test-bin-`, `test-integration-test-`,
+            # `test-example-`, or `test-bench-`. That execution is not a unit.
+            # Another `test-` or `bench-` name is an unknown shape.
+            # A missing fingerprint is an error.
             # A rustc call with Cargo metadata is a unit candidate.
             # The environment does not make the candidate decision.
             # When a candidate differs from a known Cargo layout, raise TraceError.
@@ -576,8 +643,12 @@ class Parser:
             script_name = resolved.name.startswith(("build-script-", "build_script_"))
             if under_profile_build(self.target, resolved) and script_name:
                 compile_fingerprint = build_unit_executable_fingerprint(self.target, resolved)
-                # A test or bench marker is test execution. It is not a build-script unit.
-                if compile_fingerprint is None or not has_test_marker(compile_fingerprint):
+                marker = "absent" if compile_fingerprint is None else test_marker_kind(compile_fingerprint)
+                # Another test or bench name is an unknown shape. It is not test execution.
+                if marker == "unknown":
+                    raise TraceError("Unknown build script unit layout")
+                # An exact test or bench marker is test execution. It is not a build-script unit.
+                if marker != "test":
                     if not package or not manifest or not out:
                         raise TraceError("Unknown build script unit layout")
                     out_dir = normalized_path(out, process.cwd)
@@ -604,7 +675,7 @@ class Parser:
                             fingerprint_ready(fingerprint, run=True)
                             unit = fingerprint
                             kind = "run"
-            if executable_name in ("rustc", "rustc.exe") and cargo_rustc_metadata(arguments):
+            if real_exec == self.compiler and cargo_rustc_metadata(arguments):
                 if not package or not manifest:
                     raise TraceError("Unknown rustc unit layout")
                 destination = flag(arguments, "--out-dir")
@@ -708,7 +779,7 @@ class Parser:
         except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
             raise TraceError("A Cargo config is unreadable.") from error
         build = parsed.get("build")
-        if isinstance(build, dict) and ({"rustc", "rustc-wrapper"} & set(build)):
+        if isinstance(build, dict) and (COMPILER_CONFIG_KEYS & set(build)):
             raise TraceError(UNSUPPORTED_COMPILER)
 
     def executable_in_target(self, raw: bytes) -> str | None:
@@ -760,7 +831,10 @@ def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> i
     read_fd, write_fd = os.pipe()
     journal.parent.mkdir(parents=True, exist_ok=True)
     with journal.open("w") as output, os.fdopen(read_fd, "rb") as stream:
-        parser = Parser(workspace, target, output, inspect_process=process_snapshot)
+        parser = Parser(
+            workspace, target, output, inspect_process=process_snapshot,
+            compiler=supported_compiler(workspace),
+        )
         reader = threading.Thread(target=parser.feed, args=(stream,))
         reader.start()
         try:
