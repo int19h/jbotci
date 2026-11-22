@@ -4286,7 +4286,14 @@ mod tests {
         if let Some(word) = cmavo_table::bracketed_dictionary_word(text) {
             if opted_out {
                 assert!(
-                    matches!(cell, [CllInline::Text(body)] if body == text),
+                    matches!(
+                        cell,
+                        [CllInline::LanguageSpan {
+                            kind: CllLanguageSpanKind::MarkedValsi,
+                            inlines,
+                            ..
+                        }] if matches!(inlines.as_slice(), [CllInline::Text(body)] if body == text)
+                    ),
                     "{label}"
                 );
                 counts.plain += 1;
@@ -4320,7 +4327,7 @@ mod tests {
                     matches!(
                         cell,
                         [CllInline::LanguageSpan {
-                            kind: CllLanguageSpanKind::JboPhrase,
+                            kind: CllLanguageSpanKind::MarkedValsi,
                             inlines,
                             ..
                         }] if matches!(inlines.as_slice(), [CllInline::Text(body)] if body == text)

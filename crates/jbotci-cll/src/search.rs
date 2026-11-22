@@ -479,6 +479,18 @@ impl<'site> TaggedWordsVisitor<'site> {
             words: BTreeSet::new(),
         }
     }
+
+    /// Add the tags a dictionary link stores for one word.
+    ///
+    /// `target` is the normalized query. `shown` is the text a reader sees.
+    /// Both sets are stored. A link and an unlinked marked word use this
+    /// same pair.
+    #[requires(true)]
+    #[ensures(true)]
+    fn add_word_tags(&mut self, target: &str, shown: &str) {
+        self.words.extend(collect_tagged_words(target));
+        self.words.extend(collect_tagged_words(shown));
+    }
 }
 
 #[contract_trait]
@@ -517,9 +529,16 @@ impl CllBlockVisitor for TaggedWordsVisitor<'_> {
                 inlines,
                 kind: CllLinkKind::Dictionary | CllLinkKind::Rafsi,
             } => {
-                self.words.extend(collect_tagged_words(target));
-                self.words
-                    .extend(collect_tagged_words(&inline_plain_text(inlines)));
+                self.add_word_tags(target, &inline_plain_text(inlines));
+            }
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::MarkedValsi,
+                inlines,
+                ..
+            } => {
+                let shown = inline_plain_text(inlines);
+                let target = crate::import::normalize_valsis_query(&shown);
+                self.add_word_tags(&target, &shown);
             }
             CllInline::Link { .. } => {}
             _ => walk_inline(self, inline),

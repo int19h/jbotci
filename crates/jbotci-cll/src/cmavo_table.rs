@@ -92,6 +92,21 @@ pub(crate) fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<
             };
             is_dictionary_token(text).then(|| new!(CllCmavoWordCell::Token { text, target: None }))
         }
+        [
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::MarkedValsi,
+                inlines: inner,
+                ..
+            },
+        ] => {
+            let [CllInline::Text(text)] = inner.as_slice() else {
+                return None;
+            };
+            if let Some(word) = bracketed_dictionary_word(text) {
+                return Some(new!(CllCmavoWordCell::Bracket { word, target: None }));
+            }
+            is_dictionary_token(text).then(|| new!(CllCmavoWordCell::Token { text, target: None }))
+        }
         _ => None,
     }
 }
@@ -144,7 +159,7 @@ pub(crate) fn cmavo_word_parts(inlines: &[CllInline]) -> Option<Vec<CllCmavoWord
                 );
             }
             CllInline::LanguageSpan {
-                kind: CllLanguageSpanKind::JboPhrase,
+                kind: CllLanguageSpanKind::JboPhrase | CllLanguageSpanKind::MarkedValsi,
                 inlines,
                 ..
             } => {
@@ -382,6 +397,62 @@ fn lojban_phrase_span(text: &str) -> CllInline {
 ))]
 fn lojban_word_span(text: &str) -> CllInline {
     lojban_phrase_span(text)
+}
+
+/// One unlinked marked word.
+///
+/// The span keeps `text`. Word search reads this kind. The HTML class is
+/// the same class as a Lojban phrase.
+#[requires(!text.is_empty())]
+#[ensures(matches!(
+    &ret,
+    CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::MarkedValsi,
+        language: Some(language),
+        inlines,
+    } if language == "jbo" && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
+))]
+pub(crate) fn marked_valsi_span(text: &str) -> CllInline {
+    CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::MarkedValsi,
+        language: Some("jbo".to_owned()),
+        inlines: vec![CllInline::Text(text.to_owned())],
+    }
+}
+
+/// The inlines for a cmavo or gismu cell that an opt-out mark leaves unlinked.
+///
+/// A bracket and a dictionary token become one marked span, so the word
+/// stays searchable. Any other text stays one text node. `-----` is that
+/// text node. The cell does not gain a link.
+#[requires(text == text.trim())]
+#[expensive_ensures(cmavo_cell_joined_text(&ret) == text)]
+#[ensures(ret.len() <= 1)]
+#[ensures(ret.iter().all(|inline| match inline {
+    CllInline::Text(shown) => {
+        shown == text
+            && bracketed_dictionary_word(text).is_none()
+            && !is_dictionary_token(text)
+    }
+    CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::MarkedValsi,
+        inlines,
+        ..
+    } => {
+        matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
+            && (bracketed_dictionary_word(text).is_some() || is_dictionary_token(text))
+    }
+    _ => false,
+}))]
+pub(crate) fn marked_unlinked_cell_inlines(text: &str) -> Vec<CllInline> {
+    if text.is_empty() {
+        return Vec::new();
+    }
+    if bracketed_dictionary_word(text).is_some() || is_dictionary_token(text) {
+        vec![marked_valsi_span(text)]
+    } else {
+        vec![CllInline::Text(text.to_owned())]
+    }
 }
 
 /// One part of a cell made of adjacent valsi elements.

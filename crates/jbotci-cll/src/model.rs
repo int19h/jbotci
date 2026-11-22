@@ -1270,6 +1270,12 @@ pub enum CllInline {
 pub enum CllLanguageSpanKind {
     ForeignPhrase,
     JboPhrase,
+    /// A marked word that stays unlinked.
+    ///
+    /// The reader sees the same Lojban span as `JboPhrase`. Word search
+    /// finds the word. The tags use the same normalization as a dictionary
+    /// link. A `jbophrase` span does not use this kind.
+    MarkedValsi,
 }
 
 #[invariant(true)]

@@ -984,6 +984,7 @@ fn collect_cll_inline_page_find_entries(
         } => {
             let child_context = lojban_context
                 || *kind == CllLanguageSpanKind::JboPhrase
+                || *kind == CllLanguageSpanKind::MarkedValsi
                 || cll_language_is_lojban(language.as_deref());
             collect_cll_inlines_page_find_entries(entries, inlines, script, child_context);
         }

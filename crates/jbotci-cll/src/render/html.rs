@@ -949,7 +949,9 @@ fn render_ebnf_link_body_html(
 fn language_span_class(kind: CllLanguageSpanKind) -> &'static str {
     match kind {
         CllLanguageSpanKind::ForeignPhrase => "spa-cll-foreignphrase",
-        CllLanguageSpanKind::JboPhrase => "spa-cll-jbophrase",
+        // A marked word uses the jbophrase class. A new class would change
+        // the HTML of every unlinked marked word.
+        CllLanguageSpanKind::JboPhrase | CllLanguageSpanKind::MarkedValsi => "spa-cll-jbophrase",
     }
 }
 

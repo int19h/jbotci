@@ -1950,6 +1950,7 @@ pub(super) fn render_cll_inline(
             let class_name = cll_language_span_class(*kind);
             let child_context = lojban_context
                 || *kind == CllLanguageSpanKind::JboPhrase
+                || *kind == CllLanguageSpanKind::MarkedValsi
                 || cll_language_is_lojban(language.as_deref());
             rsx! {
                 span { class: "{class_name}", lang: language.clone().unwrap_or_default(),
@@ -2917,7 +2918,7 @@ pub(super) fn cll_table_class(classes: &[String]) -> String {
 pub(super) fn cll_language_span_class(kind: CllLanguageSpanKind) -> &'static str {
     match kind {
         CllLanguageSpanKind::ForeignPhrase => "spa-cll-foreignphrase",
-        CllLanguageSpanKind::JboPhrase => "spa-cll-jbophrase",
+        CllLanguageSpanKind::JboPhrase | CllLanguageSpanKind::MarkedValsi => "spa-cll-jbophrase",
     }
 }
 
