@@ -77,14 +77,29 @@ The `rustc` compilation of that test remains a unit.
 When the fingerprint is missing, the trace rejects the execution.
 When the marker is another `test-` or `bench-` name, the trace rejects the execution.
 A `.json` sidecar is not the marker.
+An exact marker must be a regular file.
+When the marker name is a directory, the trace rejects the execution.
+When the marker name is another entry that is not a regular file, the trace rejects the execution.
 A `rustc` call with Cargo metadata is a unit candidate.
 The trace does not use environment values for that candidate decision.
 When a candidate differs from a known Cargo layout, the trace rejects the operation.
 A missing environment value, a malformed id, or an unknown shape is a rejection.
 When an operation is outside those positions, the trace does not make it a unit.
+
+The cache tool protects an honest build in the CI image.
+It protects that build against configuration drift and against a layout change.
+A traced build that deliberately places a fake `rustup` first on `PATH` is outside this tool.
+A traced build that swaps the rustup home through a symlink during the trace is outside this tool.
+
 The supported compiler is the real path of the pinned toolchain `rustc`.
 Before the trace starts, the trace resolves that path from the traced workspace.
 It runs `rustup which rustc` and then takes the real path.
+The trace clears `RUSTUP_TOOLCHAIN` for that one resolution.
+The workspace pin then selects the toolchain.
+The trace reads the channel from `rust-toolchain.toml`.
+The version line must equal `rustc` plus that channel, then a space or the end of the line.
+When the resolved file is the rustup proxy, the trace rejects the build.
+When the compiler version differs from that channel, the trace rejects the build.
 When `rustup` is absent, the trace uses `rustc` on `PATH` and takes that real path.
 When the exec name is `rustc` or `rustc.exe`, that exec is a compiler exec.
 When the real path name is `rustc` or `rustc.exe`, that exec is a compiler exec.
@@ -92,6 +107,8 @@ When the exec carries `--crate-name` and `-C metadata=`, that exec is a compiler
 When the exec name has no slash, the trace resolves that name through `PATH`.
 When the loaded file is the rustup proxy, the trace runs `rustup which rustc` in that process directory.
 The selected file must be the supported compiler.
+When a bare `rustc` name loads the rustup proxy, the resolved compiler file is the compile unit.
+A call with Cargo metadata then records that unit.
 When a compiler exec resolves to another file, the trace rejects the build.
 The trace reports one error for that path.
 The compiler configuration is not supported.

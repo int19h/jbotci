@@ -57,6 +57,12 @@ class CargoCacheTests(unittest.TestCase):
             GIT_CONFIG_GLOBAL=str(global_config),
             GIT_CONFIG_NOSYSTEM="1",
         )
+        # The trace reads the workspace pin. The fixture uses the project file.
+        # An ambient toolchain override must not select a different compiler.
+        self.env.pop("RUSTUP_TOOLCHAIN", None)
+        (self.repo / "rust-toolchain.toml").write_text(
+            (ROOT / "rust-toolchain.toml").read_text(encoding="utf-8"), encoding="utf-8",
+        )
         self._run(["git", "init", "--initial-branch=main", "--object-format=sha1"])
         self._run(["git", "config", "user.name", "Cache regression"])
         self._run(["git", "config", "user.email", "cache-regression@example.invalid"])

@@ -8,13 +8,14 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from unittest.mock import patch
 
 from tools import cargo_inputs as c
 from tools.cargo_inputs_trace import (
-    UNSUPPORTED_COMPILER, Parser, Process, process_snapshot, rustup_binary, string_at,
-    supported_compiler,
+    UNSUPPORTED_COMPILER, Parser, Process, TraceError, accept_pinned_compiler, process_snapshot,
+    rustup_binary, string_at, supported_compiler, version_line_matches,
 )
 
 
@@ -1351,13 +1352,47 @@ class CargoUnitTests(unittest.TestCase):
 
     def test_supported_compiler_is_the_workspace_toolchain_rustc(self) -> None:
         workspace = Path(__file__).resolve().parents[2]
-        resolved = supported_compiler(workspace)
+        env = os.environ.copy()
+        env.pop("RUSTUP_TOOLCHAIN", None)
         reported = subprocess.check_output(
-            ["rustup", "which", "rustc"], cwd=workspace, text=True,
+            ["rustup", "which", "rustc"], cwd=workspace, env=env, text=True,
         ).strip()
-        self.assertEqual(resolved, Path(os.path.realpath(reported)))
-        version = subprocess.check_output([str(resolved), "--version"], text=True)
-        self.assertTrue(version.startswith("rustc 1.100.0"))
+        expected = Path(os.path.realpath(reported))
+        with patch.dict(os.environ, {"RUSTUP_TOOLCHAIN": "not-a-toolchain"}):
+            resolved = supported_compiler(workspace)
+        self.assertEqual(resolved, expected)
+        channel = tomllib.loads(
+            (workspace / "rust-toolchain.toml").read_text(encoding="utf-8"),
+        )["toolchain"]["channel"]
+        version = subprocess.check_output([str(resolved), "--version"], text=True).splitlines()[0]
+        self.assertTrue(version_line_matches(version, channel))
+        rustup = rustup_binary()
+        self.assertIsNotNone(rustup)
+        assert rustup is not None
+        self.assertFalse(os.path.samefile(resolved, rustup))
+
+    def test_version_line_matches_only_the_channel_token(self) -> None:
+        self.assertTrue(version_line_matches("rustc 9.9.9 (hash date)", "9.9.9"))
+        self.assertTrue(version_line_matches("rustc 9.9.9", "9.9.9"))
+        self.assertFalse(version_line_matches("rustc 9.9.9-dev", "9.9.9"))
+        self.assertFalse(version_line_matches("rustc 9.9.90 (hash)", "9.9.9"))
+        self.assertFalse(version_line_matches("rustc 9.9.8 (hash)", "9.9.9"))
+
+    def test_pinned_compiler_rejects_a_proxy_and_a_different_version(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        compiler = supported_compiler(workspace)
+        rustup = rustup_binary()
+        self.assertIsNotNone(rustup)
+        assert rustup is not None
+        with self.assertRaises(TraceError) as proxy:
+            accept_pinned_compiler(rustup, workspace)
+        self.assertEqual(str(proxy.exception), "The pinned compiler is the rustup proxy.")
+        other = self.root / "other-pin"
+        other.mkdir()
+        (other / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "9.9.9"\n', encoding="utf-8")
+        with self.assertRaises(TraceError) as version:
+            accept_pinned_compiler(compiler, other)
+        self.assertEqual(str(version.exception), "The compiler version is not the pinned toolchain.")
 
     def test_trace_resolves_a_bare_rustc_name_through_path(self) -> None:
         workspace = Path(__file__).resolve().parents[2]
@@ -1422,6 +1457,44 @@ class CargoUnitTests(unittest.TestCase):
         self.assertEqual(
             [event["reason"] for event in overridden if event["event"] == "trace-error"],
             [UNSUPPORTED_COMPILER],
+        )
+
+    def test_trace_records_a_proxy_compile_unit(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        compiler = supported_compiler(workspace)
+        rustup = rustup_binary()
+        self.assertIsNotNone(rustup)
+        assert rustup is not None
+        target = self.layout.target
+        fingerprint = target / "debug/.fingerprint/demo-0123456789abcdef"
+        fingerprint.mkdir(parents=True)
+        out = target / "debug/deps"
+        proxy_dir = self.root / "proxy-compile"
+        proxy_dir.mkdir()
+        (proxy_dir / "rustc").symlink_to(rustup)
+        inherited = [
+            f'"{name}={os.environ[name]}"'
+            for name in ("RUSTUP_HOME", "RUSTUP_TOOLCHAIN")
+            if os.environ.get(name)
+        ]
+        environment = ", ".join([
+            f'"PATH={proxy_dir}"',
+            '"CARGO_PKG_NAME=demo"',
+            '"CARGO_MANIFEST_DIR=/src/demo"',
+            *inherited,
+        ])
+        output = io.StringIO()
+        parser = Parser(workspace, target, output, compiler=compiler, rustup=rustup)
+        parser.feed([(
+            '1 execve("rustc", ["rustc", "--crate-name", "demo", "--out-dir", '
+            f'"{out}", "-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"], '
+            f'[{environment}]) = 0\n'
+        ).encode()])
+        events = [json.loads(item) for item in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual(
+            [(event["kind"], event["unit"]) for event in events if event["event"] == "unit"],
+            [("compile", "debug/.fingerprint/demo-0123456789abcdef")],
         )
 
     def test_trace_rejects_a_compiler_exec_at_another_path(self) -> None:
@@ -1621,6 +1694,14 @@ class CargoUnitTests(unittest.TestCase):
         (fingerprint / "test-garbage").unlink()
         (fingerprint / "build-script-build-script-build").unlink()
         (fingerprint / "bench-bin-build_script_demo").write_text(unit)
+        self.assert_trace_layout_error(line, "Unknown build script unit layout")
+        (fingerprint / "bench-bin-build_script_demo").unlink()
+        (fingerprint / "test-lib-fake").mkdir()
+        self.assert_trace_layout_error(line, "Unknown build script unit layout")
+        (fingerprint / "test-lib-fake").rmdir()
+        marker_target = fingerprint / "marker-target"
+        marker_target.write_text(unit)
+        (fingerprint / "test-bin-link").symlink_to(marker_target)
         self.assert_trace_layout_error(line, "Unknown build script unit layout")
 
     def assert_trace_layout_error(self, line: str, reason: str) -> None:

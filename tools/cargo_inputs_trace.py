@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import threading
@@ -243,18 +244,78 @@ def query_rustup_rustc(
     return path if path.is_file() else None
 
 
+def pinned_channel(workspace: Path) -> str:
+    """Return the toolchain channel from `rust-toolchain.toml` in `workspace`."""
+    path = workspace / "rust-toolchain.toml"
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+        raise TraceError("The pinned compiler is unavailable.") from error
+    toolchain = data.get("toolchain")
+    channel = toolchain.get("channel") if isinstance(toolchain, dict) else None
+    if not isinstance(channel, str) or not channel or channel != channel.strip():
+        raise TraceError("The pinned compiler is unavailable.")
+    return channel
+
+
+def version_line_matches(line: str, channel: str) -> bool:
+    """Return true when `line` is `rustc <channel>` with no longer version token.
+
+    A parenthetical hash can follow the channel.
+    A suffix on the channel does not match.
+    """
+    prefix = f"rustc {channel}"
+    if line == prefix:
+        return True
+    return line.startswith(prefix) and line[len(prefix)].isspace()
+
+
+def compiler_version_line(compiler: Path) -> str:
+    """Return the first line of `compiler --version`."""
+    result = subprocess.run(
+        [str(compiler), "--version"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not result.stdout:
+        raise TraceError("The pinned compiler is unavailable.")
+    return result.stdout.splitlines()[0]
+
+
+def accept_pinned_compiler(path: Path, workspace: Path) -> Path:
+    """Return `path` when it is the workspace pin and not the rustup proxy."""
+    proxy = rustup_binary()
+    if proxy is not None:
+        try:
+            same = os.path.samefile(path, proxy)
+        except OSError as error:
+            raise TraceError("The pinned compiler is unavailable.") from error
+        if same:
+            raise TraceError("The pinned compiler is the rustup proxy.")
+    if not version_line_matches(compiler_version_line(path), pinned_channel(workspace)):
+        raise TraceError("The compiler version is not the pinned toolchain.")
+    return path
+
+
 def supported_compiler(workspace: Path) -> Path:
     """Return the real path of the rustc for this workspace.
 
     `rustup which rustc` selects the toolchain file in `workspace`.
-    The real path drops a proxy symlink.
+    `RUSTUP_TOOLCHAIN` is cleared for that one call, so the workspace pin decides.
+    The version line must equal `rustc` plus the channel in `rust-toolchain.toml`.
+    The resolved file must not be the rustup proxy.
     When `rustup` is absent, `rustc` on `PATH` is that compiler.
     """
     rustup = shutil.which("rustup")
     if rustup is not None:
+        # The workspace file selects the toolchain. An ambient override must not.
+        env = os.environ.copy()
+        env.pop("RUSTUP_TOOLCHAIN", None)
         result = subprocess.run(
             [rustup, "which", "rustc"],
             cwd=workspace,
+            env=env,
             check=False,
             capture_output=True,
             text=True,
@@ -270,7 +331,7 @@ def supported_compiler(workspace: Path) -> Path:
     path = Path(os.path.realpath(raw))
     if not path.is_file():
         raise TraceError("The pinned compiler is unavailable.")
-    return path
+    return accept_pinned_compiler(path, workspace)
 
 
 def build_unit_fingerprint(out_dir: Path) -> Path | None:
@@ -420,12 +481,22 @@ def build_unit_executable_fingerprint(target: Path, executable: Path) -> Path | 
     return compile_dir / "fingerprint"
 
 
+def regular_file(entry: Path) -> bool:
+    """Return true when `entry` is a regular file and not a link."""
+    try:
+        return stat.S_ISREG(entry.lstat().st_mode)
+    except OSError:
+        return False
+
+
 def test_marker_kind(fingerprint: Path) -> str:
     """Return `test`, `unknown`, or `absent` for one compile fingerprint.
 
     Cargo 1.100 writes `test-lib-`, `test-bin-`, `test-integration-test-`,
     `test-example-`, and `test-bench-`.
     `test-bench-` is the bench marker. Cargo runs a bench as a test.
+    An exact marker must be a regular file.
+    A directory, a link, or another entry with a marker name is an unknown shape.
     Another `test-` or `bench-` name is an unknown shape.
     A `.json` sidecar is not a marker.
     """
@@ -438,7 +509,10 @@ def test_marker_kind(fingerprint: Path) -> str:
         if name.endswith(".json"):
             continue
         if name.startswith(EXACT_TEST_MARKERS):
-            exact = True
+            if regular_file(entry):
+                exact = True
+            else:
+                unknown = True
         elif name.startswith(("test-", "bench-")):
             unknown = True
     if unknown:
@@ -771,7 +845,8 @@ class Parser:
                             fingerprint_ready(fingerprint, run=True)
                             unit = fingerprint
                             kind = "run"
-            if real_exec == self.compiler and cargo_rustc_metadata(arguments):
+            # The rustup proxy is not the compiler file. The resolved file is the unit.
+            if compiler_file == self.compiler and cargo_rustc_metadata(arguments):
                 if not package or not manifest:
                     raise TraceError("Unknown rustc unit layout")
                 destination = flag(arguments, "--out-dir")
