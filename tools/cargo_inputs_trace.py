@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import threading
+import tomllib
 from typing import Callable
 
 
@@ -129,6 +130,34 @@ CLASSIC_DIR = re.compile(r"-[0-9a-f]{16}$")
 def cargo_rustc_metadata(arguments: list[str]) -> bool:
     """Return true when rustc arguments carry Cargo's unit metadata hash."""
     return any(re.fullmatch(r"(?:-C)?metadata=[0-9a-f]{16}", argument) for argument in arguments)
+
+
+ACCEPTED_COMPILER_NAMES = ("rustc", "rustc.exe", "rustdoc", "rustdoc.exe")
+COMPILER_OVERRIDE_ENV = ("RUSTC", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER")
+UNSUPPORTED_COMPILER = "The compiler configuration is not supported."
+
+
+def has_flag(arguments: list[str], name: str) -> bool:
+    """Return true when `name` is present and has a value."""
+    for index, argument in enumerate(arguments):
+        if argument == name and index + 1 < len(arguments):
+            return True
+        if argument.startswith(name + "="):
+            return True
+    return False
+
+
+def cargo_compiler_arguments(arguments: list[str]) -> bool:
+    """Return true when arguments carry `--crate-name` and Cargo's metadata hash."""
+    return has_flag(arguments, "--crate-name") and cargo_rustc_metadata(arguments)
+
+
+def compiler_override_env(env: dict[str, str]) -> bool:
+    """Return true when the traced command sets a compiler override.
+
+    An empty value clears a wrapper. Cargo uses that form to keep the default compiler.
+    """
+    return any(env.get(name) for name in COMPILER_OVERRIDE_ENV)
 
 
 def build_unit_fingerprint(out_dir: Path) -> Path | None:
@@ -258,6 +287,45 @@ def fingerprint_names(fingerprint: Path, prefix: str) -> bool:
     return any(entry.name.startswith(prefix) for entry in fingerprint.iterdir())
 
 
+def build_unit_executable_fingerprint(target: Path, executable: Path) -> Path | None:
+    """Return `<id>/fingerprint` for one Cargo 1.100 unit executable.
+
+    The place is `<profile>/build/<package>/<16 hex>/out/<name>`.
+    Return None when `executable` is not in that place.
+    """
+    if executable.parent.name != "out":
+        return None
+    compile_dir = executable.parent.parent
+    if not UNIT_ID.fullmatch(compile_dir.name):
+        return None
+    package_dir = compile_dir.parent
+    if package_dir.parent.name != "build":
+        return None
+    profile = package_dir.parent.parent
+    if not profile_inside_target(target, profile):
+        return None
+    return compile_dir / "fingerprint"
+
+
+def has_test_marker(fingerprint: Path) -> bool:
+    """Return true when the fingerprint holds a Cargo test or bench marker.
+
+    Cargo 1.100 writes `test-lib-`, `test-bin-`, `test-integration-test-`,
+    `test-example-`, and `test-bench-`.
+    A `bench-` file is the same kind from an older Cargo.
+    A `.json` sidecar, a `dep-` file, and an `output-` file are not that marker.
+    """
+    if not fingerprint.is_dir():
+        return False
+    for entry in fingerprint.iterdir():
+        name = entry.name
+        if name.endswith(".json"):
+            continue
+        if name.startswith(("test-", "bench-")):
+            return True
+    return False
+
+
 def has_unit_id_child(path: Path) -> bool:
     """If a direct child is a 16-hex unit directory, return true."""
     return any(child.is_dir() and UNIT_ID.fullmatch(child.name) for child in path.iterdir())
@@ -378,6 +446,8 @@ class Parser:
         self.interrupted_forks: list[dict] = []
         self.inspect_process = inspect_process
         self.errors = 0
+        self.root_pid: int | None = None
+        self.cargo_home: Path | None = None
 
     def emit(self, event: dict) -> None:
         encoded = json.dumps(event, ensure_ascii=True)
@@ -396,6 +466,7 @@ class Parser:
         if pid not in self.processes:
             if not self.processes:
                 self.processes[pid] = Process(str(self.workspace))
+                self.root_pid = pid
             else:
                 if pid not in self.waiting and self.inspect_process is not None:
                     identity.update(self.inspect_process(pid))
@@ -469,7 +540,19 @@ class Parser:
             self.emit({"event": "process", "pid": pid, **identity})
             # Never retain the raw environment or arguments in the journal.
             env = dict(item.split("=", 1) for item in environment if "=" in item)
-            if Path(executable).name == "dx":
+            if pid == self.root_pid:
+                # Cargo later sets RUSTC on a build script. That value is not the traced command.
+                if compiler_override_env(env):
+                    raise TraceError(UNSUPPORTED_COMPILER)
+                cargo_home = env.get("CARGO_HOME")
+                if cargo_home:
+                    self.cargo_home = normalized_path(cargo_home, process.cwd)
+            executable_name = Path(executable).name
+            # The supported names are rustc and rustdoc from the CI toolchain.
+            # Another name with Cargo compiler arguments is an override.
+            if cargo_compiler_arguments(arguments) and executable_name not in ACCEPTED_COMPILER_NAMES:
+                raise TraceError(UNSUPPORTED_COMPILER)
+            if executable_name == "dx":
                 process.via_dx = True
             package = env.get("CARGO_PKG_NAME")
             manifest = env.get("CARGO_MANIFEST_DIR")
@@ -482,41 +565,46 @@ class Parser:
             # A candidate comes from the operation position in the traced target.
             # When its name starts with `build-script-` or `build_script_`, an executable
             # under a profile `build` directory is a build-script candidate.
-            # A test binary in a unit `out` directory does not have that name.
+            # When that executable is in the Cargo 1.100 unit place and its fingerprint
+            # has a test or bench marker, the execution is not a unit.
+            # A missing fingerprint or an unknown marker is an error.
             # A rustc call with Cargo metadata is a unit candidate.
-            # The environment does not make that decision.
+            # The environment does not make the candidate decision.
             # When a candidate differs from a known Cargo layout, raise TraceError.
             # A missing environment value, a malformed id, or an unknown shape is that difference.
             # An operation outside those positions is not a unit.
             script_name = resolved.name.startswith(("build-script-", "build_script_"))
             if under_profile_build(self.target, resolved) and script_name:
-                if not package or not manifest or not out:
-                    raise TraceError("Unknown build script unit layout")
-                out_dir = normalized_path(out, process.cwd)
-                # A nested Cargo target lives inside the outer run unit's OUT_DIR.
-                # The 1.100 build-script executable also sits in a compile unit `out`
-                # directory, so the executable path alone is not the nested check.
-                if inside_unit_out(self.target, out_dir):
-                    if process.unit is None:
-                        raise TraceError("A nested build has no outer unit")
-                else:
-                    fingerprint = classic_build_script_fingerprint(
-                        self.target, resolved, out_dir, package, requested_target)
-                    if fingerprint is None:
-                        fingerprint = build_unit_build_script_fingerprint(
-                            self.target, resolved, out_dir, package, requested_target)
-                    if fingerprint is None:
+                compile_fingerprint = build_unit_executable_fingerprint(self.target, resolved)
+                # A test or bench marker is test execution. It is not a build-script unit.
+                if compile_fingerprint is None or not has_test_marker(compile_fingerprint):
+                    if not package or not manifest or not out:
                         raise TraceError("Unknown build script unit layout")
-                    if inside_unit_out(self.target, fingerprint):
+                    out_dir = normalized_path(out, process.cwd)
+                    # A nested Cargo target lives inside the outer run unit's OUT_DIR.
+                    # The 1.100 build-script executable also sits in a compile unit `out`
+                    # directory, so the executable path alone is not the nested check.
+                    if inside_unit_out(self.target, out_dir):
                         if process.unit is None:
                             raise TraceError("A nested build has no outer unit")
-                    elif not fingerprint.is_relative_to(self.target):
-                        raise TraceError("Unknown build script unit layout")
                     else:
-                        fingerprint_ready(fingerprint, run=True)
-                        unit = fingerprint
-                        kind = "run"
-            if Path(executable).name in ("rustc", "rustc.exe") and cargo_rustc_metadata(arguments):
+                        fingerprint = classic_build_script_fingerprint(
+                            self.target, resolved, out_dir, package, requested_target)
+                        if fingerprint is None:
+                            fingerprint = build_unit_build_script_fingerprint(
+                                self.target, resolved, out_dir, package, requested_target)
+                        if fingerprint is None:
+                            raise TraceError("Unknown build script unit layout")
+                        if inside_unit_out(self.target, fingerprint):
+                            if process.unit is None:
+                                raise TraceError("A nested build has no outer unit")
+                        elif not fingerprint.is_relative_to(self.target):
+                            raise TraceError("Unknown build script unit layout")
+                        else:
+                            fingerprint_ready(fingerprint, run=True)
+                            unit = fingerprint
+                            kind = "run"
+            if executable_name in ("rustc", "rustc.exe") and cargo_rustc_metadata(arguments):
                 if not package or not manifest:
                     raise TraceError("Unknown rustc unit layout")
                 destination = flag(arguments, "--out-dir")
@@ -583,6 +671,7 @@ class Parser:
             opened = opened[:-10]
         if not opened.startswith("/"):
             return
+        self.reject_compiler_config(Path(os.path.normpath(opened)))
         if Path(opened).is_relative_to(self.target):
             return
         writing = access[1] in ("WRONLY", "RDWR")
@@ -590,6 +679,37 @@ class Parser:
             return
         self.emit({"event": "open", "unit": process.unit, "path": opened,
                    "write": writing, "read": access[1] != "WRONLY"})
+
+    def is_cargo_config(self, path: Path) -> bool:
+        """Return true for a Cargo config path the build can read.
+
+        Cargo reads `.cargo/config.toml` and `.cargo/config` from the project parents.
+        It also reads `config.toml` or `config` in `CARGO_HOME`.
+        """
+        if path.name not in ("config.toml", "config"):
+            return False
+        if path.parent.name == ".cargo":
+            return True
+        if self.cargo_home is None:
+            return False
+        if path.parent == self.cargo_home:
+            return True
+        try:
+            return path.parent.resolve() == self.cargo_home.resolve()
+        except OSError:
+            return False
+
+    def reject_compiler_config(self, path: Path) -> None:
+        """Raise when a Cargo config selects another compiler or a wrapper."""
+        if not self.is_cargo_config(path):
+            return
+        try:
+            parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+            raise TraceError("A Cargo config is unreadable.") from error
+        build = parsed.get("build")
+        if isinstance(build, dict) and ({"rustc", "rustc-wrapper"} & set(build)):
+            raise TraceError(UNSUPPORTED_COMPILER)
 
     def executable_in_target(self, raw: bytes) -> str | None:
         """Return the execve path relative to the target, or None.

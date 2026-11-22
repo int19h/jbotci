@@ -69,12 +69,28 @@ It records the executable, parent PID, and argument count without argument value
 When the executable is inside the traced target, a rejected operation also records that path.
 The trace decides a candidate from the operation position in the traced target.
 When its name starts with `build-script-` or `build_script_`, an executable under a profile `build` directory is a build-script candidate.
-A test binary in a unit `out` directory does not have that name.
+When that executable is in the Cargo 1.100 unit place, the trace reads its fingerprint first.
+When the fingerprint has a test or bench marker, the trace does not make the execution a unit.
+The `rustc` compilation of that test remains a unit.
+When the fingerprint is missing, the trace rejects the execution.
+When the marker is unknown, the trace rejects the execution.
+A `.json` sidecar is not the marker.
 A `rustc` call with Cargo metadata is a unit candidate.
-The trace does not use environment values for that decision.
+The trace does not use environment values for that candidate decision.
 When a candidate differs from a known Cargo layout, the trace rejects the operation.
 A missing environment value, a malformed id, or an unknown shape is a rejection.
 When an operation is outside those positions, the trace does not make it a unit.
+The supported compiler is the `rustc` binary from the CI toolchain.
+Cargo runs `rustdoc` for doctests.
+That `rustdoc` execution is not a compiler override.
+When the traced command sets `RUSTC`, `RUSTC_WRAPPER`, or `RUSTC_WORKSPACE_WRAPPER`, the trace rejects the build.
+When one of those values is empty, the trace accepts the command.
+Cargo sets `RUSTC` on a build script after it resolves the compiler.
+The trace does not treat that build-script value as an override.
+Cargo reads `.cargo/config.toml`, `.cargo/config`, and `config.toml` under `CARGO_HOME`.
+When one of those files contains `build.rustc` or `build.rustc-wrapper`, the trace rejects the build.
+When an exec carries `--crate-name` and `-C metadata=` under another name, the trace rejects that exec.
+The accepted names for those arguments are `rustc`, `rustc.exe`, `rustdoc`, and `rustdoc.exe`.
 When Cargo passes `--target`, the build-script binary stays in the profile for the host.
 `OUT_DIR` is under the `TARGET` value from that build script.
 When `TARGET` is absent, the trace rejects that split layout.

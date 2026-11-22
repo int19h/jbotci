@@ -12,7 +12,9 @@ import unittest
 from unittest.mock import patch
 
 from tools import cargo_inputs as c
-from tools.cargo_inputs_trace import Parser, Process, process_snapshot, string_at
+from tools.cargo_inputs_trace import (
+    UNSUPPORTED_COMPILER, Parser, Process, process_snapshot, string_at,
+)
 
 
 class CargoUnitTests(unittest.TestCase):
@@ -1200,6 +1202,228 @@ class CargoUnitTests(unittest.TestCase):
             ),
             "Unknown rustc unit layout",
         )
+
+    def test_trace_rejects_a_compiler_override(self) -> None:
+        target = self.layout.target
+        fingerprint = target / "debug/.fingerprint/demo-0123456789abcdef"
+        fingerprint.mkdir(parents=True)
+        out = target / "debug/deps"
+        arguments = (
+            f'"--crate-name", "demo", "--out-dir", "{out}", '
+            '"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"'
+        )
+        rustc = (
+            '1 execve("/usr/bin/rustc", ["rustc", ' + arguments + '], '
+            '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "{name}={value}"]) = 0\n'
+        )
+        for name in ("RUSTC", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER"):
+            with self.subTest(name=name):
+                self.assert_trace_layout_error(
+                    rustc.format(name=name, value="/tmp/rustc-renamed"),
+                    UNSUPPORTED_COMPILER,
+                )
+        renamed = (
+            f'1 execve("/tmp/rustc-renamed", ["rustc-renamed", {arguments}], '
+            '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+        )
+        self.assert_trace_layout_error(renamed, UNSUPPORTED_COMPILER)
+        empty = (
+            f'1 execve("/usr/bin/rustc", ["rustc", {arguments}], '
+            '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", '
+            '"RUSTC=", "RUSTC_WRAPPER=", "RUSTC_WORKSPACE_WRAPPER="]) = 0\n'
+        )
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([empty.encode()])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual(
+            [event["unit"] for event in events if event["event"] == "unit"],
+            ["debug/.fingerprint/demo-0123456789abcdef"],
+        )
+        rustdoc = (
+            f'1 execve("/usr/bin/rustdoc", ["rustdoc", "--crate-name", "demo", "--out-dir", "{out}", '
+            '"-C", "metadata=0123456789abcdef"], ["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+        )
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([rustdoc.encode()])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in events))
+
+    def test_trace_rejects_a_compiler_key_in_a_cargo_config(self) -> None:
+        project = self.workspace / ".cargo/config.toml"
+        project.parent.mkdir()
+        home = self.root / "cargo-home"
+        home.mkdir()
+        home_config = home / "config.toml"
+        cases = (
+            (project, '[build]\nrustc = "/tmp/rustc-renamed"\n', None),
+            (project, 'build.rustc-wrapper = "/usr/bin/sccache"\n', None),
+            (project, '[build]\nrustc-wrapper = ""\n', None),
+            (home_config, '[build]\nrustc = "/tmp/rustc-renamed"\n', home),
+        )
+        for path, text, cargo_home in cases:
+            with self.subTest(path=path.name, text=text):
+                path.write_text(text)
+                environment = '["PATH=/usr/bin"]'
+                if cargo_home is not None:
+                    environment = f'["PATH=/usr/bin", "CARGO_HOME={cargo_home}"]'
+                output = io.StringIO()
+                parser = Parser(self.workspace, self.layout.target, output)
+                parser.feed([
+                    f'1 execve("/usr/bin/cargo", ["cargo", "test"], {environment}) = 0\n'.encode(),
+                    f'1 openat(AT_FDCWD, "{path}", O_RDONLY) = 3<{path}>\n'.encode(),
+                ])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                self.assertEqual(events[-1]["errors"], 1)
+                self.assertEqual(events[1]["reason"], UNSUPPORTED_COMPILER)
+                self.assertFalse(any(event["event"] == "unit" for event in events))
+        project.write_text("[build]\njobs = 16\n")
+        broken = self.workspace / ".cargo/config"
+        broken.write_text("not = [")
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([
+            b'1 execve("/usr/bin/cargo", ["cargo", "test"], ["PATH=/usr/bin"]) = 0\n',
+            f'1 openat(AT_FDCWD, "{broken}", O_RDONLY) = 3<{broken}>\n'.encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 1)
+        self.assertEqual(events[1]["reason"], "A Cargo config is unreadable.")
+        fingerprint = self.layout.target / "debug/.fingerprint/demo-0123456789abcdef"
+        fingerprint.mkdir(parents=True)
+        out = self.layout.target / "debug/deps"
+        repository_config = Path(__file__).resolve().parents[2] / ".cargo/config.toml"
+        output = io.StringIO()
+        parser = Parser(self.workspace, self.layout.target, output)
+        parser.feed([
+            b'1 execve("/usr/bin/cargo", ["cargo", "test"], ["PATH=/usr/bin"]) = 0\n',
+            f'1 openat(AT_FDCWD, "{project}", O_RDONLY) = 3<{project}>\n'.encode(),
+            f'1 openat(AT_FDCWD, "{repository_config}", O_RDONLY) = 4<{repository_config}>\n'.encode(),
+            (
+                f'1 execve("/usr/bin/rustc", ["rustc", "--crate-name", "demo", "--out-dir", "{out}", '
+                '"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"], '
+                '["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo"]) = 0\n'
+            ).encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual(
+            [event["unit"] for event in events if event["event"] == "unit"],
+            ["debug/.fingerprint/demo-0123456789abcdef"],
+        )
+
+    def test_trace_keeps_cargo_rustc_on_a_build_script(self) -> None:
+        target = self.layout.target
+        compile_dir = target / "debug/build/demo/0123456789abcdef/fingerprint"
+        compile_dir.mkdir(parents=True)
+        (compile_dir / "build-script-build-script-build").write_text("0123456789abcdef")
+        run = target / "debug/build/demo/fedcba9876543210/fingerprint"
+        run.mkdir(parents=True)
+        executable = compile_dir.parent / "out/build_script_build"
+        out = run.parent / "out"
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([
+            b'1 execve("/usr/bin/cargo", ["cargo", "test"], ["PATH=/usr/bin"]) = 0\n',
+            b"1 clone(child_stack=NULL, flags=SIGCHLD) = 2\n",
+            (
+                f'2 execve("{executable}", ["{executable}"], '
+                f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}", '
+                '"RUSTC=/usr/bin/rustc"]) = 0\n'
+            ).encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual(
+            [(event["kind"], event["unit"]) for event in events if event["event"] == "unit"],
+            [("run", "debug/build/demo/fedcba9876543210/fingerprint")],
+        )
+
+    def test_trace_keeps_a_prefix_named_test_execution_outside_the_unit_contract(self) -> None:
+        target = self.layout.target
+        unit = "3e3ed1173044f8b5"
+        spellings = (
+            ("build-script-demo", "test-lib-build_script_demo"),
+            ("build_script_demo", "test-integration-test-build_script_demo"),
+        )
+        for package, marker in spellings:
+            with self.subTest(package=package, marker=marker):
+                fingerprint = target / f"debug/build/{package}/{unit}/fingerprint"
+                self.write_fingerprint(fingerprint, marker, 1)
+                executable = fingerprint.parent / f"out/build_script_demo-{unit}"
+                output = io.StringIO()
+                parser = Parser(self.workspace, target, output)
+                parser.feed([(
+                    f'1 execve("{executable}", ["{executable}"], ["CARGO_PKG_NAME={package}"]) = 0\n'
+                ).encode()])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                self.assertEqual(events[-1]["errors"], 0)
+                self.assertFalse(any(event["event"] == "unit" for event in events))
+        for marker in ("test-bin-build_script_demo", "test-example-build_script_demo", "test-bench-build_script_demo", "bench-bin-build_script_demo"):
+            with self.subTest(marker=marker):
+                fingerprint = target / f"debug/build/build-script-demo/{unit}/fingerprint"
+                for child in fingerprint.iterdir():
+                    child.unlink()
+                self.write_fingerprint(fingerprint, marker, 1)
+                executable = fingerprint.parent / f"out/build_script_demo-{unit}"
+                output = io.StringIO()
+                parser = Parser(self.workspace, target, output)
+                parser.feed([(
+                    f'1 execve("{executable}", ["{executable}"], []) = 0\n'
+                ).encode()])
+                events = [json.loads(line) for line in output.getvalue().splitlines()]
+                self.assertEqual(events[-1]["errors"], 0)
+                self.assertFalse(any(event["event"] == "unit" for event in events))
+        fingerprint = target / f"debug/build/build-script-demo/{unit}/fingerprint"
+        for child in fingerprint.iterdir():
+            child.unlink()
+        self.write_fingerprint(fingerprint, "test-lib-build_script_demo", 1)
+        (fingerprint / "build-script-build-script-build").write_text(unit)
+        executable = fingerprint.parent / f"out/build_script_demo-{unit}"
+        out = fingerprint.parent / "out"
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output)
+        parser.feed([
+            b'1 execve("/usr/bin/cargo", ["cargo", "test"], ["PATH=/usr/bin"]) = 0\n',
+            b"1 clone(child_stack=NULL, flags=SIGCHLD) = 2\n",
+            (
+                f'2 execve("/usr/bin/rustc", ["rustc", "--crate-name", "build_script_demo", "--out-dir", "{out}", '
+                f'"-C", "metadata={unit}"], ["CARGO_PKG_NAME=build-script-demo", '
+                f'"CARGO_MANIFEST_DIR=/src/build-script-demo"]) = 0\n'
+            ).encode(),
+            b"1 clone(child_stack=NULL, flags=SIGCHLD) = 3\n",
+            f'3 execve("{executable}", ["{executable}"], ["CARGO_PKG_NAME=build-script-demo"]) = 0\n'.encode(),
+        ])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertEqual(
+            [(event["kind"], event["unit"]) for event in events if event["event"] == "unit"],
+            [("compile", f"debug/build/build-script-demo/{unit}/fingerprint")],
+        )
+
+    def test_trace_rejects_a_prefix_named_executable_without_a_test_marker(self) -> None:
+        target = self.layout.target
+        unit = "3e3ed1173044f8b5"
+        fingerprint = target / f"debug/build/build-script-demo/{unit}/fingerprint"
+        executable = fingerprint.parent / f"out/build_script_demo-{unit}"
+        out = target / f"debug/build/build-script-demo/fedcba9876543210/out"
+        environment = (
+            f'["CARGO_PKG_NAME=build-script-demo", "CARGO_MANIFEST_DIR=/src/build-script-demo", "OUT_DIR={out}"]'
+        )
+        line = f'1 execve("{executable}", ["{executable}"], {environment}) = 0\n'
+        self.assert_trace_layout_error(line, "Unknown build script unit layout")
+        fingerprint.mkdir(parents=True)
+        (fingerprint / "test-lib-build_script_demo.json").write_text("{}")
+        self.assert_trace_layout_error(line, "Unknown build script unit layout")
+        (fingerprint / "test-lib-build_script_demo.json").unlink()
+        (fingerprint / "lib-build_script_demo").write_text(unit)
+        self.assert_trace_layout_error(line, "Unknown build script unit layout")
+        (fingerprint / "lib-build_script_demo").unlink()
+        (fingerprint / "dep-test-lib-build_script_demo").write_text(unit)
+        self.assert_trace_layout_error(line, "Unknown build script unit layout")
 
     def assert_trace_layout_error(self, line: str, reason: str) -> None:
         output = io.StringIO()
