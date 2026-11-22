@@ -15,7 +15,7 @@ from unittest.mock import patch
 from tools import cargo_inputs as c
 from tools.cargo_inputs_trace import (
     DX_VERSION, UNSUPPORTED_COMPILER, Parser, Process, TraceError, accept_pinned_compiler,
-    dx_version_line_matches, pinned_dx, process_snapshot, rustup_binary, string_at,
+    dioxus_cli_version, dx_version_line_matches, pinned_dx, process_snapshot, rustup_binary, string_at,
     supported_compiler, trace, version_line_matches,
 )
 
@@ -1716,7 +1716,7 @@ class CargoUnitTests(unittest.TestCase):
         compiler.chmod(0o755)
         dx = self.root / "dx-home" / "dx"
         dx.parent.mkdir()
-        dx.write_text("#!/bin/sh\necho 'dioxus 0.7.9 (hash)'\n", encoding="utf-8")
+        dx.write_text(f"#!/bin/sh\necho 'dioxus {DX_VERSION} (bfcc111)'\n", encoding="utf-8")
         dx.chmod(0o755)
         nightly = self.root / "nightly" / "rustc"
         nightly.parent.mkdir()
@@ -1832,19 +1832,42 @@ class CargoUnitTests(unittest.TestCase):
             f'1 execve("{nightly}", ["{nightly}", "-vV"], ["PATH=/usr/bin"]) = 0\n',
         ])
         self.assertEqual(bare_nightly[-1]["errors"], 1)
-        self.assertTrue(dx_version_line_matches(f"dioxus {DX_VERSION} (hash)"))
+        self.assertTrue(dx_version_line_matches(f"dioxus {DX_VERSION} (bfcc111)"))
+        self.assertTrue(dx_version_line_matches(f"dioxus {DX_VERSION} (BFCC111)"))
         self.assertTrue(dx_version_line_matches(f"dioxus {DX_VERSION}"))
+        self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION} garbage"))
+        self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION} (not a hash)"))
+        self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION} (hash)"))
+        self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION} ()"))
+        self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION} (bfcc111) extra"))
+        self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION}(bfcc111)"))
+        self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION} "))
         self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION}.1"))
         self.assertFalse(dx_version_line_matches("dioxus 0.7.8"))
         bin_dir = self.root / "bin"
         bin_dir.mkdir()
         path_dx = bin_dir / "dx"
-        path_dx.write_text("#!/bin/sh\necho 'dioxus 0.7.9 (hash)'\n", encoding="utf-8")
+        path_dx.write_text(f"#!/bin/sh\necho 'dioxus {DX_VERSION} (bfcc111)'\n", encoding="utf-8")
         path_dx.chmod(0o755)
         self.assertEqual(pinned_dx({"PATH": str(bin_dir)}, str(self.root)), path_dx.resolve())
         path_dx.write_text("#!/bin/sh\necho 'dioxus 0.7.8'\n", encoding="utf-8")
         self.assertIsNone(pinned_dx({"PATH": str(bin_dir)}, str(self.root)))
         self.assertIsNone(pinned_dx({"PATH": str(self.root / "missing")}, str(self.root)))
+
+    def test_dioxus_cli_version_requires_one_workflow_pin(self) -> None:
+        workflow = self.root / "render-image.yml"
+        workflow.write_text("env:\n  DIOXUS_CLI_VERSION: 0.7.9\n", encoding="utf-8")
+        self.assertEqual(dioxus_cli_version(workflow), "0.7.9")
+        workflow.write_text(
+            "env:\n  DIOXUS_CLI_VERSION: 0.7.9\n  DIOXUS_CLI_VERSION: 0.8.0\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(TraceError):
+            dioxus_cli_version(workflow)
+        workflow.write_text("env:\n  OTHER: 1\n", encoding="utf-8")
+        with self.assertRaises(TraceError):
+            dioxus_cli_version(workflow)
+        self.assertEqual(DX_VERSION, dioxus_cli_version())
 
     def test_trace_disables_rustup_auto_install(self) -> None:
         workspace = Path(__file__).resolve().parents[2]

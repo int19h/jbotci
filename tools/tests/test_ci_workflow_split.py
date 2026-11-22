@@ -330,7 +330,12 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertEqual(set(compilers), {version})
 
     def test_render_image_disables_rustup_auto_install(self) -> None:
-        self.assertIn(f"DIOXUS_CLI_VERSION: {DX_VERSION}\n", self.render_workflow)
+        pins = [
+            line.split(":", 1)[1].strip()
+            for line in self.render_workflow.splitlines()
+            if line.startswith("  DIOXUS_CLI_VERSION:")
+        ]
+        self.assertEqual(pins, [DX_VERSION])
         self.assertIn('RUSTUP_AUTO_INSTALL: "0"\n', self.render_workflow)
 
 

@@ -267,25 +267,47 @@ def pinned_channel(workspace: Path) -> str:
     return channel
 
 
-DX_VERSION = "0.7.9"
+RENDER_IMAGE_WORKFLOW = Path(__file__).resolve().parents[1] / ".github/workflows/render-image.yml"
+DIOXUS_CLI_PIN = re.compile(r"(?m)^  DIOXUS_CLI_VERSION: ([0-9]+(?:\.[0-9]+)+)\s*$")
+
+
+def dioxus_cli_version(workflow: Path | None = None) -> str:
+    """Return the one Dioxus CLI version in the Render image workflow.
+
+    That workflow is the only pin.
+    A missing pin or a second pin is an error.
+    """
+    path = RENDER_IMAGE_WORKFLOW if workflow is None else workflow
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise TraceError("The Dioxus CLI version pin is unavailable.") from error
+    found = DIOXUS_CLI_PIN.findall(text)
+    if len(found) != 1:
+        raise TraceError("The Dioxus CLI version pin is unavailable.")
+    return found[0]
+
+
+DX_VERSION = dioxus_cli_version()
 
 
 def dx_version_line_matches(line: str) -> bool:
-    """Return true when `line` is `dioxus 0.7.9` with no longer version token.
+    """Return true for an exact pinned `dioxus` version line.
 
-    A parenthetical hash can follow the version.
-    A suffix on the version does not match.
+    The line is `dioxus <version>`.
+    One hex hash can follow inside parentheses after one space.
     """
-    prefix = f"dioxus {DX_VERSION}"
-    if line == prefix:
-        return True
-    return line.startswith(prefix) and line[len(prefix)].isspace()
+    prefix = re.escape(f"dioxus {DX_VERSION}")
+    return re.fullmatch(rf"{prefix}(?: \([0-9A-Fa-f]+\))?", line) is not None
 
 
 def pinned_dx(env: dict[str, str], cwd: str) -> Path | None:
-    """Return the real path of `dx` 0.7.9 on `PATH`, or None when it is absent.
+    """Return the real path of the pinned `dx` on `PATH`.
 
-    The Render image job installs this version and puts that file on `PATH`.
+    When that file is absent, return None.
+    When the version line does not match, return None.
+    The Render image workflow names that version.
+    The job puts that file on `PATH`.
     A different version is not the workspace-wrapper exception.
     """
     found = search_path("dx", env.get("PATH", ""), cwd)

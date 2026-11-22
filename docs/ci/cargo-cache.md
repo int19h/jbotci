@@ -126,8 +126,12 @@ Rustup then does not download a toolchain during that trace.
 The Render image workflow sets the same variable for every job.
 `dx` is the Dioxus command.
 Before the traced command starts, the trace looks up `dx` on `PATH`.
-When the version line of that file is `dioxus 0.7.9`, the trace records its real path.
-A later parenthetical hash can follow the version.
+The trace reads the Dioxus CLI version from the Render image workflow.
+The version line is `dioxus` plus that version.
+One hex hash can follow inside parentheses after one space.
+The hash has no spaces.
+When the line has any other text, the trace rejects that file.
+When the line matches, the trace records the real path of that file.
 The trace accepts `RUSTC_WORKSPACE_WRAPPER` for this file only.
 Any other workspace wrapper is rejected.
 The compiler configuration is not supported.
@@ -140,7 +144,7 @@ The wrapper exec does not record a unit.
 The trace records that unit once.
 When the rustup proxy then execs the supported compiler in that same process, the trace keeps the one record.
 
-`dx` 0.7.9 also runs `cargo +nightly rustc --unit-graph` before the build.
+That `dx` also runs `cargo +nightly rustc --unit-graph` before the build.
 When nightly is absent, that probe fails.
 Then `dx` builds with the pinned compiler.
 When a nightly `rustc` still runs under this `dx`, the trace accepts one probe form.
