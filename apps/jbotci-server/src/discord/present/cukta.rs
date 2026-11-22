@@ -11,8 +11,9 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
-    CllParagraphRole, CllRenderRequest, CllSearchChunkKind, cll_section_chapter_title,
-    render_example_with_limit, render_section_with_limit, search_chunk_kind_label,
+    CllMarkdownDialect, CllParagraphRole, CllRenderTarget, CllSearchChunkKind,
+    cll_section_chapter_title, render_example_with_limit, render_section_with_limit,
+    search_chunk_kind_label,
 };
 
 use super::markdown::{
@@ -123,7 +124,7 @@ pub(crate) fn render_in_scope(
                     render_section_with_limit(
                         site,
                         section,
-                        CllRenderRequest::Discord,
+                        CllRenderTarget::Markdown(CllMarkdownDialect::Discord),
                         text_scope.limit(),
                     ),
                     text_scope,
@@ -141,7 +142,7 @@ pub(crate) fn render_in_scope(
                 render_section_with_limit(
                     site,
                     section,
-                    CllRenderRequest::GitHub,
+                    CllRenderTarget::Markdown(CllMarkdownDialect::GitHub),
                     text_scope.limit(),
                 ),
                 text_scope,
@@ -159,7 +160,7 @@ pub(crate) fn render_in_scope(
                     render_example_with_limit(
                         site,
                         example,
-                        CllRenderRequest::Discord,
+                        CllRenderTarget::Markdown(CllMarkdownDialect::Discord),
                         text_scope.limit(),
                     ),
                     text_scope,
@@ -170,7 +171,7 @@ pub(crate) fn render_in_scope(
                 render_example_with_limit(
                     site,
                     example,
-                    CllRenderRequest::GitHub,
+                    CllRenderTarget::Markdown(CllMarkdownDialect::GitHub),
                     text_scope.limit(),
                 ),
                 text_scope,

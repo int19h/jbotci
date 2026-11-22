@@ -118,14 +118,12 @@ pub struct CllCmavoWordPart<'a> {
 /// The separate valsi parts stored in `inlines`.
 ///
 /// A part is one dictionary link or one unlinked Lojban span. The part type
-/// holds the spelling rules. The cell has at least two parts. A bracket cell
-/// and a one-word cell return none.
+/// holds the spelling rules. Zero parts is an empty list. One part is that
+/// one inline. A bracket cell and any other inline return none. The cell
+/// type, not this length, records that rule 12 applies.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|parts| parts.len() >= 2))]
+#[ensures(ret.as_ref().is_none_or(|parts| parts.len() == inlines.len()))]
 pub(crate) fn cmavo_word_parts(inlines: &[CllInline]) -> Option<Vec<CllCmavoWordPart<'_>>> {
-    if inlines.len() < 2 {
-        return None;
-    }
     let mut parts = Vec::with_capacity(inlines.len());
     for inline in inlines {
         match inline {

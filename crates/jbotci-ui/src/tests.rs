@@ -846,7 +846,7 @@ fn page_find_scripts_an_unlinked_cmavo_word_and_keeps_a_selmaho_in_latin() {
 #[requires(true)]
 #[ensures(true)]
 fn page_find_keeps_adjacent_valsi_parts_as_one_spelling() {
-    let block = cmavo_list_of(vec![vec![CllCmavoListCell::Word {
+    let block = cmavo_list_of(vec![vec![CllCmavoListCell::Adjacent {
         inlines: vec![dictionary_part("roi"), dictionary_part("nai")],
     }]]);
     let mut latin = Vec::new();
@@ -929,7 +929,7 @@ fn page_find_joins_every_rule_twelve_shape_without_a_space() {
             "markup" => vec!["roi", "[x](https://example.invalid)"],
             _ => vec!["roi", "nai"],
         };
-        let block = cmavo_list_of(vec![vec![CllCmavoListCell::Word { inlines }]]);
+        let block = cmavo_list_of(vec![vec![CllCmavoListCell::Adjacent { inlines }]]);
         for script in [GentufaScript::Latin, GentufaScript::Zbalermorna] {
             let mut entries = Vec::new();
             collect_cll_block_page_find_entries(&mut entries, None, &block, script);
@@ -971,13 +971,13 @@ fn CmavoPartsFindApp() -> Element {
 fn CmavoPartsFindPage() -> Element {
     let pending = use_signal(|| None);
     let rows = vec![
-        vec![CllCmavoListCell::Word {
+        vec![CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), lojban_part("zzzz")],
         }],
-        vec![CllCmavoListCell::Word {
+        vec![CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), dictionary_part("nai")],
         }],
-        vec![CllCmavoListCell::Word {
+        vec![CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), lojban_part("mi,o")],
         }],
     ];
@@ -1046,13 +1046,13 @@ fn adjacent_valsi_parts_render_side_by_side_in_the_reader() {
 fn MarkupPartApp() -> Element {
     let pending = use_signal(|| None);
     let rows = vec![
-        vec![CllCmavoListCell::Word {
+        vec![CllCmavoListCell::Adjacent {
             inlines: vec![
                 dictionary_part("roi"),
                 lojban_part("[x](https://example.invalid)"),
             ],
         }],
-        vec![CllCmavoListCell::Word {
+        vec![CllCmavoListCell::Adjacent {
             inlines: vec![
                 dictionary_part("roi"),
                 lojban_part("<a href=\"https://example.invalid\">"),

@@ -57,7 +57,7 @@ pub(crate) fn render_block_html_in_scope(
         }
         CllBlock::Example { example_id } => cll_lookup_example(site, example_id)
             .map(|example| {
-                render_example_in_scope(site, example, CllRenderRequest::Html(link_mode), scope)
+                render_example_in_scope(site, example, CllRenderTarget::Html(link_mode), scope)
             })
             .unwrap_or_default(),
         CllBlock::Table {

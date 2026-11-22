@@ -1105,17 +1105,26 @@ pub enum CllBlock {
 
 /// One body cell of a cmavo list.
 ///
-/// A `Word` cell is a `cmavo` cell or a `gismu` cell. The importer is the
-/// only builder of that variant. Every other column is `Other`, and it keeps
-/// the inlines the rest of the book uses.
+/// A `Word` cell is one `cmavo` cell or one `gismu` cell. An `Adjacent` cell
+/// is that same column when rule 12 applies: the cell held only adjacent
+/// `valsi` elements. Empty elements are discarded after that decision, so the
+/// cell can keep zero or one part. The importer is the only builder of those
+/// two variants. Every other column is `Other`, and it keeps the inlines the
+/// rest of the book uses.
 #[invariant(true)]
 #[invariant(::Word { .. } => true)]
+#[invariant(::Adjacent { .. } => true)]
 #[invariant(::Other { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllCmavoListCell {
-    /// A `cmavo` cell or a `gismu` cell.
+    /// A `cmavo` cell or a `gismu` cell that is not a rule-12 group.
     Word { inlines: Vec<CllInline> },
+    /// A rule-12 `cmavo` cell or `gismu` cell.
+    ///
+    /// `inlines` are the parts that still have text. Each part keeps its own
+    /// link or its own Lojban span.
+    Adjacent { inlines: Vec<CllInline> },
     /// A selmaho cell, a description cell, or any other column.
     Other { inlines: Vec<CllInline> },
 }
@@ -1126,7 +1135,9 @@ impl CllCmavoListCell {
     #[ensures(true)]
     pub fn inlines(&self) -> &[CllInline] {
         match self {
-            CllCmavoListCell::Word { inlines } | CllCmavoListCell::Other { inlines } => inlines,
+            CllCmavoListCell::Word { inlines }
+            | CllCmavoListCell::Adjacent { inlines }
+            | CllCmavoListCell::Other { inlines } => inlines,
         }
     }
 
@@ -1138,9 +1149,9 @@ impl CllCmavoListCell {
     #[ensures(true)]
     pub fn inlines_mut(&mut self) -> &mut [CllInline] {
         match self {
-            CllCmavoListCell::Word { inlines } | CllCmavoListCell::Other { inlines } => {
-                inlines.as_mut_slice()
-            }
+            CllCmavoListCell::Word { inlines }
+            | CllCmavoListCell::Adjacent { inlines }
+            | CllCmavoListCell::Other { inlines } => inlines.as_mut_slice(),
         }
     }
 
@@ -1149,7 +1160,9 @@ impl CllCmavoListCell {
     #[ensures(true)]
     pub fn word_inlines(&self) -> Option<&[CllInline]> {
         match self {
-            CllCmavoListCell::Word { inlines } => Some(inlines),
+            CllCmavoListCell::Word { inlines } | CllCmavoListCell::Adjacent { inlines } => {
+                Some(inlines)
+            }
             CllCmavoListCell::Other { .. } => None,
         }
     }
@@ -1157,32 +1170,36 @@ impl CllCmavoListCell {
     /// The single-word view of this cell.
     ///
     /// An ordinary cell returns none, even when its text has a bracket shape.
-    /// A cell of several adjacent valsi parts also returns none.
+    /// A rule-12 cell returns none, including when one part remains.
     #[requires(true)]
     #[ensures(match self {
-        CllCmavoListCell::Other { .. } => ret.is_none(),
+        CllCmavoListCell::Other { .. } | CllCmavoListCell::Adjacent { .. } => ret.is_none(),
         CllCmavoListCell::Word { .. } => true,
     })]
     pub fn word_cell(&self) -> Option<crate::cmavo_table::CllCmavoWordCell<'_>> {
         match self {
             CllCmavoListCell::Word { inlines } => crate::cmavo_table::cmavo_word_cell(inlines),
-            CllCmavoListCell::Other { .. } => None,
+            CllCmavoListCell::Adjacent { .. } | CllCmavoListCell::Other { .. } => None,
         }
     }
 
     /// The adjacent valsi parts of this cell.
     ///
-    /// Each part is the shown text and the dictionary target when that part
-    /// links. An ordinary cell returns none. A one-word cell returns none.
+    /// The cell records that rule 12 applies. Empty valsi elements are
+    /// discarded after that decision, so zero or one part can remain. Each
+    /// part is the shown text and the dictionary target when that part links.
+    /// An ordinary cell returns none.
     #[requires(true)]
     #[ensures(match self {
-        CllCmavoListCell::Other { .. } => ret.is_none(),
-        CllCmavoListCell::Word { .. } => ret.as_ref().is_none_or(|parts| parts.len() >= 2),
+        CllCmavoListCell::Other { .. } | CllCmavoListCell::Word { .. } => ret.is_none(),
+        CllCmavoListCell::Adjacent { inlines } => {
+            ret.as_ref().is_none_or(|parts| parts.len() == inlines.len())
+        }
     })]
     pub fn word_parts(&self) -> Option<Vec<crate::cmavo_table::CllCmavoWordPart<'_>>> {
         match self {
-            CllCmavoListCell::Word { inlines } => crate::cmavo_table::cmavo_word_parts(inlines),
-            CllCmavoListCell::Other { .. } => None,
+            CllCmavoListCell::Adjacent { inlines } => crate::cmavo_table::cmavo_word_parts(inlines),
+            CllCmavoListCell::Word { .. } | CllCmavoListCell::Other { .. } => None,
         }
     }
 }
@@ -1299,19 +1316,19 @@ use crate::search::CllSearchChunk;
 
 /// One render target.
 ///
-/// HTML carries a link mode. Markdown does not. GitHub Markdown is what the
-/// CLI and the MCP tool emit. Discord Markdown is what a Discord message
-/// shows. Both Markdown targets omit link destinations.
+/// HTML carries a link mode. Markdown carries a dialect and does not carry a
+/// link mode. GitHub Markdown is what the CLI and the MCP tool emit. Discord
+/// Markdown is what a Discord message shows. Both Markdown dialects omit link
+/// destinations.
 #[invariant(true)]
 #[invariant(::Html(_) => true)]
+#[invariant(::Markdown(_) => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CllRenderRequest {
+pub enum CllRenderTarget {
     /// HTML. `Web` keeps the interactive links. `Plain` omits destinations.
     Html(CllLinkRenderMode),
-    /// GitHub-flavoured Markdown. Pipe tables, `$…$` math, and no link destinations.
-    GitHub,
-    /// Discord Markdown. No tables, math, HTML, or link destinations.
-    Discord,
+    /// Markdown in one dialect. The dialect carries no link mode.
+    Markdown(CllMarkdownDialect),
 }
 
 /// The Markdown dialect a text target renders in.
@@ -1320,19 +1337,6 @@ pub enum CllRenderRequest {
 pub enum CllMarkdownDialect {
     GitHub,
     Discord,
-}
-
-impl CllRenderRequest {
-    /// The Markdown dialect of a text target. HTML has none.
-    #[requires(true)]
-    #[ensures(ret.is_none() == matches!(self, CllRenderRequest::Html(_)))]
-    pub fn markdown_dialect(self) -> Option<CllMarkdownDialect> {
-        match self {
-            CllRenderRequest::Html(_) => None,
-            CllRenderRequest::GitHub => Some(CllMarkdownDialect::GitHub),
-            CllRenderRequest::Discord => Some(CllMarkdownDialect::Discord),
-        }
-    }
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]

@@ -2548,17 +2548,17 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
 /// One cell of a cmavo entry.
 ///
 /// A `cmavo` or `gismu` cell gets one cell-level dictionary decision. When
-/// the cell is only adjacent `valsi` elements, each element gets that
-/// decision on its own and the parts stay side by side. An empty `valsi`
-/// element is skipped, and each remaining element keeps its own decision.
-/// The book leaves a cell unlinked when the cell has `glossary="false"`,
-/// `valid="false"` or `valid="maybe"`. The same mark on one part leaves that part unlinked.
-/// A cell that is not a run of adjacent valsi elements stays unlinked when
-/// the cell, or an element inside it, has one of those marks. Every other
-/// cell keeps the inline links that the rest of the book uses.
+/// the cell is only adjacent `valsi` elements, rule 12 applies before empty
+/// text is discarded. Each remaining element keeps its own decision. Zero or
+/// one remaining part stays a rule-12 cell. The book leaves a cell unlinked
+/// when the cell has `glossary="false"`, `valid="false"` or `valid="maybe"`.
+/// The same mark on one part leaves that part unlinked. A cell that is not a
+/// run of adjacent valsi elements stays unlinked when the cell, or an element
+/// inside it, has one of those marks. Every other cell keeps the inline links
+/// that the rest of the book uses.
 #[requires(cell.is_element())]
 #[ensures(match &ret {
-    CllCmavoListCell::Word { inlines } => {
+    CllCmavoListCell::Word { inlines } | CllCmavoListCell::Adjacent { inlines } => {
         (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
             && inlines.iter().all(|inline| match inline {
                 CllInline::Text(_) => true,
@@ -2605,7 +2605,7 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
                 .iter()
                 .map(|part| cmavo_valsi_part_inline(&part.text, !cell_opt_out && !part.opted_out))
                 .collect();
-            return CllCmavoListCell::Word { inlines };
+            return CllCmavoListCell::Adjacent { inlines };
         }
         let text = cmavo_or_gismu_cell_text(cell);
         let inlines = if cmavo_cell_opted_out(cell) {
@@ -2634,15 +2634,17 @@ struct AdjacentValsiPart {
 /// The valsi parts of a cell whose whole content is those elements.
 ///
 /// Two or more `valsi` elements qualify when no text sits between them or
-/// around them. Whitespace between elements is text. An empty element is not
-/// a part, so it is skipped. An index term, an anchor, and a hidden subtree
-/// are not text. A mark on a part is recorded for that part alone.
+/// around them. That count includes an empty element, so rule 12 is decided
+/// before empty text is discarded. `Some` with fewer than two parts still
+/// means rule 12. Whitespace between elements is text. An empty element is
+/// not a part, so it is left out of the list. An index term, an anchor, and
+/// a hidden subtree are not text. A mark on a part is recorded for that part
+/// alone.
 #[requires(cell.is_element())]
-#[ensures(ret.as_ref().is_none_or(|parts| {
-    parts.len() >= 2 && parts.iter().all(|part| !part.text.is_empty())
-}))]
+#[ensures(ret.as_ref().is_none_or(|parts| parts.iter().all(|part| !part.text.is_empty())))]
 fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
     let mut parts = Vec::new();
+    let mut valsi_count = 0usize;
     for child in cell.children() {
         if child.is_text() {
             if !child.text().unwrap_or_default().is_empty() {
@@ -2662,11 +2664,12 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
         if !child.has_tag_name("valsi") {
             return None;
         }
+        valsi_count += 1;
         let mut raw = String::new();
         append_cmavo_or_gismu_cell_text(child, &mut raw);
         let text = normalized_plain_text(&raw);
-        // An empty element is still the rule-12 shape. Skip it so the other
-        // parts keep their own links.
+        // An empty element is still the rule-12 shape. Leave it out of the
+        // part list so each remaining part keeps its own link.
         if text.is_empty() {
             continue;
         }
@@ -2675,7 +2678,7 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
             opted_out: cmavo_cell_opted_out(child),
         }));
     }
-    (parts.len() >= 2).then_some(parts)
+    (valsi_count >= 2).then_some(parts)
 }
 
 /// The CLL build leaves this cell out of the cmavo-list glossary links.
@@ -5321,7 +5324,10 @@ mod tests {
     }
 
     #[requires(!inner.is_empty())]
-    #[ensures(matches!(ret, CllCmavoListCell::Word { .. }))]
+    #[ensures(matches!(
+        ret,
+        CllCmavoListCell::Word { .. } | CllCmavoListCell::Adjacent { .. }
+    ))]
     fn word_cell_from_inner(inner: &str) -> CllCmavoListCell {
         let xml =
             format!("<cmavo-list><cmavo-entry><cmavo>{inner}</cmavo></cmavo-entry></cmavo-list>");
@@ -5549,6 +5555,74 @@ mod tests {
         let rendered = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
         assert_eq!(rendered, github_list(false, "na'ebo"));
         assert!(!rendered.contains("]("), "{rendered}");
+    }
+
+    /// Rule 12 is decided before empty text is discarded.
+    ///
+    /// An empty element does not opt the other parts out, and it does not
+    /// send the remaining part through the ordinary text path. An all-empty
+    /// cell has no text left. A header keeps that blank cell. A headerless
+    /// row omits a blank cell, which is the same rule as any other empty cell.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_empty_valsi_keeps_rule_12_for_the_parts_that_remain() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let opted = word_cell_from_inner(r#"<valsi valid="false"/><valsi>coi</valsi>"#);
+        assert!(matches!(opted, CllCmavoListCell::Adjacent { .. }));
+        assert!(opted.word_cell().is_none());
+        assert_eq!(
+            opted.word_parts().as_deref(),
+            Some([word_part("coi", Some("coi"))].as_slice())
+        );
+        let opted_block = cmavo_list_with_gloss(
+            r#"<cmavo><valsi valid="false"/><valsi>coi</valsi></cmavo>"#,
+            false,
+        );
+        assert_eq!(
+            markdown_of(&site, &opted_block, CllMarkdownDialect::GitHub),
+            github_list(false, "coi")
+        );
+
+        let heading = word_cell_from_inner("<valsi/><valsi># heading</valsi>");
+        assert_eq!(
+            heading.word_parts().as_deref(),
+            Some([word_part("# heading", None)].as_slice())
+        );
+        let heading_block =
+            cmavo_list_with_gloss("<cmavo><valsi/><valsi># heading</valsi></cmavo>", false);
+        assert_eq!(
+            markdown_of(&site, &heading_block, CllMarkdownDialect::GitHub),
+            github_list(false, r"\# heading")
+        );
+
+        let final_empty = word_cell_from_inner("<valsi>coi</valsi><valsi/>");
+        assert_eq!(
+            final_empty.word_parts().as_deref(),
+            Some([word_part("coi", Some("coi"))].as_slice())
+        );
+        let final_block = cmavo_list_with_gloss("<cmavo><valsi>coi</valsi><valsi/></cmavo>", false);
+        assert_eq!(
+            markdown_of(&site, &final_block, CllMarkdownDialect::GitHub),
+            github_list(false, "coi")
+        );
+
+        let all_empty = word_cell_from_inner("<valsi/><valsi/>");
+        assert!(matches!(
+            &all_empty,
+            CllCmavoListCell::Adjacent { inlines } if inlines.is_empty()
+        ));
+        assert_eq!(all_empty.word_parts().as_deref(), Some([].as_slice()));
+        let empty_header = cmavo_list_with_gloss("<cmavo><valsi/><valsi/></cmavo>", true);
+        assert_eq!(
+            markdown_of(&site, &empty_header, CllMarkdownDialect::GitHub),
+            github_list(true, "")
+        );
+        let empty_plain = cmavo_list_with_gloss("<cmavo><valsi/><valsi/></cmavo>", false);
+        assert_eq!(
+            markdown_of(&site, &empty_plain, CllMarkdownDialect::GitHub),
+            "never\n\n"
+        );
     }
 
     #[test]
