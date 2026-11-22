@@ -11,6 +11,8 @@ import textwrap
 import unittest
 from pathlib import Path
 
+from tools.cargo_inputs_trace import DX_VERSION
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 TEST_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "test.yml"
@@ -326,6 +328,10 @@ class CiWorkflowSplitTests(unittest.TestCase):
         compilers = re.findall(r"rustc ([0-9]+\.[0-9]+\.[0-9]+) \(", prepare)
         self.assertGreaterEqual(len(compilers), 2)
         self.assertEqual(set(compilers), {version})
+
+    def test_render_image_disables_rustup_auto_install(self) -> None:
+        self.assertIn(f"DIOXUS_CLI_VERSION: {DX_VERSION}\n", self.render_workflow)
+        self.assertIn('RUSTUP_AUTO_INSTALL: "0"\n', self.render_workflow)
 
 
 def _run_script(step: str) -> str:

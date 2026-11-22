@@ -111,13 +111,42 @@ The selected file must be the supported compiler.
 When a bare `rustc` name loads the rustup proxy, the resolved compiler file is the compile unit.
 A call with Cargo metadata then records that unit.
 When a compiler exec resolves to another file, the trace rejects the build.
+The dx rules below name the exceptions.
 The trace reports one error for that path.
 The compiler configuration is not supported.
 When a process sets `RUSTC`, that value must have this same real path.
 When that value is a bare name or the rustup proxy, the trace resolves it the same way.
 Cargo sets `RUSTC` on a build script after it resolves the compiler.
-When a process sets `RUSTC_WRAPPER` or `RUSTC_WORKSPACE_WRAPPER`, the trace rejects the build.
-When one of those wrapper values is empty, the trace accepts the command.
+When a process sets `RUSTC_WRAPPER`, the trace rejects the build.
+When `RUSTC_WRAPPER` is empty, the trace accepts the command.
+When `RUSTC_WORKSPACE_WRAPPER` is empty, the trace accepts the command.
+
+Before the trace starts, the trace sets `RUSTUP_AUTO_INSTALL` to `0`.
+Rustup then does not download a toolchain during that trace.
+The Render image workflow sets the same variable for every job.
+`dx` is the Dioxus command.
+Before the traced command starts, the trace looks up `dx` on `PATH`.
+When the version line of that file is `dioxus 0.7.9`, the trace records its real path.
+A later parenthetical hash can follow the version.
+The trace accepts `RUSTC_WORKSPACE_WRAPPER` for this file only.
+Any other workspace wrapper is rejected.
+The compiler configuration is not supported.
+
+Cargo runs that file as `dx`, then the compiler path, then the compiler arguments.
+The compiler path is the second argument.
+When the second argument does not resolve to the supported compiler, the trace rejects that exec.
+The child `rustc` records the compile unit.
+The wrapper exec does not record a unit.
+The trace records that unit once.
+When the rustup proxy then execs the supported compiler in that same process, the trace keeps the one record.
+
+`dx` 0.7.9 also runs `cargo +nightly rustc --unit-graph` before the build.
+When nightly is absent, that probe fails.
+Then `dx` builds with the pinned compiler.
+When a nightly `rustc` still runs under this `dx`, the trace accepts one probe form.
+The probe has `-vV` or `--print`.
+The probe has no Cargo metadata.
+A nightly compile is rejected.
 Cargo reads `.cargo/config.toml`, `.cargo/config`, and `config.toml` under `CARGO_HOME`.
 When one of those files contains `build.rustc`, `build.rustc-wrapper`, or `build.rustc-workspace-wrapper`, the trace rejects the build.
 The path rule rejects a compiler that those file checks do not name.

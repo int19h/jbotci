@@ -28,7 +28,9 @@ class TraceError(Exception):
 class Process:
     cwd: str
     unit: str | None = None
+    unit_kind: str | None = None
     via_dx: bool = False
+    from_pinned_dx: bool = False
     parent: int | None = None
     exe: str | None = None
     argument_count: int | None = None
@@ -132,6 +134,13 @@ CLASSIC_DIR = re.compile(r"-[0-9a-f]{16}$")
 def cargo_rustc_metadata(arguments: list[str]) -> bool:
     """Return true when rustc arguments carry Cargo's unit metadata hash."""
     return any(re.fullmatch(r"(?:-C)?metadata=[0-9a-f]{16}", argument) for argument in arguments)
+
+
+def metadata_free_probe(arguments: list[str]) -> bool:
+    """Return true for a `-vV` or `--print` rustc probe with no Cargo metadata."""
+    if cargo_rustc_metadata(arguments):
+        return False
+    return "-vV" in arguments or has_flag(arguments, "--print")
 
 
 RUSTC_NAMES = ("rustc", "rustc.exe")
@@ -256,6 +265,46 @@ def pinned_channel(workspace: Path) -> str:
     if not isinstance(channel, str) or not channel or channel != channel.strip():
         raise TraceError("The pinned compiler is unavailable.")
     return channel
+
+
+DX_VERSION = "0.7.9"
+
+
+def dx_version_line_matches(line: str) -> bool:
+    """Return true when `line` is `dioxus 0.7.9` with no longer version token.
+
+    A parenthetical hash can follow the version.
+    A suffix on the version does not match.
+    """
+    prefix = f"dioxus {DX_VERSION}"
+    if line == prefix:
+        return True
+    return line.startswith(prefix) and line[len(prefix)].isspace()
+
+
+def pinned_dx(env: dict[str, str], cwd: str) -> Path | None:
+    """Return the real path of `dx` 0.7.9 on `PATH`, or None when it is absent.
+
+    The Render image job installs this version and puts that file on `PATH`.
+    A different version is not the workspace-wrapper exception.
+    """
+    found = search_path("dx", env.get("PATH", ""), cwd)
+    if found is None:
+        return None
+    path = Path(os.path.realpath(found))
+    if not path.is_file():
+        return None
+    result = subprocess.run(
+        [str(path), "--version"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return None
+    if not dx_version_line_matches(result.stdout.splitlines()[0]):
+        return None
+    return path
 
 
 def version_line_matches(line: str, channel: str) -> bool:
@@ -632,7 +681,8 @@ class Parser:
     def __init__(self, workspace: Path, target: Path, output,
                  inspect_process: Callable[[int], dict] | None = None,
                  compiler: Path = Path("/usr/bin/rustc"),
-                 rustup: Path | None = None):
+                 rustup: Path | None = None,
+                 dx: Path | None = None):
         self.workspace = workspace
         self.target = target
         self.output = output
@@ -649,7 +699,13 @@ class Parser:
         # Unit traces use `/usr/bin/rustc` unless the caller passes the resolved compiler.
         self.compiler = Path(os.path.realpath(compiler))
         self.rustup = rustup
+        # None means this trace has no dx 0.7.9 exception.
+        self.dx = None if dx is None else Path(os.path.realpath(dx))
         self.proxy_cache: dict[tuple[str, str | None, str | None], Path | None] = {}
+
+    def resolves_compiler(self, value: str, cwd: str, env: dict[str, str]) -> bool:
+        """Return true when `value` loads the supported compiler."""
+        return self.resolved_compiler(executed_file(value, cwd, env), cwd, env) == self.compiler
 
     def resolved_compiler(self, loaded: Path, cwd: str, env: dict[str, str]) -> Path:
         """Return the compiler a loaded file will run.
@@ -768,28 +824,44 @@ class Parser:
                 cargo_home = env.get("CARGO_HOME")
                 if cargo_home:
                     self.cargo_home = normalized_path(cargo_home, process.cwd)
-            # A non-empty wrapper is a clearer error than the later compiler exec.
             # An empty value clears a wrapper. Cargo uses that form to keep the default compiler.
-            if any(env.get(name) for name in COMPILER_WRAPPER_ENV):
+            # RUSTC_WRAPPER has no dx exception.
+            # RUSTC_WORKSPACE_WRAPPER can name only the recorded dx 0.7.9 file.
+            rustc_wrapper_name, workspace_wrapper_name = COMPILER_WRAPPER_ENV
+            if env.get(rustc_wrapper_name):
                 raise TraceError(UNSUPPORTED_COMPILER)
+            workspace_wrapper = env.get(workspace_wrapper_name) or ""
+            wrapper_file = None
+            if workspace_wrapper:
+                wrapper_file = executed_file(workspace_wrapper, process.cwd, env)
+                if self.dx is None or wrapper_file != self.dx:
+                    raise TraceError(UNSUPPORTED_COMPILER)
             # Cargo sets RUSTC on a build script to the compiler it resolved.
             # A bare name or the rustup proxy must resolve to the supported compiler.
             rustc_value = env.get("RUSTC")
-            if rustc_value and self.resolved_compiler(
-                executed_file(rustc_value, process.cwd, env), process.cwd, env,
-            ) != self.compiler:
+            if rustc_value and not self.resolves_compiler(rustc_value, process.cwd, env):
                 raise TraceError(UNSUPPORTED_COMPILER)
             executable_name = Path(executable).name
             resolved = normalized_path(executable, process.cwd)
             # A bare name is resolved through PATH. The loaded file can be the rustup proxy.
             real_exec = executed_file(executable, process.cwd, env)
+            if self.dx is not None and real_exec == self.dx:
+                process.from_pinned_dx = True
+            if executable_name == "dx" or process.from_pinned_dx:
+                process.via_dx = True
             compiler_file = self.resolved_compiler(real_exec, process.cwd, env)
+            # Cargo runs the pinned dx file as `dx <compiler> <arguments>`.
+            # The child rustc records the unit. This exec must not.
+            if wrapper_file is not None and real_exec == self.dx:
+                if len(arguments) < 2 or not self.resolves_compiler(arguments[1], process.cwd, env):
+                    raise TraceError(UNSUPPORTED_COMPILER)
+                return
             # A compiler exec must use the supported compiler path.
             # A rustc name, a real path named rustc, or Cargo compiler arguments selects that exec.
+            # A metadata-free nightly probe under the pinned dx is not a compile.
             if is_compiler_exec(Path(executable), real_exec, arguments) and compiler_file != self.compiler:
-                raise TraceError(UNSUPPORTED_COMPILER)
-            if executable_name == "dx":
-                process.via_dx = True
+                if not (process.from_pinned_dx and metadata_free_probe(arguments)):
+                    raise TraceError(UNSUPPORTED_COMPILER)
             package = env.get("CARGO_PKG_NAME")
             manifest = env.get("CARGO_MANIFEST_DIR")
             out = env.get("OUT_DIR")
@@ -869,6 +941,10 @@ class Parser:
                         if not profile_inside_target(self.target, fingerprint.parents[3]):
                             raise TraceError("Unknown rustc unit layout")
                         relative = fingerprint.relative_to(self.target).as_posix() if fingerprint.is_relative_to(self.target) else None
+                        # dx execs the rustup proxy. The proxy execs the real compiler in this process.
+                        # Both execs are one compile. Keep the record from the first.
+                        if relative is not None and process.unit == relative and process.unit_kind == "compile":
+                            return
                         if relative is None or (suffix is not None and not hashed_suffix) or process.unit == relative:
                             raise TraceError("Unknown rustc unit layout")
                         fingerprint_ready(fingerprint, run=False)
@@ -884,6 +960,10 @@ class Parser:
                         elif fingerprint is None or not fingerprint.is_relative_to(self.target):
                             raise TraceError("Unknown rustc unit layout")
                         else:
+                            relative = fingerprint.relative_to(self.target).as_posix()
+                            # The rustup proxy and the real compiler share this process.
+                            if process.unit == relative and process.unit_kind == "compile":
+                                return
                             fingerprint_ready(fingerprint, run=False)
                             unit = fingerprint
                             kind = "compile"
@@ -892,6 +972,7 @@ class Parser:
                         raise TraceError("Unknown rustc unit layout")
             if unit is not None:
                 process.unit = unit.relative_to(self.target).as_posix()
+                process.unit_kind = kind
                 self.emit({"event": "unit", "unit": process.unit, "kind": kind,
                            "package": manifest, "cwd": process.cwd, "dep_info": dep_info,
                            "via_dx": process.via_dx})
@@ -1001,11 +1082,15 @@ class Parser:
 def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> int:
     read_fd, write_fd = os.pipe()
     journal.parent.mkdir(parents=True, exist_ok=True)
+    # A trace must not download a toolchain. dx probes nightly before it builds.
+    env = os.environ.copy()
+    env["RUSTUP_AUTO_INSTALL"] = "0"
     with journal.open("w") as output, os.fdopen(read_fd, "rb") as stream:
         parser = Parser(
             workspace, target, output, inspect_process=process_snapshot,
             compiler=supported_compiler(workspace),
             rustup=rustup_binary(),
+            dx=pinned_dx(env, str(workspace)),
         )
         reader = threading.Thread(target=parser.feed, args=(stream,))
         reader.start()
@@ -1014,7 +1099,7 @@ def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> i
                 "strace", "-f", "--seccomp-bpf", "-q", "-v", "-s", "1048576", "-yy", "-Y",
                 "-e", "trace=execve,clone,clone3,fork,vfork,chdir,open,openat,openat2",
                 "-o", f"/dev/fd/{write_fd}", "--", *command,
-            ], cwd=workspace, pass_fds=(write_fd,))
+            ], cwd=workspace, env=env, pass_fds=(write_fd,))
         finally:
             os.close(write_fd)
         status = process.wait()

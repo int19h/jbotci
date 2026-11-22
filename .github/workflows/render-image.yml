@@ -13,6 +13,8 @@ concurrency:
 
 env:
   DIOXUS_CLI_VERSION: 0.7.9
+  # dx probes nightly. Rustup must not download a toolchain.
+  RUSTUP_AUTO_INSTALL: "0"
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   WEB_EMBEDDINGS_BASE_URL: https://assets.jbotci.app/embeddings/web/v1
   SERVER_EMBEDDING_MODEL_KEY: f2llm-v2-80m-q4-k-m-320

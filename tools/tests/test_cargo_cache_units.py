@@ -14,8 +14,9 @@ from unittest.mock import patch
 
 from tools import cargo_inputs as c
 from tools.cargo_inputs_trace import (
-    UNSUPPORTED_COMPILER, Parser, Process, TraceError, accept_pinned_compiler, process_snapshot,
-    rustup_binary, string_at, supported_compiler, version_line_matches,
+    DX_VERSION, UNSUPPORTED_COMPILER, Parser, Process, TraceError, accept_pinned_compiler,
+    dx_version_line_matches, pinned_dx, process_snapshot, rustup_binary, string_at,
+    supported_compiler, trace, version_line_matches,
 )
 
 
@@ -1703,6 +1704,161 @@ class CargoUnitTests(unittest.TestCase):
         marker_target.write_text(unit)
         (fingerprint / "test-bin-link").symlink_to(marker_target)
         self.assert_trace_layout_error(line, "Unknown build script unit layout")
+
+    def test_trace_records_one_unit_for_the_pinned_dx_wrapper(self) -> None:
+        target = self.layout.target
+        fingerprint = target / "debug/.fingerprint/demo-0123456789abcdef"
+        fingerprint.mkdir(parents=True)
+        out = target / "debug/deps"
+        compiler = self.root / "toolchain" / "rustc"
+        compiler.parent.mkdir()
+        compiler.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        compiler.chmod(0o755)
+        dx = self.root / "dx-home" / "dx"
+        dx.parent.mkdir()
+        dx.write_text("#!/bin/sh\necho 'dioxus 0.7.9 (hash)'\n", encoding="utf-8")
+        dx.chmod(0o755)
+        nightly = self.root / "nightly" / "rustc"
+        nightly.parent.mkdir()
+        nightly.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        nightly.chmod(0o755)
+        other = self.root / "other-dx"
+        other.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        other.chmod(0o755)
+        link = self.root / "dx-link"
+        link.symlink_to(dx)
+        compile_args = (
+            f'"--crate-name", "demo", "--out-dir", "{out}", '
+            '"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"'
+        )
+        cargo = (
+            f'"CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", '
+            f'"RUSTC_WORKSPACE_WRAPPER={dx}"'
+        )
+
+        def events_of(lines: list[str]) -> list[dict]:
+            output = io.StringIO()
+            parser = Parser(self.workspace, target, output, compiler=compiler, dx=dx)
+            parser.feed([line.encode() for line in lines])
+            return [json.loads(item) for item in output.getvalue().splitlines()]
+
+        opened = events_of([
+            f'1 execve("{dx}", ["{dx}", "bundle"], ["PATH={dx.parent}"]) = 0\n',
+            "1 clone(child_stack=NULL, flags=SIGCHLD) = 2\n",
+            f'2 execve("{dx}", ["{dx}", "{compiler}", {compile_args}], [{cargo}]) = 0\n',
+            "2 clone(child_stack=NULL, flags=SIGCHLD) = 3\n",
+            f'3 execve("{compiler}", ["rustc", {compile_args}], [{cargo}]) = 0\n',
+        ])
+        self.assertEqual(opened[-1]["errors"], 0)
+        self.assertEqual(
+            [(event["kind"], event["unit"], event["via_dx"]) for event in opened if event["event"] == "unit"],
+            [("compile", "debug/.fingerprint/demo-0123456789abcdef", True)],
+        )
+        wrapper_only = events_of([
+            f'1 execve("{dx}", ["{dx}", "{compiler}", {compile_args}], [{cargo}]) = 0\n',
+        ])
+        self.assertEqual(wrapper_only[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in wrapper_only))
+        rejected_wrapper = events_of([
+            f'1 execve("{dx}", ["{dx}", "{compiler}", {compile_args}], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "RUSTC_WRAPPER={dx}"]) = 0\n',
+        ])
+        self.assertEqual(rejected_wrapper[-1]["errors"], 1)
+        self.assertEqual(rejected_wrapper[1]["reason"], UNSUPPORTED_COMPILER)
+        rejected_other = events_of([
+            f'1 execve("{other}", ["{other}", "{compiler}", {compile_args}], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", '
+            f'"RUSTC_WORKSPACE_WRAPPER={other}"]) = 0\n',
+        ])
+        self.assertEqual(rejected_other[-1]["errors"], 1)
+        self.assertFalse(any(event["event"] == "unit" for event in rejected_other))
+        linked = events_of([
+            f'1 execve("{dx}", ["{dx}", "{compiler}", {compile_args}], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", '
+            f'"RUSTC_WORKSPACE_WRAPPER={link}"]) = 0\n',
+            f'1 execve("{compiler}", ["rustc", {compile_args}], '
+            f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", '
+            f'"RUSTC_WORKSPACE_WRAPPER={link}"]) = 0\n',
+        ])
+        self.assertEqual(linked[-1]["errors"], 0)
+        self.assertEqual(
+            [event["unit"] for event in linked if event["event"] == "unit"],
+            ["debug/.fingerprint/demo-0123456789abcdef"],
+        )
+        # One process runs the wrapper, then the compiler, then the compiler again.
+        # The second compiler exec is the real rustc after the rustup proxy.
+        build_out = target / "debug/build/demo/0123456789abcdef/out"
+        build_fingerprint = build_out.parent / "fingerprint"
+        build_fingerprint.mkdir(parents=True)
+        build_args = (
+            f'"--crate-name", "demo", "--out-dir", "{build_out}", '
+            '"-C", "extra-filename=-0123456789abcdef", "-C", "metadata=0123456789abcdef"'
+        )
+        handed = events_of([
+            f'4 execve("{dx}", ["{dx}", "{compiler}", {build_args}], [{cargo}]) = 0\n',
+            f'4 execve("{compiler}", ["rustc", {build_args}], [{cargo}]) = 0\n',
+            f'4 execve("{compiler}", ["rustc", {build_args}], [{cargo}]) = 0\n',
+        ])
+        self.assertEqual(handed[-1]["errors"], 0)
+        self.assertEqual(
+            [(event["kind"], event["unit"], event["via_dx"]) for event in handed if event["event"] == "unit"],
+            [("compile", "debug/build/demo/0123456789abcdef/fingerprint", True)],
+        )
+        wrong_compiler = events_of([
+            f'1 execve("{dx}", ["{dx}", "{nightly}", {compile_args}], [{cargo}]) = 0\n',
+        ])
+        self.assertEqual(wrong_compiler[-1]["errors"], 1)
+        self.assertFalse(any(event["event"] == "unit" for event in wrong_compiler))
+        probe = events_of([
+            f'1 execve("{dx}", ["{dx}", "bundle"], ["PATH={dx.parent}"]) = 0\n',
+            "1 clone(child_stack=NULL, flags=SIGCHLD) = 2\n",
+            f'2 execve("{nightly}", ["{nightly}", "-vV"], ["RUSTC_WORKSPACE_WRAPPER={dx}"]) = 0\n',
+            "2 clone(child_stack=NULL, flags=SIGCHLD) = 3\n",
+            (
+                f'3 execve("{nightly}", ["{nightly}", "-", "--crate-name", "___", '
+                f'"--print=file-names"], ["RUSTC_WORKSPACE_WRAPPER={dx}"]) = 0\n'
+            ),
+        ])
+        self.assertEqual(probe[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in probe))
+        nightly_compile = events_of([
+            f'1 execve("{dx}", ["{dx}", "bundle"], ["PATH={dx.parent}"]) = 0\n',
+            "1 clone(child_stack=NULL, flags=SIGCHLD) = 2\n",
+            f'2 execve("{nightly}", ["rustc", {compile_args}], [{cargo}]) = 0\n',
+        ])
+        self.assertEqual(nightly_compile[-1]["errors"], 1)
+        self.assertFalse(any(event["event"] == "unit" for event in nightly_compile))
+        bare_nightly = events_of([
+            f'1 execve("{nightly}", ["{nightly}", "-vV"], ["PATH=/usr/bin"]) = 0\n',
+        ])
+        self.assertEqual(bare_nightly[-1]["errors"], 1)
+        self.assertTrue(dx_version_line_matches(f"dioxus {DX_VERSION} (hash)"))
+        self.assertTrue(dx_version_line_matches(f"dioxus {DX_VERSION}"))
+        self.assertFalse(dx_version_line_matches(f"dioxus {DX_VERSION}.1"))
+        self.assertFalse(dx_version_line_matches("dioxus 0.7.8"))
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        path_dx = bin_dir / "dx"
+        path_dx.write_text("#!/bin/sh\necho 'dioxus 0.7.9 (hash)'\n", encoding="utf-8")
+        path_dx.chmod(0o755)
+        self.assertEqual(pinned_dx({"PATH": str(bin_dir)}, str(self.root)), path_dx.resolve())
+        path_dx.write_text("#!/bin/sh\necho 'dioxus 0.7.8'\n", encoding="utf-8")
+        self.assertIsNone(pinned_dx({"PATH": str(bin_dir)}, str(self.root)))
+        self.assertIsNone(pinned_dx({"PATH": str(self.root / "missing")}, str(self.root)))
+
+    def test_trace_disables_rustup_auto_install(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        journal = self.root / "journal.jsonl"
+        marker = self.root / "auto.txt"
+        code = (
+            "import os\n"
+            "from pathlib import Path\n"
+            f"Path({str(marker)!r}).write_text(os.environ.get('RUSTUP_AUTO_INSTALL', ''))\n"
+        )
+        with patch.dict(os.environ, {"RUSTUP_AUTO_INSTALL": "1"}):
+            status = trace(workspace, self.layout.target, journal, ["python3", "-c", code])
+        self.assertEqual(status, 0, journal.read_text(encoding="utf-8") if journal.exists() else "")
+        self.assertEqual(marker.read_text(encoding="utf-8"), "0")
 
     def assert_trace_layout_error(self, line: str, reason: str) -> None:
         output = io.StringIO()
