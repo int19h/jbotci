@@ -13,7 +13,8 @@ from unittest.mock import patch
 
 from tools import cargo_inputs as c
 from tools.cargo_inputs_trace import (
-    UNSUPPORTED_COMPILER, Parser, Process, process_snapshot, string_at, supported_compiler,
+    UNSUPPORTED_COMPILER, Parser, Process, process_snapshot, rustup_binary, string_at,
+    supported_compiler,
 )
 
 
@@ -1357,6 +1358,65 @@ class CargoUnitTests(unittest.TestCase):
         self.assertEqual(resolved, Path(os.path.realpath(reported)))
         version = subprocess.check_output([str(resolved), "--version"], text=True)
         self.assertTrue(version.startswith("rustc 1.100.0"))
+
+    def test_trace_resolves_a_bare_rustc_name_through_path(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        compiler = supported_compiler(workspace)
+        rustup = rustup_binary()
+        self.assertIsNotNone(rustup)
+        assert rustup is not None
+        target = self.layout.target
+
+        def feed(path: Path, extra: str = "") -> list[dict]:
+            output = io.StringIO()
+            parser = Parser(
+                workspace, target, output, compiler=compiler, rustup=rustup,
+            )
+            environment = f'"PATH={path}"'
+            if extra:
+                environment = f'{environment}, {extra}'
+            parser.feed([
+                (
+                    '1 execve("rustc", ["rustc", "--edition=2024", "main.rs", "-o", "lowered"], '
+                    f'[{environment}]) = 0\n'
+                ).encode(),
+            ])
+            return [json.loads(item) for item in output.getvalue().splitlines()]
+
+        link_dir = self.root / "link-bin"
+        link_dir.mkdir()
+        (link_dir / "rustc").symlink_to(compiler)
+        linked = feed(link_dir)
+        self.assertEqual(linked[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in linked))
+
+        proxy_dir = self.root / "proxy-bin"
+        proxy_dir.mkdir()
+        (proxy_dir / "rustc").symlink_to(rustup)
+        proxied = feed(proxy_dir)
+        self.assertEqual(proxied[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in proxied))
+        proxied_rustc = feed(proxy_dir, '"RUSTC=rustc"')
+        self.assertEqual(proxied_rustc[-1]["errors"], 0)
+
+        fake_dir = self.root / "fake-bin"
+        fake_dir.mkdir()
+        fake = fake_dir / "rustc"
+        fake.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        fake.chmod(0o755)
+        rejected = feed(fake_dir)
+        self.assertEqual(rejected[-1]["errors"], 1)
+        self.assertEqual(
+            [event["reason"] for event in rejected if event["event"] == "trace-error"],
+            [UNSUPPORTED_COMPILER],
+        )
+
+        overridden = feed(proxy_dir, '"RUSTUP_TOOLCHAIN=not-a-toolchain"')
+        self.assertEqual(overridden[-1]["errors"], 1)
+        self.assertEqual(
+            [event["reason"] for event in overridden if event["event"] == "trace-error"],
+            [UNSUPPORTED_COMPILER],
+        )
 
     def test_trace_rejects_a_compiler_exec_at_another_path(self) -> None:
         target = self.layout.target

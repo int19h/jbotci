@@ -89,10 +89,14 @@ When `rustup` is absent, the trace uses `rustc` on `PATH` and takes that real pa
 When the exec name is `rustc` or `rustc.exe`, that exec is a compiler exec.
 When the real path name is `rustc` or `rustc.exe`, that exec is a compiler exec.
 When the exec carries `--crate-name` and `-C metadata=`, that exec is a compiler exec.
-When a compiler exec has another real path, the trace rejects the build.
+When the exec name has no slash, the trace resolves that name through `PATH`.
+When the loaded file is the rustup proxy, the trace runs `rustup which rustc` in that process directory.
+The selected file must be the supported compiler.
+When a compiler exec resolves to another file, the trace rejects the build.
 The trace reports one error for that path.
 The compiler configuration is not supported.
 When a process sets `RUSTC`, that value must have this same real path.
+When that value is a bare name or the rustup proxy, the trace resolves it the same way.
 Cargo sets `RUSTC` on a build script after it resolves the compiler.
 When a process sets `RUSTC_WRAPPER` or `RUSTC_WORKSPACE_WRAPPER`, the trace rejects the build.
 When one of those wrapper values is empty, the trace accepts the command.

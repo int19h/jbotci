@@ -176,6 +176,73 @@ def real_path(value: str, cwd: str) -> Path:
     return Path(os.path.realpath(normalized_path(value, cwd)))
 
 
+def search_path(name: str, path_value: str, cwd: str) -> Path | None:
+    """Return the first executable PATH entry for a bare command name."""
+    for entry in path_value.split(os.pathsep):
+        directory = Path(cwd if entry == "" else entry)
+        if not directory.is_absolute():
+            directory = normalized_path(str(directory), cwd)
+        candidate = directory / name
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def executed_file(executable: str, cwd: str, env: dict[str, str]) -> Path:
+    """Return the real file an execve loads.
+
+    A name with no slash is resolved through PATH, as execve does.
+    A path with a slash is relative to the process directory.
+    """
+    if "/" not in executable:
+        # execve searches PATH before it installs the new environment.
+        # Cargo and Command::new copy the caller PATH into that environment.
+        found = search_path(executable, env.get("PATH", ""), cwd)
+        if found is None:
+            return normalized_path(executable, cwd)
+        return Path(os.path.realpath(found))
+    return real_path(executable, cwd)
+
+
+def rustup_binary() -> Path | None:
+    """Return the real rustup binary, or None when rustup is absent."""
+    found = shutil.which("rustup")
+    if found is None:
+        return None
+    path = Path(os.path.realpath(found))
+    return path if path.is_file() else None
+
+
+def query_rustup_rustc(
+    rustup: Path, cwd: str, toolchain: str | None, home: str | None,
+) -> Path | None:
+    """Return the real rustc that this rustup proxy selects from `cwd`."""
+    if not Path(cwd).is_dir():
+        return None
+    clean = os.environ.copy()
+    if toolchain is None:
+        clean.pop("RUSTUP_TOOLCHAIN", None)
+    else:
+        clean["RUSTUP_TOOLCHAIN"] = toolchain
+    if home is None:
+        clean.pop("RUSTUP_HOME", None)
+    else:
+        clean["RUSTUP_HOME"] = home
+    result = subprocess.run(
+        [str(rustup), "which", "rustc"],
+        cwd=cwd,
+        env=clean,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    raw = result.stdout.strip()
+    if result.returncode != 0 or not raw:
+        return None
+    path = Path(os.path.realpath(raw))
+    return path if path.is_file() else None
+
+
 def supported_compiler(workspace: Path) -> Path:
     """Return the real path of the rustc for this workspace.
 
@@ -490,7 +557,8 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
 class Parser:
     def __init__(self, workspace: Path, target: Path, output,
                  inspect_process: Callable[[int], dict] | None = None,
-                 compiler: Path = Path("/usr/bin/rustc")):
+                 compiler: Path = Path("/usr/bin/rustc"),
+                 rustup: Path | None = None):
         self.workspace = workspace
         self.target = target
         self.output = output
@@ -506,6 +574,30 @@ class Parser:
         self.cargo_home: Path | None = None
         # Unit traces use `/usr/bin/rustc` unless the caller passes the resolved compiler.
         self.compiler = Path(os.path.realpath(compiler))
+        self.rustup = rustup
+        self.proxy_cache: dict[tuple[str, str | None, str | None], Path | None] = {}
+
+    def resolved_compiler(self, loaded: Path, cwd: str, env: dict[str, str]) -> Path:
+        """Return the compiler a loaded file will run.
+
+        The rustup proxy is not the compiler file. `rustup which rustc` from the
+        process directory selects the toolchain that the proxy will exec.
+        """
+        if self.rustup is None:
+            return loaded
+        try:
+            proxy = os.path.samefile(loaded, self.rustup)
+        except OSError:
+            return loaded
+        if not proxy:
+            return loaded
+        toolchain = env.get("RUSTUP_TOOLCHAIN")
+        home = env.get("RUSTUP_HOME")
+        key = (cwd, toolchain, home)
+        if key not in self.proxy_cache:
+            self.proxy_cache[key] = query_rustup_rustc(self.rustup, cwd, toolchain, home)
+        selected = self.proxy_cache[key]
+        return selected if selected is not None else loaded
 
     def emit(self, event: dict) -> None:
         encoded = json.dumps(event, ensure_ascii=True)
@@ -607,16 +699,20 @@ class Parser:
             if any(env.get(name) for name in COMPILER_WRAPPER_ENV):
                 raise TraceError(UNSUPPORTED_COMPILER)
             # Cargo sets RUSTC on a build script to the compiler it resolved.
-            # That value must be the supported compiler.
+            # A bare name or the rustup proxy must resolve to the supported compiler.
             rustc_value = env.get("RUSTC")
-            if rustc_value and real_path(rustc_value, process.cwd) != self.compiler:
+            if rustc_value and self.resolved_compiler(
+                executed_file(rustc_value, process.cwd, env), process.cwd, env,
+            ) != self.compiler:
                 raise TraceError(UNSUPPORTED_COMPILER)
             executable_name = Path(executable).name
             resolved = normalized_path(executable, process.cwd)
-            real_exec = Path(os.path.realpath(resolved))
+            # A bare name is resolved through PATH. The loaded file can be the rustup proxy.
+            real_exec = executed_file(executable, process.cwd, env)
+            compiler_file = self.resolved_compiler(real_exec, process.cwd, env)
             # A compiler exec must use the supported compiler path.
             # A rustc name, a real path named rustc, or Cargo compiler arguments selects that exec.
-            if is_compiler_exec(resolved, real_exec, arguments) and real_exec != self.compiler:
+            if is_compiler_exec(Path(executable), real_exec, arguments) and compiler_file != self.compiler:
                 raise TraceError(UNSUPPORTED_COMPILER)
             if executable_name == "dx":
                 process.via_dx = True
@@ -834,6 +930,7 @@ def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> i
         parser = Parser(
             workspace, target, output, inspect_process=process_snapshot,
             compiler=supported_compiler(workspace),
+            rustup=rustup_binary(),
         )
         reader = threading.Thread(target=parser.feed, args=(stream,))
         reader.start()
