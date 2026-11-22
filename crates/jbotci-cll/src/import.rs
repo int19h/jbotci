@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 
 use super::*;
 use crate::cmavo_table::{
-    cmavo_or_gismu_cell_inlines, cmavo_or_gismu_cell_inlines_from, cmavo_valsi_part_inline,
-    is_dictionary_token,
+    bracketed_dictionary_word, cmavo_or_gismu_cell_inlines, cmavo_or_gismu_cell_inlines_from,
+    cmavo_valsi_part_inline, is_dictionary_token,
 };
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
@@ -2555,12 +2555,14 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
 /// text is discarded. Each remaining element keeps its own decision. Zero or
 /// one remaining part stays a rule-12 cell. `glossary="false"` leaves the
 /// cell unlinked. `valid="false"` and `valid="maybe"` also leave it unlinked
-/// unless the text is one bare lujvo. A lujvo keeps the vlacku link. The
-/// same mark on one part leaves that part unlinked, with the same lujvo
-/// exception. A cell that is not a run of adjacent valsi elements stays
-/// unlinked when the cell, or an element inside it, has one of those marks,
-/// again with the lujvo exception. Every other cell keeps the inline links
-/// that the rest of the book uses.
+/// unless the text is one bare lujvo. A lujvo keeps the vlacku link. A
+/// bracketed lujvo keeps the brackets outside that link. The same mark on
+/// one part leaves that part unlinked, with the same lujvo exception. A cell
+/// that is not a run of adjacent valsi elements stays unlinked when the
+/// cell, or an element inside it, has one of those marks, again with the
+/// lujvo exception. A lujvo mark whose own word is not one bare lujvo leaves
+/// that cell unlinked. Every other cell keeps the inline links that the rest
+/// of the book uses.
 #[requires(cell.is_element())]
 #[ensures(match &ret {
     CllCmavoListCell::Word { inlines } | CllCmavoListCell::Adjacent { inlines } => {
@@ -2605,7 +2607,8 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
 fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
     if cell.has_tag_name("cmavo") || cell.has_tag_name("gismu") {
         if let Some(parts) = adjacent_valsi_parts(cell) {
-            let cell_choice = marked_word_link(cell, &visible_text(cell));
+            let cell_text = cmavo_or_gismu_cell_text(cell);
+            let cell_choice = marked_word_link(cell, cell_decision_word(&cell_text));
             let cell_opt_out = matches!(cell_choice, MarkedWordLink::Unlinked);
             let inlines = parts
                 .iter()
@@ -2627,8 +2630,8 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
         let text = cmavo_or_gismu_cell_text(cell);
         let inlines = match tree_link_choice(cell) {
             MarkedWordLink::Unlinked => cmavo_or_gismu_cell_inlines_from(&text, |_| None),
-            MarkedWordLink::Lujvo if single_bare_lujvo(&text) => lujvo_vlacku_inlines(&text),
-            MarkedWordLink::Lujvo | MarkedWordLink::Ordinary => cmavo_or_gismu_cell_inlines(&text),
+            MarkedWordLink::Lujvo => lujvo_marked_cell_inlines(&text),
+            MarkedWordLink::Ordinary => cmavo_or_gismu_cell_inlines(&text),
         };
         return CllCmavoListCell::Word { inlines };
     }
@@ -2702,16 +2705,37 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
     (valsi_count >= 2).then_some(parts)
 }
 
-/// True when this cell, or an element inside it, stays out of a vlacku link.
+/// True when this cell stays out of a vlacku link.
 ///
 /// `glossary="false"` always stays out. `valid="false"` and `valid="maybe"`
-/// stay out unless that element's text is one bare lujvo. A cmavo word is
-/// not a lujvo. The same helper decides the inline `valsi` arm and this cell.
+/// stay out unless that element's text is one bare lujvo. A rule-12 cell
+/// uses only the cell element's own mark. Any other cell stays out when the
+/// tree choice is an opt-out, and when a lujvo mark names a word that is not
+/// one bare lujvo. The same choice builds the cell.
 #[requires(cell.is_element())]
-#[ensures(true)]
+#[ensures({
+    if adjacent_valsi_parts(cell).is_some() {
+        ret == matches!(
+            marked_word_link(cell, &marked_element_word(cell)),
+            MarkedWordLink::Unlinked
+        )
+    } else {
+        match tree_link_choice(cell) {
+            MarkedWordLink::Unlinked => ret,
+            MarkedWordLink::Lujvo => ret == !single_bare_lujvo(&marked_element_word(cell)),
+            MarkedWordLink::Ordinary => !ret,
+        }
+    }
+})]
 pub(crate) fn cmavo_cell_opted_out(cell: Node<'_, '_>) -> bool {
-    cell.descendants()
-        .any(|node| node.is_element() && element_opts_out_of_cmavo_link(node))
+    if adjacent_valsi_parts(cell).is_some() {
+        return element_opts_out_of_cmavo_link(cell);
+    }
+    match tree_link_choice(cell) {
+        MarkedWordLink::Unlinked => true,
+        MarkedWordLink::Lujvo => !single_bare_lujvo(&marked_element_word(cell)),
+        MarkedWordLink::Ordinary => false,
+    }
 }
 
 /// The link choice for one element.
@@ -2760,32 +2784,57 @@ fn marked_word_link(node: Node<'_, '_>, text: &str) -> MarkedWordLink {
     MarkedWordLink::Ordinary
 }
 
-/// True when `text` is one bare lujvo under vlacku's morphology options.
+/// True when trimmed `text` is one bare lujvo.
 ///
-/// Vlacku starts from `MorphologyOptions::default` and adds only a
-/// cancellation flag. This importer has no flag, so the default options are
-/// the same dialect. A morphology error is not a lujvo. Zero words are not
-/// a lujvo. More than one word is not a lujvo. A word that is not bare is
-/// not a lujvo.
+/// The check uses the single-word lexer. That lexer reads one written word.
+/// It does not erase `si` or `su`. It does not attach a second word. The
+/// word span must cover the trimmed text. A pause period can sit outside
+/// that span. Morphology treats that period as part of the written word.
+/// Any other extra character is not one bare lujvo. The options are
+/// `MorphologyOptions::default`. Vlacku starts from those options and adds
+/// only a cancellation flag. This importer has no flag, so the dialect is
+/// the same.
 #[requires(true)]
-#[ensures(text.is_empty() -> !ret)]
+#[ensures(text.trim().is_empty() -> !ret)]
+#[ensures(text.trim().chars().any(char::is_whitespace) -> !ret)]
 fn single_bare_lujvo(text: &str) -> bool {
+    let text = text.trim();
     if text.is_empty() {
         return false;
     }
-    let Ok(words) = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
-        text,
-        &jbotci_morphology::MorphologyOptions::default(),
-        None,
-    ) else {
+    let Ok(Some(word)) =
+        jbotci_morphology::lex_single_word(text, &jbotci_morphology::MorphologyOptions::default())
+    else {
         return false;
     };
-    let [word_like] = words.as_slice() else {
+    if word.kind() != jbotci_morphology::WordKind::Lujvo {
         return false;
-    };
-    word_like
-        .bare_word()
-        .is_some_and(|word| word.kind() == jbotci_morphology::WordKind::Lujvo)
+    }
+    let span = word.span();
+    text.chars()
+        .enumerate()
+        .filter(|(index, _)| *index < span.char_start || *index >= span.char_end)
+        .all(|(_, character)| jbotci_morphology::is_period_character(character))
+}
+
+/// The spelling a mark judges.
+///
+/// A bracketed dictionary word uses the inner word. Every other spelling
+/// stays as written.
+#[requires(true)]
+#[ensures(ret == bracketed_dictionary_word(text).unwrap_or(text))]
+fn cell_decision_word(text: &str) -> &str {
+    bracketed_dictionary_word(text).unwrap_or(text)
+}
+
+/// The spelling of one element, with no space added between children.
+///
+/// A bracketed dictionary word uses the inner word.
+#[requires(node.is_element())]
+#[ensures(ret == cell_decision_word(&cmavo_or_gismu_cell_text(node)))]
+fn marked_element_word(node: Node<'_, '_>) -> String {
+    let text = cmavo_or_gismu_cell_text(node);
+    cell_decision_word(&text).to_owned()
 }
 
 /// The vlacku link for one marked lujvo.
@@ -2842,10 +2891,69 @@ fn lujvo_vlacku_inlines(text: &str) -> Vec<CllInline> {
     }
 }
 
+/// The inlines for a cell whose tree choice is a lujvo.
+///
+/// The cell links when its own word is one bare lujvo. A bracketed word
+/// keeps the brackets outside the link. The target is the vlacku query of
+/// that word. Any other cell stays unlinked.
+#[requires(text == text.trim())]
+#[ensures({
+    let word = cell_decision_word(text);
+    if single_bare_lujvo(word) && bracketed_dictionary_word(text).is_some() {
+        let target = normalize_valsis_query(word);
+        if target.is_empty() {
+            ret == cmavo_or_gismu_cell_inlines_from(text, |_| None)
+        } else {
+            matches!(
+                ret.as_slice(),
+                [
+                    CllInline::Text(open),
+                    CllInline::Link {
+                        target: link,
+                        inlines,
+                        kind: CllLinkKind::Dictionary,
+                    },
+                    CllInline::Text(close),
+                ] if open == "["
+                    && close == "]"
+                    && link == &target
+                    && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == word)
+            )
+        }
+    } else if single_bare_lujvo(word) {
+        ret == lujvo_vlacku_inlines(text)
+    } else {
+        ret == cmavo_or_gismu_cell_inlines_from(text, |_| None)
+    }
+})]
+fn lujvo_marked_cell_inlines(text: &str) -> Vec<CllInline> {
+    let word = cell_decision_word(text);
+    if !single_bare_lujvo(word) {
+        return cmavo_or_gismu_cell_inlines_from(text, |_| None);
+    }
+    if bracketed_dictionary_word(text).is_some() {
+        let target = normalize_valsis_query(word);
+        return lujvo_bracket_inlines(text, &target);
+    }
+    lujvo_vlacku_inlines(text)
+}
+
+/// A bracketed lujvo link.
+///
+/// `target` is the vlacku query of the inner word. An empty query stays one
+/// text node. The brackets stay outside the link.
+#[requires(text == text.trim())]
+#[requires(bracketed_dictionary_word(text).is_some())]
+#[ensures(ret.iter().filter(|inline| matches!(inline, CllInline::Link { .. })).count() <= 1)]
+fn lujvo_bracket_inlines<'word>(text: &str, target: &'word str) -> Vec<CllInline> {
+    cmavo_or_gismu_cell_inlines_from(text, |_| (!target.is_empty()).then_some(target))
+}
+
 /// The strictest mark in this element and its descendants.
 ///
 /// An opt-out wins. A lujvo exception wins over an ordinary element. No mark
-/// stays ordinary.
+/// stays ordinary. Each element is judged on its own spelling. Child
+/// elements add no spaces. A bracketed dictionary word uses the inner word.
 #[requires(node.is_element())]
 #[ensures(true)]
 fn tree_link_choice(node: Node<'_, '_>) -> MarkedWordLink {
@@ -2854,7 +2962,7 @@ fn tree_link_choice(node: Node<'_, '_>) -> MarkedWordLink {
         if !element.is_element() {
             continue;
         }
-        match marked_word_link(element, &visible_text(element)) {
+        match marked_word_link(element, &marked_element_word(element)) {
             MarkedWordLink::Unlinked => return MarkedWordLink::Unlinked,
             MarkedWordLink::Lujvo => saw_lujvo = true,
             MarkedWordLink::Ordinary => {}
@@ -2868,10 +2976,13 @@ fn tree_link_choice(node: Node<'_, '_>) -> MarkedWordLink {
 }
 
 #[requires(node.is_element())]
-#[ensures(ret == matches!(marked_word_link(node, &visible_text(node)), MarkedWordLink::Unlinked))]
+#[ensures(ret == matches!(
+    marked_word_link(node, &marked_element_word(node)),
+    MarkedWordLink::Unlinked
+))]
 fn element_opts_out_of_cmavo_link(node: Node<'_, '_>) -> bool {
     matches!(
-        marked_word_link(node, &visible_text(node)),
+        marked_word_link(node, &marked_element_word(node)),
         MarkedWordLink::Unlinked
     )
 }
@@ -6632,5 +6743,227 @@ mod tests {
                 .map(|spelling| (*spelling).to_owned())
                 .collect::<BTreeSet<_>>()
         );
+    }
+
+    /// One written lujvo covers its own span.
+    ///
+    /// Erasure, a second word, and separator punctuation stay unlinked.
+    /// A pause period can sit outside the word span. An inner comma stays
+    /// inside that span.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_marked_lujvo_is_one_written_word() {
+        let rejected = [
+            "jbobliku coi si",
+            "coi si jbobliku",
+            "coi su jbobliku",
+            "coi sa ro jbobliku",
+            "-jbobliku",
+            "jbobliku-",
+            "jbobliku?",
+            ",jbobliku",
+            "jbobliku,",
+            "jbobliku ?",
+            "[jbobliku]",
+            "[ro'inre'o]",
+            "zo jbobliku",
+            "coi ro",
+            "klama",
+            "coi",
+            "zzzz",
+            "",
+            "   ",
+        ];
+        for sample in rejected {
+            assert!(
+                !single_bare_lujvo(sample),
+                "{sample:?} is not one written lujvo"
+            );
+            if sample.trim().is_empty() {
+                continue;
+            }
+            let paragraph = format!("<para><valsi valid=\"false\">{sample}</valsi></para>");
+            let outside = probe_inlines(&paragraph);
+            assert!(
+                is_unlinked_lojban_word(&outside, sample),
+                "{sample:?} stays unlinked, got {outside:?}"
+            );
+        }
+
+        let cyrillic = "\u{04CF}jbobliku\u{04CF}";
+        let kept = [
+            (".jbobliku.", "jbobliku"),
+            ("jbobli,ku", "jbobliku"),
+            (cyrillic, "jbobliku"),
+        ];
+        for (shown, target) in kept {
+            assert!(single_bare_lujvo(shown), "{shown:?} is one written lujvo");
+            let paragraph = format!("<para><valsi valid=\"maybe\">{shown}</valsi></para>");
+            let outside = probe_inlines(&paragraph);
+            assert!(
+                is_dictionary_word_link(&outside, shown, target),
+                "{shown:?} links to {target}, got {outside:?}"
+            );
+        }
+
+        let split =
+            probe_inlines("<para><valsi valid=\"maybe\">jbo<phrase>bliku</phrase></valsi></para>");
+        assert!(
+            is_unlinked_lojban_word(&split, "jbo bliku"),
+            "a padded child stays two words, got {split:?}"
+        );
+
+        for (cell_xml, word) in [
+            (r#"<gismu valid="maybe">[jbobliku]</gismu>"#, "jbobliku"),
+            (r#"<gismu valid="maybe">[ro'inre'o]</gismu>"#, "ro'inre'o"),
+            (
+                r#"<gismu>[<valsi valid="maybe">jbobliku</valsi>]</gismu>"#,
+                "jbobliku",
+            ),
+            (
+                r#"<gismu>[<valsi valid="maybe">ro'inre'o</valsi>]</gismu>"#,
+                "ro'inre'o",
+            ),
+        ] {
+            let cell = entry_cell(cell_xml);
+            assert_eq!(
+                cell.word_cell().and_then(|word_cell| word_cell.bracket()),
+                Some((word, Some(word))),
+                "{cell_xml} got {cell:?}"
+            );
+            assert!(!entry_opted_out(cell_xml), "{cell_xml} stays linked");
+        }
+
+        let linked_gismu = entry_cell("<gismu>[jundi]</gismu>");
+        assert_eq!(
+            linked_gismu
+                .word_cell()
+                .and_then(|word_cell| word_cell.bracket()),
+            Some(("jundi", Some("jundi")))
+        );
+        let plain_bracket = r#"<gismu valid="maybe">[jundi]</gismu>"#;
+        let unlinked_gismu = entry_cell(plain_bracket);
+        assert_eq!(
+            unlinked_gismu
+                .word_cell()
+                .and_then(|word_cell| word_cell.bracket()),
+            Some(("jundi", None)),
+            "{unlinked_gismu:?}"
+        );
+        assert!(entry_opted_out(plain_bracket));
+        let hidden_glossary = r#"<gismu glossary="false" valid="maybe">[jbobliku]</gismu>"#;
+        let glossary = entry_cell(hidden_glossary);
+        assert_eq!(
+            glossary
+                .word_cell()
+                .and_then(|word_cell| word_cell.bracket()),
+            Some(("jbobliku", None)),
+            "{glossary:?}"
+        );
+        assert!(entry_opted_out(hidden_glossary));
+
+        let lojbau = r#"<gismu valid="maybe"><valsi>lojbau</valsi><valsi>girzu</valsi></gismu>"#;
+        let lojbau_cell = entry_cell(lojbau);
+        assert_eq!(
+            lojbau_cell.word_parts().as_deref(),
+            Some(
+                [
+                    word_part("lojbau", Some("lojbau")),
+                    word_part("girzu", Some("girzu")),
+                ]
+                .as_slice()
+            ),
+            "lojbaugirzu is one lujvo, got {lojbau_cell:?}"
+        );
+        assert!(!entry_opted_out(lojbau));
+
+        // `jboblikugirzu` is a fu'ivla. The cell mark leaves both parts unlinked.
+        let compound =
+            r#"<gismu valid="maybe"><valsi>jbobliku</valsi><valsi>girzu</valsi></gismu>"#;
+        let compound_cell = entry_cell(compound);
+        assert_eq!(
+            compound_cell.word_parts().as_deref(),
+            Some([word_part("jbobliku", None), word_part("girzu", None)].as_slice()),
+            "{compound_cell:?}"
+        );
+        assert!(entry_opted_out(compound));
+
+        let empty_first = r#"<gismu valid="maybe"><valsi/><valsi>jbobliku</valsi></gismu>"#;
+        let empty_cell = entry_cell(empty_first);
+        assert_eq!(
+            empty_cell.word_parts().as_deref(),
+            Some([word_part("jbobliku", Some("jbobliku"))].as_slice()),
+            "{empty_cell:?}"
+        );
+
+        let joined = r#"<gismu valid="maybe">jbo<phrase>bliku</phrase></gismu>"#;
+        let joined_cell = entry_cell(joined);
+        assert!(
+            is_dictionary_word_link(joined_cell.inlines(), "jbobliku", "jbobliku"),
+            "{joined_cell:?}"
+        );
+        assert!(!entry_opted_out(joined));
+
+        let phrase_part = r#"<gismu><valsi valid="maybe">jbo<phrase>bliku</phrase></valsi><valsi>coi</valsi></gismu>"#;
+        let phrase_cell = entry_cell(phrase_part);
+        assert_eq!(
+            phrase_cell.word_parts().as_deref(),
+            Some(
+                [
+                    word_part("jbobliku", Some("jbobliku")),
+                    word_part("coi", Some("coi")),
+                ]
+                .as_slice()
+            ),
+            "{phrase_cell:?}"
+        );
+        assert!(!entry_opted_out(phrase_part));
+
+        let hidden_lujvo =
+            r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase>coi</cmavo>"#;
+        let hidden_cell = entry_cell(hidden_lujvo);
+        assert!(
+            is_unlinked_lojban_word(hidden_cell.inlines(), "coi"),
+            "a hidden lujvo must not link coi, got {hidden_cell:?}"
+        );
+        assert!(entry_opted_out(hidden_lujvo));
+
+        let hidden_noise =
+            r#"<cmavo><phrase role="display-none" valid="false">zzzz</phrase>coi</cmavo>"#;
+        let noise_cell = entry_cell(hidden_noise);
+        assert!(
+            is_unlinked_lojban_word(noise_cell.inlines(), "coi"),
+            "{noise_cell:?}"
+        );
+        assert!(entry_opted_out(hidden_noise));
+    }
+
+    #[requires(!cell_xml.is_empty())]
+    #[ensures(matches!(
+        ret,
+        CllCmavoListCell::Word { .. } | CllCmavoListCell::Adjacent { .. }
+    ))]
+    fn entry_cell(cell_xml: &str) -> CllCmavoListCell {
+        let xml = format!("<cmavo-list><cmavo-entry>{cell_xml}</cmavo-entry></cmavo-list>");
+        let (blocks, _) = probe_blocks(&xml);
+        let CllBlock::CmavoList { mut rows, .. } = blocks.into_iter().next().unwrap() else {
+            panic!("expected one cmavo list");
+        };
+        rows.remove(0).remove(0)
+    }
+
+    #[requires(!cell_xml.is_empty())]
+    #[ensures(true)]
+    fn entry_opted_out(cell_xml: &str) -> bool {
+        let xml = format!("<cmavo-list><cmavo-entry>{cell_xml}</cmavo-entry></cmavo-list>");
+        let document = Document::parse(&xml).unwrap_or_else(|error| panic!("{cell_xml}: {error}"));
+        let cell = document
+            .descendants()
+            .find(|node| {
+                node.is_element() && (node.has_tag_name("cmavo") || node.has_tag_name("gismu"))
+            })
+            .unwrap_or_else(|| panic!("{cell_xml} has no word cell"));
+        cmavo_cell_opted_out(cell)
     }
 }
