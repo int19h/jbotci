@@ -1108,6 +1108,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
+        "crates/jbotci-cll/src/model.rs:CllRenderRequest::Html",
+        "the HTML target carries one link mode, and every value of that mode is valid",
+    ),
+    (
         "crates/jbotci-cll/src/model.rs:CllSectionNumber::Section",
         "the chapter and the section index are NonZeroU16 and NonZeroUsize, so the variant data already expresses that the book counts both from one",
     ),
