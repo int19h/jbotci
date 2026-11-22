@@ -138,8 +138,9 @@ jobs:
           set -eux
           mkdir -p "${DIOXUS_HOME}" "${DIOXUS_CLI_ROOT}" "${DIOXUS_CLI_TARGET_DIR}"
           if ! "${DIOXUS_CLI_ROOT}/bin/dx" --version | grep -Eq "^dioxus ${DIOXUS_CLI_VERSION}( |$)"; then
+            # This install writes outside the session target. Leave it untraced.
             CARGO_TARGET_DIR="${DIOXUS_CLI_TARGET_DIR}" \
-              python3 -m tools.cargo_inputs trace -- cargo install dioxus-cli \
+              cargo install dioxus-cli \
                 --version "${DIOXUS_CLI_VERSION}" \
                 --locked \
                 --root "${DIOXUS_CLI_ROOT}" \

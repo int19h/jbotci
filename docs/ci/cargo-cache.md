@@ -22,16 +22,17 @@ When actionlint is installed, the local Python workflow tests run the same comma
 Install ShellCheck too before you run those tests.
 
 Each cached job writes a time marker before its first Cargo call.
-Cargo 1.99 leaves the committed fingerprint mtime unchanged for fresh units.
-It writes a new fingerprint mtime for rebuilt compile units, build-script binaries, and build-script runs.
+Cargo 1.99 and Cargo 1.100 leave the committed fingerprint mtime unchanged for fresh units.
+Both versions write a new fingerprint mtime for rebuilt compile units, build-script binaries, and build-script runs.
 Before a successful save, CI records each unit whose committed fingerprint is newer than that marker.
 It preserves the records of fresh units and deletes units without valid records.
 This also covers units built by nested Cargo commands and by dx.
 It does not require Cargo JSON messages or a selected-unit set.
 
 Compile records include every path in rustc's `.d` file and Cargo's implicit manifests and configuration.
-Build-script binaries use their `.d` files under `build/<pkg>-<hash>`.
-Other compile units use their `.d` files under `deps` or `examples`.
+Cargo 1.100 writes compile `.d` files under `build/<package>/<unit id>/out/`.
+Cargo 1.99 writes build-script `.d` files under `build/<pkg>-<hash>`.
+Cargo 1.99 writes other compile `.d` files under `deps` or `examples`.
 Cargo's encoded dep-info omits immutable registry package sources, so it cannot replace the full rustc path list.
 The record also preserves rustc's environment dependencies and Cargo's filtered environment dependencies.
 Environment values use SHA-256 in the record, so the record does not expose secret values.

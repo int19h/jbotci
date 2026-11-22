@@ -328,5 +328,89 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertEqual(set(compilers), {version})
 
 
+def _run_script(step: str) -> str:
+    if "        run: |" in step:
+        return textwrap.dedent(step.split("        run: |\n", 1)[1])
+    match = re.search(r"(?m)^        run: (.+)$", step)
+    return match.group(1) if match else ""
+
+
+def _logical_lines(script: str) -> list[str]:
+    lines: list[str] = []
+    pending = ""
+    for raw in script.splitlines():
+        piece = raw.strip()
+        pending = f"{pending} {piece}".strip() if pending else piece
+        if pending.endswith("\\"):
+            pending = pending[:-1].rstrip()
+            continue
+        if pending:
+            lines.append(pending)
+        pending = ""
+    if pending:
+        lines.append(pending)
+    return lines
+
+
+def _assigned_target(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
+
+
+def _session_targets(lane: str) -> set[str]:
+    path = "${RUNNER_TEMP}/cargo-target/" + lane
+    return {path, "${CARGO_TARGET_DIR}", "${{ env.CARGO_TARGET_DIR }}"}
+
+
+class TracedTargetTests(unittest.TestCase):
+    def test_traced_steps_use_the_session_target(self) -> None:
+        install = RENDER_WORKFLOW.read_text(encoding="utf-8").split(
+            "      - name: Install Dioxus CLI\n", 1,
+        )[1].split("\n      - name:", 1)[0]
+        self.assertNotIn("tools.cargo_inputs trace", install)
+        self.assertIn("cargo install dioxus-cli", install)
+        workflows = {
+            "test": TEST_WORKFLOW.read_text(encoding="utf-8"),
+            "render": RENDER_WORKFLOW.read_text(encoding="utf-8"),
+        }
+        for name, workflow in workflows.items():
+            with self.subTest(workflow=name):
+                lane = re.search(
+                    r"printf 'CARGO_TARGET_DIR=%s/cargo-target/([^'\\]+)",
+                    workflow,
+                )
+                self.assertIsNotNone(lane)
+                assert lane is not None
+                self.assertIn(lane.group(1), {"test", "deploy"})
+                allowed = _session_targets(lane.group(1))
+                for step in re.split(r"(?m)^      - ", workflow)[1:]:
+                    script = _run_script(step)
+                    if "tools.cargo_inputs trace" not in script:
+                        continue
+                    env = re.search(r"(?m)^        env:\n((?:          .+\n)+)", step)
+                    if env is not None:
+                        for line in env.group(1).splitlines():
+                            if line.strip().startswith("CARGO_TARGET_DIR:"):
+                                value = line.split(":", 1)[1].strip()
+                                self.assertIn(value, allowed, step)
+                    current: str | None = None
+                    for line in _logical_lines(script):
+                        standalone = re.fullmatch(
+                            r"(?:export\s+)?CARGO_TARGET_DIR=(\S+)", line,
+                        )
+                        if standalone:
+                            current = _assigned_target(standalone.group(1))
+                            self.assertIn(current, allowed, line)
+                            continue
+                        if "tools.cargo_inputs trace" not in line:
+                            continue
+                        for value in re.findall(r"(?:^|\s)CARGO_TARGET_DIR=(\S+)", line):
+                            self.assertIn(_assigned_target(value), allowed, line)
+                        if current is not None:
+                            self.assertIn(current, allowed, line)
+
+
 if __name__ == "__main__":
     unittest.main()
