@@ -1372,9 +1372,15 @@ class CargoUnitTests(unittest.TestCase):
             parser = Parser(
                 workspace, target, output, compiler=compiler, rustup=rustup,
             )
-            environment = f'"PATH={path}"'
+            # A real exec inherits the caller rustup variables. The proxy reads them.
+            inherited = [
+                f'"{name}={os.environ[name]}"'
+                for name in ("RUSTUP_HOME", "RUSTUP_TOOLCHAIN")
+                if os.environ.get(name)
+            ]
+            environment = ", ".join([f'"PATH={path}"', *inherited])
             if extra:
-                environment = f'{environment}, {extra}'
+                environment = f"{environment}, {extra}"
             parser.feed([
                 (
                     '1 execve("rustc", ["rustc", "--edition=2024", "main.rs", "-o", "lowered"], '
