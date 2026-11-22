@@ -2615,9 +2615,14 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
             let cell_text = cmavo_or_gismu_cell_text(cell);
             // Rule 12 renders each part as its own span. A bracket pair in
             // that spelling is not the single-word bracket form, so the cell
-            // mark judges the joined text.
-            let cell_choice = marked_word_link(cell, &cell_text);
-            let cell_opt_out = matches!(cell_choice, MarkedWordLink::Unlinked);
+            // mark judges the joined text. The opt-out is the same function
+            // the cmavo audit calls, so the two cannot drift.
+            let cell_opt_out = cmavo_cell_opted_out(cell);
+            let cell_choice = if cell_opt_out {
+                MarkedWordLink::Unlinked
+            } else {
+                marked_word_link(cell, &cell_text)
+            };
             let inlines = parts
                 .iter()
                 .map(|part| {
