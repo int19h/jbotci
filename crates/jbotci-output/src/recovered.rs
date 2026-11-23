@@ -1441,6 +1441,23 @@ mod tests {
             "mi klama lo zarci"
         );
         assert_eq!(
+            plain_with_options("coi", BracketRenderOptions::default()),
+            "coĭ"
+        );
+        assert_eq!(
+            plain_with_options(
+                "coi",
+                BracketRenderOptions {
+                    phonemes: jbotci_morphology::PhonemeRenderOptions {
+                        mark_glides: crate::GlideMark::None,
+                        ..jbotci_morphology::PhonemeRenderOptions::default()
+                    },
+                    ..BracketRenderOptions::default()
+                }
+            ),
+            "coi"
+        );
+        assert_eq!(
             plain_with_options(
                 "coi",
                 BracketRenderOptions {
