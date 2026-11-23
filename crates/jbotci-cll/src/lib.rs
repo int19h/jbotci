@@ -2016,9 +2016,9 @@ mod tests {
             id: None,
             titles: Vec::new(),
             headers: Vec::new(),
-            rows: vec![vec![CllCmavoListCell::Word {
+            rows: vec![vec![new!(CllCmavoListCell::Word {
                 inlines: coi.clone(),
-            }]],
+            })]],
         };
         let interlinear = CllBlock::InterlinearGloss {
             id: None,
@@ -3061,9 +3061,9 @@ mod tests {
                 vec![CllInline::Text("selma'o".to_owned())],
                 vec![CllInline::Text("notes".to_owned())],
             ],
-            rows: vec![vec![CllCmavoListCell::Other {
+            rows: vec![vec![new!(CllCmavoListCell::Other {
                 inlines: vec![CllInline::Text("coi".to_owned())],
-            }]],
+            })]],
         };
 
         let plain_text = blocks_plain_text(site, &[block]);
@@ -3368,11 +3368,10 @@ mod tests {
     #[ensures(ret.iter().all(|cell| !cell.is_empty()))]
     fn cmavo_list_row_texts(row: &[CllCmavoListCell]) -> Vec<String> {
         row.iter()
-            .map(|cell| match cell {
-                CllCmavoListCell::Word { inlines } | CllCmavoListCell::Adjacent { inlines } => {
-                    cmavo_cell_plain_text(inlines)
-                }
-                CllCmavoListCell::Other { inlines } => inline_plain_text(inlines),
+            .map(|cell| match cell.as_data() {
+                data!(CllCmavoListCell::Word { inlines })
+                | data!(CllCmavoListCell::Adjacent { inlines }) => cmavo_cell_plain_text(inlines),
+                data!(CllCmavoListCell::Other { inlines }) => inline_plain_text(inlines),
             })
             .filter(|cell| !cell.is_empty())
             .collect()
@@ -3947,7 +3946,7 @@ mod tests {
             titles: Vec::new(),
             headers: Vec::new(),
             rows: vec![vec![
-                CllCmavoListCell::Word {
+                new!(CllCmavoListCell::Word {
                     inlines: vec![
                         CllInline::Text("[".to_owned()),
                         CllInline::Link {
@@ -3957,23 +3956,23 @@ mod tests {
                         },
                         CllInline::Text("]".to_owned()),
                     ],
-                },
-                CllCmavoListCell::Other {
+                }),
+                new!(CllCmavoListCell::Other {
                     inlines: klama.clone(),
-                },
-                CllCmavoListCell::Other {
+                }),
+                new!(CllCmavoListCell::Other {
                     inlines: vec![CllInline::Text("[idiom]".to_owned())],
-                },
-                CllCmavoListCell::Word {
+                }),
+                new!(CllCmavoListCell::Word {
                     inlines: vec![CllInline::Text("[pino'o]".to_owned())],
-                },
-                CllCmavoListCell::Word {
+                }),
+                new!(CllCmavoListCell::Word {
                     inlines: vec![CllInline::Link {
                         target: String::new(),
                         inlines: vec![CllInline::Text(".".to_owned())],
                         kind: CllLinkKind::Dictionary,
                     }],
-                },
+                }),
             ]],
         };
         let plain = blocks_plain_text(site, &[block]);
@@ -3987,9 +3986,9 @@ mod tests {
             id: None,
             titles: Vec::new(),
             headers: Vec::new(),
-            rows: vec![vec![CllCmavoListCell::Word {
+            rows: vec![vec![new!(CllCmavoListCell::Word {
                 inlines: vec![CllInline::Text("[pino'o]".to_owned())],
-            }]],
+            })]],
         };
         let html = render_block_html(site, &unlinked, CllLinkRenderMode::Web);
         assert!(
@@ -4002,9 +4001,9 @@ mod tests {
             id: None,
             titles: Vec::new(),
             headers: Vec::new(),
-            rows: vec![vec![CllCmavoListCell::Other {
+            rows: vec![vec![new!(CllCmavoListCell::Other {
                 inlines: vec![CllInline::Text("[idiom]".to_owned())],
-            }]],
+            })]],
         };
         let idiom_html = render_block_html(site, &idiom, CllLinkRenderMode::Web);
         assert!(idiom_html.contains("<td>[idiom]</td>"));
@@ -4215,10 +4214,12 @@ mod tests {
                             xml_cell.tag, xml_cell.text
                         );
                         if xml_cell.tag == "cmavo" || xml_cell.tag == "gismu" {
-                            let inlines = match model_cell {
-                                CllCmavoListCell::Word { inlines }
-                                | CllCmavoListCell::Adjacent { inlines } => inlines,
-                                CllCmavoListCell::Other { .. } => panic!("{label} is a word cell"),
+                            let inlines = match model_cell.as_data() {
+                                data!(CllCmavoListCell::Word { inlines })
+                                | data!(CllCmavoListCell::Adjacent { inlines }) => inlines,
+                                data!(CllCmavoListCell::Other { .. }) => {
+                                    panic!("{label} is a word cell")
+                                }
                             };
                             assert!(
                                 !inlines_have_link_kind(inlines, CllLinkKind::Rafsi),
@@ -4233,7 +4234,8 @@ mod tests {
                                 &mut counts,
                             );
                         } else {
-                            let CllCmavoListCell::Other { inlines } = model_cell else {
+                            let data!(CllCmavoListCell::Other { inlines }) = model_cell.as_data()
+                            else {
                                 panic!("{label} stays an ordinary cell");
                             };
                             preserved_dictionary +=
@@ -4855,9 +4857,9 @@ fn cmavo_cell_plain_text(inlines: &[CllInline]) -> String {
             cmavo_parts_plain_text(&parts, &scope)
         }
     } else {
-        let cell = CllCmavoListCell::Word {
+        let cell = new!(CllCmavoListCell::Word {
             inlines: inlines.to_vec(),
-        };
+        });
         cmavo_list_cell_plain_text_in_scope(&cell, &scope)
     };
     scope.finish(text).expect("unrestricted plain text")

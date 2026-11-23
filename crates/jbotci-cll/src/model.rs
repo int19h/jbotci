@@ -1113,7 +1113,9 @@ pub enum CllBlock {
 /// rest of the book uses.
 #[invariant(true)]
 #[invariant(::Word { .. } => true)]
-#[invariant(::Adjacent { .. } => true)]
+#[expensive_invariant(
+    ::Adjacent { inlines } => crate::cmavo_table::cmavo_word_parts(inlines).is_some()
+)]
 #[invariant(::Other { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -1134,24 +1136,25 @@ impl CllCmavoListCell {
     #[requires(true)]
     #[ensures(true)]
     pub fn inlines(&self) -> &[CllInline] {
-        match self {
-            CllCmavoListCell::Word { inlines }
-            | CllCmavoListCell::Adjacent { inlines }
-            | CllCmavoListCell::Other { inlines } => inlines,
+        match self.as_data() {
+            data!(CllCmavoListCell::Word { inlines })
+            | data!(CllCmavoListCell::Adjacent { inlines })
+            | data!(CllCmavoListCell::Other { inlines }) => inlines,
         }
     }
 
     /// The inlines stored in this cell, for a visitor that rewrites links.
     ///
     /// The result is a slice, so a visitor cannot push another inline into a
-    /// word cell.
+    /// word cell. The cell wrapper has no mutable view, so this method borrows
+    /// the inner list.
     #[requires(true)]
     #[ensures(true)]
     pub fn inlines_mut(&mut self) -> &mut [CllInline] {
-        match self {
-            CllCmavoListCell::Word { inlines }
-            | CllCmavoListCell::Adjacent { inlines }
-            | CllCmavoListCell::Other { inlines } => inlines.as_mut_slice(),
+        match &mut self.0 {
+            CllCmavoListCellData::Word { inlines }
+            | CllCmavoListCellData::Adjacent { inlines }
+            | CllCmavoListCellData::Other { inlines } => inlines.as_mut_slice(),
         }
     }
 
@@ -1159,11 +1162,10 @@ impl CllCmavoListCell {
     #[requires(true)]
     #[ensures(true)]
     pub fn word_inlines(&self) -> Option<&[CllInline]> {
-        match self {
-            CllCmavoListCell::Word { inlines } | CllCmavoListCell::Adjacent { inlines } => {
-                Some(inlines)
-            }
-            CllCmavoListCell::Other { .. } => None,
+        match self.as_data() {
+            data!(CllCmavoListCell::Word { inlines })
+            | data!(CllCmavoListCell::Adjacent { inlines }) => Some(inlines),
+            data!(CllCmavoListCell::Other { .. }) => None,
         }
     }
 
@@ -1172,14 +1174,20 @@ impl CllCmavoListCell {
     /// An ordinary cell returns none, even when its text has a bracket shape.
     /// A rule-12 cell returns none, including when one part remains.
     #[requires(true)]
-    #[ensures(match self {
-        CllCmavoListCell::Other { .. } | CllCmavoListCell::Adjacent { .. } => ret.is_none(),
-        CllCmavoListCell::Word { .. } => true,
+    #[ensures(match self.as_data() {
+        data!(CllCmavoListCell::Other { .. }) | data!(CllCmavoListCell::Adjacent { .. }) => {
+            ret.is_none()
+        }
+        data!(CllCmavoListCell::Word { .. }) => true,
     })]
     pub fn word_cell(&self) -> Option<crate::cmavo_table::CllCmavoWordCell<'_>> {
-        match self {
-            CllCmavoListCell::Word { inlines } => crate::cmavo_table::cmavo_word_cell(inlines),
-            CllCmavoListCell::Adjacent { .. } | CllCmavoListCell::Other { .. } => None,
+        match self.as_data() {
+            data!(CllCmavoListCell::Word { inlines }) => {
+                crate::cmavo_table::cmavo_word_cell(inlines)
+            }
+            data!(CllCmavoListCell::Adjacent { .. }) | data!(CllCmavoListCell::Other { .. }) => {
+                None
+            }
         }
     }
 
@@ -1190,16 +1198,20 @@ impl CllCmavoListCell {
     /// part is the shown text and the dictionary target when that part links.
     /// An ordinary cell returns none.
     #[requires(true)]
-    #[ensures(match self {
-        CllCmavoListCell::Other { .. } | CllCmavoListCell::Word { .. } => ret.is_none(),
-        CllCmavoListCell::Adjacent { inlines } => {
+    #[ensures(match self.as_data() {
+        data!(CllCmavoListCell::Other { .. }) | data!(CllCmavoListCell::Word { .. }) => {
+            ret.is_none()
+        }
+        data!(CllCmavoListCell::Adjacent { inlines }) => {
             ret.as_ref().is_none_or(|parts| parts.len() == inlines.len())
         }
     })]
     pub fn word_parts(&self) -> Option<Vec<crate::cmavo_table::CllCmavoWordPart<'_>>> {
-        match self {
-            CllCmavoListCell::Adjacent { inlines } => crate::cmavo_table::cmavo_word_parts(inlines),
-            CllCmavoListCell::Word { .. } | CllCmavoListCell::Other { .. } => None,
+        match self.as_data() {
+            data!(CllCmavoListCell::Adjacent { inlines }) => {
+                crate::cmavo_table::cmavo_word_parts(inlines)
+            }
+            data!(CllCmavoListCell::Word { .. }) | data!(CllCmavoListCell::Other { .. }) => None,
         }
     }
 }

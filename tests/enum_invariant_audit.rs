@@ -1032,10 +1032,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/model.rs:CllCmavoListCell::Adjacent",
-        "the variant records a rule-12 cell of adjacent valsi elements, and the inlines carry the remaining parts",
-    ),
-    (
         "crates/jbotci-cll/src/model.rs:CllCmavoListCell::Other",
         "the variant records an ordinary cmavo-list column, and the inlines carry the cell text",
     ),

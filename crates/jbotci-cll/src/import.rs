@@ -2570,8 +2570,8 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
 /// bare lujvo leaves that cell unlinked. Every other cell keeps the inline
 /// links that the rest of the book uses.
 #[requires(cell.is_element())]
-#[ensures(match &ret {
-    CllCmavoListCell::Word { inlines } => {
+#[ensures(match ret.as_data() {
+    data!(CllCmavoListCell::Word { inlines }) => {
         (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
             && inlines.iter().all(|inline| match inline {
                 CllInline::Text(_) => true,
@@ -2593,7 +2593,7 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
                 .count()
                 <= 1
     }
-    CllCmavoListCell::Adjacent { inlines } => {
+    data!(CllCmavoListCell::Adjacent { inlines }) => {
         (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
             && inlines.iter().all(|inline| match inline {
                 CllInline::Link {
@@ -2609,15 +2609,15 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
                 _ => false,
             })
     }
-    CllCmavoListCell::Other { .. } => {
+    data!(CllCmavoListCell::Other { .. }) => {
         !(cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
     }
 })]
-#[bityzba::expensive_ensures(match &ret {
-    CllCmavoListCell::Adjacent { inlines } => {
+#[bityzba::expensive_ensures(match ret.as_data() {
+    data!(CllCmavoListCell::Adjacent { inlines }) => {
         crate::cmavo_table::cmavo_word_parts(inlines).is_some()
     }
-    CllCmavoListCell::Word { .. } | CllCmavoListCell::Other { .. } => true,
+    data!(CllCmavoListCell::Word { .. }) | data!(CllCmavoListCell::Other { .. }) => true,
 })]
 fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
     if cell.has_tag_name("cmavo") || cell.has_tag_name("gismu") {
@@ -2640,18 +2640,18 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
                     }
                 })
                 .collect();
-            return CllCmavoListCell::Adjacent { inlines };
+            return new!(CllCmavoListCell::Adjacent { inlines });
         }
         let text = cmavo_or_gismu_cell_text(cell);
         let inlines = match cmavo_cell_link_choice(cell, &text, None) {
             MarkedWordLink::Unlinked => marked_unlinked_cell_inlines(&text),
             MarkedWordLink::Lujvo | MarkedWordLink::Ordinary => cmavo_or_gismu_cell_inlines(&text),
         };
-        return CllCmavoListCell::Word { inlines };
+        return new!(CllCmavoListCell::Word { inlines });
     }
-    CllCmavoListCell::Other {
+    new!(CllCmavoListCell::Other {
         inlines: trim_inline_runs(parse_inlines(cell)),
-    }
+    })
 }
 
 /// One valsi element inside a cell of adjacent parts.
@@ -2728,7 +2728,7 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
 /// does not count. A nested glossary on a visible part must not opt out its
 /// sibling.
 #[requires(cell.is_element())]
-#[ensures(ret -> cell.descendants().any(|element| {
+#[bityzba::expensive_ensures(ret -> cell.descendants().any(|element| {
     element.is_element()
         && element != cell
         && attr_value(element, "glossary") == Some("false")
@@ -3005,8 +3005,10 @@ fn parse_cmavo_list_block(
                     entry_cells
                         .get(index)
                         .map(|cell| parse_cmavo_entry_cell(*cell))
-                        .unwrap_or_else(|| CllCmavoListCell::Other {
-                            inlines: Vec::new(),
+                        .unwrap_or_else(|| {
+                            new!(CllCmavoListCell::Other {
+                                inlines: Vec::new(),
+                            })
                         })
                 })
                 .collect::<Vec<_>>()
@@ -5351,8 +5353,14 @@ mod tests {
         );
 
         let cell = |index: usize| rows[index][0].inlines();
-        assert!(matches!(rows[0][0], CllCmavoListCell::Word { .. }));
-        assert!(matches!(rows[2][0], CllCmavoListCell::Other { .. }));
+        assert!(matches!(
+            rows[0][0].as_data(),
+            data!(CllCmavoListCell::Word { .. })
+        ));
+        assert!(matches!(
+            rows[2][0].as_data(),
+            data!(CllCmavoListCell::Other { .. })
+        ));
         assert!(is_dictionary_word_link(cell(0), "coi", "coi"));
         assert!(is_dictionary_word_link(cell(1), "klama", "klama"));
         assert_eq!(cell(2), [CllInline::Text("coi".to_owned())]);
@@ -5594,8 +5602,8 @@ mod tests {
 
     #[requires(!inner.is_empty())]
     #[ensures(matches!(
-        ret,
-        CllCmavoListCell::Word { .. } | CllCmavoListCell::Adjacent { .. }
+        ret.as_data(),
+        data!(CllCmavoListCell::Word { .. }) | data!(CllCmavoListCell::Adjacent { .. })
     ))]
     fn word_cell_from_inner(inner: &str) -> CllCmavoListCell {
         let xml =
@@ -5838,7 +5846,10 @@ mod tests {
     fn an_empty_valsi_keeps_rule_12_for_the_parts_that_remain() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let opted = word_cell_from_inner(r#"<valsi valid="false"/><valsi>coi</valsi>"#);
-        assert!(matches!(opted, CllCmavoListCell::Adjacent { .. }));
+        assert!(matches!(
+            opted.as_data(),
+            data!(CllCmavoListCell::Adjacent { .. })
+        ));
         assert!(opted.word_cell().is_none());
         assert_eq!(
             opted.word_parts().as_deref(),
@@ -5878,8 +5889,8 @@ mod tests {
 
         let all_empty = word_cell_from_inner("<valsi/><valsi/>");
         assert!(matches!(
-            &all_empty,
-            CllCmavoListCell::Adjacent { inlines } if inlines.is_empty()
+            all_empty.as_data(),
+            data!(CllCmavoListCell::Adjacent { inlines }) if inlines.is_empty()
         ));
         assert_eq!(all_empty.word_parts().as_deref(), Some([].as_slice()));
         let empty_header = cmavo_list_with_gloss("<cmavo><valsi/><valsi/></cmavo>", true);
@@ -6274,11 +6285,11 @@ mod tests {
                 panic!("expected one cmavo list, got {blocks:?}");
             };
             assert!(
-                matches!(rows[0][0], CllCmavoListCell::Word { .. }),
+                matches!(rows[0][0].as_data(), data!(CllCmavoListCell::Word { .. })),
                 "{cell_xml}"
             );
             assert!(
-                matches!(rows[0][1], CllCmavoListCell::Other { .. }),
+                matches!(rows[0][1].as_data(), data!(CllCmavoListCell::Other { .. })),
                 "{cell_xml}"
             );
             let inlines = rows[0][1].inlines();
@@ -6310,7 +6321,10 @@ mod tests {
         let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
             panic!("expected one cmavo list, got {blocks:?}");
         };
-        assert!(matches!(rows[0][1], CllCmavoListCell::Other { .. }));
+        assert!(matches!(
+            rows[0][1].as_data(),
+            data!(CllCmavoListCell::Other { .. })
+        ));
         assert_eq!(
             rows[0][1].inlines(),
             [CllInline::Text("[idiom]".to_owned())].as_slice()
@@ -6319,7 +6333,10 @@ mod tests {
         // the reader from treating that text as a word cell.
         assert!(rows[0][1].word_inlines().is_none());
         assert_eq!(crate::inline_plain_text(rows[0][1].inlines()), "[idiom]");
-        assert!(matches!(rows[0][2], CllCmavoListCell::Other { .. }));
+        assert!(matches!(
+            rows[0][2].as_data(),
+            data!(CllCmavoListCell::Other { .. })
+        ));
         assert_eq!(crate::inline_plain_text(rows[0][2].inlines()), "[ klama ]");
     }
 
@@ -6978,8 +6995,8 @@ mod tests {
 
     #[requires(!cell_xml.is_empty())]
     #[ensures(matches!(
-        ret,
-        CllCmavoListCell::Word { .. } | CllCmavoListCell::Adjacent { .. }
+        ret.as_data(),
+        data!(CllCmavoListCell::Word { .. }) | data!(CllCmavoListCell::Adjacent { .. })
     ))]
     fn entry_cell(cell_xml: &str) -> CllCmavoListCell {
         let xml = format!("<cmavo-list><cmavo-entry>{cell_xml}</cmavo-entry></cmavo-list>");

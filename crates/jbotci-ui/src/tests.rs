@@ -1,4 +1,5 @@
 use super::*;
+use jbotci_cll::CllCmavoListCellData;
 use std::num::NonZeroUsize;
 
 const EMBEDDINGS_JS: &str = include_str!("../assets/embeddings.js");
@@ -677,13 +678,13 @@ fn page_find_indexes_a_cmavo_dictionary_link_in_zbalermorna() {
         id: None,
         titles: Vec::new(),
         headers: Vec::new(),
-        rows: vec![vec![CllCmavoListCell::Word {
+        rows: vec![vec![new!(CllCmavoListCell::Word {
             inlines: vec![CllInline::Link {
                 target: word.to_owned(),
                 inlines: vec![CllInline::Text(word.to_owned())],
                 kind: CllLinkKind::Dictionary,
             }],
-        }]],
+        })]],
     };
     let mut entries = Vec::new();
     collect_cll_block_page_find_entries(&mut entries, None, &block, GentufaScript::Zbalermorna);
@@ -736,7 +737,7 @@ fn CmavoBracketFindPage() -> Element {
 #[requires(true)]
 #[ensures(true)]
 fn bracketed_dictionary_cell(word: &str) -> CllCmavoListCell {
-    CllCmavoListCell::Word {
+    new!(CllCmavoListCell::Word {
         inlines: vec![
             CllInline::Text("[".to_owned()),
             CllInline::Link {
@@ -746,19 +747,19 @@ fn bracketed_dictionary_cell(word: &str) -> CllCmavoListCell {
             },
             CllInline::Text("]".to_owned()),
         ],
-    }
+    })
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn unlinked_lojban_word_cell(word: &str) -> CllCmavoListCell {
-    CllCmavoListCell::Word {
+    new!(CllCmavoListCell::Word {
         inlines: vec![CllInline::LanguageSpan {
             kind: CllLanguageSpanKind::JboPhrase,
             language: Some("jbo".to_owned()),
             inlines: vec![CllInline::Text(word.to_owned())],
         }],
-    }
+    })
 }
 
 #[requires(!word.is_empty())]
@@ -830,9 +831,9 @@ fn page_find_scripts_an_unlinked_cmavo_word_and_keeps_a_selmaho_in_latin() {
     for (word, expected) in scripted {
         let block = cmavo_list_of(vec![vec![
             unlinked_lojban_word_cell(word),
-            CllCmavoListCell::Other {
+            new!(CllCmavoListCell::Other {
                 inlines: vec![CllInline::Text("COI".to_owned())],
-            },
+            }),
         ]]);
         let mut entries = Vec::new();
         collect_cll_block_page_find_entries(&mut entries, None, &block, GentufaScript::Zbalermorna);
@@ -846,9 +847,9 @@ fn page_find_scripts_an_unlinked_cmavo_word_and_keeps_a_selmaho_in_latin() {
 #[requires(true)]
 #[ensures(true)]
 fn page_find_keeps_adjacent_valsi_parts_as_one_spelling() {
-    let block = cmavo_list_of(vec![vec![CllCmavoListCell::Adjacent {
+    let block = cmavo_list_of(vec![vec![new!(CllCmavoListCell::Adjacent {
         inlines: vec![dictionary_part("roi"), dictionary_part("nai")],
-    }]]);
+    })]]);
     let mut latin = Vec::new();
     collect_cll_block_page_find_entries(&mut latin, None, &block, GentufaScript::Latin);
     assert_eq!(page_find_entry_texts(&latin), vec!["roinai".to_owned()]);
@@ -929,7 +930,7 @@ fn page_find_joins_every_rule_twelve_shape_without_a_space() {
             "markup" => vec!["roi", "[x](https://example.invalid)"],
             _ => vec!["roi", "nai"],
         };
-        let block = cmavo_list_of(vec![vec![CllCmavoListCell::Adjacent { inlines }]]);
+        let block = cmavo_list_of(vec![vec![new!(CllCmavoListCell::Adjacent { inlines })]]);
         for script in [GentufaScript::Latin, GentufaScript::Zbalermorna] {
             let mut entries = Vec::new();
             collect_cll_block_page_find_entries(&mut entries, None, &block, script);
@@ -971,15 +972,15 @@ fn CmavoPartsFindApp() -> Element {
 fn CmavoPartsFindPage() -> Element {
     let pending = use_signal(|| None);
     let rows = vec![
-        vec![CllCmavoListCell::Adjacent {
+        vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), lojban_part("zzzz")],
-        }],
-        vec![CllCmavoListCell::Adjacent {
+        })],
+        vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), dictionary_part("nai")],
-        }],
-        vec![CllCmavoListCell::Adjacent {
+        })],
+        vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), lojban_part("mi,o")],
-        }],
+        })],
     ];
     let mut entries = Vec::new();
     collect_cmavo_cell_page_find_entries(&mut entries, &rows[0][0], GentufaScript::Zbalermorna);
@@ -1046,18 +1047,18 @@ fn adjacent_valsi_parts_render_side_by_side_in_the_reader() {
 fn MarkupPartApp() -> Element {
     let pending = use_signal(|| None);
     let rows = vec![
-        vec![CllCmavoListCell::Adjacent {
+        vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![
                 dictionary_part("roi"),
                 lojban_part("[x](https://example.invalid)"),
             ],
-        }],
-        vec![CllCmavoListCell::Adjacent {
+        })],
+        vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![
                 dictionary_part("roi"),
                 lojban_part("<a href=\"https://example.invalid\">"),
             ],
-        }],
+        })],
     ];
     let index = build_page_find_index("", &[]);
     let page_find = PageFindContext::new(&index, &PageFindRouteState::default());
@@ -1107,9 +1108,9 @@ fn markup_in_a_valsi_part_stays_text_in_the_reader() {
 #[requires(true)]
 #[ensures(true)]
 fn page_find_keeps_an_english_bracket_in_latin() {
-    let block = cmavo_list_of(vec![vec![CllCmavoListCell::Other {
+    let block = cmavo_list_of(vec![vec![new!(CllCmavoListCell::Other {
         inlines: vec![CllInline::Text("[idiom]".to_owned())],
-    }]]);
+    })]]);
     let mut entries = Vec::new();
     collect_cll_block_page_find_entries(&mut entries, None, &block, GentufaScript::Zbalermorna);
     assert_eq!(page_find_entry_texts(&entries), vec!["[idiom]".to_owned()]);
@@ -1120,9 +1121,9 @@ fn page_find_keeps_an_english_bracket_in_latin() {
 #[ensures(true)]
 fn UnlinkedCmavoBracketApp() -> Element {
     let pending = use_signal(|| None);
-    let rows = vec![vec![CllCmavoListCell::Word {
+    let rows = vec![vec![new!(CllCmavoListCell::Word {
         inlines: vec![CllInline::Text("[pino'o]".to_owned())],
-    }]];
+    })]];
     let index = build_page_find_index("", &[]);
     let page_find = PageFindContext::new(&index, &PageFindRouteState::default());
     render_cll_cmavo_list(

@@ -1509,7 +1509,7 @@ mod tests {
     #[ensures(true)]
     fn a_joined_word_escapes_markup_and_has_no_link() {
         let site = crate::import::embedded_cll_site().expect("embedded CLL site");
-        let word = CllCmavoListCell::Adjacent {
+        let word = new!(CllCmavoListCell::Adjacent {
             inlines: vec![
                 CllInline::LanguageSpan {
                     kind: CllLanguageSpanKind::JboPhrase,
@@ -1522,7 +1522,7 @@ mod tests {
                     kind: CllLinkKind::Dictionary,
                 },
             ],
-        };
+        });
         assert!(word.word_parts().is_some());
         let block = CllBlock::CmavoList {
             id: None,
@@ -1530,9 +1530,9 @@ mod tests {
             headers: Vec::new(),
             rows: vec![vec![
                 word,
-                CllCmavoListCell::Other {
+                new!(CllCmavoListCell::Other {
                     inlines: vec![CllInline::Text("never".to_owned())],
-                },
+                }),
             ]],
         };
         let mut rendered = String::new();
@@ -1551,12 +1551,12 @@ mod tests {
                 titles: Vec::new(),
                 headers: Vec::new(),
                 rows: vec![vec![
-                    CllCmavoListCell::Word {
+                    new!(CllCmavoListCell::Word {
                         inlines: vec![CllInline::Text(cell.to_owned())],
-                    },
-                    CllCmavoListCell::Other {
+                    }),
+                    new!(CllCmavoListCell::Other {
                         inlines: vec![CllInline::Text("none".to_owned())],
-                    },
+                    }),
                 ]],
             };
             assert_eq!(
@@ -1572,7 +1572,7 @@ mod tests {
     #[ensures(true)]
     fn a_headered_word_cell_escapes_a_pipe_inside_a_part() {
         let site = crate::import::embedded_cll_site().expect("embedded CLL site");
-        let word = CllCmavoListCell::Adjacent {
+        let word = new!(CllCmavoListCell::Adjacent {
             inlines: vec![
                 CllInline::LanguageSpan {
                     kind: CllLanguageSpanKind::JboPhrase,
@@ -1585,7 +1585,7 @@ mod tests {
                     inlines: vec![CllInline::Text("z".to_owned())],
                 },
             ],
-        };
+        });
         assert!(word.word_parts().is_some());
         let block = CllBlock::CmavoList {
             id: None,
@@ -1596,9 +1596,9 @@ mod tests {
             ],
             rows: vec![vec![
                 word,
-                CllCmavoListCell::Other {
+                new!(CllCmavoListCell::Other {
                     inlines: vec![CllInline::Text("never".to_owned())],
-                },
+                }),
             ]],
         };
         let mut github = String::new();
@@ -1614,7 +1614,7 @@ mod tests {
     #[ensures(true)]
     fn a_word_cell_with_a_line_ending_uses_the_ordinary_cell() {
         let site = crate::import::embedded_cll_site().expect("embedded CLL site");
-        let word = CllCmavoListCell::Adjacent {
+        let word = new!(CllCmavoListCell::Other {
             inlines: vec![
                 CllInline::LanguageSpan {
                     kind: CllLanguageSpanKind::JboPhrase,
@@ -1627,7 +1627,7 @@ mod tests {
                     inlines: vec![CllInline::Text("z".to_owned())],
                 },
             ],
-        };
+        });
         assert!(word.word_parts().is_none());
         let block = CllBlock::CmavoList {
             id: None,
@@ -1638,9 +1638,9 @@ mod tests {
             ],
             rows: vec![vec![
                 word,
-                CllCmavoListCell::Other {
+                new!(CllCmavoListCell::Other {
                     inlines: vec![CllInline::Text("never".to_owned())],
-                },
+                }),
             ]],
         };
         let mut github = String::new();
@@ -1665,15 +1665,15 @@ mod tests {
                 vec![CllInline::Text("e\rf".to_owned())],
             ],
             rows: vec![vec![
-                CllCmavoListCell::Other {
+                new!(CllCmavoListCell::Other {
                     inlines: vec![CllInline::Text("g\nh".to_owned())],
-                },
-                CllCmavoListCell::Other {
+                }),
+                new!(CllCmavoListCell::Other {
                     inlines: vec![CllInline::Text("i|j\r\nk".to_owned())],
-                },
-                CllCmavoListCell::Other {
+                }),
+                new!(CllCmavoListCell::Other {
                     inlines: vec![CllInline::Text("l\rm".to_owned())],
-                },
+                }),
             ]],
         };
         let mut github = String::new();
