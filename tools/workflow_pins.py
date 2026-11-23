@@ -133,24 +133,6 @@ def job_env_values(text: str, key: str) -> list[tuple[str, str]]:
     return found
 
 
-def step_env_values(text: str, key: str) -> list[tuple[str, str]]:
-    """Return `(job, value)` for each step-level `env` declaration of `key`."""
-    found: list[tuple[str, str]] = []
-    for job_name, job in _jobs(text):
-        for steps in _direct(job, "steps"):
-            if not isinstance(steps, list):
-                raise PinError("The workflow pin is unavailable.")
-            for step in steps:
-                if not isinstance(step, YamlMapping):
-                    raise PinError("The workflow pin is unavailable.")
-                for env in _direct(step, "env"):
-                    if not isinstance(env, YamlMapping):
-                        raise PinError("The workflow pin is unavailable.")
-                    for value in _string_values(env, key):
-                        found.append((job_name, value))
-    return found
-
-
 def _strings(node: object) -> list[str]:
     found: list[str] = []
 
@@ -165,61 +147,6 @@ def _strings(node: object) -> list[str]:
                 walk(item)
 
     walk(node)
-    return found
-
-
-def _unquote(value: str) -> str:
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-        return value[1:-1]
-    return value
-
-
-def _assignments(pieces: list[str], key: str) -> list[str]:
-    pattern = re.compile(rf"(?:^|(?<=\s))(?:export\s+)?{re.escape(key)}=(\S+)")
-    found: list[str] = []
-    for piece in pieces:
-        for match in pattern.finditer(piece):
-            found.append(_unquote(match.group(1)))
-    return found
-
-
-def shell_assignments(text: str, key: str) -> list[str]:
-    """Return shell assignments of `key` in workflow scalars."""
-    return _assignments(_strings(load_workflow(text)), key)
-
-
-def job_shell_assignments(text: str, job_name: str, key: str) -> list[str]:
-    """Return shell assignments of `key` under one job."""
-    found: list[str] = []
-    for name, job in _jobs(text):
-        if name == job_name:
-            found.extend(_assignments(_strings(job), key))
-    return found
-
-
-def traced_target_values(text: str) -> list[str]:
-    """Return each `CARGO_TARGET_DIR` declaration on a traced step.
-
-    A traced step runs `tools.cargo_inputs trace`.
-    A flow mapping and a quoted key count.
-    A shell assignment in that step counts.
-    """
-    found: list[str] = []
-    for _name, job in _jobs(text):
-        for steps in _direct(job, "steps"):
-            if not isinstance(steps, list):
-                raise PinError("The workflow pin is unavailable.")
-            for step in steps:
-                if not isinstance(step, YamlMapping):
-                    raise PinError("The workflow pin is unavailable.")
-                runs = [value for value in _direct(step, "run") if isinstance(value, str)]
-                if not any("tools.cargo_inputs trace" in run for run in runs):
-                    continue
-                for env in _direct(step, "env"):
-                    if not isinstance(env, YamlMapping):
-                        raise PinError("The workflow pin is unavailable.")
-                    found.extend(_string_values(env, "CARGO_TARGET_DIR"))
-                found.extend(_assignments(runs, "CARGO_TARGET_DIR"))
     return found
 
 

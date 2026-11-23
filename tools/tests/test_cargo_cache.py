@@ -16,7 +16,7 @@ from uuid import uuid4
 
 
 from tools import cargo_inputs
-from tools.cargo_inputs_trace import trace
+from tools.cargo_inputs_trace import RUSTUP_HOME_PIN
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -56,6 +56,7 @@ class CargoCacheTests(unittest.TestCase):
             CARGO_BUILD_JOBS="8",
             GIT_CONFIG_GLOBAL=str(global_config),
             GIT_CONFIG_NOSYSTEM="1",
+            RUSTUP_HOME=RUSTUP_HOME_PIN,
         )
         # The trace reads the workspace pin. The fixture uses the project file.
         # An ambient toolchain override must not select a different compiler.

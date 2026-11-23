@@ -14,9 +14,10 @@ from unittest.mock import patch
 
 from tools import cargo_inputs as c
 from tools.cargo_inputs_trace import (
-    DX_VERSION, UNSUPPORTED_COMPILER, Parser, Process, TraceError, accept_pinned_compiler,
-    dioxus_cli_version, dx_version_line_matches, pinned_dx, process_snapshot, query_rustup_rustc,
-    rustup_binary, string_at, supported_compiler, trace, version_line_matches,
+    DX_VERSION, RUSTUP_HOME_PIN, UNSUPPORTED_COMPILER, Parser, Process, TraceError,
+    accept_pinned_compiler, dioxus_cli_version, dx_version_line_matches, pinned_dx,
+    process_snapshot, query_rustup_rustc, rustup_binary, string_at, supported_compiler, trace,
+    version_line_matches,
 )
 
 
@@ -1951,15 +1952,104 @@ class CargoUnitTests(unittest.TestCase):
         workspace = Path(__file__).resolve().parents[2]
         journal = self.root / "journal.jsonl"
         marker = self.root / "auto.txt"
+        target = self.layout.target.resolve()
         code = (
             "import os\n"
             "from pathlib import Path\n"
             f"Path({str(marker)!r}).write_text(os.environ.get('RUSTUP_AUTO_INSTALL', ''))\n"
         )
-        with patch.dict(os.environ, {"RUSTUP_AUTO_INSTALL": "1"}):
-            status = trace(workspace, self.layout.target, journal, ["python3", "-c", code])
+        with patch.dict(os.environ, {
+            "RUSTUP_AUTO_INSTALL": "1",
+            "RUSTUP_HOME": RUSTUP_HOME_PIN,
+            "CARGO_TARGET_DIR": str(target),
+        }):
+            os.environ.pop("RUSTUP_TOOLCHAIN", None)
+            with patch(
+                "tools.cargo_inputs_trace.supported_compiler",
+                return_value=Path("/usr/bin/rustc"),
+            ) as compiler:
+                status = trace(workspace, target, journal, ["python3", "-c", code])
         self.assertEqual(status, 0, journal.read_text(encoding="utf-8") if journal.exists() else "")
         self.assertEqual(marker.read_text(encoding="utf-8"), "0")
+        compiler.assert_called_once_with(workspace)
+
+    def test_trace_rejects_each_unpinned_environment(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        channel = tomllib.loads(
+            (workspace / "rust-toolchain.toml").read_text(encoding="utf-8")
+        )["toolchain"]["channel"]
+        wrong = "9.9.9" if channel != "9.9.9" else "8.8.8"
+        target = self.layout.target.resolve()
+        pinned = {
+            "RUSTUP_HOME": RUSTUP_HOME_PIN,
+            "CARGO_TARGET_DIR": str(target),
+        }
+        other = str((self.root / "other-target").resolve())
+        cases = {
+            "home": ({**pinned, "RUSTUP_HOME": str(self.root / "not-the-pin")}, ("RUSTUP_TOOLCHAIN",)),
+            "target": ({**pinned, "CARGO_TARGET_DIR": other}, ("RUSTUP_TOOLCHAIN",)),
+            "toolchain": ({**pinned, "RUSTUP_TOOLCHAIN": wrong}, ()),
+            "empty-toolchain": ({**pinned, "RUSTUP_TOOLCHAIN": ""}, ()),
+            "missing-home": ({"CARGO_TARGET_DIR": str(target)}, ("RUSTUP_HOME", "RUSTUP_TOOLCHAIN")),
+            "missing-target": ({"RUSTUP_HOME": RUSTUP_HOME_PIN}, ("CARGO_TARGET_DIR", "RUSTUP_TOOLCHAIN")),
+        }
+        for name, (updates, remove) in cases.items():
+            with self.subTest(name=name):
+                journal = self.root / f"reject-{name}.jsonl"
+                with patch.dict(os.environ, updates):
+                    for key in remove:
+                        os.environ.pop(key, None)
+                    with patch(
+                        "tools.cargo_inputs_trace.supported_compiler",
+                        return_value=Path("/usr/bin/rustc"),
+                    ) as compiler:
+                        with self.assertRaises(TraceError) as caught:
+                            trace(workspace, target, journal, ["/bin/true"])
+                        compiler.assert_not_called()
+                self.assertEqual(str(caught.exception), UNSUPPORTED_COMPILER)
+                self.assertFalse(journal.exists())
+
+    def test_trace_queries_the_compiler_when_the_toolchain_matches(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        channel = tomllib.loads(
+            (workspace / "rust-toolchain.toml").read_text(encoding="utf-8")
+        )["toolchain"]["channel"]
+        target = self.layout.target.resolve()
+        journal = self.root / "match.jsonl"
+        with patch.dict(os.environ, {
+            "RUSTUP_HOME": RUSTUP_HOME_PIN,
+            "CARGO_TARGET_DIR": str(target),
+            "RUSTUP_TOOLCHAIN": channel,
+        }):
+            with patch(
+                "tools.cargo_inputs_trace.supported_compiler",
+                return_value=Path("/usr/bin/rustc"),
+            ) as compiler:
+                status = trace(workspace, target, journal, ["/bin/true"])
+        detail = journal.read_text(encoding="utf-8") if journal.exists() else ""
+        self.assertEqual(status, 0, detail)
+        compiler.assert_called_once_with(workspace)
+
+    def test_trace_accepts_a_resolved_session_target(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        target = self.layout.target.resolve()
+        previous = Path.cwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, previous)
+        journal = self.root / "relative.jsonl"
+        with patch.dict(os.environ, {
+            "RUSTUP_HOME": RUSTUP_HOME_PIN,
+            "CARGO_TARGET_DIR": target.name,
+        }):
+            os.environ.pop("RUSTUP_TOOLCHAIN", None)
+            with patch(
+                "tools.cargo_inputs_trace.supported_compiler",
+                return_value=Path("/usr/bin/rustc"),
+            ) as compiler:
+                status = trace(workspace, target, journal, ["/bin/true"])
+        detail = journal.read_text(encoding="utf-8") if journal.exists() else ""
+        self.assertEqual(status, 0, detail)
+        compiler.assert_called_once_with(workspace)
 
     def assert_trace_layout_error(self, line: str, reason: str) -> None:
         output = io.StringIO()

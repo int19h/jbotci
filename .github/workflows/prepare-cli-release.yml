@@ -178,8 +178,10 @@ jobs:
             rust:1.100.0-alpine3.24 \
             sh -euc '
               test "$(uname -m)" = "${EXPECTED_UNAME}"
+              channel="$(sed -n '\''s/^channel = "\([^"]*\)"$/\1/p'\'' rust-toolchain.toml)"
+              test -n "${channel}"
               rustc_version="$(rustc -vV)"
-              test "$(printf "%s\n" "${rustc_version}" | sed -n "s/^release: //p")" = "1.100.0"
+              test "$(printf "%s\n" "${rustc_version}" | sed -n "s/^release: //p")" = "${channel}"
               test "$(printf "%s\n" "${rustc_version}" | sed -n "s/^host: //p")" = "${EXPECTED_RUST_HOST}"
               apk add --no-cache \
                 binutils \
@@ -316,7 +318,13 @@ jobs:
 
       - name: Build jbotci
         shell: bash
-        run: cargo build --release --locked -p jbotci
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "${channel}"
+          release="$(rustc -vV | sed -n 's/^release: //p')"
+          test "${release}" = "${channel}"
+          cargo build --release --locked -p jbotci
 
       - name: Smoke-test and stage binary
         shell: bash
@@ -382,7 +390,14 @@ jobs:
           }
 
       - name: Build jbotci
-        run: cargo build --release --locked -p jbotci
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
+          test -n "${channel}"
+          release="$(rustc -vV | sed -n 's/^release: //p')"
+          test "${release}" = "${channel}"
+          cargo build --release --locked -p jbotci
 
       - name: Smoke-test and stage binary
         shell: pwsh

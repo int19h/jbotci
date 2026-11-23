@@ -1142,11 +1142,31 @@ class Parser:
         self.emit({"event": "complete", "errors": self.errors})
 
 
+def require_trace_environment(env: dict[str, str], workspace: Path, target: Path) -> None:
+    """Stop when the trace environment does not match the pins.
+
+    `RUSTUP_HOME` must equal the pinned home.
+    `CARGO_TARGET_DIR` must equal the session target.
+    `RUSTUP_TOOLCHAIN` must be unset, or it must equal the channel in `rust-toolchain.toml`.
+    The comparison uses the real path of each directory.
+    """
+    home = env.get("RUSTUP_HOME")
+    if home is None or Path(home).resolve() != Path(RUSTUP_HOME_PIN).resolve():
+        raise TraceError(UNSUPPORTED_COMPILER)
+    cargo_target = env.get("CARGO_TARGET_DIR")
+    if cargo_target is None or Path(cargo_target).resolve() != Path(target).resolve():
+        raise TraceError(UNSUPPORTED_COMPILER)
+    toolchain = env.get("RUSTUP_TOOLCHAIN")
+    if toolchain is not None and toolchain != pinned_channel(workspace):
+        raise TraceError(UNSUPPORTED_COMPILER)
+
+
 def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> int:
+    # Reject a bad pin before the first compiler query. dx probes nightly before it builds.
+    env = rustup_environment()
+    require_trace_environment(env, workspace, target)
     read_fd, write_fd = os.pipe()
     journal.parent.mkdir(parents=True, exist_ok=True)
-    # A trace must not download a toolchain. dx probes nightly before it builds.
-    env = rustup_environment()
     with journal.open("w") as output, os.fdopen(read_fd, "rb") as stream:
         parser = Parser(
             workspace, target, output, inspect_process=process_snapshot,

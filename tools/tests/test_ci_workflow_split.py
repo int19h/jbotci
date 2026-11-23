@@ -13,8 +13,7 @@ from pathlib import Path
 
 from tools.cargo_inputs_trace import DX_VERSION, RUSTUP_HOME_PIN
 from tools.workflow_pins import (
-    PinError, exactly_one, job_env_values, job_shell_assignments, rust_image_versions,
-    shell_assignments, step_env_values, traced_target_values, workflow_image_versions,
+    PinError, exactly_one, job_env_values, rust_image_versions, workflow_image_versions,
 )
 
 
@@ -324,16 +323,10 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertIn(f"rust:{version}-alpine3.24", prepare)
         self.assertIn(f"FROM rust:{version}-bookworm AS build\n", dockerfile)
         job_toolchains = job_env_values(prepare, "RUSTUP_TOOLCHAIN")
-        shell_toolchains = shell_assignments(prepare, "RUSTUP_TOOLCHAIN")
         self.assertEqual(len(job_toolchains), 2)
         self.assertEqual({value for _job, value in job_toolchains}, {version})
-        self.assertEqual(shell_toolchains, [version])
-        self.assertEqual(step_env_values(prepare, "RUSTUP_TOOLCHAIN"), [])
-        releases = re.findall(
-            r'release: //p"\)" = "([0-9]+\.[0-9]+\.[0-9]+)"',
-            prepare,
-        )
-        self.assertEqual(releases, [version])
+        self.assertEqual(prepare.count("rustc -vV"), 3)
+        self.assertGreaterEqual(prepare.count("rust-toolchain.toml"), 3)
         compilers = re.findall(r"rustc ([0-9]+\.[0-9]+\.[0-9]+) \(", prepare)
         self.assertGreaterEqual(len(compilers), 2)
         self.assertEqual(set(compilers), {version})
@@ -350,8 +343,6 @@ class CiWorkflowSplitTests(unittest.TestCase):
             for workflow in (self.test_workflow, self.render_workflow)
         ]
         self.assertEqual(homes, [RUSTUP_HOME_PIN, RUSTUP_HOME_PIN])
-        self.assertEqual(step_env_values(self.test_workflow, "RUSTUP_HOME"), [])
-        self.assertEqual(step_env_values(self.render_workflow, "RUSTUP_HOME"), [])
         self.assertIn('RUSTUP_AUTO_INSTALL: "0"\n', self.render_workflow)
 
     def test_pinned_keys_reject_every_hidden_declaration(self) -> None:
@@ -378,24 +369,6 @@ class CiWorkflowSplitTests(unittest.TestCase):
                     exactly_one(nested, key, pattern)
                 with self.assertRaises(PinError):
                     exactly_one(malformed, key, pattern)
-        traced = (
-            "jobs:\n"
-            "  build:\n"
-            "    steps:\n"
-            "      - name: Build\n"
-            "        env: {CARGO_TARGET_DIR: /tmp/cargo-target/test}\n"
-            "        run: python3 -m tools.cargo_inputs trace -- cargo test\n"
-        )
-        self.assertEqual(traced_target_values(traced), ["/tmp/cargo-target/test"])
-        hidden = traced.replace(
-            "env: {CARGO_TARGET_DIR: /tmp/cargo-target/test}\n",
-            "env:\n          CARGO_TARGET_DIR: /tmp/cargo-target/test # session\n"
-            "          \"CARGO_TARGET_DIR\": /tmp/other\n",
-        )
-        self.assertEqual(
-            traced_target_values(hidden),
-            ["/tmp/cargo-target/test", "/tmp/other"],
-        )
         images = (
             "jobs:\n"
             "  build:\n"
@@ -419,19 +392,16 @@ class TracedTargetTests(unittest.TestCase):
         self.assertNotIn("tools.cargo_inputs trace", install)
         self.assertIn("cargo install dioxus-cli", install)
         workflows = {
-            "test": TEST_WORKFLOW.read_text(encoding="utf-8"),
-            "render": RENDER_WORKFLOW.read_text(encoding="utf-8"),
+            "test": (TEST_WORKFLOW.read_text(encoding="utf-8"), "test"),
+            "render": (RENDER_WORKFLOW.read_text(encoding="utf-8"), "deploy"),
         }
-        for name, workflow in workflows.items():
+        for name, (workflow, lane) in workflows.items():
             with self.subTest(workflow=name):
-                lane = re.search(
-                    r"printf 'CARGO_TARGET_DIR=%s/cargo-target/([^'\\]+)",
-                    workflow,
-                )
-                self.assertIsNotNone(lane)
-                assert lane is not None
-                self.assertIn(lane.group(1), {"test", "deploy"})
-                self.assertEqual(traced_target_values(workflow), [])
+                needle = f"printf 'CARGO_TARGET_DIR=%s/cargo-target/{lane}\\n'"
+                self.assertEqual(workflow.count(needle), 1)
+                other = "deploy" if lane == "test" else "test"
+                other_needle = f"printf 'CARGO_TARGET_DIR=%s/cargo-target/{other}\\n'"
+                self.assertEqual(workflow.count(other_needle), 0)
 
 
 if __name__ == "__main__":
