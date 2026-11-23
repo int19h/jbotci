@@ -7,7 +7,9 @@ mod brackets;
 #[cfg(test)]
 mod cancellation_tests;
 pub use brackets::{
-    pretty_generated_model_brackets_with_limit, pretty_morphology_brackets_with_limit,
+    pretty_generated_model_brackets_with_limit,
+    pretty_generated_model_plain_source_fragments_with_options,
+    pretty_generated_model_plain_with_limit, pretty_morphology_brackets_with_limit,
 };
 pub mod budget;
 mod diagnostics;
@@ -62,7 +64,9 @@ pub use recovered::{
     pretty_recovered_morphology_tree_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
     pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_brackets_with_options,
-    pretty_recovered_syntax_error_region_brackets_with_options, pretty_recovered_syntax_raw,
+    pretty_recovered_syntax_error_region_brackets_with_options,
+    pretty_recovered_syntax_plain_source_fragments_with_options,
+    pretty_recovered_syntax_plain_with_limit, pretty_recovered_syntax_raw,
     pretty_recovered_syntax_raw_with_limit, pretty_recovered_syntax_tree_with_limit,
     pretty_recovered_syntax_tree_with_options, raw_with_limit,
 };

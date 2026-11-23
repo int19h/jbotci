@@ -246,6 +246,28 @@ pub(crate) fn render_bracketed_with_limit(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub(crate) fn render_plain_with_limit(
+    expr: &SExpr,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, crate::OutputError> {
+    cancellation
+        .check()
+        .map_err(|_| crate::OutputError::Interrupted)?;
+    let mut output = OutputBudget::new(limit).writer();
+    write_plain(&mut output, 0, expr, options, cancellation).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::Interrupted {
+            crate::OutputError::Interrupted
+        } else {
+            crate::OutputError::from_render_io(error, limit)
+        }
+    })?;
+    Ok(output.into_string().expect("plain output is UTF-8"))
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn has_text(expr: &SExpr) -> bool {
     match expr {
@@ -304,6 +326,48 @@ fn write_bracketed(
             }
             write!(output, "{close}")?;
             write_style_close(output, depth, options, LeafRole::Normal)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_plain(
+    output: &mut crate::budget::BudgetedWriter,
+    depth: usize,
+    expr: &SExpr,
+    options: BracketRenderOptions,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> std::io::Result<()> {
+    if cancellation.is_cancelled() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            jbotci_interrupt::Interrupted,
+        ));
+    }
+    match expr {
+        SExpr::Leaf { text, role, .. } => {
+            if text.is_empty() && *role != LeafRole::Error {
+                return Ok(());
+            }
+            write_style_open(output, depth, options, *role)?;
+            output.write_all(text.as_bytes())?;
+            write_style_close(output, depth, options, *role)
+        }
+        SExpr::Node { children, .. } => {
+            let mut children = children.iter().filter(|child| has_text(child)).peekable();
+            let Some(first) = children.next() else {
+                return Ok(());
+            };
+            if children.peek().is_none() {
+                return write_plain(output, depth + 1, first, options, cancellation);
+            }
+            write_plain(output, depth + 1, first, options, cancellation)?;
+            for child in children {
+                output.write_all(b" ")?;
+                write_plain(output, depth + 1, child, options, cancellation)?;
+            }
+            Ok(())
         }
     }
 }
@@ -458,6 +522,72 @@ fn render_source_fragments_at_depth(
                         range: *range,
                         role: BracketSourceFragmentRole::Normal,
                     });
+                    vec![BracketSourceFragment::Span {
+                        range: *range,
+                        constructs: constructs.clone(),
+                        children,
+                    }]
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render_plain_source_fragments_with_options(
+    expr: &SExpr,
+    options: BracketRenderOptions,
+) -> Vec<BracketSourceFragment> {
+    render_plain_source_fragments_at_depth(0, expr, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_plain_source_fragments_at_depth(
+    depth: usize,
+    expr: &SExpr,
+    options: BracketRenderOptions,
+) -> Vec<BracketSourceFragment> {
+    match expr {
+        SExpr::Leaf { text, range, role } => vec![BracketSourceFragment::Text {
+            text: if *role == LeafRole::Error {
+                format!("‼{text}‼")
+            } else {
+                text.clone()
+            },
+            range: *range,
+            role: match role {
+                LeafRole::Normal => BracketSourceFragmentRole::Normal,
+                LeafRole::Elided => BracketSourceFragmentRole::Elided,
+                LeafRole::Error => BracketSourceFragmentRole::Error,
+            },
+        }],
+        SExpr::Node {
+            children,
+            range,
+            constructs,
+        } => {
+            let rendered = children
+                .iter()
+                .flat_map(|child| render_plain_source_fragments_at_depth(depth + 1, child, options))
+                .filter(|fragment| !source_fragment_is_empty(fragment))
+                .collect::<Vec<_>>();
+            match rendered.as_slice() {
+                [] => Vec::new(),
+                [single] => vec![single.clone()],
+                _ => {
+                    let mut children = Vec::new();
+                    for (index, fragment) in rendered.into_iter().enumerate() {
+                        if index > 0 {
+                            children.push(BracketSourceFragment::Text {
+                                text: " ".to_owned(),
+                                range: None,
+                                role: BracketSourceFragmentRole::Normal,
+                            });
+                        }
+                        children.push(fragment);
+                    }
                     vec![BracketSourceFragment::Span {
                         range: *range,
                         constructs: constructs.clone(),

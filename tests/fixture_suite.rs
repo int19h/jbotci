@@ -65,6 +65,98 @@ fn loads_smoke_fixture() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn plain_and_groups_have_the_same_words_in_the_same_order_for_the_fixture_corpus() {
+    #[requires(true)]
+    #[ensures(true)]
+    fn append_word_fragments(
+        fragment: &jbotci_output::BracketSourceFragment,
+        output: &mut Vec<(
+            jbotci_output::BracketSourceRange,
+            String,
+            jbotci_output::BracketSourceFragmentRole,
+        )>,
+    ) {
+        match fragment {
+            jbotci_output::BracketSourceFragment::Text { text, range, role } => {
+                if let Some(range) = range {
+                    output.push((*range, text.clone(), *role));
+                }
+            }
+            jbotci_output::BracketSourceFragment::Span {
+                range, children, ..
+            } => {
+                for (index, child) in children.iter().enumerate() {
+                    let is_group_bracket = matches!(
+                        child,
+                        jbotci_output::BracketSourceFragment::Text {
+                            range: Some(child_range),
+                            ..
+                        } if Some(*child_range) == *range
+                    ) && (index == 0 || index + 1 == children.len());
+                    if !is_group_bracket {
+                        append_word_fragments(child, output);
+                    }
+                }
+            }
+        }
+    }
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let fixtures = load_fixture_tree(&root).expect("fixtures should load");
+    let options = jbotci_output::BracketRenderOptions::default();
+    let mut checked = 0usize;
+    for fixture in fixtures {
+        let dialect = fixture
+            .test_case
+            .dialect_definition()
+            .unwrap_or_else(|error| panic!("{} dialect error: {error}", fixture.test_case.id));
+        let morphology_options = fixture_morphology_options(&fixture.test_case.id, &dialect)
+            .expect("fixture morphology options");
+        let syntax_options =
+            jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        let Ok(words) = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
+            &fixture.test_case.lojban,
+            &morphology_options,
+            Some(SourceId("<fixture>".to_owned())),
+        ) else {
+            continue;
+        };
+        let Ok(tree) = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            &fixture.test_case.lojban,
+            &syntax_options,
+        ) else {
+            continue;
+        };
+        let groups = jbotci_output::pretty_bracket_source_fragments_with_options(
+            &tree,
+            &fixture.test_case.lojban,
+            options,
+        )
+        .expect("group fragments");
+        let plain = jbotci_output::pretty_generated_model_plain_source_fragments_with_options(
+            &tree,
+            &fixture.test_case.lojban,
+            options,
+        )
+        .expect("plain fragments");
+        let mut group_words = Vec::new();
+        let mut plain_words = Vec::new();
+        for fragment in &groups {
+            append_word_fragments(fragment, &mut group_words);
+        }
+        for fragment in &plain {
+            append_word_fragments(fragment, &mut plain_words);
+        }
+        assert_eq!(plain_words, group_words, "{}", fixture.test_case.id);
+        checked += 1;
+    }
+    assert!(checked > 0);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn recovered_morphology_preserves_strict_first_error_for_failure_fixtures()
 -> Result<(), FixtureError> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");

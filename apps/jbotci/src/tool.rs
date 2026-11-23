@@ -199,6 +199,7 @@ impl<'a> ToolExecutionContext<'a> {
 #[invariant(::Json => true)]
 #[invariant(::Svg => true)]
 #[invariant(::Png => true)]
+#[invariant(::Plain => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGentufaFormat {
@@ -209,6 +210,10 @@ pub enum ToolGentufaFormat {
     /// Compact nested-bracket notation on one line, e.g. `([lo nánmu] cu
     /// kláma)`. Most token-efficient; omits node-type labels.
     Brackets,
+    /// The same normalized words as `brackets`, with single spaces and no
+    /// structural brackets. Supports the same stress, glide, script, elision,
+    /// decomposition, and definition options.
+    Plain,
     /// Verbose debug dump of the raw parser AST. For troubleshooting the parser
     /// itself, not normal use.
     Raw,
@@ -233,7 +238,7 @@ impl Default for ToolGentufaFormat {
 /// parser, so it is the authoritative way to see how a sentence is structured
 /// and where each word fits. For word-level (morphology) analysis only, use
 /// `vlasei` instead. Recoverable syntax failures return the partial tree in
-/// `tree`, `brackets`, `raw`, and `json` formats alongside diagnostics.
+/// `tree`, `brackets`, `plain`, `raw`, and `json` formats alongside diagnostics.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -252,7 +257,7 @@ pub struct ToolGentufaRequest {
     #[serde(default)]
     pub dialect: Option<String>,
     /// Prepend full dictionary definitions to the human-readable `tree`,
-    /// `brackets`, and `raw` formats. Definitions ground the parse and are on
+    /// `brackets`, `plain`, and `raw` formats. Definitions ground the parse and are on
     /// by default; set this to `false` to save tokens. The flag is suppressed
     /// for `json`, `svg`, and `png` so those formats remain pure documents.
     #[serde(default = "tool_show_defs_default")]
@@ -303,9 +308,9 @@ struct ToolGentufaCommandFormat {
 
 impl ToolGentufaFormat {
     #[requires(true)]
-    #[ensures(ret == matches!(self, Self::Tree | Self::Brackets | Self::Raw))]
+    #[ensures(ret == matches!(self, Self::Tree | Self::Brackets | Self::Plain | Self::Raw))]
     fn supports_definitions(self) -> bool {
-        matches!(self, Self::Tree | Self::Brackets | Self::Raw)
+        matches!(self, Self::Tree | Self::Brackets | Self::Plain | Self::Raw)
     }
 
     #[requires(true)]
@@ -320,6 +325,10 @@ impl ToolGentufaFormat {
         match self {
             Self::Brackets => new!(ToolGentufaCommandFormat {
                 format: GentufaFormat::Brackets,
+                output_type: None,
+            }),
+            Self::Plain => new!(ToolGentufaCommandFormat {
+                format: GentufaFormat::Plain,
                 output_type: None,
             }),
             Self::Tree => new!(ToolGentufaCommandFormat {
@@ -352,7 +361,7 @@ impl ToolGentufaFormat {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
             Self::Svg => "image/svg+xml; charset=utf-8",
             Self::Png => "image/png",
-            Self::Brackets | Self::Tree | Self::Raw => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Brackets | Self::Plain | Self::Tree | Self::Raw => TEXT_PLAIN_CONTENT_TYPE,
         }
     }
 }
@@ -1822,6 +1831,27 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gentufa_plain_uses_the_shared_normalized_printer() {
+        let output = run_tool_gentufa(gentufa_display_request(
+            "mi klama lo zarci",
+            ToolGentufaFormat::Plain,
+            true,
+            false,
+            true,
+        ))
+        .expect("plain MCP gentufa output");
+
+        assert_eq!(output.status, ToolStatus::Success);
+        assert_eq!(output.stdout, b"mi kl\xc3\xa1ma lo z\xc3\xa1rci ku vau\n");
+        assert_eq!(
+            output.content_type.as_deref(),
+            Some(TEXT_PLAIN_CONTENT_TYPE)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gentufa_machine_formats_suppress_definitions() {
         for format in [
             ToolGentufaFormat::Json,
@@ -1848,7 +1878,10 @@ mod tests {
                 ToolGentufaFormat::Png => {
                     assert!(grounded.stdout.starts_with(b"\x89PNG\r\n\x1a\n"));
                 }
-                ToolGentufaFormat::Tree | ToolGentufaFormat::Brackets | ToolGentufaFormat::Raw => {
+                ToolGentufaFormat::Tree
+                | ToolGentufaFormat::Brackets
+                | ToolGentufaFormat::Plain
+                | ToolGentufaFormat::Raw => {
                     unreachable!("human format excluded from loop")
                 }
             }
@@ -2017,6 +2050,7 @@ mod tests {
         for format in [
             ToolGentufaFormat::Tree,
             ToolGentufaFormat::Brackets,
+            ToolGentufaFormat::Plain,
             ToolGentufaFormat::Raw,
         ] {
             let grounded = run_tool_gentufa(gentufa_request(format, true))

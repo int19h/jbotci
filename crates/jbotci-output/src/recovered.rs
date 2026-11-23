@@ -1051,6 +1051,60 @@ pub fn pretty_recovered_syntax_bracket_source_fragments_with_options(
 }
 
 #[requires(true)]
+#[ensures(!recovered.errors.is_empty() || ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
+pub fn pretty_recovered_syntax_plain_source_fragments_with_options(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<Vec<crate::BracketSourceFragment>, OutputError> {
+    if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
+        return crate::pretty_generated_model_plain_source_fragments_with_options(
+            &valid, source, options,
+        );
+    }
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
+        recovered.parse_tree.as_ref(),
+        &mut visitor,
+    );
+    let value = sexpr::flatten(visitor.finish()?);
+    Ok(sexpr::render_plain_source_fragments_with_options(
+        &value, options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_syntax_plain_with_limit(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, OutputError> {
+    if cancellation.is_cancelled() {
+        return Err(OutputError::Interrupted);
+    }
+    if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
+        return crate::pretty_generated_model_plain_with_limit(
+            &valid,
+            source,
+            options,
+            limit,
+            cancellation,
+        );
+    }
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
+        recovered.parse_tree.as_ref(),
+        &mut visitor,
+    );
+    let value = sexpr::flatten(visitor.finish()?);
+    sexpr::render_plain_with_limit(&value, options, limit, cancellation)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_recovered_syntax_tree_with_options(
     recovered: &RecoveredSyntaxParse,
@@ -1265,6 +1319,167 @@ mod tests {
             &ParseOptions::default(),
         )
         .expect("an uninterrupted recovered parse returns a tree")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn parse_generated_syntax(source: &str) -> Box<jbotci_syntax::generated_model::TextSyntax> {
+        let words = jbotci_morphology::segment_words_with_modifiers(source)
+            .expect("generated syntax probes use valid morphology");
+        jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        )
+        .expect("an uninterrupted generated parse returns a tree")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_with_options(source: &str, options: BracketRenderOptions) -> String {
+        crate::pretty_generated_model_plain_with_limit(
+            &parse_generated_syntax(source),
+            source,
+            options,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("plain output")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn fragment_contains_role(
+        fragment: &crate::BracketSourceFragment,
+        role: crate::BracketSourceFragmentRole,
+    ) -> bool {
+        match fragment {
+            crate::BracketSourceFragment::Text { role: actual, .. } => *actual == role,
+            crate::BracketSourceFragment::Span { children, .. } => children
+                .iter()
+                .any(|child| fragment_contains_role(child, role)),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn fragment_text(fragment: &crate::BracketSourceFragment) -> String {
+        match fragment {
+            crate::BracketSourceFragment::Text { text, .. } => text.clone(),
+            crate::BracketSourceFragment::Span { children, .. } => children
+                .iter()
+                .map(fragment_text)
+                .collect::<Vec<_>>()
+                .join(""),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_uses_the_same_normalized_words_and_elided_terminators_as_brackets() {
+        let options = BracketRenderOptions {
+            show_elided: true,
+            ..BracketRenderOptions::default()
+        };
+        let source = "mi klama lo zarci";
+        let tree = parse_generated_syntax(source);
+        let brackets = crate::pretty_generated_model_brackets_with_limit(
+            &tree,
+            source,
+            options,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("brackets");
+        assert_eq!(brackets, "(mi [kláma {lo zárci ku} vau])");
+        assert_eq!(
+            plain_with_options(source, options),
+            "mi kláma lo zárci ku vau"
+        );
+        assert_eq!(
+            plain_with_options("mi klama lo nu do klama", options),
+            "mi kláma lo nu do kláma vau kei ku vau"
+        );
+
+        let fragments = crate::pretty_generated_model_plain_source_fragments_with_options(
+            &tree, source, options,
+        )
+        .expect("plain fragments");
+        assert_eq!(
+            fragments
+                .iter()
+                .map(fragment_text)
+                .collect::<Vec<_>>()
+                .join(""),
+            "mi kláma lo zárci ku vau"
+        );
+        assert!(fragments.iter().any(|fragment| matches!(
+            fragment,
+            crate::BracketSourceFragment::Span { range: Some(_), .. }
+        )));
+        assert!(fragments.iter().any(|fragment| {
+            fragment_contains_role(fragment, crate::BracketSourceFragmentRole::Elided)
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_honors_stress_glide_script_quotes_and_paragraphs() {
+        assert_eq!(
+            plain_with_options(
+                "mi klama lo zarci",
+                BracketRenderOptions {
+                    phonemes: jbotci_morphology::PhonemeRenderOptions {
+                        mark_stress: crate::StressMark::None,
+                        mark_glides: crate::GlideMark::None,
+                    },
+                    ..BracketRenderOptions::default()
+                }
+            ),
+            "mi klama lo zarci"
+        );
+        assert_eq!(
+            plain_with_options(
+                "coi",
+                BracketRenderOptions {
+                    script: crate::LojbanScript::Zbalermorna,
+                    ..BracketRenderOptions::default()
+                }
+            ),
+            "\u{ed86}\u{eda8}"
+        );
+        assert_eq!(
+            plain_with_options("zo. mi klama", BracketRenderOptions::default()),
+            "zo mi kláma"
+        );
+        assert_eq!(
+            plain_with_options(
+                "mi klama lo zarci .i do djica lo nu pinxe lo djacu",
+                BracketRenderOptions::default()
+            ),
+            "mi kláma lo zárci .i do djíca lo nu pínxe lo djácu"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_plain_keeps_recovery_error_markers_without_structural_brackets() {
+        let source = "mi viska le";
+        let recovered = parse_recovered_syntax(source);
+        assert!(!recovered.errors.is_empty());
+        let plain = pretty_recovered_syntax_plain_with_limit(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("recovered plain");
+        assert!(plain.contains('‼'), "{plain}");
+        assert!(!plain.contains(['(', '[', '{']), "{plain}");
     }
 
     #[test]

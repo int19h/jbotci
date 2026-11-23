@@ -287,7 +287,8 @@ fn mcp_tools() -> Vec<Value> {
             "Parse Lojban text into its grammar (syntax) tree — the authoritative way to see how a \
              sentence is structured and which word fills each role. For word-level analysis only use \
              `vlasei`. Recoverable errors return a marked partial tree plus diagnostics. Defaults \
-             to a readable tree with place references.",
+             to a readable tree with place references. Use `plain` for normalized words without \
+             structural brackets.",
             tool_request_schema::<ToolGentufaRequest>(),
         ),
         tool_definition(

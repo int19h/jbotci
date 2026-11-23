@@ -387,6 +387,9 @@ fn assert_recovered_tool_stdout(format: ToolGentufaFormat, stdout: &str) {
         ToolGentufaFormat::Brackets => {
             assert_eq!(stdout, "([mi ‼ku‼] [{.i do} ‼ku‼ {.i (mi kláma)}])\n")
         }
+        ToolGentufaFormat::Plain => {
+            assert_eq!(stdout, "mi ‼ku‼ .i do ‼ku‼ .i mi kláma\n")
+        }
         ToolGentufaFormat::Tree => {
             assert!(stdout.starts_with("ParagraphStatementSequence"), "{stdout}");
             assert_eq!(stdout.matches("Error \"ku\"").count(), 2, "{stdout}");

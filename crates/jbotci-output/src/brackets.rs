@@ -113,6 +113,40 @@ pub(crate) fn pretty_generated_model_bracket_source_fragments_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|text| text.is_empty() == generated_text_is_empty(tree)) || ret.is_err())]
+pub fn pretty_generated_model_plain_with_limit(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, OutputError> {
+    let sexpr = generated_model_bracket_sexpr(tree, source, options, cancellation)?;
+    sexpr::render_plain_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|fragments| fragments.is_empty() == generated_text_is_empty(tree)) || ret.is_err())]
+pub fn pretty_generated_model_plain_source_fragments_with_options(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<Vec<BracketSourceFragment>, OutputError> {
+    let sexpr = generated_model_bracket_sexpr(
+        tree,
+        source,
+        options,
+        &jbotci_interrupt::CancellationToken::never(),
+    )?;
+    Ok(sexpr::render_plain_source_fragments_with_options(
+        &sexpr::flatten(sexpr),
+        options,
+    ))
+}
+
+#[requires(true)]
 #[ensures(ret == (tree.leading_nai.is_empty()
         && tree.leading_cmevla.is_empty()
         && tree.leading_indicators.is_empty()

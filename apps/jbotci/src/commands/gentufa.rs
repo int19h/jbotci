@@ -344,24 +344,37 @@ fn render_gentufa(
                 stderr,
             }));
         }
-        GentufaFormat::Brackets => {
-            let rendered = pretty_generated_model_brackets_with_limit(
-                &generated_model,
-                &text,
-                BracketRenderOptions {
-                    color: color_policy.stdout,
-                    phonemes: phoneme_options,
-                    script: LojbanScript::Latin,
-                    glyphs,
-                    decompose_lujvo: input.decompose_lujvo,
-                    insert_hair_space: false,
-                    show_elided: input.show_elided,
-                },
-                render_limits.text,
-                cancellation,
-            )
-            .map_err(interruptible_output_error)?;
-            writeln!(stdout, "{}", visible_bracket_rendering(&rendered))?;
+        GentufaFormat::Brackets | GentufaFormat::Plain => {
+            let options = BracketRenderOptions {
+                color: color_policy.stdout,
+                phonemes: phoneme_options,
+                script: LojbanScript::Latin,
+                glyphs,
+                decompose_lujvo: input.decompose_lujvo,
+                insert_hair_space: false,
+                show_elided: input.show_elided,
+            };
+            if input.format == GentufaFormat::Plain {
+                let rendered = pretty_generated_model_plain_with_limit(
+                    &generated_model,
+                    &text,
+                    options,
+                    render_limits.text,
+                    cancellation,
+                )
+                .map_err(interruptible_output_error)?;
+                writeln!(stdout, "{}", visible_bracket_rendering(&rendered))?;
+            } else {
+                let rendered = pretty_generated_model_brackets_with_limit(
+                    &generated_model,
+                    &text,
+                    options,
+                    render_limits.text,
+                    cancellation,
+                )
+                .map_err(interruptible_output_error)?;
+                writeln!(stdout, "{}", visible_bracket_rendering(&rendered))?;
+            }
         }
         GentufaFormat::Raw => {
             write_debug_output(&mut stdout, &generated_model, input.indent)?;
@@ -444,23 +457,35 @@ fn render_recovered_gentufa_output(
                 cancellation,
             );
         }
-        GentufaFormat::Brackets => {
-            let rendered = pretty_recovered_syntax_brackets_with_limit(
-                recovered,
-                source,
-                BracketRenderOptions {
-                    color,
-                    phonemes,
-                    script: LojbanScript::Latin,
-                    glyphs,
-                    decompose_lujvo: input.decompose_lujvo,
-                    insert_hair_space: false,
-                    show_elided: input.show_elided,
-                },
-                render_limits.text,
-                cancellation,
-            )
-            .map_err(interruptible_output_error)?;
+        GentufaFormat::Brackets | GentufaFormat::Plain => {
+            let options = BracketRenderOptions {
+                color,
+                phonemes,
+                script: LojbanScript::Latin,
+                glyphs,
+                decompose_lujvo: input.decompose_lujvo,
+                insert_hair_space: false,
+                show_elided: input.show_elided,
+            };
+            let rendered = if input.format == GentufaFormat::Plain {
+                pretty_recovered_syntax_plain_with_limit(
+                    recovered,
+                    source,
+                    options,
+                    render_limits.text,
+                    cancellation,
+                )
+                .map_err(interruptible_output_error)?
+            } else {
+                pretty_recovered_syntax_brackets_with_limit(
+                    recovered,
+                    source,
+                    options,
+                    render_limits.text,
+                    cancellation,
+                )
+                .map_err(interruptible_output_error)?
+            };
             bounded_format(
                 format_args!("{}\n", visible_bracket_rendering(&rendered)),
                 render_limits.text,

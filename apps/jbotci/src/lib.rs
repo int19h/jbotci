@@ -9,10 +9,11 @@ use jbotci_output::{
     compact_generated_model_json_string_with_limits, compact_morphology_json_string_with_limits,
     compact_recovered_morphology_json_string_with_limits,
     compact_recovered_syntax_json_string_with_limits, pretty_generated_model_brackets_with_limit,
-    pretty_generated_model_tree_with_limit, pretty_morphology_brackets_with_limit,
-    pretty_morphology_tree_with_limit, pretty_recovered_morphology_brackets_with_limit,
-    pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
-    pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_raw_with_limit,
+    pretty_generated_model_plain_with_limit, pretty_generated_model_tree_with_limit,
+    pretty_morphology_brackets_with_limit, pretty_morphology_tree_with_limit,
+    pretty_recovered_morphology_brackets_with_limit, pretty_recovered_morphology_raw_with_limit,
+    pretty_recovered_morphology_tree_with_limit, pretty_recovered_syntax_brackets_with_limit,
+    pretty_recovered_syntax_plain_with_limit, pretty_recovered_syntax_raw_with_limit,
     pretty_recovered_syntax_tree_with_limit, render_diagnostics_with_limit,
 };
 
@@ -383,6 +384,8 @@ impl CliProgressPolicy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum GentufaFormat {
     Brackets,
+    /// The same normalized words as brackets, without structural brackets.
+    Plain,
     Blocks,
     #[value(alias = "vipcihe", help = "alias: vipcihe")]
     Tree,
@@ -1822,7 +1825,7 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
             let _ = resolve_gentufa_blocks_output_type(input)?;
         }
         GentufaFormat::Tree => {}
-        GentufaFormat::Brackets => {
+        GentufaFormat::Brackets | GentufaFormat::Plain => {
             validate_no_indent(
                 input.indent,
                 "`--indent` is only supported with raw, JSON, and tree output",
