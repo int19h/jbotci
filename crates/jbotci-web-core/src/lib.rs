@@ -11086,7 +11086,7 @@ mod tests {
     #[ensures(true)]
     fn vlacku_invalid_word_search_returns_card_with_morphology_warning() {
         let result = build_vlacku_web_result(&VlackuWebState {
-            min_votes: Default::default(),
+            min_votes: new!(VlackuVoteFilter::Any),
             mode: VlackuWebMode::Word,
             query: "fa'onai".to_owned(),
             count: 20,
@@ -11097,7 +11097,12 @@ mod tests {
             .cards
             .iter()
             .find(|card| card.word == "fa'onai")
-            .expect("web card for fa'onai");
+            .unwrap_or_else(|| {
+                panic!(
+                    "web card for fa'onai: state {:?}, errors {:?}, cards {:?}",
+                    result.state, result.errors, result.cards
+                )
+            });
         assert!(card.invalid_lojban_word);
         assert!(card.decomposition.is_empty());
         assert_eq!(result.errors, ["Invalid Lojban word: fa'onai"]);
@@ -12305,8 +12310,19 @@ mod tests {
                 ..VlackuWebState::default()
             };
             let result = build_vlacku_web_result(&state);
-            assert!(result.errors.is_empty(), "{word}: {:?}", result.errors);
-            assert!(result.cards.iter().any(|card| card.word == word), "{word}");
+            let card = result
+                .cards
+                .iter()
+                .find(|card| card.word == word)
+                .unwrap_or_else(|| panic!("{word}: {:?}", result.cards));
+            if card.invalid_lojban_word {
+                assert_eq!(
+                    result.errors,
+                    [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{word}")]
+                );
+            } else {
+                assert!(result.errors.is_empty(), "{word}: {:?}", result.errors);
+            }
             assert!(!result.hidden_by_vote_filter, "{word}");
         }
     }
