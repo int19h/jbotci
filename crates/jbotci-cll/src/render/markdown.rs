@@ -1522,6 +1522,7 @@ mod tests {
                     kind: CllLinkKind::Dictionary,
                 },
             ],
+            valsi_words: Vec::new(),
         });
         assert!(word.word_parts().is_some());
         let block = CllBlock::CmavoList {
@@ -1553,6 +1554,7 @@ mod tests {
                 rows: vec![vec![
                     new!(CllCmavoListCell::Word {
                         inlines: vec![CllInline::Text(cell.to_owned())],
+                        valsi_words: Vec::new(),
                     }),
                     new!(CllCmavoListCell::Other {
                         inlines: vec![CllInline::Text("none".to_owned())],
@@ -1585,6 +1587,7 @@ mod tests {
                     inlines: vec![CllInline::Text("z".to_owned())],
                 },
             ],
+            valsi_words: Vec::new(),
         });
         assert!(word.word_parts().is_some());
         let block = CllBlock::CmavoList {
@@ -1612,7 +1615,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn a_word_cell_with_a_line_ending_uses_the_ordinary_cell() {
+    fn an_ordinary_cell_with_a_line_ending_stays_in_the_row() {
         let site = crate::import::embedded_cll_site().expect("embedded CLL site");
         let word = new!(CllCmavoListCell::Other {
             inlines: vec![
@@ -1628,7 +1631,6 @@ mod tests {
                 },
             ],
         });
-        assert!(word.word_parts().is_none());
         let block = CllBlock::CmavoList {
             id: None,
             titles: Vec::new(),

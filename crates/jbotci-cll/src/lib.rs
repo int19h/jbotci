@@ -2018,6 +2018,7 @@ mod tests {
             headers: Vec::new(),
             rows: vec![vec![new!(CllCmavoListCell::Word {
                 inlines: coi.clone(),
+                valsi_words: Vec::new(),
             })]],
         };
         let interlinear = CllBlock::InterlinearGloss {
@@ -3369,8 +3370,10 @@ mod tests {
     fn cmavo_list_row_texts(row: &[CllCmavoListCell]) -> Vec<String> {
         row.iter()
             .map(|cell| match cell.as_data() {
-                data!(CllCmavoListCell::Word { inlines })
-                | data!(CllCmavoListCell::Adjacent { inlines }) => cmavo_cell_plain_text(inlines),
+                data!(CllCmavoListCell::Word { inlines, .. })
+                | data!(CllCmavoListCell::Adjacent { inlines, .. }) => {
+                    cmavo_cell_plain_text(inlines)
+                }
                 data!(CllCmavoListCell::Other { inlines }) => inline_plain_text(inlines),
             })
             .filter(|cell| !cell.is_empty())
@@ -3956,6 +3959,7 @@ mod tests {
                         },
                         CllInline::Text("]".to_owned()),
                     ],
+                    valsi_words: Vec::new(),
                 }),
                 new!(CllCmavoListCell::Other {
                     inlines: klama.clone(),
@@ -3965,6 +3969,7 @@ mod tests {
                 }),
                 new!(CllCmavoListCell::Word {
                     inlines: vec![CllInline::Text("[pino'o]".to_owned())],
+                    valsi_words: Vec::new(),
                 }),
                 new!(CllCmavoListCell::Word {
                     inlines: vec![CllInline::Link {
@@ -3972,6 +3977,7 @@ mod tests {
                         inlines: vec![CllInline::Text(".".to_owned())],
                         kind: CllLinkKind::Dictionary,
                     }],
+                    valsi_words: Vec::new(),
                 }),
             ]],
         };
@@ -3988,6 +3994,7 @@ mod tests {
             headers: Vec::new(),
             rows: vec![vec![new!(CllCmavoListCell::Word {
                 inlines: vec![CllInline::Text("[pino'o]".to_owned())],
+                valsi_words: Vec::new(),
             })]],
         };
         let html = render_block_html(site, &unlinked, CllLinkRenderMode::Web);
@@ -4215,8 +4222,8 @@ mod tests {
                         );
                         if xml_cell.tag == "cmavo" || xml_cell.tag == "gismu" {
                             let inlines = match model_cell.as_data() {
-                                data!(CllCmavoListCell::Word { inlines })
-                                | data!(CllCmavoListCell::Adjacent { inlines }) => inlines,
+                                data!(CllCmavoListCell::Word { inlines, .. })
+                                | data!(CllCmavoListCell::Adjacent { inlines, .. }) => inlines,
                                 data!(CllCmavoListCell::Other { .. }) => {
                                     panic!("{label} is a word cell")
                                 }
@@ -4859,6 +4866,7 @@ fn cmavo_cell_plain_text(inlines: &[CllInline]) -> String {
     } else {
         let cell = new!(CllCmavoListCell::Word {
             inlines: inlines.to_vec(),
+            valsi_words: Vec::new(),
         });
         cmavo_list_cell_plain_text_in_scope(&cell, &scope)
     };

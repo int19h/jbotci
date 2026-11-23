@@ -516,6 +516,15 @@ impl CllBlockVisitor for TaggedWordsVisitor<'_> {
                 }
             }
             CllBlock::Media { .. } | CllBlock::Code { .. } | CllBlock::DisplayMath { .. } => {}
+            CllBlock::CmavoList { rows, .. } => {
+                for cell in rows.iter().flatten() {
+                    for word in cell.valsi_words() {
+                        let target = crate::import::normalize_valsis_query(word);
+                        self.add_word_tags(&target, word);
+                    }
+                }
+                walk_block(self, block);
+            }
             _ => walk_block(self, block),
         }
     }

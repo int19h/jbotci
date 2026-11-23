@@ -296,24 +296,15 @@ pub(crate) fn walk_block_mut<V: CllBlockVisitor + ?Sized>(visitor: &mut V, block
                 .map(|row| {
                     row.into_iter()
                         .map(|cell| {
-                            let rebuilt = match cell.into_data() {
-                                data!(CllCmavoListCell::Word { inlines }) => {
-                                    let mut inlines = inlines;
-                                    visitor.visit_inline_run_mut(&mut inlines);
-                                    data!(CllCmavoListCell::Word { inlines })
+                            let mut data = cell.into_data();
+                            match &mut data {
+                                data!(CllCmavoListCell::Word { inlines, .. })
+                                | data!(CllCmavoListCell::Adjacent { inlines, .. })
+                                | data!(CllCmavoListCell::Other { inlines }) => {
+                                    visitor.visit_inline_run_mut(inlines);
                                 }
-                                data!(CllCmavoListCell::Adjacent { inlines }) => {
-                                    let mut inlines = inlines;
-                                    visitor.visit_inline_run_mut(&mut inlines);
-                                    data!(CllCmavoListCell::Adjacent { inlines })
-                                }
-                                data!(CllCmavoListCell::Other { inlines }) => {
-                                    let mut inlines = inlines;
-                                    visitor.visit_inline_run_mut(&mut inlines);
-                                    data!(CllCmavoListCell::Other { inlines })
-                                }
-                            };
-                            CllCmavoListCell::from_data(rebuilt)
+                            }
+                            CllCmavoListCell::from_data(data)
                         })
                         .collect()
                 })

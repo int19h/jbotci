@@ -684,6 +684,7 @@ fn page_find_indexes_a_cmavo_dictionary_link_in_zbalermorna() {
                 inlines: vec![CllInline::Text(word.to_owned())],
                 kind: CllLinkKind::Dictionary,
             }],
+            valsi_words: Vec::new(),
         })]],
     };
     let mut entries = Vec::new();
@@ -747,6 +748,7 @@ fn bracketed_dictionary_cell(word: &str) -> CllCmavoListCell {
             },
             CllInline::Text("]".to_owned()),
         ],
+        valsi_words: Vec::new(),
     })
 }
 
@@ -759,6 +761,7 @@ fn unlinked_lojban_word_cell(word: &str) -> CllCmavoListCell {
             language: Some("jbo".to_owned()),
             inlines: vec![CllInline::Text(word.to_owned())],
         }],
+        valsi_words: Vec::new(),
     })
 }
 
@@ -849,6 +852,7 @@ fn page_find_scripts_an_unlinked_cmavo_word_and_keeps_a_selmaho_in_latin() {
 fn page_find_keeps_adjacent_valsi_parts_as_one_spelling() {
     let block = cmavo_list_of(vec![vec![new!(CllCmavoListCell::Adjacent {
         inlines: vec![dictionary_part("roi"), dictionary_part("nai")],
+        valsi_words: Vec::new(),
     })]]);
     let mut latin = Vec::new();
     collect_cll_block_page_find_entries(&mut latin, None, &block, GentufaScript::Latin);
@@ -930,7 +934,10 @@ fn page_find_joins_every_rule_twelve_shape_without_a_space() {
             "markup" => vec!["roi", "[x](https://example.invalid)"],
             _ => vec!["roi", "nai"],
         };
-        let block = cmavo_list_of(vec![vec![new!(CllCmavoListCell::Adjacent { inlines })]]);
+        let block = cmavo_list_of(vec![vec![new!(CllCmavoListCell::Adjacent {
+            inlines,
+            valsi_words: Vec::new(),
+        })]]);
         for script in [GentufaScript::Latin, GentufaScript::Zbalermorna] {
             let mut entries = Vec::new();
             collect_cll_block_page_find_entries(&mut entries, None, &block, script);
@@ -974,12 +981,15 @@ fn CmavoPartsFindPage() -> Element {
     let rows = vec![
         vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), lojban_part("zzzz")],
+            valsi_words: Vec::new(),
         })],
         vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), dictionary_part("nai")],
+            valsi_words: Vec::new(),
         })],
         vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![dictionary_part("roi"), lojban_part("mi,o")],
+            valsi_words: Vec::new(),
         })],
     ];
     let mut entries = Vec::new();
@@ -1052,12 +1062,14 @@ fn MarkupPartApp() -> Element {
                 dictionary_part("roi"),
                 lojban_part("[x](https://example.invalid)"),
             ],
+            valsi_words: Vec::new(),
         })],
         vec![new!(CllCmavoListCell::Adjacent {
             inlines: vec![
                 dictionary_part("roi"),
                 lojban_part("<a href=\"https://example.invalid\">"),
             ],
+            valsi_words: Vec::new(),
         })],
     ];
     let index = build_page_find_index("", &[]);
@@ -1123,6 +1135,7 @@ fn UnlinkedCmavoBracketApp() -> Element {
     let pending = use_signal(|| None);
     let rows = vec![vec![new!(CllCmavoListCell::Word {
         inlines: vec![CllInline::Text("[pino'o]".to_owned())],
+        valsi_words: Vec::new(),
     })]];
     let index = build_page_find_index("", &[]);
     let page_find = PageFindContext::new(&index, &PageFindRouteState::default());

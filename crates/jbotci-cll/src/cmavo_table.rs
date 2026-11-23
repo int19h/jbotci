@@ -5,6 +5,8 @@
 //! dictionary token keeps a Lojban span. Any other miss stays one text node.
 //! Every host reads that result from the loaded book. An adjacent valsi
 //! part that does not link is one Lojban span. The span keeps the part text.
+//! A marked lujvo that misses the dictionary keeps a marked span. An
+//! opted-out `[word]` cell keeps the brackets outside that span.
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_ensures, invariant, new, requires, try_new};
@@ -37,6 +39,52 @@ pub enum CllCmavoWordCell<'a> {
     },
 }
 
+/// The inlines a single-word cmavo cell or gismu cell can hold.
+///
+/// The list is empty, one text node, one dictionary link, one Lojban span,
+/// or brackets around one link or one marked span. Each link and each span
+/// holds one text node. The check reads the list and does not allocate.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn word_cell_shape(inlines: &[CllInline]) -> bool {
+    match inlines {
+        [] | [CllInline::Text(_)] => true,
+        [
+            CllInline::Link {
+                kind: CllLinkKind::Dictionary,
+                inlines,
+                ..
+            },
+        ]
+        | [
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase | CllLanguageSpanKind::MarkedValsi,
+                inlines,
+                ..
+            },
+        ] => matches!(inlines.as_slice(), [CllInline::Text(_)]),
+        [
+            CllInline::Text(open),
+            CllInline::Link {
+                kind: CllLinkKind::Dictionary,
+                inlines,
+                ..
+            },
+            CllInline::Text(close),
+        ]
+        | [
+            CllInline::Text(open),
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::MarkedValsi,
+                inlines,
+                ..
+            },
+            CllInline::Text(close),
+        ] => open == "[" && close == "]" && matches!(inlines.as_slice(), [CllInline::Text(_)]),
+        _ => false,
+    }
+}
+
 /// The word cell stored in `inlines`, when the importer built one.
 #[requires(true)]
 #[ensures(true)]
@@ -60,6 +108,21 @@ pub(crate) fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<
                     target: Some(target.as_str()),
                 })
             })
+        }
+        [
+            CllInline::Text(open),
+            CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::MarkedValsi,
+                inlines: inner,
+                ..
+            },
+            CllInline::Text(close),
+        ] if open == "[" && close == "]" => {
+            let [CllInline::Text(word)] = inner.as_slice() else {
+                return None;
+            };
+            is_dictionary_token(word)
+                .then(|| new!(CllCmavoWordCell::Bracket { word, target: None }))
         }
         [CllInline::Text(text)] => bracketed_dictionary_word(text)
             .map(|word| new!(CllCmavoWordCell::Bracket { word, target: None })),
@@ -359,6 +422,44 @@ pub(crate) fn cmavo_or_gismu_cell_inlines(text: &str) -> Vec<CllInline> {
     cmavo_or_gismu_cell_inlines_from(text, |candidate| shipped_dictionary_link_target(candidate))
 }
 
+/// The inlines for a cell whose mark is one bare lujvo.
+///
+/// A dictionary hit uses the ordinary link. A miss stores a marked span, so
+/// the word stays searchable. A bracketed miss keeps the brackets outside
+/// that span. An empty target stays one text node.
+#[requires(text == text.trim())]
+#[expensive_ensures(cmavo_cell_joined_text(&ret) == text)]
+#[ensures(ret.iter().filter(|inline| matches!(inline, CllInline::Link { .. })).count() <= 1)]
+#[ensures(word_cell_shape(&ret))]
+pub(crate) fn lujvo_cell_inlines(text: &str) -> Vec<CllInline> {
+    if text.is_empty() {
+        return Vec::new();
+    }
+    if let Some(word) = bracketed_dictionary_word(text) {
+        return match shipped_dictionary_link_target(word) {
+            Some(target) if !target.is_empty() => vec![
+                CllInline::Text("[".to_owned()),
+                dictionary_word_link(target, word),
+                CllInline::Text("]".to_owned()),
+            ],
+            Some(_) => vec![CllInline::Text(text.to_owned())],
+            None => vec![
+                CllInline::Text("[".to_owned()),
+                marked_valsi_span(word),
+                CllInline::Text("]".to_owned()),
+            ],
+        };
+    }
+    if is_dictionary_token(text) {
+        return match shipped_dictionary_link_target(text) {
+            Some(target) if !target.is_empty() => vec![dictionary_word_link(target, text)],
+            Some(_) => vec![CllInline::Text(text.to_owned())],
+            None => vec![marked_valsi_span(text)],
+        };
+    }
+    cmavo_or_gismu_cell_inlines(text)
+}
+
 #[requires(!target.is_empty())]
 #[requires(is_dictionary_token(shown))]
 #[ensures(matches!(ret, CllInline::Link { kind: CllLinkKind::Dictionary, .. }))]
@@ -422,37 +523,57 @@ pub(crate) fn marked_valsi_span(text: &str) -> CllInline {
 
 /// The inlines for a cmavo or gismu cell that an opt-out mark leaves unlinked.
 ///
-/// A bracket and a dictionary token become one marked span, so the word
-/// stays searchable. Any other text stays one text node. `-----` is that
-/// text node. The cell does not gain a link.
+/// A dictionary token becomes one marked span, so the word stays searchable.
+/// A bracketed word keeps `[` and `]` outside that span. Any other text stays
+/// one text node. `-----` is that text node. The cell does not gain a link.
 #[requires(text == text.trim())]
 #[expensive_ensures(cmavo_cell_joined_text(&ret) == text)]
-#[ensures(ret.len() <= 1)]
-#[ensures(ret.iter().all(|inline| match inline {
-    CllInline::Text(shown) => {
+#[ensures(word_cell_shape(&ret))]
+#[ensures(match ret.as_slice() {
+    [] => text.is_empty(),
+    [CllInline::Text(shown)] => {
         shown == text
             && bracketed_dictionary_word(text).is_none()
             && !is_dictionary_token(text)
     }
-    CllInline::LanguageSpan {
+    [CllInline::LanguageSpan {
         kind: CllLanguageSpanKind::MarkedValsi,
         inlines,
         ..
-    } => {
-        matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
-            && (bracketed_dictionary_word(text).is_some() || is_dictionary_token(text))
+    }] => {
+        is_dictionary_token(text)
+            && bracketed_dictionary_word(text).is_none()
+            && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
+    }
+    [CllInline::Text(open), CllInline::LanguageSpan {
+        kind: CllLanguageSpanKind::MarkedValsi,
+        inlines,
+        ..
+    }, CllInline::Text(close)] => {
+        open == "["
+            && close == "]"
+            && matches!(
+                inlines.as_slice(),
+                [CllInline::Text(shown)] if bracketed_dictionary_word(text) == Some(shown.as_str())
+            )
     }
     _ => false,
-}))]
+})]
 pub(crate) fn marked_unlinked_cell_inlines(text: &str) -> Vec<CllInline> {
     if text.is_empty() {
         return Vec::new();
     }
-    if bracketed_dictionary_word(text).is_some() || is_dictionary_token(text) {
-        vec![marked_valsi_span(text)]
-    } else {
-        vec![CllInline::Text(text.to_owned())]
+    if let Some(word) = bracketed_dictionary_word(text) {
+        return vec![
+            CllInline::Text("[".to_owned()),
+            marked_valsi_span(word),
+            CllInline::Text("]".to_owned()),
+        ];
     }
+    if is_dictionary_token(text) {
+        return vec![marked_valsi_span(text)];
+    }
+    vec![CllInline::Text(text.to_owned())]
 }
 
 /// One part of a cell made of adjacent valsi elements.

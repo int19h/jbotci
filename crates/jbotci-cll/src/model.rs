@@ -1110,23 +1110,38 @@ pub enum CllBlock {
 /// `valsi` elements. Empty elements are discarded after that decision, so the
 /// cell can keep zero or one part. The importer is the only builder of those
 /// two variants. Every other column is `Other`, and it keeps the inlines the
-/// rest of the book uses.
+/// rest of the book uses. `valsi_words` lists each `valsi` element in a word
+/// cell or a rule-12 cell. Word search tags that list. A link or a marked
+/// span of the same word also tags it.
 #[invariant(true)]
-#[invariant(::Word { .. } => true)]
+#[invariant(::Word { inlines, .. } => crate::cmavo_table::word_cell_shape(inlines))]
 #[expensive_invariant(
-    ::Adjacent { inlines } => crate::cmavo_table::cmavo_word_parts(inlines).is_some()
+    ::Adjacent { inlines, .. } => crate::cmavo_table::cmavo_word_parts(inlines).is_some()
 )]
 #[invariant(::Other { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllCmavoListCell {
     /// A `cmavo` cell or a `gismu` cell that is not a rule-12 group.
-    Word { inlines: Vec<CllInline> },
+    ///
+    /// `inlines` hold the visible cell. The list is empty, one text node,
+    /// one dictionary link, one Lojban span, or brackets around one link or
+    /// one marked span. `valsi_words` holds each `valsi` element in the cell.
+    Word {
+        inlines: Vec<CllInline>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        valsi_words: Vec<String>,
+    },
     /// A rule-12 `cmavo` cell or `gismu` cell.
     ///
     /// `inlines` are the parts that still have text. Each part keeps its own
-    /// link or its own Lojban span.
-    Adjacent { inlines: Vec<CllInline> },
+    /// link or its own Lojban span. `valsi_words` holds each `valsi` element
+    /// in the cell.
+    Adjacent {
+        inlines: Vec<CllInline>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        valsi_words: Vec<String>,
+    },
     /// A selmaho cell, a description cell, or any other column.
     Other { inlines: Vec<CllInline> },
 }
@@ -1137,9 +1152,26 @@ impl CllCmavoListCell {
     #[ensures(true)]
     pub fn inlines(&self) -> &[CllInline] {
         match self.as_data() {
-            data!(CllCmavoListCell::Word { inlines })
-            | data!(CllCmavoListCell::Adjacent { inlines })
+            data!(CllCmavoListCell::Word { inlines, .. })
+            | data!(CllCmavoListCell::Adjacent { inlines, .. })
             | data!(CllCmavoListCell::Other { inlines }) => inlines,
+        }
+    }
+
+    /// The text of each `valsi` element stored for word search.
+    ///
+    /// An ordinary column has none. Its `valsi` elements stay in the inlines.
+    #[requires(true)]
+    #[ensures(match self.as_data() {
+        data!(CllCmavoListCell::Word { valsi_words, .. })
+        | data!(CllCmavoListCell::Adjacent { valsi_words, .. }) => ret == valsi_words.as_slice(),
+        data!(CllCmavoListCell::Other { .. }) => ret.is_empty(),
+    })]
+    pub fn valsi_words(&self) -> &[String] {
+        match self.as_data() {
+            data!(CllCmavoListCell::Word { valsi_words, .. })
+            | data!(CllCmavoListCell::Adjacent { valsi_words, .. }) => valsi_words,
+            data!(CllCmavoListCell::Other { .. }) => &[],
         }
     }
 
@@ -1148,8 +1180,8 @@ impl CllCmavoListCell {
     #[ensures(true)]
     pub fn word_inlines(&self) -> Option<&[CllInline]> {
         match self.as_data() {
-            data!(CllCmavoListCell::Word { inlines })
-            | data!(CllCmavoListCell::Adjacent { inlines }) => Some(inlines),
+            data!(CllCmavoListCell::Word { inlines, .. })
+            | data!(CllCmavoListCell::Adjacent { inlines, .. }) => Some(inlines),
             data!(CllCmavoListCell::Other { .. }) => None,
         }
     }
@@ -1167,7 +1199,7 @@ impl CllCmavoListCell {
     })]
     pub fn word_cell(&self) -> Option<crate::cmavo_table::CllCmavoWordCell<'_>> {
         match self.as_data() {
-            data!(CllCmavoListCell::Word { inlines }) => {
+            data!(CllCmavoListCell::Word { inlines, .. }) => {
                 crate::cmavo_table::cmavo_word_cell(inlines)
             }
             data!(CllCmavoListCell::Adjacent { .. }) | data!(CllCmavoListCell::Other { .. }) => {
@@ -1187,13 +1219,13 @@ impl CllCmavoListCell {
         data!(CllCmavoListCell::Other { .. }) | data!(CllCmavoListCell::Word { .. }) => {
             ret.is_none()
         }
-        data!(CllCmavoListCell::Adjacent { inlines }) => {
-            ret.as_ref().is_none_or(|parts| parts.len() == inlines.len())
+        data!(CllCmavoListCell::Adjacent { inlines, .. }) => {
+            ret.as_ref().is_some_and(|parts| parts.len() == inlines.len())
         }
     })]
     pub fn word_parts(&self) -> Option<Vec<crate::cmavo_table::CllCmavoWordPart<'_>>> {
         match self.as_data() {
-            data!(CllCmavoListCell::Adjacent { inlines }) => {
+            data!(CllCmavoListCell::Adjacent { inlines, .. }) => {
                 crate::cmavo_table::cmavo_word_parts(inlines)
             }
             data!(CllCmavoListCell::Word { .. }) | data!(CllCmavoListCell::Other { .. }) => None,
