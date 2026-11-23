@@ -2497,6 +2497,44 @@ mod tests {
         })
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn apostrophe_spellings_rank_the_higher_scored_entry_first() {
+        let options = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+        });
+        let dictionary = jbotci_dictionary_data::english();
+        let valsi = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("gaurki\u{02bc}u".to_owned())],
+            &options,
+        )
+        .expect("valsi lookup");
+        assert_eq!(
+            valsi
+                .cards
+                .iter()
+                .map(|card| (card.word.as_str(), card.votes))
+                .collect::<Vec<_>>(),
+            vec![("gaurki'u", Some(1)), ("gaurkihu", Some(-2))]
+        );
+        let lujvo = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::lujvo("gaurki\u{02bc}u".to_owned())],
+            &options,
+        )
+        .expect("lujvo lookup");
+        let words = lujvo
+            .cards
+            .iter()
+            .map(|card| card.word.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(&words[..2], ["gaurki'u", "gaurkihu"]);
+        assert!(words.iter().position(|word| *word == "gasnu").unwrap() > 1);
+        assert!(words.iter().position(|word| *word == "krinu").unwrap() > 1);
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn words(cards: &[VlackuCard]) -> Vec<&str> {

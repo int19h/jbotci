@@ -9057,6 +9057,15 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn dictionary_tooltip_for_word_contains_vlacku_card_content() {
+        let shared = dictionary_tooltip_for_word("", "gaurki'u").expect("shared-key tooltip");
+        assert_eq!(shared.word, "gaurki'u");
+        assert_eq!(shared.votes, VlackuVoteDisplay::Known("+1".to_owned()));
+        for word in ["gaurkihu", "gaurki\u{02bc}u", "gaurki\u{2019}u"] {
+            let card = dictionary_tooltip_for_word("", word).expect("apostrophe tooltip");
+            assert_eq!(card.word, "gaurki'u", "{word}");
+            assert_eq!(card.votes, VlackuVoteDisplay::Known("+1".to_owned()));
+        }
+
         let card = dictionary_tooltip_for_word("", "klama").expect("klama tooltip");
         assert_eq!(card.word, "klama");
         assert!(card.glosses.iter().any(|gloss| gloss == "come"));

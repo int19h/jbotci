@@ -184,14 +184,19 @@ impl<'a> Dictionary<'a> {
             .map(EntryIndex)
     }
 
-    /// Return the first entry matching a normalized lookup query.
+    /// Return the highest-scored entry for a normalized lookup query.
+    ///
+    /// Entries with the same score stay in source order.
     #[requires(true)]
     #[ensures(true)]
     pub fn lookup_word(&self, query: &str) -> Option<&DictionaryEntry<'a>> {
         self.lookup_words(query).next()
     }
 
-    /// Return all entries matching a normalized lookup query.
+    /// Return every entry for a normalized lookup query.
+    ///
+    /// Entries that share the key are ordered by score, from high to low.
+    /// Entries with the same score stay in source order.
     #[requires(true)]
     #[ensures(true)]
     pub fn lookup_words<'lookup>(
@@ -199,13 +204,23 @@ impl<'a> Dictionary<'a> {
         query: &str,
     ) -> impl Iterator<Item = &'lookup DictionaryEntry<'a>> + 'lookup {
         let normalized = normalize_lookup_query(query);
+        // Copy the targets before the entry lookup. The index borrow and the
+        // entry table borrow are both borrows of `self`.
         let targets = self
             .word_index_entry(&normalized)
-            .map_or(&[][..], |entry| entry.targets);
-        targets.iter().map(|index| self.entry_at(*index))
+            .map(|entry| entry.targets.to_vec())
+            .unwrap_or_default();
+        let mut entries = targets
+            .into_iter()
+            .map(|index| self.entry_at(index))
+            .collect::<Vec<_>>();
+        sort_entries_by_score_descending(&mut entries);
+        entries.into_iter()
     }
 
     /// Exact attestation in source order, with no synthetic or decomposition fallback.
+    ///
+    /// [`Self::lookup_words`] ranks the same key by score. This method does not.
     #[requires(true)]
     #[ensures(true)]
     pub fn exact_definition_indices(&self, query: &str) -> impl Iterator<Item = EntryIndex> + '_ {
@@ -250,24 +265,17 @@ impl<'a> Dictionary<'a> {
 
     /// Return the first non-empty gloss keyword for each lookup word.
     ///
-    /// This is the batch counterpart to repeatedly calling [`Self::lookup_words`].
-    /// Dictionary-wide validity is established at generation and explicit
-    /// validation boundaries rather than by individual lookup operations.
+    /// Each word uses the ranked order from [`Self::lookup_words`]. The first
+    /// non-empty gloss in that order is the result. Dictionary-wide validity
+    /// is established at generation and explicit validation boundaries rather
+    /// than by individual lookup operations.
     #[requires(true)]
     #[ensures(ret.len() == words.len())]
     pub fn first_gloss_keywords_for_words(&self, words: &[&str]) -> Vec<Option<&'a str>> {
         words
             .iter()
             .map(|word| {
-                let normalized = normalize_lookup_query(word);
-                let targets = self
-                    .word_index
-                    .binary_search_by(|entry| entry.key.cmp(normalized.as_str()))
-                    .ok()
-                    .map_or(&[][..], |position| self.word_index[position].targets);
-                targets
-                    .iter()
-                    .map(|index| self.entry_at(*index))
+                self.lookup_words(word)
                     .flat_map(|entry| entry.gloss_keywords)
                     .map(|keyword| keyword.word)
                     .find(|gloss| !gloss.is_empty())
@@ -277,9 +285,9 @@ impl<'a> Dictionary<'a> {
 
     /// Return dictionary entries whose normalized word starts with `prefix`.
     ///
-    /// The returned iterator is backed by the contiguous matching range in the
-    /// sorted word index. It stays lazy over both index keys and collision
-    /// targets, so callers do not have to scan or materialize the dictionary.
+    /// Index keys stay in lexicographic order. The iterator reads one key at
+    /// a time. Entries that share one key are ordered by score, from high to
+    /// low. Entries with the same score stay in source order.
     #[requires(true)]
     #[ensures(true)]
     pub fn entries_by_word_prefix<'lookup>(
@@ -293,12 +301,29 @@ impl<'a> Dictionary<'a> {
         let end = self.word_index.partition_point(|entry| {
             entry.key < normalized.as_str() || entry.key.starts_with(&normalized)
         });
-        self.word_index[start..end]
-            .iter()
-            .flat_map(|entry| entry.targets.iter().map(|index| self.entry_at(*index)))
+        let mut position = start;
+        std::iter::from_fn(move || {
+            if position >= end {
+                return None;
+            }
+            // Copy this key's targets before the entry lookup. Both borrows
+            // are borrows of `self`, and they must not overlap.
+            let targets = self.word_index[position].targets.to_vec();
+            position += 1;
+            let mut entries = targets
+                .into_iter()
+                .map(|index| self.entry_at(index))
+                .collect::<Vec<_>>();
+            sort_entries_by_score_descending(&mut entries);
+            Some(entries)
+        })
+        .flatten()
     }
 
     /// Return all dictionary entries associated with a rafsi query.
+    ///
+    /// Entries that share the key are ordered by score, from high to low.
+    /// Entries with the same score stay in source order.
     #[requires(true)]
     #[ensures(true)]
     pub fn lookup_rafsi<'lookup>(
@@ -306,13 +331,21 @@ impl<'a> Dictionary<'a> {
         query: &str,
     ) -> impl Iterator<Item = RafsiMatch<'lookup, 'a>> + 'lookup {
         let normalized = normalize_lookup_query(query);
+        // Copy the targets before the entry lookup. The index borrow and the
+        // entry table borrow are both borrows of `self`.
         let targets = self
             .rafsi_index_entry(&normalized)
-            .map_or(&[][..], |entry| entry.targets);
-        targets.iter().map(|target| RafsiMatch {
-            entry: self.entry_at(target.entry_index),
-            source: target.source,
-        })
+            .map(|entry| entry.targets.to_vec())
+            .unwrap_or_default();
+        let mut matches = targets
+            .into_iter()
+            .map(|target| RafsiMatch {
+                entry: self.entry_at(target.entry_index),
+                source: target.source,
+            })
+            .collect::<Vec<_>>();
+        sort_rafsi_matches_by_entry_score_descending(&mut matches);
+        matches.into_iter()
     }
 
     /// Return every short rafsi `gismu` could claim, with its availability.
@@ -383,7 +416,7 @@ impl<'a> Dictionary<'a> {
                 })
                 .map(|matched| matched.entry.word)
         ),
-        "the reported words are the claimants of the winning standing, in index order"
+        "the reported words are the claimants of the winning standing, highest score first, and equal scores keep source order"
     )]
     fn rafsi_availability(&self, rafsi: &str) -> RafsiAvailability {
         let mut official = Vec::new();
@@ -1005,6 +1038,32 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
             .collect(),
         max_cmavo_sequence_len,
     })
+}
+
+#[requires(true)]
+#[ensures(entries.windows(2).all(|pair| {
+    pair[0]
+        .score
+        .get()
+        .total_cmp(&pair[1].score.get())
+        .is_ge()
+}))]
+fn sort_entries_by_score_descending(entries: &mut [&DictionaryEntry<'_>]) {
+    // `sort_by` is stable, so equal scores keep source order.
+    entries.sort_by(|left, right| right.score.get().total_cmp(&left.score.get()));
+}
+
+#[requires(true)]
+#[ensures(matches_.windows(2).all(|pair| {
+    pair[0]
+        .entry
+        .score
+        .get()
+        .total_cmp(&pair[1].entry.score.get())
+        .is_ge()
+}))]
+fn sort_rafsi_matches_by_entry_score_descending(matches_: &mut [RafsiMatch<'_, '_>]) {
+    matches_.sort_by(|left, right| right.entry.score.get().total_cmp(&left.entry.score.get()));
 }
 
 /// Return v0-compatible normalized lookup text.
@@ -1643,6 +1702,143 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["INternet", "internet"]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_lookup_key_ranks_the_higher_score_first() {
+        static LOW_GLOSS: [Keyword<'static>; 1] = [Keyword {
+            word: "justification",
+            meaning: None,
+        }];
+        static HIGH_GLOSS: [Keyword<'static>; 1] = [Keyword {
+            word: "reason",
+            meaning: None,
+        }];
+        let mut worse = test_entry("gaurkihu", WordType::Lujvo, &[], None);
+        worse.score = Score(-2.0);
+        worse.gloss_keywords = &LOW_GLOSS;
+        let mut better = test_entry("gaurki'u", WordType::Lujvo, &[], None);
+        better.score = Score(1.0);
+        better.gloss_keywords = &HIGH_GLOSS;
+        let entries = &[worse, better];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+
+        assert!(dictionary.validate().is_ok());
+        assert_eq!(
+            dictionary
+                .lookup_words("gaurkihu")
+                .map(|entry| entry.word)
+                .collect::<Vec<_>>(),
+            vec!["gaurki'u", "gaurkihu"]
+        );
+        assert_eq!(
+            dictionary
+                .lookup_words("gaurki\u{02bc}u")
+                .map(|entry| (entry.word, entry.score.get()))
+                .collect::<Vec<_>>(),
+            vec![("gaurki'u", 1.0), ("gaurkihu", -2.0)]
+        );
+        assert_eq!(dictionary.lookup_word("gaurki'u").unwrap().word, "gaurki'u");
+        assert_eq!(
+            dictionary
+                .entries_by_word_prefix("gaurki")
+                .map(|entry| entry.word)
+                .collect::<Vec<_>>(),
+            vec!["gaurki'u", "gaurkihu"]
+        );
+        assert_eq!(
+            dictionary.first_gloss_keywords_for_words(&["gaurkihu"]),
+            vec![Some("reason")]
+        );
+        assert_eq!(
+            dictionary
+                .exact_definition_indices("gaurki'u")
+                .map(|index| dictionary.entry_at(index).word)
+                .collect::<Vec<_>>(),
+            vec!["gaurkihu", "gaurki'u"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_rafsi_key_ranks_the_higher_score_first() {
+        static TIED_LOW: [Rafsi<'static>; 1] = [experimental("gahu")];
+        static TIED_HIGH_FIRST: [Rafsi<'static>; 1] = [experimental("ga'u")];
+        static TIED_HIGH_SECOND: [Rafsi<'static>; 1] = [experimental("ga\u{02bc}u")];
+        let mut worse = test_entry("gasny", WordType::Lujvo, &TIED_LOW, None);
+        worse.score = Score(-2.0);
+        let mut better_first = test_entry("ganzy", WordType::Lujvo, &TIED_HIGH_FIRST, None);
+        better_first.score = Score(1.0);
+        let mut better_second = test_entry("gancy", WordType::Lujvo, &TIED_HIGH_SECOND, None);
+        better_second.score = Score(1.0);
+        let tied = &[better_first, worse, better_second];
+        let tied_indexes = build_owned_indexes(tied);
+        let tied_dictionary = Dictionary::from_static_slices(
+            tied,
+            leak_word_index(&tied_indexes.word_index),
+            leak_rafsi_index(&tied_indexes.rafsi_index),
+            leak_pattern_index(&tied_indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+        assert!(tied_dictionary.validate().is_ok());
+        assert_eq!(
+            tied_dictionary
+                .lookup_rafsi("gahu")
+                .map(|matched| matched.entry.word)
+                .collect::<Vec<_>>(),
+            vec!["ganzy", "gancy", "gasny"]
+        );
+        assert_eq!(
+            tied_dictionary.rafsi_availability("ga'u").claimant_words(),
+            vec!["ganzy".to_owned(), "gancy".to_owned(), "gasny".to_owned()]
+        );
+
+        static OFFICIAL_RAFSI: [Rafsi<'static>; 1] = [official("gau")];
+        static EXPERIMENTAL_RAFSI: [Rafsi<'static>; 1] = [experimental("gau")];
+        let mut official_entry = test_entry("offcl", WordType::Lujvo, &OFFICIAL_RAFSI, None);
+        official_entry.score = Score(-2.0);
+        let mut experimental_entry =
+            test_entry("exprm", WordType::Fuivla, &EXPERIMENTAL_RAFSI, None);
+        experimental_entry.score = Score(5.0);
+        let mixed = &[official_entry, experimental_entry];
+        let mixed_indexes = build_owned_indexes(mixed);
+        let mixed_dictionary = Dictionary::from_static_slices(
+            mixed,
+            leak_word_index(&mixed_indexes.word_index),
+            leak_rafsi_index(&mixed_indexes.rafsi_index),
+            leak_pattern_index(&mixed_indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+        assert!(mixed_dictionary.validate().is_ok());
+        assert_eq!(
+            mixed_dictionary
+                .lookup_rafsi("gau")
+                .map(|matched| (matched.entry.word, matched.entry.score.get()))
+                .collect::<Vec<_>>(),
+            vec![("exprm", 5.0), ("offcl", -2.0)]
+        );
+        let availability = mixed_dictionary.rafsi_availability("gau");
+        assert_eq!(availability.claim_kind(), Some(RafsiClaimKind::Official));
+        assert_eq!(availability.claimant_words(), vec!["offcl".to_owned()]);
     }
 
     #[test]
