@@ -218,20 +218,37 @@ impl<'a> Dictionary<'a> {
         entries.into_iter()
     }
 
-    /// Exact attestation in source order, with no synthetic or decomposition fallback.
+    /// Return the definition entries for one lookup key.
     ///
-    /// [`Self::lookup_words`] ranks the same key by score. This method does not.
+    /// There is no synthetic or decomposition fallback. Entries that share the
+    /// key are ordered by score, from high to low. Entries with the same score
+    /// stay in source order.
     #[requires(true)]
-    #[ensures(true)]
-    pub fn exact_definition_indices(&self, query: &str) -> impl Iterator<Item = EntryIndex> + '_ {
+    #[ensures({
         let normalized = normalize_lookup_query(query);
-        let targets = self
+        let mut stored = self
             .word_index_entry(&normalized)
-            .map_or(&[][..], |entry| entry.targets);
-        targets
+            .map_or(&[][..], |entry| entry.targets)
+            .iter()
+            .copied()
+            .filter(|index| index.0 < self.entries.len() && self.entries[index.0].has_definition())
+            .collect::<Vec<_>>();
+        let mut ranked = ret.clone();
+        stored.sort();
+        ranked.sort();
+        stored == ranked && entry_indices_ranked_by_score(self, &ret)
+    })]
+    pub fn exact_definition_indices(&self, query: &str) -> Vec<EntryIndex> {
+        let normalized = normalize_lookup_query(query);
+        let mut targets = self
+            .word_index_entry(&normalized)
+            .map_or(&[][..], |entry| entry.targets)
             .iter()
             .copied()
             .filter(|index| self.entry_at(*index).has_definition())
+            .collect::<Vec<_>>();
+        rank_entry_indices_by_score(self, &mut targets);
+        targets
     }
 
     /// Structured keys, ordered lexicographically by canonical morphology components.
@@ -247,10 +264,10 @@ impl<'a> Dictionary<'a> {
         self.max_cmavo_sequence_len
     }
 
-    /// Find real entries for a canonical component sequence without joining spellings.
+    /// Return the stored targets for one component sequence, in source order.
     #[requires(true)]
     #[ensures(true)]
-    pub fn lookup_cmavo_sequence<S: AsRef<str>>(&self, components: &[S]) -> &'a [EntryIndex] {
+    fn cmavo_sequence_targets<S: AsRef<str>>(&self, components: &[S]) -> &'a [EntryIndex] {
         self.cmavo_sequence_index
             .binary_search_by(|entry| {
                 entry
@@ -261,6 +278,25 @@ impl<'a> Dictionary<'a> {
             })
             .ok()
             .map_or(&[], |index| self.cmavo_sequence_index[index].targets())
+    }
+
+    /// Return the entries for one cmavo sequence.
+    ///
+    /// The lookup does not join spellings. Entries that share the key are
+    /// ordered by score, from high to low. Entries with the same score stay in
+    /// source order. The stored index keeps source order.
+    #[requires(true)]
+    #[ensures({
+        let mut stored = self.cmavo_sequence_targets(components).to_vec();
+        let mut ranked = ret.clone();
+        stored.sort();
+        ranked.sort();
+        stored == ranked && entry_indices_ranked_by_score(self, &ret)
+    })]
+    pub fn lookup_cmavo_sequence<S: AsRef<str>>(&self, components: &[S]) -> Vec<EntryIndex> {
+        let mut targets = self.cmavo_sequence_targets(components).to_vec();
+        rank_entry_indices_by_score(self, &mut targets);
+        targets
     }
 
     /// Return the first non-empty gloss keyword for each lookup word.
@@ -1040,30 +1076,74 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
     })
 }
 
+#[requires(indices.iter().all(|index| index.0 < dictionary.entries.len()))]
+#[ensures(entry_indices_ranked_by_score(dictionary, indices))]
+fn rank_entry_indices_by_score(dictionary: &Dictionary<'_>, indices: &mut [EntryIndex]) {
+    indices.sort_by(|left, right| {
+        dictionary
+            .entry_at(*right)
+            .score
+            .get()
+            .total_cmp(&dictionary.entry_at(*left).score.get())
+            .then(left.cmp(right))
+    });
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn entry_indices_ranked_by_score(dictionary: &Dictionary<'_>, indices: &[EntryIndex]) -> bool {
+    indices
+        .iter()
+        .all(|index| index.0 < dictionary.entries.len())
+        && indices.windows(2).all(|pair| {
+            let order = dictionary.entries[pair[0].0]
+                .score
+                .get()
+                .total_cmp(&dictionary.entries[pair[1].0].score.get());
+            order.is_gt() || (order.is_eq() && pair[0] <= pair[1])
+        })
+}
+
 #[requires(true)]
 #[ensures(entries.windows(2).all(|pair| {
-    pair[0]
-        .score
-        .get()
-        .total_cmp(&pair[1].score.get())
-        .is_ge()
+    let order = pair[0].score.get().total_cmp(&pair[1].score.get());
+    order.is_gt()
+        || (order.is_eq() && std::ptr::from_ref(pair[0]) <= std::ptr::from_ref(pair[1]))
 }))]
 fn sort_entries_by_score_descending(entries: &mut [&DictionaryEntry<'_>]) {
-    // `sort_by` is stable, so equal scores keep source order.
-    entries.sort_by(|left, right| right.score.get().total_cmp(&left.score.get()));
+    // Same score keeps the earlier entry. Two copies of one entry keep input
+    // order because this sort is stable.
+    entries.sort_by(|left, right| {
+        right
+            .score
+            .get()
+            .total_cmp(&left.score.get())
+            .then_with(|| std::ptr::from_ref(*left).cmp(&std::ptr::from_ref(*right)))
+    });
 }
 
 #[requires(true)]
 #[ensures(matches_.windows(2).all(|pair| {
-    pair[0]
+    let order = pair[0]
         .entry
         .score
         .get()
-        .total_cmp(&pair[1].entry.score.get())
-        .is_ge()
+        .total_cmp(&pair[1].entry.score.get());
+    order.is_gt()
+        || (order.is_eq()
+            && std::ptr::from_ref(pair[0].entry) <= std::ptr::from_ref(pair[1].entry))
 }))]
 fn sort_rafsi_matches_by_entry_score_descending(matches_: &mut [RafsiMatch<'_, '_>]) {
-    matches_.sort_by(|left, right| right.entry.score.get().total_cmp(&left.entry.score.get()));
+    // Same score keeps the earlier entry. Two matches for one entry keep input
+    // order because this sort is stable.
+    matches_.sort_by(|left, right| {
+        right
+            .entry
+            .score
+            .get()
+            .total_cmp(&left.entry.score.get())
+            .then_with(|| std::ptr::from_ref(left.entry).cmp(&std::ptr::from_ref(right.entry)))
+    });
 }
 
 /// Return v0-compatible normalized lookup text.
@@ -1079,12 +1159,9 @@ pub fn normalize_lookup_query(raw: &str) -> String {
 
 /// Return normalized text for dictionary pattern matching.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret == normalize_lookup_query(raw))]
 pub fn normalize_pattern_lookup_key(raw: &str) -> String {
     normalize_lookup_query(raw)
-        .chars()
-        .map(normalize_latin_apostrophe)
-        .collect()
 }
 
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
@@ -1125,7 +1202,7 @@ fn normalize_lookup_token(raw: &str) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn is_lookup_char(value: char) -> bool {
-    value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' || value == 'h'
+    value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\''
 }
 
 #[requires(true)]
@@ -1765,9 +1842,104 @@ mod tests {
         assert_eq!(
             dictionary
                 .exact_definition_indices("gaurki'u")
-                .map(|index| dictionary.entry_at(index).word)
+                .iter()
+                .map(|index| dictionary.entry_at(*index).word)
                 .collect::<Vec<_>>(),
-            vec!["gaurkihu", "gaurki'u"]
+            vec!["gaurki'u", "gaurkihu"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_key_tie_keeps_source_order_after_the_higher_score() {
+        let mut low = test_entry("gaurkihu", WordType::Lujvo, &[], None);
+        low.score = Score(-2.0);
+        low.definition_id = DefinitionId(11);
+        let mut high_first = test_entry("gaurki'u", WordType::Lujvo, &[], None);
+        high_first.score = Score(1.0);
+        high_first.definition_id = DefinitionId(12);
+        let mut high_second = test_entry("gaurki\u{02bc}u", WordType::Lujvo, &[], None);
+        high_second.score = Score(1.0);
+        high_second.definition_id = DefinitionId(13);
+        let entries = &[low, high_first, high_second];
+        let indexes = build_owned_indexes(entries);
+        assert_eq!(indexes.word_index.len(), 1);
+        assert_eq!(
+            indexes.word_index[0].targets,
+            [EntryIndex(0), EntryIndex(1), EntryIndex(2)]
+        );
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+
+        assert!(dictionary.validate().is_ok());
+        assert_eq!(
+            dictionary.exact_definition_indices("gaurkihu"),
+            [EntryIndex(1), EntryIndex(2), EntryIndex(0)]
+        );
+        assert_eq!(
+            dictionary
+                .lookup_words("gaurki'u")
+                .map(|entry| entry.word)
+                .collect::<Vec<_>>(),
+            vec!["gaurki'u", "gaurki\u{02bc}u", "gaurkihu"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_cmavo_sequence_ranks_a_shared_key_and_keeps_stored_targets() {
+        let mut worse = test_entry("nahe bo", WordType::CmavoCompound, &[], None);
+        worse.score = Score(-2.0);
+        worse.definition_id = DefinitionId(21);
+        let mut better = test_entry("na'e bo", WordType::CmavoCompound, &[], None);
+        better.score = Score(3.0);
+        better.definition_id = DefinitionId(22);
+        let entries = &[worse, better];
+        let indexes = build_owned_indexes(entries);
+        assert_eq!(indexes.cmavo_sequence_index.len(), 1);
+        assert_eq!(
+            indexes.cmavo_sequence_index[0].targets,
+            [EntryIndex(0), EntryIndex(1)]
+        );
+        let components: Vec<&str> = indexes.cmavo_sequence_index[0]
+            .components
+            .iter()
+            .map(String::as_str)
+            .collect();
+        let component_rows = [components.as_slice()];
+        let rows = [CmavoSequenceIndexEntry::from_static_parts(
+            component_rows[0],
+            &indexes.cmavo_sequence_index[0].targets,
+        )];
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &rows,
+            indexes.max_cmavo_sequence_len,
+        );
+
+        assert_eq!(dictionary.validate(), Ok(()));
+        assert_eq!(
+            dictionary.cmavo_sequence_index()[0].targets(),
+            rows[0].targets()
+        );
+        assert_eq!(
+            dictionary.lookup_cmavo_sequence(&components),
+            [EntryIndex(1), EntryIndex(0)]
         );
     }
 
@@ -1972,9 +2144,7 @@ mod tests {
             0,
         );
         assert_eq!(
-            incomplete
-                .exact_definition_indices("pu ba")
-                .collect::<Vec<_>>(),
+            incomplete.exact_definition_indices("pu ba"),
             [EntryIndex(1)]
         );
         let indexes = build_owned_indexes(&entries);
@@ -2005,16 +2175,13 @@ mod tests {
             rows[0].targets()
         );
         assert_eq!(
-            dictionary
-                .exact_definition_indices("pu ba")
-                .collect::<Vec<_>>(),
+            dictionary.exact_definition_indices("pu ba"),
             [EntryIndex(1)]
         );
         assert!(
             dictionary
                 .exact_definition_indices("klama zei tavla")
-                .next()
-                .is_none()
+                .is_empty()
         );
         let bad_maximum = Dictionary {
             max_cmavo_sequence_len: 3,

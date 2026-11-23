@@ -7,7 +7,7 @@ use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, MorphologyOptions, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData,
-    canonicalize_text, lex_single_word, normalize_latin_apostrophe, normalize_lojban_input_text,
+    canonicalize_text, lex_single_word, normalize_lojban_input_text,
     segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{
@@ -2387,7 +2387,6 @@ fn normalize_glob_literal(value: char) -> Option<char> {
     if chars.next().is_some() {
         return None;
     }
-    let value = normalize_latin_apostrophe(value);
     if value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' {
         Some(value)
     } else {

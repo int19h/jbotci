@@ -7,7 +7,7 @@ use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{
     LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, MorphologyOptions, Phonemes,
     WordKind, WordLike, canonicalize_text, choose_best_lujvo_candidate_from_parts,
-    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen, normalize_latin_apostrophe,
+    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen,
     parse_cmevla_lujvo_word_part_candidates,
     segment_words_with_modifiers_with_options_and_source_id,
 };
@@ -816,11 +816,7 @@ fn normalize_lujvo_like_input(raw_word: &str) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn normalize_jvozba_text(raw: &str) -> String {
-    let apostrophe_normalized = raw
-        .chars()
-        .map(normalize_latin_apostrophe)
-        .collect::<String>();
-    canonicalize_text(&apostrophe_normalized)
+    canonicalize_text(raw)
 }
 
 #[requires(true)]
@@ -964,6 +960,7 @@ mod tests {
 
     use super::*;
     use jbotci_interrupt::assert_exit_check;
+    use jbotci_morphology::normalize_latin_apostrophe;
 
     /// The figures the Discord service uses, so the boundaries these tests
     /// pin are the ones a caller with a deadline actually applies.

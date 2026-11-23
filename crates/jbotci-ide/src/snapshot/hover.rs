@@ -247,21 +247,8 @@ fn inherited_semantics(inherited: HoverSemantics, requested: HoverSemantics) -> 
 fn zei_compound_hover_markdown(word_like: &WordLike) -> String {
     let lookup_text = word_like_headword(word_like);
     let dictionary = jbotci_dictionary_data::english();
-    let mut indices: Vec<_> = dictionary.exact_definition_indices(&lookup_text).collect();
-    indices.sort_by(|left, right| {
-        let left_score = dictionary
-            .entry_for_index(*left)
-            .expect("exact entry")
-            .score
-            .get();
-        let right_score = dictionary
-            .entry_for_index(*right)
-            .expect("exact entry")
-            .score
-            .get();
-        right_score.total_cmp(&left_score)
-    });
-    let own_cards = indices
+    let own_cards = dictionary
+        .exact_definition_indices(&lookup_text)
         .into_iter()
         .map(|index| {
             dictionary_entry_card(
