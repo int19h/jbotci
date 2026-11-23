@@ -10,9 +10,9 @@ use sha2::{Digest, Sha256};
 
 use super::*;
 use crate::cmavo_table::{
-    bracketed_dictionary_word, cmavo_or_gismu_cell_inlines, cmavo_valsi_part_inline,
-    is_dictionary_token, lujvo_cell_inlines, marked_unlinked_cell_inlines, marked_valsi_span,
-    shipped_dictionary_link_target,
+    LujvoInlineData, bracketed_dictionary_word, cmavo_or_gismu_cell_inlines,
+    cmavo_valsi_part_inline, dictionary_word_link, lujvo_cell_inlines, lujvo_inline_choice,
+    marked_unlinked_cell_inlines, marked_valsi_span,
 };
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
@@ -2561,17 +2561,22 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
 /// choice. Zero or one remaining part stays a rule-12 cell.
 /// `glossary="false"` leaves the cell unlinked. The mark can sit on the cell
 /// or on a skipped hidden child. `valid="false"` and `valid="maybe"` leave
-/// the cell unlinked when the text is not one bare lujvo. The same two values
-/// on a skipped hidden child opt a rule-12 cell out when that child is not
-/// one bare lujvo. A lujvo mark does not opt the cell out. The ordinary
-/// dictionary lookup then decides the link. A mark does not add a link that
-/// the unmarked cell lacks. A lujvo mark that misses the dictionary stores a
-/// marked span. A single-word cell unwraps one bracket pair on the cell text
-/// and on every descendant. The brackets stay outside a dictionary link and
-/// outside an opted-out span. A rule-12 cell judges the joined spelling and
-/// does not unwrap that pair. The same mark on one part leaves that part
-/// unlinked when the part is not one bare lujvo. A lujvo part uses the
-/// ordinary dictionary lookup. A lujvo part that misses stores a marked span.
+/// the cell unlinked when the text is not one bare lujvo. A rule-12 cell
+/// folds those hidden marks with the cell mark. The cell spelling is the
+/// text that fold judges. A lujvo mark stays a lujvo only when that spelling
+/// is one bare lujvo. Any other hidden mark leaves the cell unlinked. The
+/// rule-12 fold does not unwrap a bracket pair. A lujvo mark does not opt
+/// the cell out when the spelling is one bare lujvo. The ordinary dictionary
+/// lookup then decides the link. A mark does not add a link that the
+/// unmarked cell lacks. A lujvo mark that misses the dictionary stores a
+/// marked span. A single-word cell and a rule-12 cell use the same lookup.
+/// A single-word cell unwraps one bracket pair on the cell text and on every
+/// descendant. The brackets stay outside a dictionary link and outside an
+/// opted-out span. A rule-12 cell judges the joined spelling and does not
+/// unwrap that pair. The same mark on one part leaves that part unlinked
+/// when the part is not one bare lujvo. A lujvo part uses the same lookup.
+/// A lujvo part that misses stores a marked span. A cell lujvo mark uses
+/// that same miss for each part.
 /// An unlinked marked part stays searchable. Every `valsi` element adds its
 /// own text to the cell. Word search tags that text with the same
 /// normalization as a link. The tag stays when the word renders as a link,
@@ -2642,7 +2647,8 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
 /// One rule-12 part.
 ///
 /// An opt-out stores a marked span. A lujvo mark that misses the dictionary
-/// stores a marked span. Every other part uses the dictionary lookup.
+/// stores a marked span. The cell mark and the part mark share that lookup.
+/// Every other part uses the dictionary lookup.
 #[requires(!part.text.is_empty())]
 #[ensures(matches!(
     ret,
@@ -2651,23 +2657,18 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
 fn rule12_part_inline(part: &AdjacentValsiPart, cell_choice: MarkedWordLink) -> CllInline {
     let opted_out = matches!(cell_choice, MarkedWordLink::Unlinked)
         || matches!(part.choice, MarkedWordLink::Unlinked);
-    let lujvo_miss =
-        matches!(part.choice, MarkedWordLink::Lujvo) && !part_has_dictionary_link(&part.text);
-    if opted_out || lujvo_miss {
-        marked_valsi_span(&part.text)
-    } else {
-        cmavo_valsi_part_inline(&part.text, true)
+    let lujvo = matches!(cell_choice, MarkedWordLink::Lujvo)
+        || matches!(part.choice, MarkedWordLink::Lujvo);
+    if opted_out {
+        return marked_valsi_span(&part.text);
     }
-}
-
-/// True when `text` is one dictionary token with a shipped headword.
-#[requires(true)]
-#[bityzba::expensive_ensures(
-    !ret || shipped_dictionary_link_target(text).is_some_and(|target| !target.is_empty())
-)]
-fn part_has_dictionary_link(text: &str) -> bool {
-    is_dictionary_token(text)
-        && shipped_dictionary_link_target(text).is_some_and(|target| !target.is_empty())
+    if lujvo {
+        return match lujvo_inline_choice(&part.text).as_data() {
+            data!(LujvoInline::Link(target)) => dictionary_word_link(target, &part.text),
+            data!(LujvoInline::Marked) | data!(LujvoInline::Plain) => marked_valsi_span(&part.text),
+        };
+    }
+    cmavo_valsi_part_inline(&part.text, true)
 }
 
 /// The text of each visible `valsi` element under `cell`.
@@ -2777,61 +2778,42 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
     (valsi_count >= 2).then_some(parts)
 }
 
-/// True when a skipped hidden child of this cell opts the cell out.
+/// True when `element` sits in a skipped child of `cell`.
 ///
 /// A skipped child is an index term, an anchor, or display-none text. The
-/// mark can sit on that child or on an element inside it. `glossary="false"`
-/// opts out. `valid="false"` and `valid="maybe"` opt out when the marked
-/// text is not one bare lujvo. The check calls `marked_word_link` on each
-/// element, as the tree choice does. A visible part does not count. A nested
-/// mark on a visible part must not opt out its sibling.
+/// child itself counts. An element inside that child counts. A visible part
+/// does not count.
 #[requires(cell.is_element())]
-#[bityzba::expensive_ensures(ret -> cell.descendants().any(|element| {
-    element.is_element()
-        && (attr_value(element, "glossary") == Some("false")
-            || matches!(attr_value(element, "valid"), Some("false" | "maybe")))
-}))]
-fn skipped_hidden_child_opts_out(cell: Node<'_, '_>) -> bool {
-    cell.children().any(skipped_child_opts_out)
-}
-
-/// True when this skipped child holds an opt-out mark.
-#[requires(true)]
-#[ensures(true)]
-fn skipped_child_opts_out(child: Node<'_, '_>) -> bool {
-    child.is_element()
-        && (child.has_tag_name("indexterm")
-            || child.has_tag_name("anchor")
-            || is_display_none_element(child))
-        && child
-            .descendants()
-            .any(|element| element.is_element() && element_mark_opts_out(element))
-}
-
-/// True when this element's own mark leaves a word unlinked.
-///
-/// The spelling is the element's text. One bracket pair unwraps first, as it
-/// does for a descendant of a single-word cell. A lujvo mark returns false.
 #[requires(element.is_element())]
+// The walk is the function body. A second copy can agree with the same defect.
 #[ensures(true)]
-fn element_mark_opts_out(element: Node<'_, '_>) -> bool {
-    let text = cmavo_or_gismu_cell_text(element);
-    matches!(
-        marked_word_link(
-            element,
-            spelling_for_mark(&text, TreeSpelling::UnwrapBracket)
-        ),
-        MarkedWordLink::Unlinked
-    )
+fn hidden_mark_element(cell: Node<'_, '_>, element: Node<'_, '_>) -> bool {
+    let mut cursor = element;
+    loop {
+        let Some(parent) = cursor.parent() else {
+            return false;
+        };
+        if parent == cell {
+            return cursor.is_element()
+                && (cursor.has_tag_name("indexterm")
+                    || cursor.has_tag_name("anchor")
+                    || is_display_none_element(cursor));
+        }
+        if !parent.is_element() {
+            return false;
+        }
+        cursor = parent;
+    }
 }
 
 /// The link choice for one cmavo or gismu cell.
 ///
 /// `parts` is the rule-12 list when the caller already has it. `None` means
-/// the cell is not rule 12. A rule-12 cell judges the cell element on the
-/// joined spelling. It also reads an opt-out mark on a skipped hidden child.
-/// A single-word cell uses the tree choice and unwraps one bracket pair. The
-/// builder and the audit both call this function.
+/// the cell is not rule 12. A rule-12 cell folds the cell mark and every
+/// mark under a skipped hidden child. The spelling is the joined cell text.
+/// That fold uses `TreeSpelling::Raw`. A single-word cell uses the tree
+/// choice and unwraps one bracket pair. Both paths call `fold_marked_links`.
+/// The builder and the audit both call this function.
 #[requires(cell.is_element())]
 #[requires(parts.is_none() || cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))]
 #[ensures(attr_value(cell, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
@@ -2848,10 +2830,9 @@ fn cmavo_cell_link_choice(
     parts: Option<&[AdjacentValsiPart]>,
 ) -> MarkedWordLink {
     if parts.is_some() {
-        if skipped_hidden_child_opts_out(cell) {
-            return MarkedWordLink::Unlinked;
-        }
-        return marked_word_link(cell, text);
+        return fold_marked_links(cell, text, TreeSpelling::Raw, |element| {
+            hidden_mark_element(cell, element)
+        });
     }
     tree_link_choice(cell, text, TreeSpelling::UnwrapBracket)
 }
@@ -2860,8 +2841,8 @@ fn cmavo_cell_link_choice(
 ///
 /// `glossary="false"` on the cell stays out. `glossary="false"` on a skipped
 /// hidden child also stays out for a rule-12 cell. `valid="false"` and
-/// `valid="maybe"` stay out when the judged text is not one bare lujvo. A
-/// lujvo choice is not an opt-out. The dictionary lookup then decides the
+/// `valid="maybe"` stay out when the judged cell text is not one bare lujvo.
+/// A lujvo choice is not an opt-out. The dictionary lookup then decides the
 /// link. The choice is `cmavo_cell_link_choice`.
 #[cfg(test)]
 #[requires(cell.is_element())]
@@ -3010,7 +2991,7 @@ fn spelling_for_mark<'a>(text: &'a str, mode: TreeSpelling) -> &'a str {
 /// `spelling` is the text this caller shows for the element. `mode` selects
 /// how that text and each descendant text are judged. An opt-out wins. A
 /// lujvo mark links only when the judged caller spelling is one bare lujvo.
-/// No mark stays ordinary.
+/// No mark stays ordinary. The fold is `fold_marked_links`.
 #[requires(node.is_element())]
 #[ensures(attr_value(node, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
 #[ensures(
@@ -3027,14 +3008,44 @@ fn spelling_for_mark<'a>(text: &'a str, mode: TreeSpelling) -> &'a str {
     }
 ))]
 fn tree_link_choice(node: Node<'_, '_>, spelling: &str, mode: TreeSpelling) -> MarkedWordLink {
+    fold_marked_links(node, spelling, mode, |_| true)
+}
+
+/// The strictest mark among the root and the elements `include` keeps.
+///
+/// The root always counts. `spelling` is the text the caller shows for the
+/// root. `mode` selects how each spelling is judged. An opt-out wins. A
+/// lujvo mark stays a lujvo only when that caller spelling is one bare lujvo.
+/// A single-word cell and a rule-12 cell both call this function.
+#[requires(root.is_element())]
+#[ensures(attr_value(root, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
+#[ensures(
+    attr_value(root, "glossary") != Some("false")
+        && matches!(attr_value(root, "valid"), Some("false" | "maybe"))
+        && (spelling.trim().is_empty() || spelling.trim().chars().any(char::is_whitespace))
+        -> matches!(ret, MarkedWordLink::Unlinked)
+)]
+#[bityzba::expensive_ensures(matches!(ret, MarkedWordLink::Lujvo) -> root.descendants().any(
+    |element| {
+        element.is_element()
+            && attr_value(element, "glossary") != Some("false")
+            && matches!(attr_value(element, "valid"), Some("false" | "maybe"))
+    }
+))]
+fn fold_marked_links<'a, 'input>(
+    root: Node<'a, 'input>,
+    spelling: &str,
+    mode: TreeSpelling,
+    include: impl Fn(Node<'a, 'input>) -> bool,
+) -> MarkedWordLink {
     let decision = spelling_for_mark(spelling, mode);
     let mut saw_lujvo = false;
-    for element in node.descendants() {
-        if !element.is_element() {
+    for element in root.descendants() {
+        if !element.is_element() || (element != root && !include(element)) {
             continue;
         }
         let owned;
-        let raw = if element == node {
+        let raw = if element == root {
             spelling
         } else {
             owned = cmavo_or_gismu_cell_text(element);
@@ -7304,9 +7315,10 @@ mod tests {
 
     /// A rule-12 cell reads `valid` on a skipped hidden child.
     ///
-    /// An index term, an anchor, and display-none text are skipped. `valid`
-    /// of `false` or `maybe` leaves every part unlinked when that text is not
-    /// one bare lujvo. A hidden bare lujvo does not opt the cell out.
+    /// An index term, an anchor, and display-none text are skipped. The fold
+    /// judges the joined cell spelling. `valid` of `false` or `maybe` leaves
+    /// every part unlinked when that spelling is not one bare lujvo. A hidden
+    /// bare lujvo keeps the links when the cell spelling is one bare lujvo.
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -7336,17 +7348,187 @@ mod tests {
                 assert!(entry_opted_out(&cell_xml), "{cell_xml}");
             }
 
-            let kept = format!(
+            let hidden_lujvo = format!(
                 "<cmavo><phrase role=\"display-none\" valid=\"{valid}\">jbobliku</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"
             );
-            let cell = entry_cell(&kept);
+            let cell = entry_cell(&hidden_lujvo);
             assert_eq!(
                 cell.word_parts().as_deref(),
-                Some([word_part("roi", Some("roi")), word_part("nai", Some("nai")),].as_slice()),
-                "{kept} got {cell:?}"
+                Some([word_part("roi", None), word_part("nai", None)].as_slice()),
+                "{hidden_lujvo} got {cell:?}"
             );
-            assert!(!entry_opted_out(&kept), "{kept}");
+            assert!(entry_opted_out(&hidden_lujvo), "{hidden_lujvo}");
+
+            let linked = format!(
+                "<gismu><phrase role=\"display-none\" valid=\"{valid}\">jbobliku</phrase><valsi>lojbau</valsi><valsi>girzu</valsi></gismu>"
+            );
+            let cell = entry_cell(&linked);
+            assert_eq!(
+                cell.word_parts().as_deref(),
+                Some(
+                    [
+                        word_part("lojbau", Some("lojbau")),
+                        word_part("girzu", Some("girzu")),
+                    ]
+                    .as_slice()
+                ),
+                "{linked} got {cell:?}"
+            );
+            assert!(!entry_opted_out(&linked), "{linked}");
         }
+    }
+
+    /// Carbon's round 17 inputs for hidden marks, lujvo misses, and brackets.
+    ///
+    /// A hidden lujvo mark uses the cell spelling. A comma lujvo miss stays
+    /// one marked span. A cell lujvo mark uses that same miss for each part.
+    /// One marked span of a bracketed word is not a bracket cell.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_round_17_cell_inputs() {
+        let opted_out_parts = [
+            r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase><valsi>coi</valsi><valsi/></cmavo>"#,
+            r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><phrase role="display-none" valid="maybe">jbobliku</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><indexterm valid="false"><primary>jbobliku</primary></indexterm><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><phrase role="display-none" valid="false">[jbobliku]</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<gismu><phrase role="display-none" valid="maybe">[jbobliku]</phrase><valsi>lojbau</valsi><valsi>girzu</valsi></gismu>"#,
+        ];
+        for cell_xml in opted_out_parts {
+            assert!(entry_opted_out(cell_xml), "{cell_xml}");
+            let cell = entry_cell(cell_xml);
+            let parts = cell.word_parts().expect(cell_xml);
+            assert!(
+                parts.iter().all(|part| part.target.is_none()),
+                "{cell_xml} got {cell:?}"
+            );
+        }
+
+        let single_words = [
+            (
+                r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase>coi</cmavo>"#,
+                "coi",
+            ),
+            (
+                r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase>roinai</cmavo>"#,
+                "roinai",
+            ),
+        ];
+        for (cell_xml, shown) in single_words {
+            assert!(entry_opted_out(cell_xml), "{cell_xml}");
+            let cell = entry_cell(cell_xml);
+            assert!(
+                is_unlinked_lojban_word(cell.inlines(), shown),
+                "{cell_xml} got {cell:?}"
+            );
+        }
+
+        let linked = r#"<gismu><phrase role="display-none" valid="maybe">jbobliku</phrase><valsi>lojbau</valsi><valsi>girzu</valsi></gismu>"#;
+        let linked_cell = entry_cell(linked);
+        assert_eq!(
+            linked_cell.word_parts().as_deref(),
+            Some(
+                [
+                    word_part("lojbau", Some("lojbau")),
+                    word_part("girzu", Some("girzu")),
+                ]
+                .as_slice()
+            ),
+            "{linked_cell:?}"
+        );
+        assert!(!entry_opted_out(linked));
+
+        let comma_xml = r#"<gismu valid="maybe">jbobli,ku</gismu>"#;
+        let comma = entry_cell(comma_xml);
+        assert!(
+            is_unlinked_lojban_word(comma.inlines(), "jbobli,ku"),
+            "{comma:?}"
+        );
+        assert!(!entry_opted_out(comma_xml));
+        assert!(comma.word_cell().is_none(), "{comma:?}");
+        let site = embedded_cll_site().expect("embedded CLL site");
+        let (blocks, _) = probe_blocks(&format!(
+            "<cmavo-list><cmavo-entry>{comma_xml}</cmavo-entry></cmavo-list>"
+        ));
+        let comma_tags = super::super::block_tagged_words(&site, &blocks[0]);
+        assert!(comma_tags.contains("jbobliku"), "{comma_tags:?}");
+
+        let part_mark =
+            entry_cell(r#"<gismu><valsi/><valsi valid="maybe">jbobliku</valsi></gismu>"#);
+        assert!(
+            is_unlinked_lojban_word(part_mark.inlines(), "jbobliku"),
+            "{part_mark:?}"
+        );
+        let bare = entry_cell(r#"<gismu valid="maybe">jbobliku</gismu>"#);
+        assert!(
+            is_unlinked_lojban_word(bare.inlines(), "jbobliku"),
+            "{bare:?}"
+        );
+        let cell_mark =
+            entry_cell(r#"<gismu valid="maybe"><valsi/><valsi>jbobliku</valsi></gismu>"#);
+        assert!(
+            is_unlinked_lojban_word(cell_mark.inlines(), "jbobliku"),
+            "{cell_mark:?}"
+        );
+        assert!(!entry_opted_out(
+            r#"<gismu valid="maybe"><valsi/><valsi>jbobliku</valsi></gismu>"#
+        ));
+
+        let split =
+            entry_cell(r#"<gismu valid="maybe"><valsi>jbobli</valsi><valsi>bliku</valsi></gismu>"#);
+        assert!(
+            matches!(
+                split.inlines().first(),
+                Some(CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::MarkedValsi,
+                    inlines,
+                    ..
+                }) if matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "jbobli")
+            ),
+            "{split:?}"
+        );
+        assert!(
+            matches!(
+                split.inlines().get(1),
+                Some(CllInline::Link {
+                    target,
+                    kind: CllLinkKind::Dictionary,
+                    inlines,
+                }) if target == "bliku"
+                    && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "bliku")
+            ),
+            "{split:?}"
+        );
+
+        let noise = entry_cell(r#"<gismu valid="false">zo,is.</gismu>"#);
+        assert!(
+            matches!(noise.inlines(), [CllInline::Text(text)] if text == "zo,is."),
+            "{noise:?}"
+        );
+        assert!(entry_opted_out(r#"<gismu valid="false">zo,is.</gismu>"#));
+
+        let paragraph = probe_inlines(r#"<para><valsi valid="maybe">jbobli,ku</valsi></para>"#);
+        assert!(
+            matches!(
+                paragraph.as_slice(),
+                [CllInline::Link {
+                    target,
+                    kind: CllLinkKind::Dictionary,
+                    inlines,
+                }] if target == "jbobliku"
+                    && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "jbobli,ku")
+            ),
+            "{paragraph:?}"
+        );
+
+        let bracket_span = marked_valsi_span("[jundi]");
+        let bracket_inlines = [bracket_span];
+        assert!(crate::cmavo_table::cmavo_word_cell(&bracket_inlines).is_none());
+        let token_span = marked_valsi_span("jundi");
+        let token_inlines = [token_span];
+        let token = crate::cmavo_table::cmavo_word_cell(&token_inlines).expect("jundi");
+        assert_eq!(token.unlinked_token(), Some("jundi"));
     }
 
     /// An unlinked marked word stays in the word search.
