@@ -11,7 +11,11 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from tools.cargo_inputs_trace import DX_VERSION
+from tools.cargo_inputs_trace import DX_VERSION, RUSTUP_HOME_PIN
+from tools.workflow_pins import (
+    PinError, exactly_one, job_env_values, job_shell_assignments, rust_image_versions,
+    shell_assignments, step_env_values, traced_target_values, workflow_image_versions,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -308,18 +312,23 @@ class CiWorkflowSplitTests(unittest.TestCase):
         }
         for name, text in named.items():
             with self.subTest(file=name):
-                tags = re.findall(r"rust:([^\s@\\]+)", text)
+                if name == "dockerfile":
+                    tags = rust_image_versions(text)
+                else:
+                    tags = workflow_image_versions(text)
                 self.assertGreater(len(tags), 0, name)
-                for tag in tags:
-                    self.assertEqual(tag.split("-", 1)[0], version, f"{name} names rust:{tag}")
+                self.assertEqual(set(tags), {version}, name)
         self.assertIn(f"rust:{version}-bookworm", self.test_workflow)
         self.assertIn(f"rust:{version}-bookworm", self.render_workflow)
         self.assertIn(f"rust:{version}-trixie", self.render_workflow)
         self.assertIn(f"rust:{version}-alpine3.24", prepare)
         self.assertIn(f"FROM rust:{version}-bookworm AS build\n", dockerfile)
-        toolchains = re.findall(r"RUSTUP_TOOLCHAIN(?:=|:)\s*([0-9]+\.[0-9]+\.[0-9]+)", prepare)
-        self.assertGreaterEqual(len(toolchains), 3)
-        self.assertEqual(set(toolchains), {version})
+        job_toolchains = job_env_values(prepare, "RUSTUP_TOOLCHAIN")
+        shell_toolchains = shell_assignments(prepare, "RUSTUP_TOOLCHAIN")
+        self.assertEqual(len(job_toolchains), 2)
+        self.assertEqual({value for _job, value in job_toolchains}, {version})
+        self.assertEqual(shell_toolchains, [version])
+        self.assertEqual(step_env_values(prepare, "RUSTUP_TOOLCHAIN"), [])
         releases = re.findall(
             r'release: //p"\)" = "([0-9]+\.[0-9]+\.[0-9]+)"',
             prepare,
@@ -330,49 +339,76 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertEqual(set(compilers), {version})
 
     def test_render_image_disables_rustup_auto_install(self) -> None:
-        pins = [
-            line.lstrip(" \t").split(":", 1)[1].strip()
-            for line in self.render_workflow.splitlines()
-            if line.lstrip(" \t").startswith("DIOXUS_CLI_VERSION:")
+        version = exactly_one(
+            self.render_workflow,
+            "DIOXUS_CLI_VERSION",
+            re.compile(r"[0-9]+(?:\.[0-9]+)+"),
+        )
+        self.assertEqual(version, DX_VERSION)
+        homes = [
+            exactly_one(workflow, "RUSTUP_HOME", re.compile(r"/[^\s]+"))
+            for workflow in (self.test_workflow, self.render_workflow)
         ]
-        self.assertEqual(pins, [DX_VERSION])
+        self.assertEqual(homes, [RUSTUP_HOME_PIN, RUSTUP_HOME_PIN])
+        self.assertEqual(step_env_values(self.test_workflow, "RUSTUP_HOME"), [])
+        self.assertEqual(step_env_values(self.render_workflow, "RUSTUP_HOME"), [])
         self.assertIn('RUSTUP_AUTO_INSTALL: "0"\n', self.render_workflow)
 
-
-def _run_script(step: str) -> str:
-    if "        run: |" in step:
-        return textwrap.dedent(step.split("        run: |\n", 1)[1])
-    match = re.search(r"(?m)^        run: (.+)$", step)
-    return match.group(1) if match else ""
-
-
-def _logical_lines(script: str) -> list[str]:
-    lines: list[str] = []
-    pending = ""
-    for raw in script.splitlines():
-        piece = raw.strip()
-        pending = f"{pending} {piece}".strip() if pending else piece
-        if pending.endswith("\\"):
-            pending = pending[:-1].rstrip()
-            continue
-        if pending:
-            lines.append(pending)
-        pending = ""
-    if pending:
-        lines.append(pending)
-    return lines
-
-
-def _assigned_target(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-        return value[1:-1]
-    return value
-
-
-def _session_targets(lane: str) -> set[str]:
-    path = "${RUNNER_TEMP}/cargo-target/" + lane
-    return {path, "${CARGO_TARGET_DIR}", "${{ env.CARGO_TARGET_DIR }}"}
+    def test_pinned_keys_reject_every_hidden_declaration(self) -> None:
+        pins = (
+            ("DIOXUS_CLI_VERSION", "0.7.9", "0.8.0", re.compile(r"[0-9]+(?:\.[0-9]+)+")),
+            ("RUSTUP_HOME", "/usr/local/rustup", "/tmp/other-rustup", re.compile(r"/[^\s]+")),
+            ("RUSTUP_TOOLCHAIN", "1.100.0", "1.99.0", re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")),
+            ("CARGO_TARGET_DIR", "/tmp/cargo-target/test", "/tmp/other", re.compile(r"/[^\s]+")),
+        )
+        for key, good, bad, pattern in pins:
+            with self.subTest(key=key):
+                block = f"env:\n  {key}: {good} # pin\n"
+                flow = f"env: {{{key}: {good}}}\n"
+                quoted = f"env: {{\"{key}\": \"{good}\"}}\n"
+                nested = (
+                    f"env:\n  {key}: {good}\n"
+                    f"jobs:\n  build:\n    env: {{\"{key}\": \"{bad}\"}}\n"
+                )
+                malformed = f"env:\n  {key}: garbage\n"
+                self.assertEqual(exactly_one(block, key, pattern), good)
+                self.assertEqual(exactly_one(flow, key, pattern), good)
+                self.assertEqual(exactly_one(quoted, key, pattern), good)
+                with self.assertRaises(PinError):
+                    exactly_one(nested, key, pattern)
+                with self.assertRaises(PinError):
+                    exactly_one(malformed, key, pattern)
+        traced = (
+            "jobs:\n"
+            "  build:\n"
+            "    steps:\n"
+            "      - name: Build\n"
+            "        env: {CARGO_TARGET_DIR: /tmp/cargo-target/test}\n"
+            "        run: python3 -m tools.cargo_inputs trace -- cargo test\n"
+        )
+        self.assertEqual(traced_target_values(traced), ["/tmp/cargo-target/test"])
+        hidden = traced.replace(
+            "env: {CARGO_TARGET_DIR: /tmp/cargo-target/test}\n",
+            "env:\n          CARGO_TARGET_DIR: /tmp/cargo-target/test # session\n"
+            "          \"CARGO_TARGET_DIR\": /tmp/other\n",
+        )
+        self.assertEqual(
+            traced_target_values(hidden),
+            ["/tmp/cargo-target/test", "/tmp/other"],
+        )
+        images = (
+            "jobs:\n"
+            "  build:\n"
+            "    container:\n"
+            "      image: rust:1.100.0-bookworm\n"
+            "    steps:\n"
+            "      - run: resolve-image rust:1.100.0-trixie\n"
+        )
+        self.assertEqual(workflow_image_versions(images), ["1.100.0", "1.100.0"])
+        overridden = images.replace("rust:1.100.0-trixie", "rust:1.99.0-trixie")
+        self.assertEqual(set(workflow_image_versions(overridden)), {"1.100.0", "1.99.0"})
+        with self.assertRaises(PinError):
+            workflow_image_versions(images.replace("rust:1.100.0-trixie", "rust:latest"))
 
 
 class TracedTargetTests(unittest.TestCase):
@@ -395,32 +431,7 @@ class TracedTargetTests(unittest.TestCase):
                 self.assertIsNotNone(lane)
                 assert lane is not None
                 self.assertIn(lane.group(1), {"test", "deploy"})
-                allowed = _session_targets(lane.group(1))
-                for step in re.split(r"(?m)^      - ", workflow)[1:]:
-                    script = _run_script(step)
-                    if "tools.cargo_inputs trace" not in script:
-                        continue
-                    env = re.search(r"(?m)^        env:\n((?:          .+\n)+)", step)
-                    if env is not None:
-                        for line in env.group(1).splitlines():
-                            if line.strip().startswith("CARGO_TARGET_DIR:"):
-                                value = line.split(":", 1)[1].strip()
-                                self.assertIn(value, allowed, step)
-                    current: str | None = None
-                    for line in _logical_lines(script):
-                        standalone = re.fullmatch(
-                            r"(?:export\s+)?CARGO_TARGET_DIR=(\S+)", line,
-                        )
-                        if standalone:
-                            current = _assigned_target(standalone.group(1))
-                            self.assertIn(current, allowed, line)
-                            continue
-                        if "tools.cargo_inputs trace" not in line:
-                            continue
-                        for value in re.findall(r"(?:^|\s)CARGO_TARGET_DIR=(\S+)", line):
-                            self.assertIn(_assigned_target(value), allowed, line)
-                        if current is not None:
-                            self.assertIn(current, allowed, line)
+                self.assertEqual(traced_target_values(workflow), [])
 
 
 if __name__ == "__main__":

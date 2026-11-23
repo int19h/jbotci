@@ -14,6 +14,8 @@ import threading
 import tomllib
 from typing import Callable
 
+from tools.workflow_pins import PinError, exactly_one
+
 
 LINE = re.compile(r"\s*(\d+)(?:<([^>]*)>)?\s+(.*)")
 EXIT = re.compile(r"\+\+\+ (?:exited with \d+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+")
@@ -223,13 +225,26 @@ def rustup_binary() -> Path | None:
     return path if path.is_file() else None
 
 
+def rustup_environment(base: dict[str, str] | None = None) -> dict[str, str]:
+    """Return a rustup environment that cannot download a toolchain.
+
+    `RUSTUP_AUTO_INSTALL` is `0` in every returned environment.
+    """
+    env = os.environ.copy() if base is None else dict(base)
+    env["RUSTUP_AUTO_INSTALL"] = "0"
+    return env
+
+
 def query_rustup_rustc(
     rustup: Path, cwd: str, toolchain: str | None, home: str | None,
 ) -> Path | None:
-    """Return the real rustc that this rustup proxy selects from `cwd`."""
+    """Return the real rustc that this rustup proxy selects from `cwd`.
+
+    The query sets `RUSTUP_AUTO_INSTALL` to `0`.
+    """
     if not Path(cwd).is_dir():
         return None
-    clean = os.environ.copy()
+    clean = rustup_environment()
     if toolchain is None:
         clean.pop("RUSTUP_TOOLCHAIN", None)
     else:
@@ -267,44 +282,52 @@ def pinned_channel(workspace: Path) -> str:
     return channel
 
 
-RENDER_IMAGE_WORKFLOW = Path(__file__).resolve().parents[1] / ".github/workflows/render-image.yml"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+RENDER_IMAGE_WORKFLOW = REPOSITORY_ROOT / ".github/workflows/render-image.yml"
+TEST_WORKFLOW = REPOSITORY_ROOT / ".github/workflows/test.yml"
 DIOXUS_CLI_VERSION_VALUE = re.compile(r"[0-9]+(?:\.[0-9]+)+")
-
-
-def dioxus_cli_declarations(text: str) -> list[str]:
-    """Return every `DIOXUS_CLI_VERSION` value in `text`.
-
-    Indentation does not matter.
-    A use of the name is not a declaration.
-    """
-    found: list[str] = []
-    for line in text.splitlines():
-        stripped = line.lstrip(" \t")
-        if not stripped.startswith("DIOXUS_CLI_VERSION:"):
-            continue
-        found.append(stripped.split(":", 1)[1].strip())
-    return found
+RUSTUP_HOME_VALUE = re.compile(r"/[^\s]+")
 
 
 def dioxus_cli_version(workflow: Path | None = None) -> str:
     """Return the one Dioxus CLI version in the Render image workflow.
 
     That workflow is the only pin.
-    A declaration at any indentation counts.
+    A block entry, a flow entry, and a quoted key all count.
     A missing pin, a second pin, or a malformed pin is an error.
     """
     path = RENDER_IMAGE_WORKFLOW if workflow is None else workflow
     try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as error:
+        return exactly_one(
+            path.read_text(encoding="utf-8"),
+            "DIOXUS_CLI_VERSION",
+            DIOXUS_CLI_VERSION_VALUE,
+        )
+    except (OSError, UnicodeError, PinError) as error:
         raise TraceError("The Dioxus CLI version pin is unavailable.") from error
-    found = dioxus_cli_declarations(text)
-    if len(found) != 1 or DIOXUS_CLI_VERSION_VALUE.fullmatch(found[0]) is None:
-        raise TraceError("The Dioxus CLI version pin is unavailable.")
-    return found[0]
+
+
+def shared_rustup_home() -> str:
+    """Return the one `RUSTUP_HOME` shared by the identity step and the trace.
+
+    The Test workflow and the Render image workflow each have one declaration.
+    The two values must match.
+    A second declaration in either file is an error.
+    """
+    try:
+        homes = [
+            exactly_one(path.read_text(encoding="utf-8"), "RUSTUP_HOME", RUSTUP_HOME_VALUE)
+            for path in (TEST_WORKFLOW, RENDER_IMAGE_WORKFLOW)
+        ]
+    except (OSError, UnicodeError, PinError) as error:
+        raise TraceError("The Rustup home pin is unavailable.") from error
+    if len(set(homes)) != 1:
+        raise TraceError("The Rustup home pin is unavailable.")
+    return homes[0]
 
 
 DX_VERSION = dioxus_cli_version()
+RUSTUP_HOME_PIN = shared_rustup_home()
 
 
 def dx_version_line_matches(line: str) -> bool:
@@ -390,6 +413,8 @@ def supported_compiler(workspace: Path) -> Path:
 
     `rustup which rustc` selects the toolchain file in `workspace`.
     `RUSTUP_TOOLCHAIN` is cleared for that one call, so the workspace pin decides.
+    That call sets `RUSTUP_AUTO_INSTALL` to `0`.
+    `RUSTUP_HOME` stays the process value.
     The version line must equal `rustc` plus the channel in `rust-toolchain.toml`.
     The resolved file must not be the rustup proxy.
     When `rustup` is absent, `rustc` on `PATH` is that compiler.
@@ -397,7 +422,7 @@ def supported_compiler(workspace: Path) -> Path:
     rustup = shutil.which("rustup")
     if rustup is not None:
         # The workspace file selects the toolchain. An ambient override must not.
-        env = os.environ.copy()
+        env = rustup_environment()
         env.pop("RUSTUP_TOOLCHAIN", None)
         result = subprocess.run(
             [rustup, "which", "rustc"],
@@ -1121,8 +1146,7 @@ def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> i
     read_fd, write_fd = os.pipe()
     journal.parent.mkdir(parents=True, exist_ok=True)
     # A trace must not download a toolchain. dx probes nightly before it builds.
-    env = os.environ.copy()
-    env["RUSTUP_AUTO_INSTALL"] = "0"
+    env = rustup_environment()
     with journal.open("w") as output, os.fdopen(read_fd, "rb") as stream:
         parser = Parser(
             workspace, target, output, inspect_process=process_snapshot,

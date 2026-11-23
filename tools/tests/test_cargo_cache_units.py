@@ -15,8 +15,8 @@ from unittest.mock import patch
 from tools import cargo_inputs as c
 from tools.cargo_inputs_trace import (
     DX_VERSION, UNSUPPORTED_COMPILER, Parser, Process, TraceError, accept_pinned_compiler,
-    dioxus_cli_version, dx_version_line_matches, pinned_dx, process_snapshot, rustup_binary, string_at,
-    supported_compiler, trace, version_line_matches,
+    dioxus_cli_version, dx_version_line_matches, pinned_dx, process_snapshot, query_rustup_rustc,
+    rustup_binary, string_at, supported_compiler, trace, version_line_matches,
 )
 
 
@@ -1857,12 +1857,22 @@ class CargoUnitTests(unittest.TestCase):
     def test_dioxus_cli_version_requires_one_workflow_pin(self) -> None:
         workflow = self.root / "render-image.yml"
         workflow.write_text(
-            "env:\n  DIOXUS_CLI_VERSION: 0.7.9\n"
+            "env:\n  DIOXUS_CLI_VERSION: 0.7.9 # pin\n"
             "  # DIOXUS_CLI_VERSION: 0.8.0\n"
             "  run: echo ${{ env.DIOXUS_CLI_VERSION }}\n",
             encoding="utf-8",
         )
         self.assertEqual(dioxus_cli_version(workflow), "0.7.9")
+        workflow.write_text("env: {DIOXUS_CLI_VERSION: 0.7.9}\n", encoding="utf-8")
+        self.assertEqual(dioxus_cli_version(workflow), "0.7.9")
+        workflow.write_text('env: {"DIOXUS_CLI_VERSION": "0.7.9"}\n', encoding="utf-8")
+        self.assertEqual(dioxus_cli_version(workflow), "0.7.9")
+        workflow.write_text(
+            "env: {DIOXUS_CLI_VERSION: 0.7.9, DIOXUS_CLI_VERSION: 0.8.0}\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(TraceError):
+            dioxus_cli_version(workflow)
         workflow.write_text(
             "env:\n  DIOXUS_CLI_VERSION: 0.7.9\n  DIOXUS_CLI_VERSION: 0.8.0\n",
             encoding="utf-8",
@@ -1871,7 +1881,7 @@ class CargoUnitTests(unittest.TestCase):
             dioxus_cli_version(workflow)
         workflow.write_text(
             "env:\n  DIOXUS_CLI_VERSION: 0.7.9\n"
-            "jobs:\n  build:\n    env:\n      DIOXUS_CLI_VERSION: 0.8.0\n",
+            "jobs:\n  build:\n    env: {\"DIOXUS_CLI_VERSION\": \"0.8.0\"}\n",
             encoding="utf-8",
         )
         with self.assertRaises(TraceError):
@@ -1890,6 +1900,52 @@ class CargoUnitTests(unittest.TestCase):
         with self.assertRaises(TraceError):
             dioxus_cli_version(workflow)
         self.assertEqual(DX_VERSION, dioxus_cli_version())
+
+    def test_supported_compiler_disables_rustup_auto_install(self) -> None:
+        if rustup_binary() is None:
+            self.skipTest("rustup is absent")
+        workspace = Path(__file__).resolve().parents[2]
+        captured: dict[str, str] = {}
+        real_run = subprocess.run
+
+        def wrapped(args, **kwargs):
+            command = list(args)
+            if command[-2:] == ["which", "rustc"]:
+                env = kwargs.get("env") or {}
+                captured.update(env)
+                class Result:
+                    returncode = 1
+                    stdout = ""
+                    stderr = ""
+                return Result()
+            return real_run(args, **kwargs)
+
+        with patch.dict(os.environ, {
+            "RUSTUP_AUTO_INSTALL": "1",
+            "RUSTUP_HOME": "/srv/rustup-pin",
+            "RUSTUP_TOOLCHAIN": "nightly",
+        }):
+            with patch("tools.cargo_inputs_trace.subprocess.run", wrapped):
+                with self.assertRaises(TraceError):
+                    supported_compiler(workspace)
+        self.assertEqual(captured.get("RUSTUP_AUTO_INSTALL"), "0")
+        self.assertEqual(captured.get("RUSTUP_HOME"), "/srv/rustup-pin")
+        self.assertNotIn("RUSTUP_TOOLCHAIN", captured)
+
+    def test_query_rustup_rustc_disables_auto_install(self) -> None:
+        record = self.root / "auto.txt"
+        rustup = self.root / "rustup"
+        rustup.write_text(
+            "#!/bin/sh\n"
+            f"printf '%s\\n' \"$RUSTUP_AUTO_INSTALL\" > '{record}'\n"
+            "printf '%s\\n' /bin/true\n",
+            encoding="utf-8",
+        )
+        rustup.chmod(0o755)
+        with patch.dict(os.environ, {"RUSTUP_AUTO_INSTALL": "1"}):
+            found = query_rustup_rustc(rustup, str(self.root), None, None)
+        self.assertEqual(found, Path("/bin/true").resolve())
+        self.assertEqual(record.read_text(encoding="utf-8").strip(), "0")
 
     def test_trace_disables_rustup_auto_install(self) -> None:
         workspace = Path(__file__).resolve().parents[2]

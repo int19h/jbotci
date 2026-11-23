@@ -122,8 +122,24 @@ When `RUSTC_WRAPPER` is empty, the trace accepts the command.
 When `RUSTC_WORKSPACE_WRAPPER` is empty, the trace accepts the command.
 
 Before the trace starts, the trace sets `RUSTUP_AUTO_INSTALL` to `0`.
+Every `rustup` call in the trace uses that same value.
 Rustup then does not download a toolchain during that trace.
 The Render image workflow sets the same variable for every job.
+The trace reads workflow pins with PyYAML.
+The Debian package `python3-yaml` provides PyYAML.
+CI installs that package in each job that runs the trace.
+A local machine uses that same package.
+`RUSTUP_HOME` has one declaration in the Test workflow.
+It has one declaration in the Render image workflow.
+The two values are the same path.
+The identity step and the trace use that home.
+A second declaration is an error.
+The same rule covers `RUSTUP_TOOLCHAIN` on each release build path.
+It covers `CARGO_TARGET_DIR` on a traced step.
+It covers each Rust image tag.
+A flow mapping is a declaration.
+A quoted key is a declaration.
+An inline comment is not part of the value.
 `dx` is the Dioxus command.
 Before the traced command starts, the trace looks up `dx` on `PATH`.
 The trace reads the Dioxus CLI version from the Render image workflow.

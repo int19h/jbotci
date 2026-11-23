@@ -6,6 +6,8 @@ import stat
 import unittest
 from pathlib import Path
 
+from tools.workflow_pins import job_env_values, job_shell_assignments, step_env_values
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PREPARE_WORKFLOW = (
@@ -42,11 +44,62 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
         )[1].split("      - name: Reject dynamically linked ELF output\n", 1)[0]
 
     def test_release_targets_use_one_pinned_rust_version(self) -> None:
-        self.assertEqual(self.workflow.count("      RUSTUP_TOOLCHAIN: 1.100.0\n"), 2)
-        self.assertIn("--env RUSTUP_TOOLCHAIN=1.100.0", self.build_step)
+        jobs = job_env_values(self.workflow, "RUSTUP_TOOLCHAIN")
+        self.assertEqual(
+            [(name, value) for name, value in jobs],
+            [("build-macos", "1.100.0"), ("build-windows", "1.100.0")],
+        )
+        self.assertEqual(step_env_values(self.workflow, "RUSTUP_TOOLCHAIN"), [])
+        self.assertEqual(
+            job_shell_assignments(self.workflow, "build-linux", "RUSTUP_TOOLCHAIN"),
+            ["1.100.0"],
+        )
+        self.assertEqual(job_shell_assignments(self.workflow, "build-macos", "RUSTUP_TOOLCHAIN"), [])
+        self.assertEqual(job_shell_assignments(self.workflow, "build-windows", "RUSTUP_TOOLCHAIN"), [])
         self.assertIn("rust:1.100.0-alpine3.24", self.build_step)
         self.assertIn('= "1.100.0"', self.build_step)
         self.assertNotIn("1.96.0", self.workflow)
+
+    def test_build_steps_reject_a_toolchain_override(self) -> None:
+        samples = {
+            "macos": (
+                "jobs:\n"
+                "  build-macos:\n"
+                "    env:\n"
+                "      RUSTUP_TOOLCHAIN: 1.100.0\n"
+                "    steps:\n"
+                "      - name: Build jbotci\n"
+                "        env:\n"
+                "          RUSTUP_TOOLCHAIN: 1.99.0\n"
+                "        run: cargo build --release --locked -p jbotci\n"
+            ),
+            "windows": (
+                "jobs:\n"
+                "  build-windows:\n"
+                "    env:\n"
+                "      RUSTUP_TOOLCHAIN: 1.100.0\n"
+                "    steps:\n"
+                "      - name: Build jbotci\n"
+                "        env: {\"RUSTUP_TOOLCHAIN\": \"1.99.0\"}\n"
+                "        run: cargo build --release --locked -p jbotci\n"
+            ),
+            "linux": (
+                "jobs:\n"
+                "  build-linux:\n"
+                "    steps:\n"
+                "      - name: Build in pinned native Alpine toolchain\n"
+                "        run: docker run --env RUSTUP_TOOLCHAIN=1.99.0 rust:1.100.0-alpine3.24\n"
+            ),
+        }
+        for name, text in samples.items():
+            with self.subTest(path=name):
+                if name == "linux":
+                    self.assertEqual(
+                        job_shell_assignments(text, "build-linux", "RUSTUP_TOOLCHAIN"),
+                        ["1.99.0"],
+                    )
+                else:
+                    self.assertEqual(step_env_values(text, "RUSTUP_TOOLCHAIN"), [(f"build-{name}", "1.99.0")])
 
     def test_macos_and_windows_install_and_assert_the_pinned_compiler(self) -> None:
         jobs = [("build-macos", "build-windows"), ("build-windows", "package")]
