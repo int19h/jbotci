@@ -114,18 +114,18 @@ type BareReferenceMarker = jbotci_gentufa::ReferenceMarker<()>;
 type BareGentufaBlock = jbotci_gentufa::GentufaBlock<DictionaryTooltipCard, ()>;
 type BareGentufaBlocksLayout = jbotci_gentufa::GentufaBlocksLayout<DictionaryTooltipCard, ()>;
 
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum GentufaWebViewMode {
     #[default]
     Blocks,
     Tree,
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub enum GentufaTextOutput {
     #[default]
     Groups,
@@ -208,9 +208,9 @@ impl Default for GentufaWebOptions {
     }
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub struct GentufaWebState {
     pub text: String,
     pub dialect: Option<String>,
@@ -289,9 +289,9 @@ pub enum GentufaWebResult {
     Error(GentufaError),
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub struct GentufaSuccess {
     pub ipa_text: String,
     pub surface_text: String,

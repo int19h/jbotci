@@ -22,8 +22,8 @@ pub(super) fn gentufa_page_snapshot(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum GentufaToolbarLayout {
     OneRow,
     TwoRows,
@@ -40,13 +40,13 @@ impl GentufaToolbarLayout {
     }
 }
 
-#[cfg_attr(
-    all(not(target_arch = "wasm32"), feature = "desktop"),
-    derive(Deserialize)
-)]
 #[invariant(
     available_width.is_finite() && *available_width > 0.0
         && one_row_required_width.is_finite() && *one_row_required_width > 0.0
+)]
+#[cfg_attr(
+    all(not(target_arch = "wasm32"), feature = "desktop"),
+    derive(Deserialize)
 )]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct GentufaToolbarMetrics {
