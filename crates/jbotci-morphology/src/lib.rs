@@ -3365,14 +3365,25 @@ pub fn is_word_forming_character(value: char) -> bool {
     is_word_forming_character_with_options(value, &MorphologyOptions::default())
 }
 
+/// Return the canonical spelling of Lojban text.
+///
+/// Letters are lowercase. Commas are removed. Stress marks and glide marks
+/// become plain vowels. Each Latin apostrophe spelling becomes `'`.
 #[requires(true)]
 #[ensures(!ret.is_empty() || text.is_empty())]
+#[bityzba::expensive_ensures(ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value)))]
 pub fn canonicalize_text(text: &str) -> String {
+    canonical_text_chars(text).collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn canonical_text_chars(text: &str) -> impl Iterator<Item = char> + '_ {
     text.chars()
         .filter(|value| *value != ',')
         .filter_map(fold_lojban_diacritic)
         .flat_map(char::to_lowercase)
-        .collect()
+        .map(normalize_latin_apostrophe)
 }
 
 #[requires(true)]
@@ -3458,28 +3469,16 @@ pub fn is_period_character(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+#[bityzba::expensive_ensures(ret == (canonicalize_text(left) == canonicalize_text(right)))]
 pub fn canonical_text_eq(left: &str, right: &str) -> bool {
-    left.chars()
-        .filter(|value| *value != ',')
-        .filter_map(fold_lojban_diacritic)
-        .flat_map(char::to_lowercase)
-        .eq(right
-            .chars()
-            .filter(|value| *value != ',')
-            .filter_map(fold_lojban_diacritic)
-            .flat_map(char::to_lowercase))
+    canonical_text_chars(left).eq(canonical_text_chars(right))
 }
 
 #[requires(true)]
 #[ensures(ret -> !text.is_empty())]
 pub fn canonical_text_is_all(text: &str, expected: char) -> bool {
     let mut saw_char = false;
-    for value in text
-        .chars()
-        .filter(|value| *value != ',')
-        .filter_map(fold_lojban_diacritic)
-        .flat_map(char::to_lowercase)
-    {
+    for value in canonical_text_chars(text) {
         if value != expected {
             return false;
         }
@@ -5731,6 +5730,9 @@ mod tests {
     #[ensures(true)]
     fn typed_cmavo_parsing_is_canonical_and_multi_class() {
         assert_eq!(Cmavo::from_text("NÁ'E"), Some(Cmavo::Nahe));
+        assert_eq!(Cmavo::from_text("na\u{02bc}e"), Some(Cmavo::Nahe));
+        assert_eq!(Cmavo::from_text("na\u{2019}e"), Some(Cmavo::Nahe));
+        assert_eq!(Cmavo::from_text("nahe"), Some(Cmavo::Nahe));
         assert_eq!(Cmavo::Nahe.canonical_text(), "na'e");
         assert!(Selmaho::Nahe.contains(Cmavo::Nahe));
         assert_eq!(Cmavo::Nahe.primary_selmaho(), Some(Selmaho::Nahe));
@@ -5742,6 +5744,43 @@ mod tests {
         let word = test_word(WordKind::Cmavo, "na'e", 0);
         assert_eq!(word.selmaho_kind(), Some(Selmaho::Nahe));
         assert_eq!(word.selmaho(), Some("NAhE"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn canonical_text_folds_latin_apostrophe_spellings() {
+        assert_eq!(canonicalize_text("nahe"), "na'e");
+        assert_eq!(canonicalize_text("NA\u{02bc}E"), "na'e");
+        assert_eq!(canonicalize_text("nA\u{2019}e"), "na'e");
+        assert_eq!(canonicalize_text("TA'Á,kla"), "ta'akla");
+        assert_eq!(canonicalize_text("co\u{2018}a"), "co\u{2018}a");
+        assert!(canonical_text_eq("nahe", "na'e"));
+        assert!(canonical_text_eq("nuhempcr", "nu'empcr"));
+        assert!(!canonical_text_eq("jo\u{2018}a", "jo'a"));
+        assert!(canonical_text_is_all("ý,y", 'y'));
+        assert!(!canonical_text_is_all("yhy", 'y'));
+
+        let lujvo = parse_lujvo_word_parts("ta'akla");
+        assert!(lujvo.is_some());
+        for word in ["TA'Á,kla", "ta\u{02bc}akla", "ta\u{2019}akla", "tahakla"] {
+            assert_eq!(parse_lujvo_word_parts(word), lujvo, "{word}");
+        }
+
+        let cmevla = parse_cmevla_lujvo_word_part_candidates("ta'arklam");
+        assert_eq!(cmevla.len(), 1);
+        for word in [
+            "TA'Á,rklam",
+            "ta\u{02bc}arklam",
+            "ta\u{2019}arklam",
+            "taharklam",
+        ] {
+            assert_eq!(
+                parse_cmevla_lujvo_word_part_candidates(word),
+                cmevla,
+                "{word}"
+            );
+        }
     }
 
     #[test]
