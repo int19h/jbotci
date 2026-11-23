@@ -268,22 +268,38 @@ def pinned_channel(workspace: Path) -> str:
 
 
 RENDER_IMAGE_WORKFLOW = Path(__file__).resolve().parents[1] / ".github/workflows/render-image.yml"
-DIOXUS_CLI_PIN = re.compile(r"(?m)^  DIOXUS_CLI_VERSION: ([0-9]+(?:\.[0-9]+)+)\s*$")
+DIOXUS_CLI_VERSION_VALUE = re.compile(r"[0-9]+(?:\.[0-9]+)+")
+
+
+def dioxus_cli_declarations(text: str) -> list[str]:
+    """Return every `DIOXUS_CLI_VERSION` value in `text`.
+
+    Indentation does not matter.
+    A use of the name is not a declaration.
+    """
+    found: list[str] = []
+    for line in text.splitlines():
+        stripped = line.lstrip(" \t")
+        if not stripped.startswith("DIOXUS_CLI_VERSION:"):
+            continue
+        found.append(stripped.split(":", 1)[1].strip())
+    return found
 
 
 def dioxus_cli_version(workflow: Path | None = None) -> str:
     """Return the one Dioxus CLI version in the Render image workflow.
 
     That workflow is the only pin.
-    A missing pin or a second pin is an error.
+    A declaration at any indentation counts.
+    A missing pin, a second pin, or a malformed pin is an error.
     """
     path = RENDER_IMAGE_WORKFLOW if workflow is None else workflow
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as error:
         raise TraceError("The Dioxus CLI version pin is unavailable.") from error
-    found = DIOXUS_CLI_PIN.findall(text)
-    if len(found) != 1:
+    found = dioxus_cli_declarations(text)
+    if len(found) != 1 or DIOXUS_CLI_VERSION_VALUE.fullmatch(found[0]) is None:
         raise TraceError("The Dioxus CLI version pin is unavailable.")
     return found[0]
 

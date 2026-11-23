@@ -127,6 +127,10 @@ The Render image workflow sets the same variable for every job.
 `dx` is the Dioxus command.
 Before the traced command starts, the trace looks up `dx` on `PATH`.
 The trace reads the Dioxus CLI version from the Render image workflow.
+The workflow file must contain one `DIOXUS_CLI_VERSION` declaration.
+A declaration at any indentation counts.
+When the file has a second declaration, the trace does not start.
+When the value is not a dotted version, the trace does not start.
 The version line is `dioxus` plus that version.
 One hex hash can follow inside parentheses after one space.
 The hash has no spaces.

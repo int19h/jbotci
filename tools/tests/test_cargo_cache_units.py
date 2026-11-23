@@ -1856,12 +1856,34 @@ class CargoUnitTests(unittest.TestCase):
 
     def test_dioxus_cli_version_requires_one_workflow_pin(self) -> None:
         workflow = self.root / "render-image.yml"
-        workflow.write_text("env:\n  DIOXUS_CLI_VERSION: 0.7.9\n", encoding="utf-8")
+        workflow.write_text(
+            "env:\n  DIOXUS_CLI_VERSION: 0.7.9\n"
+            "  # DIOXUS_CLI_VERSION: 0.8.0\n"
+            "  run: echo ${{ env.DIOXUS_CLI_VERSION }}\n",
+            encoding="utf-8",
+        )
         self.assertEqual(dioxus_cli_version(workflow), "0.7.9")
         workflow.write_text(
             "env:\n  DIOXUS_CLI_VERSION: 0.7.9\n  DIOXUS_CLI_VERSION: 0.8.0\n",
             encoding="utf-8",
         )
+        with self.assertRaises(TraceError):
+            dioxus_cli_version(workflow)
+        workflow.write_text(
+            "env:\n  DIOXUS_CLI_VERSION: 0.7.9\n"
+            "jobs:\n  build:\n    env:\n      DIOXUS_CLI_VERSION: 0.8.0\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(TraceError):
+            dioxus_cli_version(workflow)
+        workflow.write_text(
+            "env:\n  DIOXUS_CLI_VERSION: 0.7.9\n"
+            "jobs:\n  build:\n    env:\n      DIOXUS_CLI_VERSION: garbage\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(TraceError):
+            dioxus_cli_version(workflow)
+        workflow.write_text("env:\n  DIOXUS_CLI_VERSION: garbage\n", encoding="utf-8")
         with self.assertRaises(TraceError):
             dioxus_cli_version(workflow)
         workflow.write_text("env:\n  OTHER: 1\n", encoding="utf-8")
