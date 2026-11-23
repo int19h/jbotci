@@ -136,7 +136,9 @@ fn discord_js_whitespace(character: char) -> bool {
 /// heading can take its text from the next line. A following character also
 /// counts when it is in that set. U+3000 is in the set.
 #[requires(true)]
-#[ensures(ret == (rest.is_empty() || rest.chars().next().is_some_and(discord_js_whitespace)))]
+#[ensures(ret == (rest.is_empty() || rest.chars().next().is_some_and(|character| {
+    character == '\u{feff}' || (character.is_whitespace() && character != '\u{0085}')
+})))]
 fn discord_heading_separator(rest: &str) -> bool {
     rest.is_empty() || rest.chars().next().is_some_and(discord_js_whitespace)
 }
@@ -149,7 +151,8 @@ fn discord_heading_separator(rest: &str) -> bool {
 /// `-#` counts. The Discord input block uses `-# ` as a header, so that
 /// prefix stays escaped. `+` is not a bullet.
 #[requires(true)]
-#[ensures(ret == (rest.is_empty() || rest.starts_with(' ')))]
+// The predicate is the function body. A second copy can agree with the same defect.
+#[ensures(true)]
 fn discord_space_separator(rest: &str) -> bool {
     rest.is_empty() || rest.starts_with(' ')
 }

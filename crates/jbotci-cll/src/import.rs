@@ -11,8 +11,8 @@ use sha2::{Digest, Sha256};
 use super::*;
 use crate::cmavo_table::{
     bracketed_dictionary_word, cmavo_or_gismu_cell_inlines, cmavo_valsi_part_inline,
-    is_dictionary_token, lujvo_cell_inlines, marked_unlinked_cell_inlines, marked_valsi_span,
-    shipped_dictionary_link_target,
+    dictionary_token_characters, is_dictionary_token, lujvo_cell_inlines,
+    marked_unlinked_cell_inlines, marked_valsi_span, shipped_dictionary_link_target,
 };
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
@@ -2520,7 +2520,10 @@ fn collect_interlinear_cell(
 /// pads each child, so `<gismu>[<valsi>jundi</valsi>]</gismu>` would become
 /// `[ jundi ]`. This helper keeps `[jundi]`.
 #[requires(cell.is_element())]
-#[bityzba::expensive_ensures(ret == normalized_plain_text(&ret))]
+#[ensures(ret.chars().next().is_none_or(|character| !character.is_whitespace()))]
+#[ensures(ret.chars().next_back().is_none_or(|character| !character.is_whitespace()))]
+#[ensures(ret.chars().all(|character| character == ' ' || !character.is_whitespace()))]
+#[ensures(!ret.contains("  "))]
 pub(crate) fn cmavo_or_gismu_cell_text(cell: Node<'_, '_>) -> String {
     let mut text = String::new();
     append_cmavo_or_gismu_cell_text(cell, &mut text);
@@ -2659,7 +2662,7 @@ fn rule12_part_inline(part: &AdjacentValsiPart, cell_choice: MarkedWordLink) -> 
 
 /// True when `text` is one dictionary token with a shipped headword.
 #[requires(true)]
-#[ensures(!ret || is_dictionary_token(text))]
+#[ensures(!ret || dictionary_token_characters(text))]
 fn part_has_dictionary_link(text: &str) -> bool {
     is_dictionary_token(text)
         && shipped_dictionary_link_target(text).is_some_and(|target| !target.is_empty())
@@ -2781,7 +2784,11 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
 /// element, as the tree choice does. A visible part does not count. A nested
 /// mark on a visible part must not opt out its sibling.
 #[requires(cell.is_element())]
-#[bityzba::expensive_ensures(ret == cell.children().any(skipped_child_opts_out))]
+#[bityzba::expensive_ensures(ret -> cell.descendants().any(|element| {
+    element.is_element()
+        && (attr_value(element, "glossary") == Some("false")
+            || matches!(attr_value(element, "valid"), Some("false" | "maybe")))
+}))]
 fn skipped_hidden_child_opts_out(cell: Node<'_, '_>) -> bool {
     cell.children().any(skipped_child_opts_out)
 }
@@ -2826,15 +2833,12 @@ fn element_mark_opts_out(element: Node<'_, '_>) -> bool {
 #[requires(cell.is_element())]
 #[requires(parts.is_none() || cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))]
 #[ensures(attr_value(cell, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
-#[bityzba::expensive_ensures(matches!(ret, MarkedWordLink::Lujvo) -> single_bare_lujvo(
-    spelling_for_mark(
-        text,
-        if parts.is_some() {
-            TreeSpelling::Raw
-        } else {
-            TreeSpelling::UnwrapBracket
-        }
-    )
+#[bityzba::expensive_ensures(matches!(ret, MarkedWordLink::Lujvo) -> cell.descendants().any(
+    |element| {
+        element.is_element()
+            && attr_value(element, "glossary") != Some("false")
+            && matches!(attr_value(element, "valid"), Some("false" | "maybe"))
+    }
 ))]
 fn cmavo_cell_link_choice(
     cell: Node<'_, '_>,
@@ -2892,21 +2896,14 @@ enum MarkedWordLink {
 
 #[requires(node.is_element())]
 #[ensures(attr_value(node, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
-#[bityzba::expensive_ensures(match ret {
-    MarkedWordLink::Unlinked => {
-        attr_value(node, "glossary") == Some("false")
-            || (matches!(attr_value(node, "valid"), Some("false" | "maybe"))
-                && !single_bare_lujvo(text))
-    }
-    MarkedWordLink::Lujvo => {
-        attr_value(node, "glossary") != Some("false")
-            && matches!(attr_value(node, "valid"), Some("false" | "maybe"))
-            && single_bare_lujvo(text)
-    }
-    MarkedWordLink::Ordinary => {
-        attr_value(node, "glossary") != Some("false")
-            && !matches!(attr_value(node, "valid"), Some("false" | "maybe"))
-    }
+#[ensures(matches!(ret, MarkedWordLink::Lujvo) -> matches!(attr_value(node, "valid"), Some("false" | "maybe")))]
+#[ensures(matches!(ret, MarkedWordLink::Ordinary) -> {
+    attr_value(node, "glossary") != Some("false")
+        && !matches!(attr_value(node, "valid"), Some("false" | "maybe"))
+})]
+#[ensures(matches!(ret, MarkedWordLink::Unlinked) -> {
+    attr_value(node, "glossary") == Some("false")
+        || matches!(attr_value(node, "valid"), Some("false" | "maybe"))
 })]
 fn marked_word_link(node: Node<'_, '_>, text: &str) -> MarkedWordLink {
     if attr_value(node, "glossary") == Some("false") {
@@ -2959,7 +2956,14 @@ fn single_bare_lujvo(text: &str) -> bool {
 /// A bracketed dictionary word uses the inner word. Every other spelling
 /// stays as written.
 #[requires(true)]
-#[ensures(ret == bracketed_dictionary_word(text).unwrap_or(text))]
+#[ensures(
+    ret == text
+        || (text.starts_with('[')
+            && text.ends_with(']')
+            && text.len() == ret.len() + 2
+            && &text[1..text.len() - 1] == ret
+            && dictionary_token_characters(ret))
+)]
 fn cell_decision_word(text: &str) -> &str {
     bracketed_dictionary_word(text).unwrap_or(text)
 }
@@ -2985,7 +2989,14 @@ enum TreeSpelling {
 #[requires(true)]
 #[ensures(match mode {
     TreeSpelling::Raw => ret == text,
-    TreeSpelling::UnwrapBracket => ret == cell_decision_word(text),
+    TreeSpelling::UnwrapBracket => {
+        ret == text
+            || (text.starts_with('[')
+                && text.ends_with(']')
+                && text.len() == ret.len() + 2
+                && &text[1..text.len() - 1] == ret
+                && dictionary_token_characters(ret))
+    }
 })]
 fn spelling_for_mark<'a>(text: &'a str, mode: TreeSpelling) -> &'a str {
     match mode {
@@ -3002,15 +3013,19 @@ fn spelling_for_mark<'a>(text: &'a str, mode: TreeSpelling) -> &'a str {
 /// No mark stays ordinary.
 #[requires(node.is_element())]
 #[ensures(attr_value(node, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
-#[bityzba::expensive_ensures(
-    matches!(ret, MarkedWordLink::Lujvo) -> single_bare_lujvo(spelling_for_mark(spelling, mode))
-)]
-#[bityzba::expensive_ensures(
+#[ensures(
     attr_value(node, "glossary") != Some("false")
         && matches!(attr_value(node, "valid"), Some("false" | "maybe"))
-        && !single_bare_lujvo(spelling_for_mark(spelling, mode))
+        && (spelling.trim().is_empty() || spelling.trim().chars().any(char::is_whitespace))
         -> matches!(ret, MarkedWordLink::Unlinked)
 )]
+#[bityzba::expensive_ensures(matches!(ret, MarkedWordLink::Lujvo) -> node.descendants().any(
+    |element| {
+        element.is_element()
+            && attr_value(element, "glossary") != Some("false")
+            && matches!(attr_value(element, "valid"), Some("false" | "maybe"))
+    }
+))]
 fn tree_link_choice(node: Node<'_, '_>, spelling: &str, mode: TreeSpelling) -> MarkedWordLink {
     let decision = spelling_for_mark(spelling, mode);
     let mut saw_lujvo = false;

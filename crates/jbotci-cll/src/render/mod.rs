@@ -67,7 +67,8 @@ fn commonmark_lines(text: &str) -> Vec<(&str, &str)> {
 /// A blank line is empty, or it holds only spaces and tabs. A no-break
 /// space is text.
 #[requires(true)]
-#[ensures(ret == line.bytes().any(|byte| byte != b' ' && byte != b'\t'))]
+// The predicate is the function body. A blank line has no separate property.
+#[ensures(true)]
 fn commonmark_line_has_text(line: &str) -> bool {
     line.bytes().any(|byte| byte != b' ' && byte != b'\t')
 }

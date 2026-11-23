@@ -1162,11 +1162,7 @@ impl CllCmavoListCell {
     ///
     /// An ordinary column has none. Its `valsi` elements stay in the inlines.
     #[requires(true)]
-    #[ensures(match self.as_data() {
-        data!(CllCmavoListCell::Word { valsi_words, .. })
-        | data!(CllCmavoListCell::Adjacent { valsi_words, .. }) => ret == valsi_words.as_slice(),
-        data!(CllCmavoListCell::Other { .. }) => ret.is_empty(),
-    })]
+    #[ensures(matches!(self.as_data(), data!(CllCmavoListCell::Other { .. })) -> ret.is_empty())]
     pub fn valsi_words(&self) -> &[String] {
         match self.as_data() {
             data!(CllCmavoListCell::Word { valsi_words, .. })

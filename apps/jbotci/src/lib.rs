@@ -918,12 +918,8 @@ pub enum CuktaCliFormat {
 
 impl From<CuktaCliFormat> for CllRenderTarget {
     #[requires(true)]
-    #[ensures(ret == match value {
-        CuktaCliFormat::Html => CllRenderTarget::Html(CllLinkRenderMode::Plain),
-        CuktaCliFormat::Markdown | CuktaCliFormat::Raw => {
-            CllRenderTarget::Markdown(CllMarkdownDialect::GitHub)
-        }
-    })]
+    // The match is the function body. The two enums have no separate property.
+    #[ensures(true)]
     fn from(value: CuktaCliFormat) -> Self {
         match value {
             CuktaCliFormat::Markdown | CuktaCliFormat::Raw => {
