@@ -267,10 +267,13 @@ impl<'tree> TreeVisitor<'tree> for DocumentCmevlaCollector {
     type Atom = jbotci_morphology::AtomRef<'tree>;
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.words.iter().all(|word| !word.is_empty()))]
     fn enter_node(&mut self, node: Self::Node) {
         if let MorphologyNodeRef::WordCmevla(word) = node {
-            self.words.insert(word.canonical_phonemes());
+            let canonical = word.canonical_phonemes();
+            if !canonical.is_empty() {
+                self.words.insert(canonical);
+            }
         }
     }
 }

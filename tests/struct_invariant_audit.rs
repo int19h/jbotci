@@ -1164,6 +1164,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private TreeVisitor accumulator whose word-set and current-word relationship is enforced by record and completion_document_words contracts",
     ),
     (
+        "crates/jbotci-ide/src/snapshot/completion.rs:DocumentCmevlaCollector",
+        "private TreeVisitor accumulator whose non-empty word set is enforced by enter_node and document_cmevla",
+    ),
+    (
         "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:NodeFrame",
         "private mutable traversal frame; node balance and constructor validity are enforced by TreeContextCollector enter and exit contracts",
     ),
