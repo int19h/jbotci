@@ -38,7 +38,7 @@ cargo build --release --locked -p jbotci
 The executable is written to `target/release/jbotci` (or
 `target/release/jbotci.exe` on Windows).
 
-The CLI 0.3.0 release workflow uses Rust 1.99.1 for all five targets.
+The CLI 0.3.0 release workflow uses Rust 1.100.0 for all five targets.
 The minimum supported Rust version remains 1.95.
 
 ## Screenshots

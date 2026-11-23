@@ -13,6 +13,8 @@ concurrency:
 
 env:
   DIOXUS_CLI_VERSION: 0.7.9
+  # dx probes nightly. Rustup must not download a toolchain.
+  RUSTUP_AUTO_INSTALL: "0"
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   WEB_EMBEDDINGS_BASE_URL: https://assets.jbotci.app/embeddings/web/v1
   SERVER_EMBEDDING_MODEL_KEY: f2llm-v2-80m-q4-k-m-320
@@ -29,7 +31,7 @@ jobs:
         uses: actions/checkout@v6
       - name: Resolve the image manifest
         id: image
-        run: python3 -m tools.cargo_cache_identity resolve-image rust:1-bookworm
+        run: python3 -m tools.cargo_cache_identity resolve-image rust:1.100.0-bookworm
 
   build-bundle:
     name: Build Dioxus server bundle
@@ -64,7 +66,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake curl file git libclang-dev python3 strace zstd
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl file git libclang-dev python3 strace zstd python3-yaml
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
@@ -138,8 +140,9 @@ jobs:
           set -eux
           mkdir -p "${DIOXUS_HOME}" "${DIOXUS_CLI_ROOT}" "${DIOXUS_CLI_TARGET_DIR}"
           if ! "${DIOXUS_CLI_ROOT}/bin/dx" --version | grep -Eq "^dioxus ${DIOXUS_CLI_VERSION}( |$)"; then
+            # This install writes outside the session target. Leave it untraced.
             CARGO_TARGET_DIR="${DIOXUS_CLI_TARGET_DIR}" \
-              python3 -m tools.cargo_inputs trace -- cargo install dioxus-cli \
+              cargo install dioxus-cli \
                 --version "${DIOXUS_CLI_VERSION}" \
                 --locked \
                 --root "${DIOXUS_CLI_ROOT}" \
@@ -233,7 +236,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
-      image: rust:1-trixie
+      image: rust:1.100.0-trixie
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/f2llm-lavapipe
       CARGO_BUILD_JOBS: 4

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import stat
 import unittest
 from pathlib import Path
+
+from tools.release_compiler import toolchain_channel
+from tools.workflow_pins import PinError, exactly_one, job_env_values, mapping_values
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -23,6 +27,7 @@ COMBINED_TEST_COMMAND = (
     "python3 -m unittest tools.tests.test_ci_workflow_split "
     "tools.tests.test_cargo_cache tools.tests.test_cargo_cache_units tools.tests.test_cargo_cache_identity "
     "tools.tests.test_cli_release "
+    "tools.tests.test_release_compiler "
     "tools.tests.test_prepare_cli_release_workflow "
     "tools.tests.test_release_draft_script -v"
 )
@@ -42,11 +47,69 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
         )[1].split("      - name: Reject dynamically linked ELF output\n", 1)[0]
 
     def test_release_targets_use_one_pinned_rust_version(self) -> None:
-        self.assertEqual(self.workflow.count("      RUSTUP_TOOLCHAIN: 1.99.1\n"), 2)
-        self.assertIn("--env RUSTUP_TOOLCHAIN=1.99.1", self.build_step)
-        self.assertIn("rust:1.99.1-alpine3.24", self.build_step)
-        self.assertIn('= "1.99.1"', self.build_step)
+        version = toolchain_channel(
+            (REPOSITORY_ROOT / "rust-toolchain.toml").read_text(encoding="utf-8")
+        )
+        pattern = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+        jobs = job_env_values(self.workflow, "RUSTUP_TOOLCHAIN")
+        self.assertEqual(
+            [(name, value) for name, value in jobs],
+            [("build-macos", version), ("build-windows", version)],
+        )
+        self.assertEqual(mapping_values(self.workflow, "RUSTUP_TOOLCHAIN"), [version, version])
+        for name, next_job in (("build-macos", "build-windows"), ("build-windows", "package")):
+            job = self.workflow.split(f"  {name}:\n", 1)[1].split(f"  {next_job}:\n", 1)[0]
+            self.assertEqual(exactly_one(job, "RUSTUP_TOOLCHAIN", pattern), version)
+        self.assertEqual(self.workflow.count(f"--env RUSTUP_TOOLCHAIN={version}"), 1)
+        gate = "tools.release_compiler gate --file rust-toolchain.toml"
+        self.assertEqual(self.workflow.count(gate), 3)
+        linux_gate = (
+            "python3 -m tools.release_compiler gate --file rust-toolchain.toml "
+            '--host "${EXPECTED_RUST_HOST}"'
+        )
+        self.assertEqual(self.build_step.count(linux_gate), 1)
+        self.assertLess(self.build_step.index("                python3 \\\n"), self.build_step.index(gate))
+        self.assertLess(self.build_step.index(gate), self.build_step.index('test "$(g++ -dumpmachine)"'))
+        self.assertLess(self.build_step.index(gate), self.build_step.index(CARGO_COMMAND))
+        self.assertEqual(self.workflow.count("tools.release_compiler expect-version"), 2)
+        self.assertEqual(self.workflow.count("rustc -vV"), 0)
+        self.assertEqual(self.workflow.count("rustc --version"), 0)
+        self.assertNotIn("sed ", self.workflow)
+        self.assertIn("rust:1.100.0-alpine3.24", self.build_step)
         self.assertNotIn("1.96.0", self.workflow)
+        windows = self.workflow.split("  build-windows:\n", 1)[1].split("  package:\n", 1)[0]
+        self.assertNotIn("shell: bash", windows)
+        build = windows.split("      - name: Build jbotci\n", 1)[1].split("      - name:", 1)[0]
+        self.assertIn("shell: pwsh", build)
+        self.assertIn("python -m tools.release_compiler gate --file rust-toolchain.toml", build)
+        cargo_at = build.index("cargo build --release --locked -p jbotci")
+        self.assertIn("$LASTEXITCODE", build[cargo_at:])
+
+    def test_a_step_toolchain_override_fails_the_any_depth_pin(self) -> None:
+        version = toolchain_channel(
+            (REPOSITORY_ROOT / "rust-toolchain.toml").read_text(encoding="utf-8")
+        )
+        pattern = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+        job = self.workflow.split("  build-macos:\n", 1)[1].split("  build-windows:\n", 1)[0]
+        self.assertEqual(exactly_one(job, "RUSTUP_TOOLCHAIN", pattern), version)
+        overridden = job.replace(
+            "      - name: Build jbotci\n",
+            '      - name: Build jbotci\n        env: {RUSTUP_TOOLCHAIN: "1.99.0"}\n',
+            1,
+        )
+        with self.assertRaises(PinError):
+            exactly_one(overridden, "RUSTUP_TOOLCHAIN", pattern)
+        document = "jobs:\n  build-macos:\n" + job
+        overridden_document = "jobs:\n  build-macos:\n" + overridden
+        self.assertEqual(job_env_values(document, "RUSTUP_TOOLCHAIN"), [("build-macos", version)])
+        self.assertEqual(
+            job_env_values(overridden_document, "RUSTUP_TOOLCHAIN"),
+            [("build-macos", version)],
+        )
+        self.assertEqual(
+            mapping_values(overridden_document, "RUSTUP_TOOLCHAIN"),
+            [version, "1.99.0"],
+        )
 
     def test_macos_and_windows_install_and_assert_the_pinned_compiler(self) -> None:
         jobs = [("build-macos", "build-windows"), ("build-windows", "package")]
@@ -55,7 +118,7 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
                 job = self.workflow.split(f"  {name}:\n", 1)[1].split(
                     f"  {next_job}:\n", 1
                 )[0]
-                self.assertIn("      RUSTUP_TOOLCHAIN: 1.99.1\n", job)
+                self.assertIn("      RUSTUP_TOOLCHAIN: 1.100.0\n", job)
                 install = job.index("      - name: Install pinned Rust toolchain\n")
                 build = job.index("      - name: Build jbotci\n")
                 self.assertLess(install, build)
@@ -63,8 +126,9 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
                 self.assertIn("rustup toolchain install", step)
                 self.assertIn("RUSTUP_TOOLCHAIN", step)
                 self.assertIn("--profile minimal", step)
-                self.assertIn("rustc --version", step)
-                self.assertIn("rustc 1.99.1 (58cf8f9c3 2026-10-13)", step)
+                self.assertIn("tools.release_compiler expect-version", step)
+                self.assertIn('--expect "rustc 1.100.0 (0ef1bc386 2026-11-09)"', step)
+                self.assertNotIn("rustc --version", step)
 
     def test_matrix_declares_both_native_alpine_bindgen_targets(self) -> None:
         self.assertIn(

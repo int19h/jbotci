@@ -16,7 +16,7 @@ from uuid import uuid4
 
 
 from tools import cargo_inputs
-from tools.cargo_inputs_trace import trace
+from tools.cargo_inputs_trace import RUSTUP_HOME_PIN
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -50,12 +50,25 @@ class CargoCacheTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.profile_dir, ignore_errors=True)
         global_config = self.case / "gitconfig"
         global_config.write_text("", encoding="utf-8")
+        # CI has the pinned home. A local run uses the rustup home on this machine.
+        if Path(RUSTUP_HOME_PIN).is_dir():
+            rustup_home = RUSTUP_HOME_PIN
+        else:
+            rustup_home = os.environ.get("RUSTUP_HOME") or str(Path.home() / ".rustup")
+        self.assertTrue(Path(rustup_home).is_dir(), rustup_home)
         self.env = dict(
             os.environ,
             CARGO_TARGET_DIR=str(self.target),
             CARGO_BUILD_JOBS="8",
             GIT_CONFIG_GLOBAL=str(global_config),
             GIT_CONFIG_NOSYSTEM="1",
+            RUSTUP_HOME=rustup_home,
+        )
+        # The trace reads the workspace pin. The fixture uses the project file.
+        # An ambient toolchain override must not select a different compiler.
+        self.env.pop("RUSTUP_TOOLCHAIN", None)
+        (self.repo / "rust-toolchain.toml").write_text(
+            (ROOT / "rust-toolchain.toml").read_text(encoding="utf-8"), encoding="utf-8",
         )
         self._run(["git", "init", "--initial-branch=main", "--object-format=sha1"])
         self._run(["git", "config", "user.name", "Cache regression"])
@@ -382,7 +395,7 @@ fn main() {
         self.env["NESTED_PROFILE"] = self.profile
         self._build(subcommand="run")
         units = cargo_inputs.inventory(self.layout)
-        child_units = [unit for unit in units.values() if unit.directory.name.startswith("nested-input-child-")]
+        child_units = [unit for unit in units.values() if "nested-input-child" in unit.key]
         self.assertTrue(child_units)
         self.assertTrue(all((unit.directory / cargo_inputs.RECORD).exists() for unit in child_units))
 
