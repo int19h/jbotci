@@ -212,6 +212,8 @@ pub(super) fn AppShell() -> Element {
         show_compounds: initial_gentufa.show_compounds,
     };
     let view_mode = use_signal(move || initial_gentufa_view_mode);
+    let toolbar_layout = use_signal(|| GentufaToolbarLayout::OneRow);
+    let gentufa_output = use_signal(move || initial_gentufa.output);
     let gentufa_display = use_signal(move || initial_gentufa_display);
     let parsed_text_explicit = use_signal(move || initial_gentufa_has_text);
     let gentufa_url_write_intent = use_signal(|| GentufaUrlWriteIntent::ReplaceCurrent);
@@ -296,6 +298,7 @@ pub(super) fn AppShell() -> Element {
     let activity_indicator_visible_value = *activity_indicator_visible.read();
     let route_value = *route.read();
     let view_mode_value = *view_mode.read();
+    let gentufa_output_value = *gentufa_output.read();
     let gentufa_display_value = *gentufa_display.read();
     let parsed_text_value = parsed_text.read().clone();
     let parsed_dialect_value = parsed_dialect.read().clone();
@@ -334,6 +337,7 @@ pub(super) fn AppShell() -> Element {
             &result,
             gentufa_request.as_ref(),
             view_mode_value,
+            gentufa_output_value,
             gentufa_display_value,
             settings_value,
             &dialect_settings_value,
@@ -349,6 +353,7 @@ pub(super) fn AppShell() -> Element {
         &parsed_text_value,
         &parsed_dialect_value,
         view_mode_value,
+        gentufa_output_value,
         gentufa_display_value,
         parsed_text_explicit_value,
     );
@@ -397,6 +402,7 @@ pub(super) fn AppShell() -> Element {
         cukta_toc_forced_autohide,
         cukta_edition_release_fits,
         vlacku_controls,
+        toolbar_layout,
     );
     let scroll_base_path = base_path.clone();
     let scroll_route_location = current_route_location.clone();
@@ -451,6 +457,7 @@ pub(super) fn AppShell() -> Element {
             dialect,
             parsed_dialect,
             view_mode,
+            gentufa_output,
             gentufa_display,
         );
     }));
@@ -549,6 +556,7 @@ pub(super) fn AppShell() -> Element {
             &inputs.text,
             &inputs.dialect_text,
             inputs.view_mode,
+            gentufa_output_value,
             inputs.display,
             inputs.text_explicit,
         );
@@ -1088,6 +1096,8 @@ pub(super) fn AppShell() -> Element {
                                     base_path: base_path.clone(),
                                     view_mode,
                                     view_mode_value,
+                                    output: gentufa_output,
+                                    output_value: gentufa_output_value,
                                     display: gentufa_display,
                                     display_value: gentufa_display_value,
                                     settings: settings_value,

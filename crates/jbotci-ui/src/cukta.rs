@@ -3032,6 +3032,7 @@ pub(super) fn cll_spa_inline_href(base_path: &str, kind: CllLinkKind, target: &s
                 text: target.to_owned(),
                 dialect: None,
                 view_mode: GentufaWebViewMode::Blocks,
+                output: GentufaTextOutput::Groups,
                 show_elided: false,
                 show_glosses: false,
                 show_compounds: true,

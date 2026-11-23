@@ -75,7 +75,9 @@ use jbotci_output::{
     generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_line,
     indexed_place_spans_for_notes_line, ipa_morphology_text, phoneme_render_options_for_script,
     pretty_bracket_source_fragments_with_options,
+    pretty_generated_model_plain_source_fragments_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
+    pretty_recovered_syntax_plain_source_fragments_with_options,
     render_lojban_text_for_script_with_options,
 };
 use jbotci_phonetic::lojban_text_to_ipa;
@@ -119,7 +121,54 @@ pub enum GentufaWebViewMode {
     #[default]
     Blocks,
     Tree,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum GentufaTextOutput {
+    #[default]
+    Groups,
+    Plain,
     Ipa,
+}
+
+impl GentufaTextOutput {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn query_value(self) -> &'static str {
+        match self {
+            Self::Groups => "groups",
+            Self::Plain => "plain",
+            Self::Ipa => "ipa",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn tab_id(self) -> &'static str {
+        match self {
+            Self::Groups => "gentufa-text-tab-groups",
+            Self::Plain => "gentufa-text-tab-plain",
+            Self::Ipa => "gentufa-text-tab-ipa",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn tab_title(self) -> &'static str {
+        match self {
+            Self::Groups => "Brackets around each grammatical group",
+            Self::Plain => "Normalized text without brackets",
+            Self::Ipa => "Pronunciation",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn tab_label(self) -> &'static str {
+        self.query_value()
+    }
 }
 
 pub const DEFAULT_GENTUFA_TEXT: &str = "zgadi fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
@@ -166,6 +215,8 @@ pub struct GentufaWebState {
     pub text: String,
     pub dialect: Option<String>,
     pub view_mode: GentufaWebViewMode,
+    #[serde(default)]
+    pub output: GentufaTextOutput,
     pub show_elided: bool,
     pub show_glosses: bool,
     #[serde(default = "default_true")]
@@ -181,6 +232,7 @@ impl Default for GentufaWebState {
             text: String::new(),
             dialect: None,
             view_mode: GentufaWebViewMode::Blocks,
+            output: GentufaTextOutput::Groups,
             show_elided: false,
             show_glosses: false,
             show_compounds: true,
@@ -245,6 +297,8 @@ pub struct GentufaSuccess {
     pub surface_text: String,
     pub brackets_text: String,
     pub bracket_fragments: Vec<GentufaBracketFragment>,
+    #[serde(default)]
+    pub plain_fragments: Vec<GentufaBracketFragment>,
     pub blocks_layout: GentufaBlocksLayout,
     pub tree_rows: Vec<GentufaTreeRow>,
     pub diagnostics: Vec<Diagnostic>,
@@ -881,6 +935,25 @@ fn valid_gentufa_result_for_web(
         &projection.bare,
         &projection.annotations,
     );
+    let plain_source_fragments = match pretty_generated_model_plain_source_fragments_with_options(
+        &generated_model,
+        source,
+        bracket_options,
+    ) {
+        Ok(fragments) => fragments,
+        Err(error) => {
+            return Ok(GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            }));
+        }
+    };
+    let plain_fragments = gentufa_bracket_fragments_from_source(
+        &plain_source_fragments,
+        &projection.bare,
+        &projection.annotations,
+    );
     let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
     let features = web_feature_availability_for_annotations(&projection.annotations);
     let blocks_layout = projection.into_blocks_layout();
@@ -891,6 +964,7 @@ fn valid_gentufa_result_for_web(
         surface_text,
         brackets_text,
         bracket_fragments,
+        plain_fragments,
         blocks_layout,
         tree_rows,
         diagnostics,
@@ -964,6 +1038,24 @@ fn recovered_gentufa_success_for_web(
             role: GentufaBlockRole::Normal,
         }]
     });
+    let plain_fragments = match pretty_recovered_syntax_plain_source_fragments_with_options(
+        parse,
+        source,
+        bracket_options,
+    ) {
+        Ok(fragments) => gentufa_bracket_fragments_from_source(
+            &fragments,
+            &projection.bare,
+            &projection.annotations,
+        ),
+        Err(error) => {
+            return Ok(GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            }));
+        }
+    };
     let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
     let features = web_feature_availability_for_annotations(&projection.annotations);
     let blocks_layout = projection.into_blocks_layout();
@@ -974,6 +1066,7 @@ fn recovered_gentufa_success_for_web(
         surface_text,
         brackets_text,
         bracket_fragments,
+        plain_fragments,
         blocks_layout,
         tree_rows,
         diagnostics,
@@ -4884,6 +4977,7 @@ pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
             .filter(|dialect| !dialect.is_empty())
             .map(str::to_owned),
         view_mode: state.view_mode,
+        output: state.output,
         show_elided: state.show_elided,
         show_glosses: state.show_glosses,
         show_compounds: state.show_compounds,
@@ -4900,13 +4994,21 @@ pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
 #[ensures(true)]
 pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
     let mut state = GentufaWebState::default();
+    let mut legacy_ipa = false;
     for (key, value) in parse_query_pairs(query) {
         match key.as_str() {
             "text" => state.text = value,
             "dialect" => state.dialect = Some(value),
             "view" => {
-                if let Some(view_mode) = parse_gentufa_view_mode(&value) {
+                if value.eq_ignore_ascii_case("ipa") {
+                    legacy_ipa = true;
+                } else if let Some(view_mode) = parse_gentufa_view_mode(&value) {
                     state.view_mode = view_mode;
+                }
+            }
+            "output" => {
+                if let Some(output) = parse_gentufa_text_output(&value) {
+                    state.output = output;
                 }
             }
             "glosses" => state.show_glosses = parse_query_bool(&value, false),
@@ -4914,6 +5016,10 @@ pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
             "compounds" => state.show_compounds = parse_query_bool(&value, true),
             _ => {}
         }
+    }
+    if legacy_ipa && state.output == GentufaTextOutput::Groups {
+        state.view_mode = GentufaWebViewMode::Blocks;
+        state.output = GentufaTextOutput::Ipa;
     }
     state
 }
@@ -4932,6 +5038,12 @@ pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
         pairs.push((
             "view".to_owned(),
             gentufa_view_mode_query_value(state.view_mode).to_owned(),
+        ));
+    }
+    if state.output != GentufaTextOutput::Groups {
+        pairs.push((
+            "output".to_owned(),
+            gentufa_text_output_query_value(state.output).to_owned(),
         ));
     }
     if state.show_glosses {
@@ -5822,8 +5934,28 @@ fn parse_gentufa_view_mode(value: &str) -> Option<GentufaWebViewMode> {
     match value.trim().to_ascii_lowercase().as_str() {
         "blocks" => Some(GentufaWebViewMode::Blocks),
         "tree" | "table" => Some(GentufaWebViewMode::Tree),
-        "ipa" => Some(GentufaWebViewMode::Ipa),
         _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_gentufa_text_output(value: &str) -> Option<GentufaTextOutput> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "groups" => Some(GentufaTextOutput::Groups),
+        "plain" => Some(GentufaTextOutput::Plain),
+        "ipa" => Some(GentufaTextOutput::Ipa),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gentufa_text_output_query_value(output: GentufaTextOutput) -> &'static str {
+    match output {
+        GentufaTextOutput::Groups => "groups",
+        GentufaTextOutput::Plain => "plain",
+        GentufaTextOutput::Ipa => "ipa",
     }
 }
 
@@ -5833,7 +5965,6 @@ fn gentufa_view_mode_query_value(mode: GentufaWebViewMode) -> &'static str {
     match mode {
         GentufaWebViewMode::Blocks => "blocks",
         GentufaWebViewMode::Tree => "tree",
-        GentufaWebViewMode::Ipa => "ipa",
     }
 }
 
@@ -7677,6 +7808,53 @@ mod tests {
                 bracket_fragments_contain_role(children, role)
             }
         })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_fragment_text(fragment: &GentufaBracketFragment) -> String {
+        match fragment {
+            GentufaBracketFragment::Text { text, .. } => text.clone(),
+            GentufaBracketFragment::Span { children, .. } => children
+                .iter()
+                .map(gentufa_fragment_text)
+                .collect::<Vec<_>>()
+                .join(""),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_web_fragments_keep_the_bracket_word_identity_and_elision() {
+        let success = parse_success_with_options(
+            "mi klama lo zarci",
+            GentufaWebOptions {
+                show_elided: true,
+                ..GentufaWebOptions::default()
+            },
+        );
+        assert_eq!(
+            success
+                .plain_fragments
+                .iter()
+                .map(gentufa_fragment_text)
+                .collect::<Vec<_>>()
+                .join(""),
+            "mi kláma lo zárci ku vau"
+        );
+        assert!(success.plain_fragments.iter().any(|fragment| matches!(
+            fragment,
+            GentufaBracketFragment::Span {
+                href: Some(_),
+                tooltip: Some(_),
+                ..
+            }
+        )));
+        assert!(bracket_fragments_contain_role(
+            &success.plain_fragments,
+            GentufaBlockRole::Elided
+        ));
     }
 
     #[requires(true)]
@@ -10113,6 +10291,7 @@ mod tests {
             text: "mi klama".to_owned(),
             dialect: None,
             view_mode: GentufaWebViewMode::Blocks,
+            output: GentufaTextOutput::Groups,
             show_elided: false,
             show_glosses: false,
             show_compounds: true,
@@ -10375,6 +10554,7 @@ mod tests {
                 text: text.to_owned(),
                 dialect: dialect.map(str::to_owned),
                 view_mode: GentufaWebViewMode::Tree,
+                output: GentufaTextOutput::Groups,
                 show_elided: true,
                 show_glosses: false,
                 show_compounds: false,
@@ -10467,8 +10647,17 @@ mod tests {
         );
 
         let ipa_state = parse_gentufa_web_route("/gentufa", "?view=ipa");
-        assert_eq!(ipa_state.view_mode, GentufaWebViewMode::Ipa);
-        assert_eq!(gentufa_web_url("", &ipa_state), "/gentufa?view=ipa");
+        assert_eq!(ipa_state.view_mode, GentufaWebViewMode::Blocks);
+        assert_eq!(ipa_state.output, GentufaTextOutput::Ipa);
+        assert_eq!(gentufa_web_url("", &ipa_state), "/gentufa?output=ipa");
+
+        let plain_state = parse_gentufa_web_route("/gentufa", "?output=plain");
+        assert_eq!(plain_state.output, GentufaTextOutput::Plain);
+        assert_eq!(gentufa_web_url("", &plain_state), "/gentufa?output=plain");
+        assert_eq!(
+            parse_gentufa_web_route("/gentufa", "?output=plain"),
+            plain_state
+        );
     }
 
     #[test]
@@ -10529,6 +10718,7 @@ mod tests {
                 text: "mi klama".to_owned(),
                 dialect: None,
                 view_mode: GentufaWebViewMode::Blocks,
+                output: GentufaTextOutput::Groups,
                 show_elided: false,
                 show_glosses: false,
                 show_compounds: true,
@@ -10548,6 +10738,7 @@ mod tests {
                 text: "perhaps".to_owned(),
                 dialect: None,
                 view_mode: GentufaWebViewMode::Blocks,
+                output: GentufaTextOutput::Groups,
                 show_elided: false,
                 show_glosses: false,
                 show_compounds: true,
@@ -10675,6 +10866,7 @@ mod tests {
             text: "mi klama".to_owned(),
             dialect: None,
             view_mode: GentufaWebViewMode::Blocks,
+            output: GentufaTextOutput::Groups,
             show_elided: false,
             show_glosses: false,
             show_compounds: true,

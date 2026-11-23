@@ -600,6 +600,7 @@ fn page_find_entries_for_route(
     gentufa_result: &GentufaWebResult,
     gentufa_request: Option<&GentufaWebRequest>,
     gentufa_view_mode: GentufaWebViewMode,
+    gentufa_output: GentufaTextOutput,
     gentufa_display: GentufaDisplayState,
     current_settings: UserSettings,
     dialect_settings: &DialectSettings,
@@ -625,6 +626,7 @@ fn page_find_entries_for_route(
             gentufa_result,
             gentufa_request,
             gentufa_view_mode,
+            gentufa_output,
             gentufa_display,
             script,
         ),
@@ -1215,6 +1217,7 @@ fn collect_gentufa_page_find_entries(
     result: &GentufaWebResult,
     request: Option<&GentufaWebRequest>,
     view_mode: GentufaWebViewMode,
+    output: GentufaTextOutput,
     display: GentufaDisplayState,
     script: GentufaScript,
 ) {
@@ -1231,7 +1234,15 @@ fn collect_gentufa_page_find_entries(
             );
         }
         GentufaWebResult::Success(success) => {
-            collect_bracket_fragments_page_find_entries(entries, &success.bracket_fragments);
+            match output {
+                GentufaTextOutput::Groups => {
+                    collect_bracket_fragments_page_find_entries(entries, &success.bracket_fragments)
+                }
+                GentufaTextOutput::Plain => {
+                    collect_bracket_fragments_page_find_entries(entries, &success.plain_fragments)
+                }
+                GentufaTextOutput::Ipa => push_page_find_entry(entries, success.ipa_text.clone()),
+            }
             collect_diagnostics_pane_page_find_entries(
                 entries,
                 &success.diagnostics,
@@ -1269,7 +1280,6 @@ fn collect_gentufa_page_find_entries(
                         }
                     }
                 }
-                GentufaWebViewMode::Ipa => push_page_find_entry(entries, success.ipa_text.clone()),
             }
         }
     }

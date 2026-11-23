@@ -1377,7 +1377,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .brackets-section {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0;
   padding: 0;
   background: transparent;
   border: 0;
@@ -1622,14 +1622,45 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .view-toolbar {
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.45rem 1rem;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  grid-template-areas: "views controls text";
+  align-items: end;
+  column-gap: 1rem;
   width: 100%;
-  margin: 0.75rem 0 0.45rem;
+  margin: 0 0 0.45rem;
+  padding-top: 0.55rem;
   border-bottom: 0;
+}
+
+.parse-page .view-toolbar.is-two-rows {
+  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-areas: "views text" "controls controls";
+  row-gap: 0.35rem;
+}
+
+.parse-page .view-toolbar .view-tabs { grid-area: views; }
+.parse-page .view-toolbar .controls {
+  grid-area: controls;
+  justify-content: flex-start;
+  margin: 0 0 0.32rem;
+}
+.parse-page .view-toolbar .text-tabs { grid-area: text; }
+
+.gentufa-toolbar-fit-probe {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  width: max-content;
+  visibility: hidden;
+  pointer-events: none;
+  contain: layout style;
+}
+
+.gentufa-toolbar-fit-probe .view-toolbar {
+  width: max-content;
+  flex-wrap: nowrap;
 }
 
 .parse-page .view-toolbar::after {
@@ -1713,6 +1744,49 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .controls input[disabled] {
   opacity: 0.68;
+}
+
+.parse-page .text-tabs {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
+  align-self: start;
+  margin-top: calc(-0.55rem - 1px);
+}
+
+.parse-page .text-tab {
+  position: relative;
+  padding: 0 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0 0 10px 10px;
+  background: var(--page-bg);
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  font-variant: all-small-caps;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.parse-page .text-tab + .text-tab { margin-left: -1px; }
+.parse-page .text-tab:hover { color: var(--app-link-hover); }
+.parse-page .text-tab[aria-selected="true"] {
+  z-index: 1;
+  border-color: var(--app-border-strong);
+  border-top-color: var(--brackets-bg);
+  background: var(--brackets-bg);
+  color: var(--brackets-text);
+  font-weight: 500;
+}
+.parse-page .text-tab:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: -2px;
+}
+.parse-page .brackets-output[data-mode="ipa"] .brackets-output-markup {
+  color: var(--brackets-text);
 }
 
 .parse-page .table-controls {
