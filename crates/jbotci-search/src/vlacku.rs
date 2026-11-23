@@ -21,6 +21,8 @@ use regex::Regex;
 pub const DEFAULT_VLACKU_RESULT_COUNT: usize = 20;
 pub const OFFICIAL_AUTHOR_USERNAME: &str = "officialdata";
 pub const INVALID_LOJBAN_WORD_MESSAGE_PREFIX: &str = "Invalid Lojban word: ";
+pub const INVALID_LOJBAN_WORD_CARD_MESSAGE: &str =
+    "Not a valid Lojban word. Morphology analysis is unavailable.";
 
 #[invariant(::Valsi(query) => !query.is_empty())]
 #[invariant(::Rafsi(query) => !query.is_empty())]
@@ -340,6 +342,8 @@ pub struct VlackuSearchOutput {
 }
 
 #[invariant(!word.is_empty())]
+#[invariant(*invalid_lojban_word -> *known)]
+#[invariant(*invalid_lojban_word -> decomposition.is_empty())]
 #[invariant(
     !known -> definition.is_empty(),
     "a dictionary-absent word has no dictionary entry carrying a definition"
@@ -353,6 +357,9 @@ pub struct VlackuCard {
     /// carrying a definition; renderers must flag such cards explicitly so
     /// they do not read as definition-less known entries.
     pub known: bool,
+    /// True when exact dictionary text matched, but the query is not one
+    /// valid Lojban word. Renderers must explain the missing morphology.
+    pub invalid_lojban_word: bool,
     pub selmaho: Option<String>,
     pub author: Option<VlackuAuthor>,
     pub is_official: bool,
@@ -1006,6 +1013,7 @@ fn cards_for_valsi(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
+    let raw_query = query;
     if vlacku_exact_query_is_pattern(query) {
         return Ok(cards_for_valsi_pattern(dictionary, query.trim(), options));
     }
@@ -1024,6 +1032,17 @@ fn cards_for_valsi(
         Err(error) => return Ok(rejected_lookup_output(query, &error)),
     };
     let query = key.as_str();
+    let Some(words) = segment_query(raw_query, &options.cancellation)? else {
+        return Ok(invalid_lojban_word_lookup_output(
+            dictionary, raw_query, options,
+        ));
+    };
+    if words.is_empty() {
+        return Ok(invalid_lojban_word_lookup_output(
+            dictionary, raw_query, options,
+        ));
+    }
+    let classification = classify_exact_words(&words, query);
     let entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     if !entries.is_empty() {
         // Owner ruling for #1130 (2026-11-27): a query with a space shows the
@@ -1068,7 +1087,13 @@ fn cards_for_valsi(
         )));
     }
 
-    missing_exact_output(dictionary, query, options, lexical_word.as_ref())
+    missing_exact_output(
+        dictionary,
+        query,
+        options,
+        lexical_word.as_ref(),
+        classification,
+    )
 }
 
 #[requires(true)]
@@ -1108,12 +1133,24 @@ fn cards_for_lujvo(
     };
     // The key is already the lookup key of the query, so it is not keyed again.
     let query = key.as_str();
+    let normalized = normalize_lookup_query(query);
+    let Some(words) = segment_query(raw_query, &options.cancellation)? else {
+        return Ok(invalid_lojban_word_lookup_output(
+            dictionary, raw_query, options,
+        ));
+    };
+    if words.is_empty() {
+        return Ok(invalid_lojban_word_lookup_output(
+            dictionary, raw_query, options,
+        ));
+    }
+    let classification = classify_exact_words(&words, &normalized);
     let exact_entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     let exact_found = !exact_entries.is_empty();
     let mut runtime_decomposition = None;
     let mut candidates = if exact_entries.is_empty() {
         let decomposition = decompose_query(dictionary, query, &options.cancellation)?;
-        let candidates = match classify_exact_word(query, query, &options.cancellation)? {
+        let candidates = match classification {
             Some(classification) => vec![new!(VlackuCandidate::Missing {
                 card: unknown_card(classification, decomposition.as_ref()),
             })],
@@ -1647,16 +1684,49 @@ fn rejected_lookup_output(query: &str, error: &LookupPatternError) -> VlackuSear
 }
 
 #[requires(true)]
+#[ensures(ret.diagnostics.len() == 1)]
+#[ensures((ret.outcome == VlackuOutcome::Found) == !ret.cards.is_empty())]
+#[ensures(ret.cards.iter().all(|card| card.invalid_lojban_word && card.decomposition.is_empty()))]
+fn invalid_lojban_word_lookup_output(
+    dictionary: &Dictionary<'_>,
+    query: &str,
+    options: &VlackuSearchOptions,
+) -> VlackuSearchOutput {
+    let candidates = dictionary
+        .lookup_words(query)
+        .map(VlackuCandidate::entry)
+        .collect::<Vec<_>>();
+    let cards = cards_for_candidates(
+        dictionary,
+        candidates,
+        &options.clone().with_data(data! { decompose_lujvo: false }),
+        false,
+    )
+    .into_iter()
+    .map(|card| card.with_data(data! { invalid_lojban_word: true }))
+    .collect::<Vec<_>>();
+    let outcome = if cards.is_empty() {
+        VlackuOutcome::Invalid
+    } else {
+        VlackuOutcome::Found
+    };
+    VlackuSearchOutput {
+        cards,
+        outcome,
+        diagnostics: vec![format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")],
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn missing_exact_output(
     dictionary: &Dictionary<'_>,
     query: &str,
     options: &VlackuSearchOptions,
     lexical_word: Option<&Word>,
+    classification: Option<WordClassification>,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
-    // `query` is already the lookup key of the typed query (see
-    // `cards_for_valsi`), so it is not keyed again.
-    match classify_exact_word(query, query, &options.cancellation)? {
+    match classification {
         Some(classification) => {
             let decomposition = if options.decompose_lujvo {
                 decompose_query(dictionary, query, &options.cancellation)?
@@ -2103,17 +2173,26 @@ fn classify_exact_word(
     let Some(words) = segment_query(raw_query, cancellation)? else {
         return Ok(None);
     };
-    let [word_like] = words.as_slice() else {
-        return Ok(None);
+    Ok(classify_exact_words(&words, normalized_query))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|classification| !classification.word.is_empty()))]
+fn classify_exact_words(words: &[WordLike], normalized_query: &str) -> Option<WordClassification> {
+    if normalized_query.is_empty() {
+        return None;
+    }
+    let [word_like] = words else {
+        return None;
     };
     let Some(word) = word_like.bare_word() else {
-        return Ok(None);
+        return None;
     };
-    Ok(Some(WordClassification {
+    Some(WordClassification {
         word: normalized_query.to_owned(),
         word_type: word_kind_type_key(word.kind()),
         selmaho: word.selmaho().map(str::to_owned),
-    }))
+    })
 }
 
 #[requires(true)]
@@ -2170,6 +2249,7 @@ fn entry_card_with_dictionary_decomposition(
         word: entry.word.to_owned(),
         word_type: entry.word_type.as_str().to_owned(),
         known: true,
+        invalid_lojban_word: false,
         selmaho: entry.selmaho.map(|selmaho| selmaho.0.to_owned()),
         author: Some(new!(VlackuAuthor {
             username: entry.user.username.to_owned(),
@@ -2211,6 +2291,7 @@ fn unknown_card(
         word: classification.word,
         word_type: classification.word_type.as_str().to_owned(),
         known: false,
+        invalid_lojban_word: false,
         selmaho: classification.selmaho,
         author: None,
         is_official: false,
@@ -3225,6 +3306,131 @@ mod tests {
         );
         assert_eq!(word_break.outcome, without_mark.outcome);
         assert_eq!(word_break.cards, without_mark.cards);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_indexed_dictionary_headword_is_findable_by_exact_search() {
+        let options = VlackuSearchOptions::default().with_data(data! { count: usize::MAX });
+        for dictionary in [jbotci_dictionary_data::english()] {
+            let mut failures = Vec::new();
+            for entry in dictionary.entries() {
+                let result = search(
+                    dictionary,
+                    &[VlackuRequest::valsi(entry.word.to_owned())],
+                    &options,
+                );
+                if !result.cards.iter().any(|card| card.word == entry.word) {
+                    failures.push(format!(
+                        "{:?}: {:?}, returned {:?}, diagnostics {:?}",
+                        entry.word,
+                        result.outcome,
+                        words(&result.cards),
+                        result.diagnostics
+                    ));
+                }
+            }
+            assert!(failures.is_empty(), "{}", failures.join("\n"));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_search_returns_all_h_and_apostrophe_spelling_matches() {
+        for query in ["gaurkihu", "gaurki'u"] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+
+            assert_eq!(result.outcome, VlackuOutcome::Found, "{query}");
+            assert!(result.diagnostics.is_empty(), "{query}");
+            for word in ["gaurkihu", "gaurki'u"] {
+                assert!(
+                    result
+                        .cards
+                        .iter()
+                        .any(|card| card.word == word && !card.invalid_lojban_word),
+                    "{query} did not return {word}: {:?}",
+                    words(&result.cards)
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_exact_query_returns_dictionary_card_without_morphology_features() {
+        let result = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("fa'onai".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
+                count: usize::MAX,
+                decompose_lujvo: true,
+            }),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Found);
+        assert_eq!(
+            result.diagnostics,
+            [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}fa'onai")]
+        );
+        let card = result
+            .cards
+            .iter()
+            .find(|card| card.word == "fa'onai")
+            .expect("dictionary card for fa'onai");
+        assert!(card.known);
+        assert!(card.invalid_lojban_word);
+        assert!(card.decomposition.is_empty());
+        assert!(!card.definition.is_empty());
+        assert!(!result.cards.iter().any(|card| card.word == "fa'o"));
+        assert!(!result.cards.iter().any(|card| card.word == "nai"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_lujvo_query_uses_the_same_dictionary_fallback() {
+        let result = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::lujvo("fa'onai".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
+                count: usize::MAX,
+                decompose_lujvo: true,
+            }),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Found);
+        assert_eq!(
+            result.diagnostics,
+            [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}fa'onai")]
+        );
+        assert_eq!(words(&result.cards), ["fa'onai"]);
+        assert!(result.cards[0].invalid_lojban_word);
+        assert!(result.cards[0].decomposition.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_exact_query_without_a_matching_entry_reports_invalid() {
+        let result = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("not a word".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Invalid);
+        assert!(result.cards.is_empty());
+        assert_eq!(
+            result.diagnostics,
+            [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}not a word")]
+        );
     }
 
     #[test]

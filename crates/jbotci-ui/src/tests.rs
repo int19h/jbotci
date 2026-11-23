@@ -1203,6 +1203,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
             display_word: "broda".to_owned(),
             word_type: "gismu".to_owned(),
             word_type_key: "gismu".to_owned(),
+            invalid_lojban_word: false,
             selmaho: Some("BRIVLA".to_owned()),
             author: Some(new!(VlackuWebAuthor {
                 username: "alice".to_owned(),

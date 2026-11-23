@@ -984,6 +984,11 @@ pub(super) fn render_vlacku_card(
                     { render_vlacku_metadata_pill(card, pending_cukta_scroll, base_path, page_find) }
                 }
             }
+            if card.invalid_lojban_word {
+                p { class: "dictionary-note-copy", title: "Morphology",
+                    { render_page_find_text(page_find, jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE) }
+                }
+            }
             if !card.definition.is_empty() {
                 p { class: "dictionary-definition-copy",
                     { render_inline_spans(&card.definition, jvozba_pane, jvozba_available, base_path, script, page_find) }

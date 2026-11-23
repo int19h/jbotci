@@ -2677,6 +2677,8 @@ pub struct VlackuWebCard {
     pub display_word: String,
     pub word_type: String,
     pub word_type_key: String,
+    #[serde(default)]
+    pub invalid_lojban_word: bool,
     pub selmaho: Option<String>,
     pub author: Option<VlackuWebAuthor>,
     pub ipa: Option<String>,
@@ -6746,6 +6748,7 @@ fn web_card_from_search_card(
         display_word: card.word.clone(),
         word_type: card.word_type.clone(),
         word_type_key: normalize_word_type_filter(&card.word_type),
+        invalid_lojban_word: card.invalid_lojban_word,
         selmaho: card.selmaho,
         author,
         similarity: card.similarity,
@@ -11076,6 +11079,28 @@ mod tests {
                 .first()
                 .is_some_and(|card| matches!(card.votes, VlackuVoteDisplay::Known(_)))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_invalid_word_search_returns_card_with_morphology_warning() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: Default::default(),
+            mode: VlackuWebMode::Word,
+            query: "fa'onai".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        let card = result
+            .cards
+            .iter()
+            .find(|card| card.word == "fa'onai")
+            .expect("web card for fa'onai");
+        assert!(card.invalid_lojban_word);
+        assert!(card.decomposition.is_empty());
+        assert_eq!(result.errors, ["Invalid Lojban word: fa'onai"]);
     }
 
     #[test]

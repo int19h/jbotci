@@ -250,6 +250,36 @@ fn tool_vlacku_punctuation_only_query_reports_invalid_input_status() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn tool_vlacku_invalid_word_with_entry_outputs_card_and_warning() {
+    let output = run_tool_vlacku(ToolVlackuRequest {
+        mode: ToolVlackuMode::Word,
+        query: "fa'onai".to_owned(),
+        count: Some(1),
+        word_types: Vec::new(),
+        min_votes: None,
+        min_similarity: None,
+        decompose_lujvo: true,
+        show_etymology: false,
+    })
+    .expect("tool output");
+
+    assert_eq!(output.status, ToolStatus::Success);
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 output");
+    assert!(stdout.contains("1. fa'onai"), "{stdout}");
+    assert!(
+        stdout.contains(INVALID_LOJBAN_WORD_CARD_MESSAGE),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("decomposition:"), "{stdout}");
+    assert_eq!(
+        output.stderr,
+        format!("vlacku: {INVALID_LOJBAN_WORD_MESSAGE_PREFIX}fa'onai\n")
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn tool_cukta_semantic_uses_supplied_embedding_context_error() {
     let mut context =
         ToolExecutionContext::embedding_search_unavailable("cached embedding load failed".into());
@@ -3835,6 +3865,35 @@ fn vlacku_exact_invalid_word_reports_invalid_input_status() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn vlacku_invalid_word_with_entry_outputs_card_and_warning() {
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "vlacku",
+            "--decompose-lujvo",
+            "--valsi",
+            "fa'onai",
+        ],
+        false,
+    );
+
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stdout.contains("1. fa'onai"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains(INVALID_LOJBAN_WORD_CARD_MESSAGE),
+        "{}",
+        run.stdout
+    );
+    assert!(!run.stdout.contains("decomposition:"), "{}", run.stdout);
+    assert!(
+        run.stderr
+            .contains(&format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}fa'onai"))
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn vlacku_punctuation_only_query_reports_invalid_input_status() {
     let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "!!!"], false);
 
@@ -4165,6 +4224,7 @@ fn vlacku_colors_card_labels_dividers_and_rich_text() {
                 word_type: "gismu".to_owned(),
                 selmaho: None,
                 known: true,
+                invalid_lojban_word: false,
                 author: None,
                 is_official: false,
                 similarity: Some(1.0),
@@ -4216,6 +4276,7 @@ fn vlacku_raw_sumti_places_keep_dollar_spans_and_color_equals() {
                 word_type: "gismu".to_owned(),
                 selmaho: None,
                 known: true,
+                invalid_lojban_word: false,
                 author: None,
                 is_official: false,
                 similarity: Some(1.0),
@@ -4257,6 +4318,7 @@ fn vlacku_raw_sumti_places_keep_gloss_and_etymology_references() {
                 word_type: "lujvo".to_owned(),
                 selmaho: None,
                 known: true,
+                invalid_lojban_word: false,
                 author: None,
                 is_official: false,
                 similarity: Some(1.0),
@@ -4306,6 +4368,7 @@ fn vlacku_terminal_width_wraps_long_detail_lines_with_indent() {
                 word_type: "lujvo".to_owned(),
                 selmaho: None,
                 known: true,
+                invalid_lojban_word: false,
                 author: None,
                 is_official: false,
                 similarity: Some(1.0),
@@ -4354,6 +4417,7 @@ fn vlacku_official_author_renders_infinity() {
                 word_type: "gismu".to_owned(),
                 selmaho: None,
                 known: true,
+                invalid_lojban_word: false,
                 author: Some(new!(VlackuAuthor {
                     username: "officialdata".to_owned(),
                     realname: Some("Official Data".to_owned()),
@@ -4391,6 +4455,7 @@ fn vlacku_ascii_renders_index_places_and_official_votes_as_ascii() {
                 word_type: "fu'ivla".to_owned(),
                 selmaho: None,
                 known: true,
+                invalid_lojban_word: false,
                 author: Some(new!(VlackuAuthor {
                     username: "officialdata".to_owned(),
                     realname: Some("Official Data".to_owned()),
@@ -4435,6 +4500,7 @@ fn vlacku_unknown_gismu_shaped_word_renders_not_in_dictionary_note() {
                 word_type: "gismu".to_owned(),
                 selmaho: None,
                 known: false,
+                invalid_lojban_word: false,
                 author: None,
                 is_official: false,
                 similarity: None,
@@ -4478,6 +4544,7 @@ fn vlacku_unknown_lujvo_renders_note_and_keeps_decomposition() {
                 word_type: "lujvo".to_owned(),
                 selmaho: None,
                 known: false,
+                invalid_lojban_word: false,
                 author: None,
                 is_official: false,
                 similarity: None,
@@ -4545,6 +4612,7 @@ fn vlacku_known_card_rendering_is_byte_identical_to_before_known_flag() {
                 word_type: "gismu".to_owned(),
                 selmaho: None,
                 known: true,
+                invalid_lojban_word: false,
                 author: Some(new!(VlackuAuthor {
                     username: "officialdata".to_owned(),
                     realname: None,

@@ -1024,6 +1024,7 @@ mod tests {
             word: "brodavla".to_owned(),
             word_type: "gismu".to_owned(),
             known: true,
+            invalid_lojban_word: false,
             selmaho: None,
             author: None,
             is_official: true,

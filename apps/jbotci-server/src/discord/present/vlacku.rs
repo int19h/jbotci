@@ -4,7 +4,9 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_output::{DefinitionPlaceMap, GlyphStyle};
-use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, format_vote_display};
+use jbotci_search::vlacku::{
+    INVALID_LOJBAN_WORD_CARD_MESSAGE, VlackuCard, VlackuCompositionKind, format_vote_display,
+};
 
 use super::markdown::{
     escape_in_scope, inline_code_in_scope, join_lines_in_scope, percent_in_scope, subtext_in_scope,
@@ -175,6 +177,13 @@ fn card_markdown(
     let mut lines = vec![head.into_piece()];
     let mut plain = vec![plain_head.into_piece()];
     let mut is_excerpt = false;
+    if card.invalid_lojban_word {
+        lines.push(subtext_in_scope(
+            INVALID_LOJBAN_WORD_CARD_MESSAGE,
+            text_scope,
+        ));
+        plain.push(INVALID_LOJBAN_WORD_CARD_MESSAGE.to_owned());
+    }
     if !card.known {
         let line = "not in the dictionary; the class above is the morphology parser's analysis of the word form, not a definition";
         lines.push(subtext_in_scope(line, text_scope));
@@ -403,6 +412,26 @@ mod tests {
             "component cards follow: {body}"
         );
         assert!(!body.contains("**Search problem"), "{body}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_word_entry_card_shows_morphology_warning() {
+        let cards = cards("fa'onai");
+        let results = PagedResults::from_all(cards, PageNumber::first()).expect("page");
+        let rendered = render(
+            &VlackuOutcome::Results {
+                results,
+                diagnostics: vec!["Invalid Lojban word: fa'onai".to_owned()],
+                valid_missing: false,
+            },
+            &request("fa'onai"),
+        );
+        let body = rendered.body.join("\n");
+        assert!(body.contains("1. **fa'onai**"), "{body}");
+        assert!(body.contains(INVALID_LOJBAN_WORD_CARD_MESSAGE), "{body}");
+        assert!(!body.contains("decomposition:"), "{body}");
     }
 
     #[test]

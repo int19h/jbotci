@@ -753,6 +753,20 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn normalized_word_lookup_unifies_h_and_apostrophe_spellings() {
+        for query in ["gaurkihu", "gaurki'u"] {
+            let words = english()
+                .lookup_words(query)
+                .map(|entry| entry.word)
+                .collect::<Vec<_>>();
+            assert!(words.contains(&"gaurkihu"), "{query}: {words:?}");
+            assert!(words.contains(&"gaurki'u"), "{query}: {words:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rafsi_lookup_includes_listed_and_universal_sources() {
         let listed = english()
             .lookup_rafsi(&LookupKey::from_stored("bau"))
