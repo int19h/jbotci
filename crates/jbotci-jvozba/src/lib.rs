@@ -820,8 +820,8 @@ fn normalize_lujvo_like_input(raw_word: &str) -> String {
 #[ensures(true)]
 fn normalize_apostrophe(value: char) -> char {
     match value {
-        '\'' | 'h' | 'H' | '’' | '\u{a78b}' | '\u{a78c}' | '\u{2bb}' | '\u{2bf}' | '\u{2b0}'
-        | '\u{2d2}' => '\'',
+        '\'' | 'h' | 'H' | '’' | '\u{02bc}' | '\u{a78b}' | '\u{a78c}' | '\u{2bb}' | '\u{2bf}'
+        | '\u{2b0}' | '\u{2d2}' => '\'',
         other => other,
     }
 }
@@ -1648,6 +1648,27 @@ mod tests {
         .expect("the same build from the words themselves");
 
         assert_eq!(alone, pair);
+    }
+
+    /// Issue #1119. U+02BC is an apostrophe here, the same as U+2019.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modifier_letter_apostrophe_matches_the_quotation_apostrophe() {
+        assert_eq!(normalize_apostrophe('\u{02bc}'), '\'');
+        assert_eq!(
+            normalize_apostrophe('\u{02bc}'),
+            normalize_apostrophe('\u{2019}')
+        );
+        assert_eq!(normalize_apostrophe('\u{2018}'), '\u{2018}');
+        assert_eq!(
+            normalize_lujvo_like_input("co\u{02bc}a\u{02bc}a"),
+            normalize_lujvo_like_input("co'a'a")
+        );
+        assert_eq!(
+            normalize_lujvo_like_input("co\u{02bc}a\u{02bc}a"),
+            normalize_lujvo_like_input("co\u{2019}a\u{2019}a")
+        );
     }
 
     #[test]
