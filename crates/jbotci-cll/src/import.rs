@@ -11,8 +11,8 @@ use sha2::{Digest, Sha256};
 use super::*;
 use crate::cmavo_table::{
     bracketed_dictionary_word, cmavo_or_gismu_cell_inlines, cmavo_valsi_part_inline,
-    dictionary_token_characters, is_dictionary_token, lujvo_cell_inlines,
-    marked_unlinked_cell_inlines, marked_valsi_span, shipped_dictionary_link_target,
+    is_dictionary_token, lujvo_cell_inlines, marked_unlinked_cell_inlines, marked_valsi_span,
+    shipped_dictionary_link_target,
 };
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
@@ -2662,7 +2662,9 @@ fn rule12_part_inline(part: &AdjacentValsiPart, cell_choice: MarkedWordLink) -> 
 
 /// True when `text` is one dictionary token with a shipped headword.
 #[requires(true)]
-#[ensures(!ret || dictionary_token_characters(text))]
+#[bityzba::expensive_ensures(
+    !ret || shipped_dictionary_link_target(text).is_some_and(|target| !target.is_empty())
+)]
 fn part_has_dictionary_link(text: &str) -> bool {
     is_dictionary_token(text)
         && shipped_dictionary_link_target(text).is_some_and(|target| !target.is_empty())
@@ -2961,8 +2963,7 @@ fn single_bare_lujvo(text: &str) -> bool {
         || (text.starts_with('[')
             && text.ends_with(']')
             && text.len() == ret.len() + 2
-            && &text[1..text.len() - 1] == ret
-            && dictionary_token_characters(ret))
+            && &text[1..text.len() - 1] == ret)
 )]
 fn cell_decision_word(text: &str) -> &str {
     bracketed_dictionary_word(text).unwrap_or(text)
@@ -2994,8 +2995,7 @@ enum TreeSpelling {
             || (text.starts_with('[')
                 && text.ends_with(']')
                 && text.len() == ret.len() + 2
-                && &text[1..text.len() - 1] == ret
-                && dictionary_token_characters(ret))
+                && &text[1..text.len() - 1] == ret)
     }
 })]
 fn spelling_for_mark<'a>(text: &'a str, mode: TreeSpelling) -> &'a str {

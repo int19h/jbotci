@@ -20,10 +20,10 @@ use super::*;
 /// headword when the word links. It is absent when the word stays plain. An
 /// empty target is not a word cell.
 #[invariant(::Bracket { word, target } => {
-    dictionary_token_characters(word) && target.as_ref().is_none_or(|target| !target.is_empty())
+    is_dictionary_token(word) && target.as_ref().is_none_or(|target| !target.is_empty())
 })]
 #[invariant(::Token { text, target } => {
-    dictionary_token_characters(text) && target.as_ref().is_none_or(|target| !target.is_empty())
+    is_dictionary_token(text) && target.as_ref().is_none_or(|target| !target.is_empty())
 })]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CllCmavoWordCell<'a> {
@@ -185,7 +185,7 @@ pub(crate) fn cmavo_word_cell(inlines: &[CllInline]) -> Option<CllCmavoWordCell<
 #[invariant(!text.chars().next_back().is_some_and(char::is_whitespace))]
 #[invariant(!text.contains(['\n', '\r']))]
 #[invariant(target.as_ref().is_none_or(|link| {
-    !link.is_empty() && dictionary_token_characters(text)
+    !link.is_empty() && is_dictionary_token(text)
 }))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CllCmavoWordPart<'a> {
@@ -246,7 +246,7 @@ pub(crate) fn cmavo_word_parts(inlines: &[CllInline]) -> Option<Vec<CllCmavoWord
 impl<'a> CllCmavoWordCell<'a> {
     /// The bracketed word and its dictionary target, when this cell is `[word]`.
     #[requires(true)]
-    #[ensures(ret.is_none_or(|(word, _)| dictionary_token_characters(word)))]
+    #[ensures(ret.is_none_or(|(word, _)| is_dictionary_token(word)))]
     pub fn bracket(self) -> Option<(&'a str, Option<&'a str>)> {
         match self.as_data() {
             data!(CllCmavoWordCell::Bracket { word, target }) => Some((word, *target)),
@@ -256,7 +256,7 @@ impl<'a> CllCmavoWordCell<'a> {
 
     /// The unlinked dictionary token, when this cell is one Lojban word with no link.
     #[requires(true)]
-    #[ensures(ret.is_none_or(dictionary_token_characters))]
+    #[ensures(ret.is_none_or(is_dictionary_token))]
     pub fn unlinked_token(self) -> Option<&'a str> {
         match self.as_data() {
             data!(CllCmavoWordCell::Token { text, target: None }) => Some(text),
@@ -328,19 +328,6 @@ pub(crate) fn shipped_dictionary_link_target(candidate: &str) -> Option<&'static
     )
 }
 
-/// True when `text` has the characters of one dictionary token.
-///
-/// A contract calls this check. It does not call `is_dictionary_token`.
-#[requires(true)]
-// The predicate is the function body. A contract uses this copy as its own check.
-#[ensures(true)]
-pub(crate) fn dictionary_token_characters(text: &str) -> bool {
-    !text.is_empty()
-        && text.chars().all(|character| {
-            character.is_ascii_alphabetic() || character == '\'' || character == '.'
-        })
-}
-
 /// One token of letters, apostrophes and pause dots. The token must be non-empty.
 ///
 /// A true result has that shape. The shape is the word a bracket cell or a
@@ -367,7 +354,6 @@ pub(crate) fn is_dictionary_token(text: &str) -> bool {
         && text.ends_with(']')
         && text.len() == word.len() + 2
         && &text[1..text.len() - 1] == word
-        && dictionary_token_characters(word)
 }))]
 pub(crate) fn bracketed_dictionary_word(text: &str) -> Option<&str> {
     let inner = text.strip_prefix('[')?.strip_suffix(']')?;
@@ -571,7 +557,7 @@ pub(crate) fn marked_unlinked_cell_inlines(text: &str) -> Vec<CllInline> {
         inlines,
     } => {
         !target.is_empty()
-            && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text && dictionary_token_characters(shown))
+            && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
     }
     CllInline::LanguageSpan {
         kind: CllLanguageSpanKind::JboPhrase,
