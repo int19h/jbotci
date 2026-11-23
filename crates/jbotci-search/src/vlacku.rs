@@ -1034,12 +1034,18 @@ fn cards_for_valsi(
     let query = key.as_str();
     let Some(words) = segment_query(raw_query, &options.cancellation)? else {
         return Ok(invalid_lojban_word_lookup_output(
-            dictionary, raw_query, options,
+            dictionary,
+            raw_query,
+            options,
+            lexical_word.as_ref(),
         ));
     };
     if words.is_empty() {
         return Ok(invalid_lojban_word_lookup_output(
-            dictionary, raw_query, options,
+            dictionary,
+            raw_query,
+            options,
+            lexical_word.as_ref(),
         ));
     }
     let classification = classify_exact_words(&words, query);
@@ -1136,12 +1142,12 @@ fn cards_for_lujvo(
     let normalized = normalize_lookup_query(query);
     let Some(words) = segment_query(raw_query, &options.cancellation)? else {
         return Ok(invalid_lojban_word_lookup_output(
-            dictionary, raw_query, options,
+            dictionary, raw_query, options, None,
         ));
     };
     if words.is_empty() {
         return Ok(invalid_lojban_word_lookup_output(
-            dictionary, raw_query, options,
+            dictionary, raw_query, options, None,
         ));
     }
     let classification = classify_exact_words(&words, &normalized);
@@ -1691,11 +1697,18 @@ fn invalid_lojban_word_lookup_output(
     dictionary: &Dictionary<'_>,
     query: &str,
     options: &VlackuSearchOptions,
+    lexical_word: Option<&Word>,
 ) -> VlackuSearchOutput {
-    let candidates = dictionary
+    let mut candidates = dictionary
         .lookup_words(query)
         .map(VlackuCandidate::entry)
         .collect::<Vec<_>>();
+    let entries_found = !candidates.is_empty();
+    if options.min_votes.and(lexical_word).is_some() {
+        for candidate in &mut candidates {
+            candidate.exempt_votes();
+        }
+    }
     let cards = cards_for_candidates(
         dictionary,
         candidates,
@@ -1705,10 +1718,12 @@ fn invalid_lojban_word_lookup_output(
     .into_iter()
     .map(|card| card.with_data(data! { invalid_lojban_word: true }))
     .collect::<Vec<_>>();
-    let outcome = if cards.is_empty() {
-        VlackuOutcome::Invalid
-    } else {
+    let outcome = if !cards.is_empty() {
         VlackuOutcome::Found
+    } else if entries_found {
+        VlackuOutcome::ValidMissing
+    } else {
+        VlackuOutcome::Invalid
     };
     VlackuSearchOutput {
         cards,

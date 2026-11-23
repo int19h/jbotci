@@ -4,7 +4,7 @@ use clap::CommandFactory;
 use clap::error::ErrorKind;
 use jbotci_dialect::DialectFeature;
 use jbotci_embeddings::{EMBEDDING_INDEX_DIR_ENV, EMBEDDING_MODEL_DIR_ENV};
-use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
+use jbotci_search::vlacku::{INVALID_LOJBAN_WORD_CARD_MESSAGE, INVALID_LOJBAN_WORD_MESSAGE_PREFIX};
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
