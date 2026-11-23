@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>vlacku language settings mockup</title>
+<style>@font-face{font-family:"Noto Sans";src:url(assets/fonts/noto-sans-variable.ttf);font-weight:100 900;}</style>
+<link rel="stylesheet" href="assets/main.css">
+<link rel="stylesheet" href="settings.css">
+</head>
+<body>
+<div class="mock-toolbar" aria-label="Mockup options">
+  <span class="mock-title">mockup</span>
+  <a href="cards.html">cards →</a>
+  <label>theme
+    <select id="mock-theme">
+      <option value="day">day</option>
+      <option value="night">night</option>
+    </select>
+  </label>
+  <span class="mock-width" id="mock-width"></span>
+</div>
+
+<div class="spa-shell app-page theme-day" id="mock-shell">
+<section class="spa-page settings-page">
+<div class="page-container settings-container">
+  <div class="settings-page-header"><h1>Settings</h1></div>
+
+  <section class="settings-section settings-dictionary">
+    <div class="settings-section-head"><h2>Dictionary</h2></div>
+    <div class="settings-field">
+      <span class="settings-field-label" id="deflang-label">Definition languages</span>
+      <p class="settings-help-text">Each dictionary card shows the definition in the first of these languages that the word has. The language button on the card lists the other languages.</p>
+      <ol class="settings-deflang-list" id="deflang-list" aria-labelledby="deflang-label"></ol>
+      <div class="settings-deflang-add-wrap">
+        <button class="settings-deflang-add" id="deflang-add" type="button" aria-expanded="false" aria-controls="deflang-picker">
+          <span class="settings-dialect-add-icon" aria-hidden="true">⨁</span> Add language
+        </button>
+        <div class="settings-deflang-picker" id="deflang-picker" hidden>
+          <input class="settings-text-input settings-deflang-filter" id="deflang-filter" type="search" placeholder="Filter languages" aria-label="Filter languages" spellcheck="false">
+          <div class="settings-deflang-options" id="deflang-options" role="listbox" aria-label="Languages to add"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-section"><div class="settings-section-head"><h2>Parsing</h2></div><p class="settings-help-text">(other settings sections as today)</p></section>
+</div>
+</section>
+</div>
+<script src="languages.js"></script>
+<script src="prefs.js"></script>
+<script src="settings.js"></script>
+</body>
+</html>

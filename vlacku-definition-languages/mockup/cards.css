@@ -1,0 +1,76 @@
+/* Mockup only: the page frame and the option bar. */
+html, body { overflow: auto; height: auto; }
+.mock-toolbar {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; align-items: center;
+  padding: 0.4rem 1rem; font: 0.8rem/1.4 "Noto Sans", sans-serif;
+  background: #2b2b2b; color: #eee;
+}
+.mock-toolbar select { font: inherit; }
+.mock-toolbar a { color: #ffcf9a; }
+.mock-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.mock-width { margin-inline-start: auto; opacity: 0.7; }
+.dictionary-page .dictionary-results { max-width: 50rem; margin: 0 auto; }
+
+/* ---- Proposed design ---- */
+
+/* The language segment of the metadata pill. It sits right before the score,
+   because the score, the author credit and everything under the header belong
+   to the definition in this language. */
+.dictionary-page .dictionary-lang-tag { column-gap: 0.28rem; color: inherit; }
+
+/* With more than one language the segment is a button. The chevron says that it
+   opens a list. Hover and focus tint the segment the way a pressed control in
+   the controls row is tinted, so it reads as a control inside the pill. */
+.dictionary-page button.dictionary-lang-tag {
+  border: 0; border-radius: 0; margin: 0;
+  background: color-mix(in srgb, var(--app-surface-0) 55%, transparent);
+  font: inherit; font-size: 0.73rem; cursor: pointer;
+}
+.dictionary-page button.dictionary-lang-tag:hover,
+.dictionary-page button.dictionary-lang-tag[aria-expanded="true"] {
+  background: var(--app-surface-0);
+}
+.dictionary-page button.dictionary-lang-tag:focus-visible {
+  outline: 2px solid var(--app-focus); outline-offset: -2px;
+}
+.dictionary-lang-chevron { inline-size: 0.55rem; block-size: 0.34rem; color: var(--app-muted); }
+button[aria-expanded="true"] .dictionary-lang-chevron { transform: rotate(180deg); }
+.dictionary-lang-name { font-weight: 600; }
+
+/* The pill is overflow: hidden, so the menu cannot live inside it. A wrapper
+   around the pill anchors the menu right under the pill, right-aligned with it,
+   in both header layouts. In the narrow layout the wrapper takes the pill's
+   grid area. */
+.dictionary-page .dictionary-meta-anchor { position: relative; display: inline-flex; }
+@container (max-width: 46rem) {
+  .dictionary-page .dictionary-meta-anchor { grid-area: meta; justify-self: end; align-self: start; }
+}
+.dictionary-lang-menu {
+  position: absolute; z-index: 20; top: calc(100% + 0.3rem); right: 0;
+  inline-size: min(19rem, calc(100cqi - 1.9rem));
+  display: grid; gap: 0.1rem;
+  padding: 0.35rem;
+  border: 1px solid var(--app-border-strong); border-radius: 10px;
+  background: var(--app-surface-1); box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  box-sizing: border-box;
+  max-block-size: min(20rem, 60vh); overflow-y: auto;
+}
+.dictionary-lang-menu[hidden] { display: none; }
+.dictionary-lang-menu-lede { margin: 0; padding: 0.15rem 0.45rem 0.3rem; color: var(--app-muted); font-size: 0.72rem; text-transform: uppercase; }
+/* The preferred languages come first, in preference order, then a rule and the
+   others by English name. */
+.dictionary-lang-menu-group + .dictionary-lang-menu-group { border-top: 1px solid var(--app-border); margin-top: 0.2rem; padding-top: 0.2rem; }
+.dictionary-lang-menu-group { display: grid; gap: 0.1rem; }
+.dictionary-lang-option {
+  display: grid; grid-template-columns: 0.9rem 4.4rem minmax(0, 1fr) auto; align-items: baseline; column-gap: 0.45rem;
+  padding: 0.32rem 0.45rem; border: 0; border-radius: 6px; background: none;
+  color: var(--app-text); font: inherit; font-size: 0.85rem; text-align: start; cursor: pointer;
+}
+.dictionary-lang-option:hover, .dictionary-lang-option:focus-visible { background: var(--app-surface-2); outline: none; }
+.dictionary-lang-option[aria-checked="true"] { background: color-mix(in srgb, var(--app-surface-2) 70%, transparent); }
+.dictionary-lang-check { color: var(--app-accent); font-weight: 700; }
+.dictionary-lang-option-tag { font-weight: 600; overflow-wrap: anywhere; }
+.dictionary-lang-option-names { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dictionary-lang-option-real { color: var(--app-muted); }
+.dictionary-lang-option-score { font-size: 0.75rem; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+.dictionary-lang-option-score.is-official { color: inherit; }

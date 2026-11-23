@@ -1,0 +1,63 @@
+/* Mockup only: the page frame and the option bar. */
+html, body { overflow: auto; height: auto; }
+.mock-toolbar {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; align-items: center;
+  padding: 0.4rem 1rem; font: 0.8rem/1.4 "Noto Sans", sans-serif;
+  background: #2b2b2b; color: #eee;
+}
+.mock-toolbar a { color: #ffcf9a; }
+.mock-toolbar select { font: inherit; }
+.mock-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.mock-width { margin-inline-start: auto; opacity: 0.7; }
+.settings-page .settings-container { margin: 1rem auto; padding-inline: 1rem; }
+
+/* ---- Proposed design ---- */
+
+/* The ordered list of preferred languages. Each row: rank, tag, names, and the
+   move and remove buttons. */
+.settings-deflang-list {
+  display: grid; gap: 0.3rem; margin: 0.2rem 0 0; padding: 0; list-style: none;
+  max-width: 30rem;
+}
+.settings-deflang-row {
+  display: grid; grid-template-columns: 1.3rem 4.6rem minmax(0, 1fr) auto; align-items: center; column-gap: 0.5rem;
+  padding: 0.25rem 0.3rem 0.25rem 0.5rem;
+  border: 1px solid var(--app-border); border-radius: 6px; background: var(--app-surface-1);
+}
+.settings-deflang-rank { color: var(--app-muted); font-variant-numeric: tabular-nums; }
+.settings-deflang-tag { font-weight: 600; overflow-wrap: anywhere; }
+/* The names wrap instead of being cut, so the native name stays readable on a phone. */
+.settings-deflang-names { min-width: 0; overflow-wrap: anywhere; }
+.settings-deflang-real { color: var(--app-muted); }
+.settings-deflang-actions { display: inline-flex; gap: 0.25rem; }
+.settings-deflang-actions .settings-dialect-icon-button { width: 1.85rem; height: 1.85rem; }
+.settings-deflang-actions .settings-dialect-icon-button:disabled { opacity: 0.35; cursor: default; }
+.settings-deflang-actions svg { width: 0.85rem; height: 0.85rem; }
+
+.settings-deflang-add-wrap { position: relative; max-width: 30rem; }
+.settings-deflang-add {
+  appearance: none; display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.35rem 0.7rem; border: 1px dashed var(--app-border-strong); border-radius: 6px;
+  background: transparent; color: var(--app-text); font: inherit; cursor: pointer;
+}
+.settings-deflang-add:hover, .settings-deflang-add[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
+  background: color-mix(in srgb, var(--app-accent) 8%, var(--app-surface-1));
+}
+.settings-deflang-picker {
+  position: absolute; z-index: 20; top: calc(100% + 0.35rem); left: 0;
+  inline-size: min(21rem, 100%); box-sizing: border-box;
+  display: grid; gap: 0.45rem; padding: 0.5rem;
+  border: 1px solid var(--app-border-strong); border-radius: 10px;
+  background: var(--app-surface-1); box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+.settings-deflang-picker[hidden] { display: none; }
+.settings-deflang-filter { padding: 0.4rem 0.55rem; border: 1px solid var(--app-border); border-radius: 4px; background: var(--app-surface-0); color: var(--app-text); font: inherit; }
+.settings-deflang-options { max-block-size: min(16rem, 50vh); overflow-y: auto; display: grid; align-content: start; }
+.settings-deflang-option {
+  display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); column-gap: 0.5rem; align-items: baseline;
+  padding: 0.3rem 0.4rem; border: 0; border-radius: 6px; background: none;
+  color: var(--app-text); font: inherit; text-align: start; cursor: pointer;
+}
+.settings-deflang-option:hover, .settings-deflang-option:focus-visible { background: var(--app-surface-2); outline: none; }
+.settings-deflang-empty { padding: 0.4rem; color: var(--app-muted); }
