@@ -9,6 +9,11 @@ use roxmltree::{Document, Node};
 use sha2::{Digest, Sha256};
 
 use super::*;
+use crate::cmavo_table::{
+    LujvoInlineData, bracketed_dictionary_word, cmavo_or_gismu_cell_inlines,
+    cmavo_valsi_part_inline, dictionary_word_link, lujvo_cell_inlines, lujvo_inline_choice,
+    marked_unlinked_cell_inlines, marked_valsi_span,
+};
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
 
@@ -1877,7 +1882,30 @@ fn parse_inline_nodes(nodes: &[Node<'_, '_>]) -> Vec<CllInline> {
                         inlines.push(CllInline::Superscript { inlines: nested });
                     }
                 }
-                "valsi" | "cmavo" | "gismu" | "cmevla" | "rafsi" => {
+                "valsi" => {
+                    let text = visible_text(*child);
+                    if !text.is_empty() {
+                        // A paragraph valsi uses the raw spelling. Brackets
+                        // stay in that spelling. valid="false" and
+                        // valid="maybe" stay unlinked unless the text is one
+                        // bare lujvo. A lujvo keeps the vlacku link.
+                        // glossary="false" stays unlinked. An unlinked marked
+                        // word stays searchable.
+                        if matches!(
+                            tree_link_choice(*child, &text, TreeSpelling::Raw),
+                            MarkedWordLink::Unlinked
+                        ) {
+                            inlines.push(marked_valsi_span(&text));
+                        } else {
+                            inlines.push(CllInline::Link {
+                                target: normalize_valsis_query(&text),
+                                inlines: vec![CllInline::Text(text)],
+                                kind: CllLinkKind::Dictionary,
+                            });
+                        }
+                    }
+                }
+                "cmavo" | "gismu" | "cmevla" | "rafsi" => {
                     let text = visible_text(*child);
                     if !text.is_empty() {
                         let is_rafsi = child.has_tag_name("rafsi");
@@ -2486,6 +2514,558 @@ fn collect_interlinear_cell(
     vec![parse_inlines(node)]
 }
 
+/// The text of one cmavo or gismu cell.
+///
+/// Child elements contribute their text with no added spaces. `visible_text`
+/// pads each child, so `<gismu>[<valsi>jundi</valsi>]</gismu>` would become
+/// `[ jundi ]`. This helper keeps `[jundi]`.
+#[requires(cell.is_element())]
+#[ensures(ret.chars().next().is_none_or(|character| !character.is_whitespace()))]
+#[ensures(ret.chars().next_back().is_none_or(|character| !character.is_whitespace()))]
+#[ensures(ret.chars().all(|character| character == ' ' || !character.is_whitespace()))]
+#[ensures(!ret.contains("  "))]
+pub(crate) fn cmavo_or_gismu_cell_text(cell: Node<'_, '_>) -> String {
+    let mut text = String::new();
+    append_cmavo_or_gismu_cell_text(cell, &mut text);
+    normalized_plain_text(&text)
+}
+
+/// Append the cell text into `text`.
+///
+/// Child elements add their text with no extra string of their own. Index
+/// terms, anchors, and hidden subtrees add nothing.
+#[requires(node.is_element())]
+#[ensures(text.len() >= old(text.len()))]
+fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
+    for child in node.children() {
+        if child.is_text() {
+            text.push_str(child.text().unwrap_or_default());
+        } else if child.is_element() {
+            if child.has_tag_name("indexterm")
+                || child.has_tag_name("anchor")
+                || is_display_none_element(child)
+            {
+                continue;
+            }
+            append_cmavo_or_gismu_cell_text(child, text);
+        }
+    }
+}
+
+/// One cell of a cmavo entry.
+///
+/// A `cmavo` or `gismu` cell gets one cell-level dictionary decision. When
+/// the cell is only adjacent `valsi` elements, rule 12 applies before empty
+/// text is discarded. Rule 12 starts on a `cmavo` or `gismu` tag. A `valsi`
+/// part is not a rule-12 cell. Each remaining element keeps its own tree
+/// choice. Zero or one remaining part stays a rule-12 cell.
+/// `glossary="false"` leaves the cell unlinked. The mark can sit on the cell
+/// or on a skipped hidden child. `valid="false"` and `valid="maybe"` leave
+/// the cell unlinked when the text is not one bare lujvo. A rule-12 cell
+/// folds those hidden marks with the cell mark. The cell spelling is the
+/// text that fold judges. A lujvo mark stays a lujvo only when that spelling
+/// is one bare lujvo. Any other hidden mark leaves the cell unlinked. The
+/// rule-12 fold does not unwrap a bracket pair. A lujvo mark does not opt
+/// the cell out when the spelling is one bare lujvo. The ordinary dictionary
+/// lookup then decides the link. A mark does not add a link that the
+/// unmarked cell lacks. A lujvo mark that misses the dictionary stores a
+/// marked span. A single-word cell and a rule-12 cell use the same lookup.
+/// A single-word cell unwraps one bracket pair on the cell text and on every
+/// descendant. The brackets stay outside a dictionary link and outside an
+/// opted-out span. A rule-12 cell judges the joined spelling and does not
+/// unwrap that pair. The same mark on one part leaves that part unlinked
+/// when the part is not one bare lujvo. A lujvo part uses the same lookup.
+/// A lujvo part that misses stores a marked span. A cell lujvo mark uses
+/// that same miss for each part.
+/// An unlinked marked part stays searchable. Every `valsi` element adds its
+/// own text to the cell. Word search tags that text with the same
+/// normalization as a link. The tag stays when the word renders as a link,
+/// as a Lojban span, or inside cell text. A cell that is not a run of
+/// adjacent valsi elements uses the same choice. A lujvo mark whose own word
+/// is not one bare lujvo leaves that cell unlinked. Every other cell keeps
+/// the inline links that the rest of the book uses.
+#[requires(cell.is_element())]
+#[ensures(match ret.as_data() {
+    data!(CllCmavoListCell::Word { .. }) => {
+        cell.has_tag_name("cmavo") || cell.has_tag_name("gismu")
+    }
+    data!(CllCmavoListCell::Adjacent { inlines, .. }) => {
+        (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
+            && inlines.iter().all(|inline| match inline {
+                CllInline::Link {
+                    kind: CllLinkKind::Dictionary,
+                    inlines,
+                    ..
+                } => matches!(inlines.as_slice(), [CllInline::Text(_)]),
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase | CllLanguageSpanKind::MarkedValsi,
+                    inlines,
+                    ..
+                } => matches!(inlines.as_slice(), [CllInline::Text(_)]),
+                _ => false,
+            })
+    }
+    data!(CllCmavoListCell::Other { .. }) => {
+        !(cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))
+    }
+})]
+fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
+    if cell.has_tag_name("cmavo") || cell.has_tag_name("gismu") {
+        let valsi_words = valsi_element_words(cell);
+        if let Some(parts) = adjacent_valsi_parts(cell) {
+            let cell_text = cmavo_or_gismu_cell_text(cell);
+            // Rule 12 renders each part as its own span. A bracket pair in
+            // that spelling is not the single-word bracket form, so the cell
+            // mark judges the joined text. The builder passes the parts it
+            // already has. The audit calls the same choice function.
+            let cell_choice = cmavo_cell_link_choice(cell, &cell_text, Some(&parts));
+            let inlines = parts
+                .iter()
+                .map(|part| rule12_part_inline(part, cell_choice))
+                .collect();
+            return new!(CllCmavoListCell::Adjacent {
+                inlines,
+                valsi_words,
+            });
+        }
+        let text = cmavo_or_gismu_cell_text(cell);
+        let inlines = match cmavo_cell_link_choice(cell, &text, None) {
+            MarkedWordLink::Unlinked => marked_unlinked_cell_inlines(&text),
+            MarkedWordLink::Lujvo => lujvo_cell_inlines(&text),
+            MarkedWordLink::Ordinary => cmavo_or_gismu_cell_inlines(&text),
+        };
+        return new!(CllCmavoListCell::Word {
+            inlines,
+            valsi_words,
+        });
+    }
+    new!(CllCmavoListCell::Other {
+        inlines: trim_inline_runs(parse_inlines(cell)),
+    })
+}
+
+/// One rule-12 part.
+///
+/// An opt-out stores a marked span. A lujvo mark that misses the dictionary
+/// stores a marked span. The cell mark and the part mark share that lookup.
+/// Every other part uses the dictionary lookup.
+#[requires(!part.text.is_empty())]
+#[ensures(matches!(
+    ret,
+    CllInline::Link { .. } | CllInline::LanguageSpan { .. }
+))]
+fn rule12_part_inline(part: &AdjacentValsiPart, cell_choice: MarkedWordLink) -> CllInline {
+    let opted_out = matches!(cell_choice, MarkedWordLink::Unlinked)
+        || matches!(part.choice, MarkedWordLink::Unlinked);
+    let lujvo = matches!(cell_choice, MarkedWordLink::Lujvo)
+        || matches!(part.choice, MarkedWordLink::Lujvo);
+    if opted_out {
+        return marked_valsi_span(&part.text);
+    }
+    if lujvo {
+        return match lujvo_inline_choice(&part.text).as_data() {
+            data!(LujvoInline::Link(target)) => dictionary_word_link(target, &part.text),
+            data!(LujvoInline::Marked) | data!(LujvoInline::Plain) => marked_valsi_span(&part.text),
+        };
+    }
+    cmavo_valsi_part_inline(&part.text, true)
+}
+
+/// The text of each visible `valsi` element under `cell`.
+///
+/// The walk uses the same child skip as the cell text. A hidden subtree adds
+/// nothing. Nested elements are included. The result is the search list for
+/// the cell. It does not come from the shape of the joined cell text.
+#[requires(cell.is_element())]
+#[ensures(ret.iter().all(|word| !word.is_empty()))]
+fn valsi_element_words(cell: Node<'_, '_>) -> Vec<String> {
+    let mut words = Vec::new();
+    collect_valsi_element_words(cell, &mut words);
+    words
+}
+
+/// Append each visible `valsi` element under `node`.
+#[requires(node.is_element())]
+#[ensures(words.len() >= old(words.len()))]
+#[ensures(words.iter().skip(old(words.len())).all(|word| !word.is_empty()))]
+fn collect_valsi_element_words(node: Node<'_, '_>, words: &mut Vec<String>) {
+    for child in node.children() {
+        if !child.is_element() {
+            continue;
+        }
+        if child.has_tag_name("indexterm")
+            || child.has_tag_name("anchor")
+            || is_display_none_element(child)
+        {
+            continue;
+        }
+        if child.has_tag_name("valsi") {
+            let mut raw = String::new();
+            append_cmavo_or_gismu_cell_text(child, &mut raw);
+            let text = normalized_plain_text(&raw);
+            if !text.is_empty() {
+                words.push(text);
+            }
+        }
+        collect_valsi_element_words(child, words);
+    }
+}
+
+/// One valsi element inside a cell of adjacent parts.
+///
+/// `text` is the spelling after whitespace is collapsed and trimmed.
+/// `choice` is the raw tree choice for this part. `Unlinked` leaves the
+/// part out of a dictionary link. `Lujvo` and `Ordinary` use the dictionary
+/// lookup.
+#[invariant(!text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AdjacentValsiPart {
+    text: String,
+    choice: MarkedWordLink,
+}
+
+/// The valsi parts of a cmavo or gismu cell whose whole content is those elements.
+///
+/// Rule 12 starts on a `cmavo` or `gismu` tag. A `valsi` that itself holds
+/// `valsi` children is not a rule-12 cell. Two or more `valsi` elements
+/// qualify when no text sits between them or around them. That count includes
+/// an empty element, so rule 12 is decided before empty text is discarded.
+/// `Some` with fewer than two parts still means rule 12. Whitespace between
+/// elements is text. An empty element is not a part, so it is left out of the
+/// list. An index term, an anchor, and a hidden subtree are not text. Each
+/// part uses the raw tree choice on its own spelling. Brackets stay in that
+/// spelling.
+#[requires(cell.is_element())]
+#[ensures(ret.is_some() -> (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu")))]
+#[ensures(ret.as_ref().is_none_or(|parts| parts.iter().all(|part| !part.text.is_empty())))]
+fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
+    if !(cell.has_tag_name("cmavo") || cell.has_tag_name("gismu")) {
+        return None;
+    }
+    let mut parts = Vec::new();
+    let mut valsi_count = 0usize;
+    for child in cell.children() {
+        if child.is_text() {
+            if !child.text().unwrap_or_default().is_empty() {
+                return None;
+            }
+            continue;
+        }
+        if !child.is_element() {
+            continue;
+        }
+        if child.has_tag_name("indexterm")
+            || child.has_tag_name("anchor")
+            || is_display_none_element(child)
+        {
+            continue;
+        }
+        if !child.has_tag_name("valsi") {
+            return None;
+        }
+        valsi_count += 1;
+        let mut raw = String::new();
+        append_cmavo_or_gismu_cell_text(child, &mut raw);
+        let text = normalized_plain_text(&raw);
+        // An empty element is still the rule-12 shape. Leave it out of the
+        // part list so each remaining part keeps its own link.
+        if text.is_empty() {
+            continue;
+        }
+        let choice = tree_link_choice(child, &text, TreeSpelling::Raw);
+        parts.push(new!(AdjacentValsiPart { text, choice }));
+    }
+    (valsi_count >= 2).then_some(parts)
+}
+
+/// True when `element` sits in a skipped child of `cell`.
+///
+/// A skipped child is an index term, an anchor, or display-none text. The
+/// child itself counts. An element inside that child counts. A visible part
+/// does not count.
+#[requires(cell.is_element())]
+#[requires(element.is_element())]
+// The walk is the function body. A second copy can agree with the same defect.
+#[ensures(true)]
+fn hidden_mark_element(cell: Node<'_, '_>, element: Node<'_, '_>) -> bool {
+    let mut cursor = element;
+    loop {
+        let Some(parent) = cursor.parent() else {
+            return false;
+        };
+        if parent == cell {
+            return cursor.is_element()
+                && (cursor.has_tag_name("indexterm")
+                    || cursor.has_tag_name("anchor")
+                    || is_display_none_element(cursor));
+        }
+        if !parent.is_element() {
+            return false;
+        }
+        cursor = parent;
+    }
+}
+
+/// The link choice for one cmavo or gismu cell.
+///
+/// `parts` is the rule-12 list when the caller already has it. `None` means
+/// the cell is not rule 12. A rule-12 cell folds the cell mark and every
+/// mark under a skipped hidden child. The spelling is the joined cell text.
+/// That fold uses `TreeSpelling::Raw`. A single-word cell uses the tree
+/// choice and unwraps one bracket pair. Both paths call `fold_marked_links`.
+/// The builder and the audit both call this function.
+#[requires(cell.is_element())]
+#[requires(parts.is_none() || cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))]
+#[ensures(attr_value(cell, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
+#[bityzba::expensive_ensures(matches!(ret, MarkedWordLink::Lujvo) -> cell.descendants().any(
+    |element| {
+        element.is_element()
+            && attr_value(element, "glossary") != Some("false")
+            && matches!(attr_value(element, "valid"), Some("false" | "maybe"))
+    }
+))]
+fn cmavo_cell_link_choice(
+    cell: Node<'_, '_>,
+    text: &str,
+    parts: Option<&[AdjacentValsiPart]>,
+) -> MarkedWordLink {
+    if parts.is_some() {
+        return fold_marked_links(cell, text, TreeSpelling::Raw, |element| {
+            hidden_mark_element(cell, element)
+        });
+    }
+    tree_link_choice(cell, text, TreeSpelling::UnwrapBracket)
+}
+
+/// True when this cell stays out of a dictionary link.
+///
+/// `glossary="false"` on the cell stays out. `glossary="false"` on a skipped
+/// hidden child also stays out for a rule-12 cell. `valid="false"` and
+/// `valid="maybe"` stay out when the judged cell text is not one bare lujvo.
+/// A lujvo choice is not an opt-out. The dictionary lookup then decides the
+/// link. The choice is `cmavo_cell_link_choice`.
+#[cfg(test)]
+#[requires(cell.is_element())]
+#[ensures(attr_value(cell, "glossary") == Some("false") -> ret)]
+#[bityzba::expensive_ensures(ret -> cell.descendants().any(|element| {
+    element.is_element()
+        && (attr_value(element, "glossary") == Some("false")
+            || matches!(attr_value(element, "valid"), Some("false" | "maybe")))
+}))]
+pub(crate) fn cmavo_cell_opted_out(cell: Node<'_, '_>) -> bool {
+    let text = cmavo_or_gismu_cell_text(cell);
+    let parts = adjacent_valsi_parts(cell);
+    matches!(
+        cmavo_cell_link_choice(cell, &text, parts.as_deref()),
+        MarkedWordLink::Unlinked
+    )
+}
+
+/// The link choice for one element.
+///
+/// `glossary="false"` stays unlinked. `valid="false"` and `valid="maybe"`
+/// stay unlinked unless `text` is one bare lujvo. The morphology parser
+/// decides that. It uses the same options vlacku uses for a word. A
+/// morphology error stays unlinked. More than one word stays unlinked. A
+/// word that is not bare stays unlinked. A quote, a zei compound, and a
+/// letteral are not bare.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MarkedWordLink {
+    Ordinary,
+    Unlinked,
+    Lujvo,
+}
+
+#[requires(node.is_element())]
+#[ensures(attr_value(node, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
+#[ensures(matches!(ret, MarkedWordLink::Lujvo) -> matches!(attr_value(node, "valid"), Some("false" | "maybe")))]
+#[ensures(matches!(ret, MarkedWordLink::Ordinary) -> {
+    attr_value(node, "glossary") != Some("false")
+        && !matches!(attr_value(node, "valid"), Some("false" | "maybe"))
+})]
+#[ensures(matches!(ret, MarkedWordLink::Unlinked) -> {
+    attr_value(node, "glossary") == Some("false")
+        || matches!(attr_value(node, "valid"), Some("false" | "maybe"))
+})]
+fn marked_word_link(node: Node<'_, '_>, text: &str) -> MarkedWordLink {
+    if attr_value(node, "glossary") == Some("false") {
+        return MarkedWordLink::Unlinked;
+    }
+    if matches!(attr_value(node, "valid"), Some("false" | "maybe")) {
+        if single_bare_lujvo(text) {
+            return MarkedWordLink::Lujvo;
+        }
+        return MarkedWordLink::Unlinked;
+    }
+    MarkedWordLink::Ordinary
+}
+
+/// True when trimmed `text` is one bare lujvo.
+///
+/// The check uses the single-word lexer. That lexer reads one written word.
+/// It does not erase `si` or `su`. It does not attach a second word. The
+/// word span must cover the trimmed text. A pause period can sit outside
+/// that span. Morphology treats that period as part of the written word.
+/// Any other extra character is not one bare lujvo. The options are
+/// `MorphologyOptions::default`. Vlacku starts from those options and adds
+/// only a cancellation flag. This importer has no flag, so the dialect is
+/// the same.
+#[requires(true)]
+#[ensures(text.trim().is_empty() -> !ret)]
+#[ensures(text.trim().chars().any(char::is_whitespace) -> !ret)]
+fn single_bare_lujvo(text: &str) -> bool {
+    let text = text.trim();
+    if text.is_empty() {
+        return false;
+    }
+    let Ok(Some(word)) =
+        jbotci_morphology::lex_single_word(text, &jbotci_morphology::MorphologyOptions::default())
+    else {
+        return false;
+    };
+    if word.kind() != jbotci_morphology::WordKind::Lujvo {
+        return false;
+    }
+    let span = word.span();
+    text.chars()
+        .enumerate()
+        .filter(|(index, _)| *index < span.char_start || *index >= span.char_end)
+        .all(|(_, character)| jbotci_morphology::is_period_character(character))
+}
+
+/// The spelling a mark judges.
+///
+/// A bracketed dictionary word uses the inner word. Every other spelling
+/// stays as written.
+#[requires(true)]
+#[ensures(
+    ret == text
+        || (text.starts_with('[')
+            && text.ends_with(']')
+            && text.len() == ret.len() + 2
+            && &text[1..text.len() - 1] == ret)
+)]
+fn cell_decision_word(text: &str) -> &str {
+    bracketed_dictionary_word(text).unwrap_or(text)
+}
+
+/// How a tree choice reads a spelling.
+///
+/// `Raw` keeps the caller spelling and every descendant spelling as written.
+/// A paragraph valsi and a rule-12 part use `Raw`. `UnwrapBracket` reads the
+/// inner word of one bracket pair. A single-word cell uses `UnwrapBracket`
+/// for the cell and for every descendant.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TreeSpelling {
+    Raw,
+    UnwrapBracket,
+}
+
+/// The spelling a mark judges under `mode`.
+///
+/// `Raw` returns `text`. `UnwrapBracket` returns the inner word of one
+/// bracket pair when that word is a dictionary token. Every other spelling
+/// stays as written.
+#[requires(true)]
+#[ensures(match mode {
+    TreeSpelling::Raw => ret == text,
+    TreeSpelling::UnwrapBracket => {
+        ret == text
+            || (text.starts_with('[')
+                && text.ends_with(']')
+                && text.len() == ret.len() + 2
+                && &text[1..text.len() - 1] == ret)
+    }
+})]
+fn spelling_for_mark<'a>(text: &'a str, mode: TreeSpelling) -> &'a str {
+    match mode {
+        TreeSpelling::Raw => text,
+        TreeSpelling::UnwrapBracket => cell_decision_word(text),
+    }
+}
+
+/// The strictest mark in this element and its descendants.
+///
+/// `spelling` is the text this caller shows for the element. `mode` selects
+/// how that text and each descendant text are judged. An opt-out wins. A
+/// lujvo mark links only when the judged caller spelling is one bare lujvo.
+/// No mark stays ordinary. The fold is `fold_marked_links`.
+#[requires(node.is_element())]
+#[ensures(attr_value(node, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
+#[ensures(
+    attr_value(node, "glossary") != Some("false")
+        && matches!(attr_value(node, "valid"), Some("false" | "maybe"))
+        && (spelling.trim().is_empty() || spelling.trim().chars().any(char::is_whitespace))
+        -> matches!(ret, MarkedWordLink::Unlinked)
+)]
+#[bityzba::expensive_ensures(matches!(ret, MarkedWordLink::Lujvo) -> node.descendants().any(
+    |element| {
+        element.is_element()
+            && attr_value(element, "glossary") != Some("false")
+            && matches!(attr_value(element, "valid"), Some("false" | "maybe"))
+    }
+))]
+fn tree_link_choice(node: Node<'_, '_>, spelling: &str, mode: TreeSpelling) -> MarkedWordLink {
+    fold_marked_links(node, spelling, mode, |_| true)
+}
+
+/// The strictest mark among the root and the elements `include` keeps.
+///
+/// The root always counts. `spelling` is the text the caller shows for the
+/// root. `mode` selects how each spelling is judged. An opt-out wins. A
+/// lujvo mark stays a lujvo only when that caller spelling is one bare lujvo.
+/// A single-word cell and a rule-12 cell both call this function.
+#[requires(root.is_element())]
+#[ensures(attr_value(root, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
+#[ensures(
+    attr_value(root, "glossary") != Some("false")
+        && matches!(attr_value(root, "valid"), Some("false" | "maybe"))
+        && (spelling.trim().is_empty() || spelling.trim().chars().any(char::is_whitespace))
+        -> matches!(ret, MarkedWordLink::Unlinked)
+)]
+#[bityzba::expensive_ensures(matches!(ret, MarkedWordLink::Lujvo) -> root.descendants().any(
+    |element| {
+        element.is_element()
+            && attr_value(element, "glossary") != Some("false")
+            && matches!(attr_value(element, "valid"), Some("false" | "maybe"))
+    }
+))]
+fn fold_marked_links<'a, 'input>(
+    root: Node<'a, 'input>,
+    spelling: &str,
+    mode: TreeSpelling,
+    include: impl Fn(Node<'a, 'input>) -> bool,
+) -> MarkedWordLink {
+    let decision = spelling_for_mark(spelling, mode);
+    let mut saw_lujvo = false;
+    for element in root.descendants() {
+        if !element.is_element() || (element != root && !include(element)) {
+            continue;
+        }
+        let owned;
+        let raw = if element == root {
+            spelling
+        } else {
+            owned = cmavo_or_gismu_cell_text(element);
+            owned.as_str()
+        };
+        match marked_word_link(element, spelling_for_mark(raw, mode)) {
+            MarkedWordLink::Unlinked => return MarkedWordLink::Unlinked,
+            MarkedWordLink::Lujvo => saw_lujvo = true,
+            MarkedWordLink::Ordinary => {}
+        }
+    }
+    if saw_lujvo && single_bare_lujvo(decision) {
+        MarkedWordLink::Lujvo
+    } else if saw_lujvo {
+        MarkedWordLink::Unlinked
+    } else {
+        MarkedWordLink::Ordinary
+    }
+}
+
 #[requires(node.is_element())]
 #[ensures(true)]
 fn parse_cmavo_list_block(
@@ -2522,8 +3102,12 @@ fn parse_cmavo_list_block(
                 .map(|index| {
                     entry_cells
                         .get(index)
-                        .map(|cell| trim_inline_runs(parse_inlines(*cell)))
-                        .unwrap_or_default()
+                        .map(|cell| parse_cmavo_entry_cell(*cell))
+                        .unwrap_or_else(|| {
+                            new!(CllCmavoListCell::Other {
+                                inlines: Vec::new(),
+                            })
+                        })
                 })
                 .collect::<Vec<_>>()
         })
@@ -4760,7 +5344,11 @@ mod tests {
         );
         let document = Document::parse(too_deep).expect("deep probe parses");
         assert!(matches!(
-            parse_chapter(document.root_element(), chapter_seven, "07.xml"),
+            parse_chapter(
+                document.root_element(),
+                chapter_seven,
+                "07.xml",
+            ),
             Err(CllError::Parse(message)) if message.contains("two levels deep")
         ));
     }
@@ -4817,5 +5405,2238 @@ mod tests {
         };
         assert!(header_rows.is_empty());
         assert_eq!(body_rows.len(), 1);
+    }
+
+    /// Cmavo and gismu cells of a cmavo table follow the dictionary link rules.
+    /// A word outside a table still links through the inline path.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cmavo_table_cells_follow_the_dictionary_link_rules() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list>",
+            "<cmavo-list-head><td><valsi>coi</valsi></td></cmavo-list-head>",
+            "<cmavo-entry><cmavo>coi</cmavo></cmavo-entry>",
+            "<cmavo-entry><gismu>klama</gismu></cmavo-entry>",
+            "<cmavo-entry><selmaho>coi</selmaho></cmavo-entry>",
+            "<cmavo-entry><rafsi>coi</rafsi></cmavo-entry>",
+            "<cmavo-entry><series>COI</series></cmavo-entry>",
+            "<cmavo-entry><description>see <valsi>klama</valsi> now</description></cmavo-entry>",
+            "<cmavo-entry><description><rafsi>coi</rafsi></description></cmavo-entry>",
+            "<cmavo-entry><description>see <xref linkend=\"section-erasure\"/></description></cmavo-entry>",
+            "<cmavo-entry><pseudo-cmavo>ba'e</pseudo-cmavo></cmavo-entry>",
+            "<cmavo-entry><compound>roinai</compound></cmavo-entry>",
+            "<cmavo-entry><gismu>[jundi]</gismu></cmavo-entry>",
+            "<cmavo-entry><gismu>-----</gismu></cmavo-entry>",
+            "<cmavo-entry><gismu>[cmavo: mi]</gismu></cmavo-entry>",
+            "<cmavo-entry><cmavo>tense+ <valsi>ki</valsi></cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo><valsi>do'e</valsi></cmavo></cmavo-entry>",
+            "<cmavo-entry><gismu><valsi>-----</valsi></gismu></cmavo-entry>",
+            "<cmavo-entry><cmavo>roinai</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>pino'o</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>.ui</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>Klama</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>uih</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo>u.i</cmavo></cmavo-entry>",
+            "<cmavo-entry><cmavo> </cmavo></cmavo-entry>",
+            "</cmavo-list>",
+        ));
+        let CllBlock::CmavoList { headers, rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert_eq!(headers.len(), 1);
+        assert!(
+            is_dictionary_word_link(&headers[0], "coi", "coi"),
+            "an explicit valsi in a header keeps its link, got {headers:?}"
+        );
+
+        let cell = |index: usize| rows[index][0].inlines();
+        assert!(matches!(
+            rows[0][0].as_data(),
+            data!(CllCmavoListCell::Word { .. })
+        ));
+        assert!(matches!(
+            rows[2][0].as_data(),
+            data!(CllCmavoListCell::Other { .. })
+        ));
+        assert!(is_dictionary_word_link(cell(0), "coi", "coi"));
+        assert!(is_dictionary_word_link(cell(1), "klama", "klama"));
+        assert_eq!(cell(2), [CllInline::Text("coi".to_owned())]);
+        assert_eq!(cell(3), [CllInline::Text("coi".to_owned())]);
+        assert_eq!(cell(4), [CllInline::Text("COI".to_owned())]);
+        assert!(matches!(
+            cell(5),
+            [
+                CllInline::Text(lead),
+                CllInline::Link {
+                    kind: CllLinkKind::Dictionary,
+                    target,
+                    inlines,
+                },
+                CllInline::Text(tail),
+            ] if lead == "see "
+                && tail == " now"
+                && target == "klama"
+                && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "klama")
+        ));
+        assert!(is_rafsi_word_link(cell(6), "coi", "coi"));
+        assert!(matches!(
+            cell(7),
+            [
+                CllInline::Text(lead),
+                CllInline::Link {
+                    kind: CllLinkKind::Section,
+                    target,
+                    inlines,
+                },
+            ] if lead == "see "
+                && target == "section-erasure"
+                && matches!(inlines.as_slice(), [CllInline::Text(label)] if label == "section-erasure")
+        ));
+        assert_eq!(cell(8), [CllInline::Text("ba'e".to_owned())]);
+        assert_eq!(cell(9), [CllInline::Text("roinai".to_owned())]);
+        assert!(matches!(
+            cell(10),
+            [
+                CllInline::Text(open),
+                CllInline::Link {
+                    target,
+                    inlines,
+                    kind: CllLinkKind::Dictionary,
+                },
+                CllInline::Text(close),
+            ] if open == "["
+                && close == "]"
+                && target == "jundi"
+                && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "jundi")
+        ));
+        assert_eq!(cell(11), [CllInline::Text("-----".to_owned())]);
+        assert_eq!(cell(12), [CllInline::Text("[cmavo: mi]".to_owned())]);
+        assert_eq!(cell(13), [CllInline::Text("tense+ ki".to_owned())]);
+        assert!(is_dictionary_word_link(cell(14), "do'e", "do'e"));
+        assert_eq!(cell(15), [CllInline::Text("-----".to_owned())]);
+        assert!(is_dictionary_miss_word(cell(16), "roinai"));
+        assert!(is_dictionary_miss_word(cell(17), "pino'o"));
+        assert!(is_dictionary_word_link(cell(18), ".ui", "ui"));
+        assert!(is_dictionary_miss_word(cell(19), "Klama"));
+        assert!(is_dictionary_miss_word(cell(20), "uih"));
+        assert!(is_dictionary_miss_word(cell(21), "u.i"));
+        assert!(cell(22).is_empty(), "a blank cell stays empty");
+
+        let outside = probe_inlines("<para><valsi>klama</valsi></para>");
+        assert!(
+            is_dictionary_word_link(&outside, "klama", "klama"),
+            "a valsi outside a cmavo table still links, got {outside:?}"
+        );
+        let folded = probe_inlines("<jbo><cmavo>Klama</cmavo></jbo>");
+        assert!(
+            is_dictionary_word_link(&folded, "Klama", "klama"),
+            "a cmavo outside a table still uses the inline link, got {folded:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_valsi_inside_brackets_joins_without_padding() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-entry>",
+            "<gismu>[<valsi>jundi</valsi>]</gismu>",
+            "</cmavo-entry></cmavo-list>",
+        ));
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert_eq!(
+            crate::cmavo_cell_plain_text(rows[0][0].inlines()),
+            "[jundi]"
+        );
+        assert!(matches!(
+            rows[0][0].inlines(),
+            [
+                CllInline::Text(open),
+                CllInline::Link {
+                    target,
+                    inlines,
+                    kind: CllLinkKind::Dictionary,
+                },
+                CllInline::Text(close),
+            ] if open == "["
+                && close == "]"
+                && target == "jundi"
+                && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "jundi")
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn adjacent_valsi_link_separately_and_a_space_keeps_one_candidate() {
+        let shapes = [
+            (
+                "<valsi>roi</valsi><valsi>nai</valsi>",
+                "roinai",
+                &[word_part("roi", Some("roi")), word_part("nai", Some("nai"))]
+                    as &[CllCmavoWordPart],
+            ),
+            (
+                "<valsi>pi</valsi><valsi>no'o</valsi>",
+                "pino'o",
+                &[word_part("pi", Some("pi")), word_part("no'o", Some("no'o"))],
+            ),
+            (
+                "<valsi>pi</valsi><valsi>rau</valsi>",
+                "pirau",
+                &[word_part("pi", Some("pi")), word_part("rau", Some("rau"))],
+            ),
+            (
+                "<valsi>roi</valsi><valsi>zzzz</valsi>",
+                "roizzzz",
+                &[word_part("roi", Some("roi")), word_part("zzzz", None)],
+            ),
+            (
+                r#"<valsi>roi</valsi><valsi valid="false">nai</valsi>"#,
+                "roinai",
+                &[word_part("roi", Some("roi")), word_part("nai", None)],
+            ),
+        ];
+        for (inner, plain, expected) in shapes {
+            let cell = word_cell_from_inner(inner);
+            assert_eq!(cell.word_parts().as_deref(), Some(expected), "{inner}");
+            assert!(cell.word_cell().is_none(), "{inner}");
+            assert_eq!(
+                crate::cmavo_cell_plain_text(cell.inlines()),
+                plain,
+                "{inner}"
+            );
+        }
+
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-entry>",
+            r#"<cmavo valid="false"><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            "</cmavo-entry></cmavo-list>",
+        ));
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert_eq!(
+            rows[0][0].word_parts().as_deref(),
+            Some([word_part("roi", None), word_part("nai", None)].as_slice())
+        );
+        assert!(
+            !rows[0][0]
+                .inlines()
+                .iter()
+                .any(|inline| matches!(inline, CllInline::Link { .. }))
+        );
+        assert_eq!(crate::cmavo_cell_plain_text(rows[0][0].inlines()), "roinai");
+
+        let spaced = word_cell_from_inner("<valsi>roi</valsi> <valsi>nai</valsi>");
+        assert!(spaced.word_parts().is_none());
+        assert_eq!(spaced.inlines(), [CllInline::Text("roi nai".to_owned())]);
+        assert_eq!(crate::cmavo_cell_plain_text(spaced.inlines()), "roi nai");
+
+        let compound = word_cell_from_inner("coico'o");
+        assert!(compound.word_parts().is_none());
+        assert!(
+            is_dictionary_word_link(compound.inlines(), "coico'o", "coico'o"),
+            "a plain compound still links as one word, got {compound:?}"
+        );
+
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-list-head><td>cmavo</td></cmavo-list-head>",
+            "<cmavo-entry><cmavo><valsi>roi</valsi><valsi>nai</valsi></cmavo></cmavo-entry>",
+            "</cmavo-list>",
+        ));
+        let block = &blocks[0];
+        let html = render::render_block_html(site, block, CllLinkRenderMode::Web);
+        assert!(
+            html.contains(
+                "<a href=\"../vlacku/roi\" class=\"spa-cll-link spa-cll-link-dictionary\">roi</a><a href=\"../vlacku/nai\" class=\"spa-cll-link spa-cll-link-dictionary\">nai</a>"
+            ),
+            "{html}"
+        );
+        let html_plain = render::render_block_html(site, block, CllLinkRenderMode::Plain);
+        assert!(html_plain.contains("roinai"), "{html_plain}");
+        assert!(!html_plain.contains("<a "), "{html_plain}");
+        assert!(!html_plain.contains("roi nai"), "{html_plain}");
+
+        let mut plain = String::new();
+        render::render_block_markdown(site, block, &mut plain, 0, CllMarkdownDialect::GitHub);
+        assert!(plain.contains("roinai"), "{plain}");
+        assert!(!plain.contains("]("), "{plain}");
+        assert!(!plain.contains("roi nai"), "{plain}");
+
+        let mut discord = String::new();
+        render::render_block_markdown(site, block, &mut discord, 0, CllMarkdownDialect::Discord);
+        assert!(discord.contains("roinai"), "{discord}");
+        assert!(!discord.contains("]("), "{discord}");
+
+        let (apostrophe, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-entry>",
+            "<cmavo><valsi>pi</valsi><valsi>no'o</valsi></cmavo>",
+            "</cmavo-entry></cmavo-list>",
+        ));
+        let apostrophe_html =
+            render::render_block_html(site, &apostrophe[0], CllLinkRenderMode::Web);
+        assert!(
+            apostrophe_html.contains(
+                "<a href=\"../vlacku/pi\" class=\"spa-cll-link spa-cll-link-dictionary\">pi</a><a href=\"../vlacku/no'o\" class=\"spa-cll-link spa-cll-link-dictionary\">no'o</a>"
+            ),
+            "{apostrophe_html}"
+        );
+    }
+
+    #[requires(!text.is_empty())]
+    #[requires(!text.chars().next().is_some_and(char::is_whitespace))]
+    #[requires(!text.chars().next_back().is_some_and(char::is_whitespace))]
+    #[requires(!text.contains(['\n', '\r']))]
+    #[requires(target.is_none_or(|link| !link.is_empty() && crate::cmavo_table::is_dictionary_token(text)))]
+    #[ensures(ret.text == text && ret.target == target)]
+    fn word_part<'a>(text: &'a str, target: Option<&'a str>) -> CllCmavoWordPart<'a> {
+        new!(CllCmavoWordPart { text, target })
+    }
+
+    #[requires(!inner.is_empty())]
+    #[ensures(matches!(
+        ret.as_data(),
+        data!(CllCmavoListCell::Word { .. }) | data!(CllCmavoListCell::Adjacent { .. })
+    ))]
+    fn word_cell_from_inner(inner: &str) -> CllCmavoListCell {
+        let xml =
+            format!("<cmavo-list><cmavo-entry><cmavo>{inner}</cmavo></cmavo-entry></cmavo-list>");
+        let (blocks, _) = probe_blocks(&xml);
+        let CllBlock::CmavoList { mut rows, .. } = blocks.into_iter().next().unwrap() else {
+            panic!("expected one cmavo list");
+        };
+        rows.remove(0).remove(0)
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_unlinked_valsi_part_stays_a_lojban_span_and_one_word() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let shapes = [
+            (
+                "<valsi>roi</valsi><valsi>nai</valsi><valsi>mi,o</valsi>",
+                "roinaimi,o",
+                &[
+                    word_part("roi", Some("roi")),
+                    word_part("nai", Some("nai")),
+                    word_part("mi,o", None),
+                ] as &[CllCmavoWordPart],
+            ),
+            (
+                "<valsi>roi</valsi><valsi>mi,o</valsi>",
+                "roimi,o",
+                &[word_part("roi", Some("roi")), word_part("mi,o", None)],
+            ),
+        ];
+        for (inner, plain, expected) in shapes {
+            let cell = word_cell_from_inner(inner);
+            assert_eq!(cell.word_parts().as_deref(), Some(expected), "{inner}");
+            assert!(cell.word_cell().is_none(), "{inner}");
+            assert!(
+                cell.inlines()
+                    .iter()
+                    .all(|inline| !matches!(inline, CllInline::Text(_))),
+                "{inner}: {cell:?}"
+            );
+            assert!(
+                matches!(
+                    cell.inlines().last(),
+                    Some(CllInline::LanguageSpan {
+                        kind: CllLanguageSpanKind::JboPhrase,
+                        language: Some(language),
+                        inlines,
+                    }) if language == "jbo"
+                        && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "mi,o")
+                ),
+                "{inner}: {cell:?}"
+            );
+            assert_eq!(
+                crate::cmavo_cell_plain_text(cell.inlines()),
+                plain,
+                "{inner}"
+            );
+            assert!(!plain.contains(' '), "{plain}");
+        }
+
+        let link = |word: &str| {
+            format!(
+                "<a href=\"../vlacku/{word}\" class=\"spa-cll-link spa-cll-link-dictionary\">{word}</a>"
+            )
+        };
+        let span =
+            |text: &str| format!("<span class=\"spa-cll-jbophrase\" lang=\"jbo\">{text}</span>");
+        let cases = [
+            (
+                "all linked",
+                "<cmavo><valsi>roi</valsi><valsi>nai</valsi></cmavo>",
+                "roinai",
+                format!("{}{}", link("roi"), link("nai")),
+                "roinai".to_owned(),
+                "roinai".to_owned(),
+                "roinai".to_owned(),
+            ),
+            (
+                "all unlinked",
+                "<cmavo valid=\"false\"><valsi>roi</valsi><valsi>nai</valsi></cmavo>",
+                "roinai",
+                format!("{}{}", span("roi"), span("nai")),
+                format!("{}{}", span("roi"), span("nai")),
+                "roinai".to_owned(),
+                "*roinai*".to_owned(),
+            ),
+            (
+                "mixed",
+                "<cmavo><valsi>roi</valsi><valsi valid=\"false\">nai</valsi></cmavo>",
+                "roinai",
+                format!("{}{}", link("roi"), span("nai")),
+                format!("roi{}", span("nai")),
+                "roinai".to_owned(),
+                "roinai".to_owned(),
+            ),
+            (
+                "non-token",
+                "<cmavo><valsi>roi</valsi><valsi>nai</valsi><valsi>mi,o</valsi></cmavo>",
+                "roinaimi,o",
+                format!("{}{}{}", link("roi"), link("nai"), span("mi,o")),
+                format!("roinai{}", span("mi,o")),
+                "roinaimi,o".to_owned(),
+                "roinaimi,o".to_owned(),
+            ),
+            (
+                "one linked part",
+                "<cmavo><valsi>roi</valsi><valsi>mi,o</valsi></cmavo>",
+                "roimi,o",
+                format!("{}{}", link("roi"), span("mi,o")),
+                format!("roi{}", span("mi,o")),
+                "roimi,o".to_owned(),
+                "roimi,o".to_owned(),
+            ),
+            (
+                "marked",
+                "<cmavo><valsi>roi</valsi><valsi valid=\"maybe\">nai</valsi></cmavo>",
+                "roinai",
+                format!("{}{}", link("roi"), span("nai")),
+                format!("roi{}", span("nai")),
+                "roinai".to_owned(),
+                "roinai".to_owned(),
+            ),
+            (
+                "markup",
+                "<cmavo><valsi>roi</valsi><valsi>[x](https://example.invalid)</valsi></cmavo>",
+                "roi[x](https://example.invalid)",
+                format!("{}{}", link("roi"), span("[x](https://example.invalid)")),
+                format!("roi{}", span("[x](https://example.invalid)")),
+                format!("roi{}", r"\[x\]\(https://example.invalid\)"),
+                format!("roi{}", r"\[x\]\(https\://example.invalid\)"),
+            ),
+            (
+                "html tag",
+                "<cmavo><valsi>roi</valsi><valsi>&lt;a href=&quot;https://example.invalid&quot;&gt;</valsi></cmavo>",
+                "roi<a href=\"https://example.invalid\">",
+                format!(
+                    "{}{}",
+                    link("roi"),
+                    span("&lt;a href=&quot;https://example.invalid&quot;&gt;")
+                ),
+                format!(
+                    "roi{}",
+                    span("&lt;a href=&quot;https://example.invalid&quot;&gt;")
+                ),
+                format!("roi{}", r#"\<a href="https://example.invalid"\>"#),
+                format!("roi{}", r#"\<a href="https\://example.invalid"\>"#),
+            ),
+        ];
+        for (name, cmavo, plain, html_web, html_plain, github, discord) in cases {
+            for header in [false, true] {
+                let block = cmavo_list_with_gloss(cmavo, header);
+                let CllBlock::CmavoList { rows, .. } = &block else {
+                    panic!("{name} should be a cmavo list");
+                };
+                assert_eq!(
+                    crate::cmavo_cell_plain_text(rows[0][0].inlines()),
+                    plain,
+                    "{name}"
+                );
+                assert!(
+                    rows[0][0]
+                        .inlines()
+                        .iter()
+                        .all(|inline| !matches!(inline, CllInline::Text(_))),
+                    "{name}"
+                );
+                let where_ = if header { "header" } else { "no header" };
+                let html_web_text = render::render_block_html(site, &block, CllLinkRenderMode::Web);
+                let html_plain_text =
+                    render::render_block_html(site, &block, CllLinkRenderMode::Plain);
+                assert_html_cell(&html_web_text, header, &html_web, name, where_);
+                assert_html_cell(&html_plain_text, header, &html_plain, name, where_);
+                let github_text = markdown_of(site, &block, CllMarkdownDialect::GitHub);
+                assert_eq!(
+                    github_text,
+                    github_list(header, &github),
+                    "{name} github {where_}"
+                );
+                assert!(!github_text.contains("]("), "{name} {github_text}");
+                let discord_text = markdown_of(site, &block, CllMarkdownDialect::Discord);
+                if header {
+                    let fenced = format!("```\ncmavo | gloss\n{plain} | never\n```\n\n");
+                    assert_eq!(discord_text, fenced, "{name} discord header");
+                    assert!(!fenced.contains('*'), "{name}");
+                    if !plain.contains("](") {
+                        assert!(!fenced.contains("]("), "{name}");
+                    }
+                } else {
+                    assert_eq!(
+                        discord_text,
+                        format!("{discord} · never\n\n"),
+                        "{name} discord"
+                    );
+                    assert!(!discord_text.contains("*roi**nai*"), "{discord_text}");
+                    assert!(!discord_text.contains("roi*nai*"), "{discord_text}");
+                    assert!(!discord_text.contains("]("), "{discord_text}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_empty_valsi_part_keeps_its_neighbors_separate() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let cell = word_cell_from_inner("<valsi>na'e</valsi><valsi></valsi><valsi>bo</valsi>");
+        let expected = [word_part("na'e", Some("na'e")), word_part("bo", Some("bo"))];
+        assert_eq!(cell.word_parts().as_deref(), Some(expected.as_slice()));
+        assert!(cell.word_cell().is_none());
+        assert_eq!(crate::cmavo_cell_plain_text(cell.inlines()), "na'ebo");
+        assert!(
+            !cell.inlines().iter().any(|inline| {
+                matches!(inline, CllInline::Link { target, .. } if target == "na'ebo")
+            }),
+            "{cell:?}"
+        );
+        let blank = word_cell_from_inner("<valsi>na'e</valsi><valsi> </valsi><valsi>bo</valsi>");
+        assert_eq!(blank.word_parts().as_deref(), Some(expected.as_slice()));
+        let block = cmavo_list_with_gloss(
+            "<cmavo><valsi>na'e</valsi><valsi></valsi><valsi>bo</valsi></cmavo>",
+            false,
+        );
+        let rendered = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
+        assert_eq!(rendered, github_list(false, "na'ebo"));
+        assert!(!rendered.contains("]("), "{rendered}");
+    }
+
+    /// Rule 12 is decided before empty text is discarded.
+    ///
+    /// An empty element does not opt the other parts out, and it does not
+    /// send the remaining part through the ordinary text path. An all-empty
+    /// cell has no text left. A header keeps that blank cell. A headerless
+    /// row omits a blank cell, which is the same rule as any other empty cell.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_empty_valsi_keeps_rule_12_for_the_parts_that_remain() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let opted = word_cell_from_inner(r#"<valsi valid="false"/><valsi>coi</valsi>"#);
+        assert!(matches!(
+            opted.as_data(),
+            data!(CllCmavoListCell::Adjacent { .. })
+        ));
+        assert!(opted.word_cell().is_none());
+        assert_eq!(
+            opted.word_parts().as_deref(),
+            Some([word_part("coi", Some("coi"))].as_slice())
+        );
+        let opted_block = cmavo_list_with_gloss(
+            r#"<cmavo><valsi valid="false"/><valsi>coi</valsi></cmavo>"#,
+            false,
+        );
+        assert_eq!(
+            markdown_of(&site, &opted_block, CllMarkdownDialect::GitHub),
+            github_list(false, "coi")
+        );
+
+        let heading = word_cell_from_inner("<valsi/><valsi># heading</valsi>");
+        assert_eq!(
+            heading.word_parts().as_deref(),
+            Some([word_part("# heading", None)].as_slice())
+        );
+        let heading_block =
+            cmavo_list_with_gloss("<cmavo><valsi/><valsi># heading</valsi></cmavo>", false);
+        assert_eq!(
+            markdown_of(&site, &heading_block, CllMarkdownDialect::GitHub),
+            github_list(false, r"\# heading")
+        );
+
+        let final_empty = word_cell_from_inner("<valsi>coi</valsi><valsi/>");
+        assert_eq!(
+            final_empty.word_parts().as_deref(),
+            Some([word_part("coi", Some("coi"))].as_slice())
+        );
+        let final_block = cmavo_list_with_gloss("<cmavo><valsi>coi</valsi><valsi/></cmavo>", false);
+        assert_eq!(
+            markdown_of(&site, &final_block, CllMarkdownDialect::GitHub),
+            github_list(false, "coi")
+        );
+
+        let all_empty = word_cell_from_inner("<valsi/><valsi/>");
+        assert!(matches!(
+            all_empty.as_data(),
+            data!(CllCmavoListCell::Adjacent { inlines, .. }) if inlines.is_empty()
+        ));
+        assert_eq!(all_empty.word_parts().as_deref(), Some([].as_slice()));
+        let empty_header = cmavo_list_with_gloss("<cmavo><valsi/><valsi/></cmavo>", true);
+        assert_eq!(
+            markdown_of(&site, &empty_header, CllMarkdownDialect::GitHub),
+            github_list(true, "")
+        );
+        let empty_plain = cmavo_list_with_gloss("<cmavo><valsi/><valsi/></cmavo>", false);
+        assert_eq!(
+            markdown_of(&site, &empty_plain, CllMarkdownDialect::GitHub),
+            "never\n\n"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_dictionary_token_stays_plain_and_line_start_markup_stays_text() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let cases = [
+            (
+                "linked pause",
+                "<cmavo><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
+                false,
+                ".uinai",
+                ".uinai".to_owned(),
+                ".uinai".to_owned(),
+            ),
+            (
+                "linked pause in a table",
+                "<cmavo><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
+                true,
+                ".uinai",
+                ".uinai".to_owned(),
+                String::new(),
+            ),
+            (
+                "unlinked pause",
+                "<cmavo valid=\"false\"><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
+                false,
+                ".uinai",
+                ".uinai".to_owned(),
+                "*.uinai*".to_owned(),
+            ),
+            (
+                "unlinked pause in a table",
+                "<cmavo valid=\"false\"><valsi>.ui</valsi><valsi>nai</valsi></cmavo>",
+                true,
+                ".uinai",
+                ".uinai".to_owned(),
+                String::new(),
+            ),
+            (
+                "hash",
+                "<cmavo><valsi># a</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "# aroi",
+                r"\# aroi".to_owned(),
+                r"\# aroi".to_owned(),
+            ),
+            (
+                "hash in a table",
+                "<cmavo><valsi># a</valsi><valsi>roi</valsi></cmavo>",
+                true,
+                "# aroi",
+                "# aroi".to_owned(),
+                String::new(),
+            ),
+            (
+                "bullet",
+                "<cmavo><valsi>- a</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "- aroi",
+                r"\- aroi".to_owned(),
+                r"\- aroi".to_owned(),
+            ),
+            (
+                "bullet in a table",
+                "<cmavo><valsi>- a</valsi><valsi>roi</valsi></cmavo>",
+                true,
+                "- aroi",
+                "- aroi".to_owned(),
+                String::new(),
+            ),
+            (
+                "superscript",
+                "<cmavo><valsi>roi</valsi><valsi>^2^</valsi></cmavo>",
+                false,
+                "roi^2^",
+                r"roi\^2\^".to_owned(),
+                "roi^2^".to_owned(),
+            ),
+            (
+                "entity",
+                "<cmavo><valsi>roi</valsi><valsi>&amp;copy;</valsi></cmavo>",
+                false,
+                "roi&copy;",
+                r"roi\&copy;".to_owned(),
+                "roi&copy;".to_owned(),
+            ),
+            (
+                "ordered list",
+                "<cmavo><valsi>1</valsi><valsi>. a</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "1. aroi",
+                r"1\. aroi".to_owned(),
+                r"1\. aroi".to_owned(),
+            ),
+            (
+                "ordered list in a table",
+                "<cmavo><valsi>1</valsi><valsi>. a</valsi><valsi>roi</valsi></cmavo>",
+                true,
+                "1. aroi",
+                "1. aroi".to_owned(),
+                String::new(),
+            ),
+            (
+                "mid hyphen",
+                "<cmavo><valsi>roi</valsi><valsi>-nai</valsi></cmavo>",
+                false,
+                "roi-nai",
+                "roi-nai".to_owned(),
+                "roi-nai".to_owned(),
+            ),
+            (
+                "thematic break",
+                "<cmavo><valsi>-</valsi><valsi>--</valsi></cmavo>",
+                false,
+                "---",
+                r"\---".to_owned(),
+                "*---*".to_owned(),
+            ),
+            (
+                "thematic break in a table",
+                "<cmavo><valsi>-</valsi><valsi>--</valsi></cmavo>",
+                true,
+                "---",
+                "---".to_owned(),
+                String::new(),
+            ),
+            (
+                "hash word",
+                "<cmavo><valsi>#a</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "#aroi",
+                "#aroi".to_owned(),
+                "#aroi".to_owned(),
+            ),
+            (
+                "hyphen word",
+                "<cmavo><valsi>-nai</valsi><valsi>roi</valsi></cmavo>",
+                false,
+                "-nairoi",
+                "-nairoi".to_owned(),
+                "-nairoi".to_owned(),
+            ),
+            (
+                "ordered word",
+                "<cmavo><valsi>1</valsi><valsi valid=\"false\">.a</valsi></cmavo>",
+                false,
+                "1.a",
+                "1.a".to_owned(),
+                "*1.a*".to_owned(),
+            ),
+        ];
+        for (name, cmavo, header, plain_word, github, discord) in cases {
+            let block = cmavo_list_with_gloss(cmavo, header);
+            assert_eq!(
+                crate::cmavo_cell_plain_text(match &block {
+                    CllBlock::CmavoList { rows, .. } => rows[0][0].inlines(),
+                    _ => panic!("{name} should be a cmavo list"),
+                }),
+                plain_word,
+                "{name}"
+            );
+            let github_text = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
+            assert_eq!(github_text, github_list(header, &github), "{name} github");
+            assert!(!github_text.contains("]("), "{name} {github_text}");
+            let discord_text = markdown_of(&site, &block, CllMarkdownDialect::Discord);
+            if header {
+                let fenced = format!("```\ncmavo | gloss\n{plain_word} | never\n```\n\n");
+                assert_eq!(discord_text, fenced, "{name} discord");
+            } else {
+                assert_eq!(
+                    discord_text,
+                    format!("{discord} · never\n\n"),
+                    "{name} discord"
+                );
+                assert!(!discord_text.contains("]("), "{discord_text}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_thematic_break_without_a_description_stays_text() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let cmavo = "<cmavo><valsi>-</valsi><valsi>--</valsi></cmavo>";
+        for header in [false, true] {
+            let block = cmavo_list_cell_only(cmavo, header);
+            let github = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
+            let discord = markdown_of(&site, &block, CllMarkdownDialect::Discord);
+            if header {
+                assert_eq!(github, "| cmavo |\n| --- |\n| --- |\n\n");
+                let fenced = "```\ncmavo\n---\n```\n\n";
+                assert_eq!(discord, fenced);
+            } else {
+                assert_eq!(github, "\\---\n\n");
+                assert_eq!(discord, "*---*\n\n");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_newline_in_a_valsi_does_not_form_a_setext_heading() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let block = cmavo_list_with_gloss(
+            "<cmavo><valsi>Title\n=</valsi><valsi>=</valsi></cmavo>",
+            false,
+        );
+        assert_eq!(
+            crate::cmavo_cell_plain_text(match &block {
+                CllBlock::CmavoList { rows, .. } => rows[0][0].inlines(),
+                _ => panic!("expected a cmavo list"),
+            }),
+            "Title =="
+        );
+        let github = markdown_of(&site, &block, CllMarkdownDialect::GitHub);
+        assert_eq!(github, "Title == | never\n\n");
+        let discord = markdown_of(&site, &block, CllMarkdownDialect::Discord);
+        assert_eq!(discord, "*Title ==* · never\n\n");
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(matches!(ret, CllBlock::CmavoList { .. }))]
+    fn cmavo_list_cell_only(cmavo: &str, header: bool) -> CllBlock {
+        let head = if header {
+            "<cmavo-list-head><td>cmavo</td></cmavo-list-head>"
+        } else {
+            ""
+        };
+        let (blocks, _) = probe_blocks(&format!(
+            "<cmavo-list>{head}<cmavo-entry>{cmavo}</cmavo-entry></cmavo-list>"
+        ));
+        blocks.into_iter().next().expect("one cmavo list")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_html_cell(html: &str, header: bool, cell: &str, name: &str, where_: &str) {
+        assert!(
+            html.contains("class=\"cll-cmavo-list\""),
+            "{name} html {where_}: {html}"
+        );
+        assert!(
+            html.contains(&format!("<td>{cell}</td><td>never</td>")),
+            "{name} html {where_}: {html}"
+        );
+        if header {
+            assert!(
+                html.contains("<th>cmavo</th><th>gloss</th>"),
+                "{name} html {where_}: {html}"
+            );
+        } else {
+            assert!(!html.contains("<th>"), "{name} html {where_}: {html}");
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.contains(cell))]
+    fn github_list(header: bool, cell: &str) -> String {
+        if header {
+            format!("| cmavo | gloss |\n| --- | --- |\n| {cell} | never |\n\n")
+        } else {
+            format!("{cell} | never\n\n")
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn markdown_of(site: &CllSite, block: &CllBlock, dialect: CllMarkdownDialect) -> String {
+        let mut output = String::new();
+        render::render_block_markdown(site, block, &mut output, 0, dialect);
+        output
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(matches!(ret, CllBlock::CmavoList { .. }))]
+    fn cmavo_list_with_gloss(cmavo: &str, header: bool) -> CllBlock {
+        let head = if header {
+            "<cmavo-list-head><td>cmavo</td><td>gloss</td></cmavo-list-head>"
+        } else {
+            ""
+        };
+        let (blocks, _) = probe_blocks(&format!(
+            "<cmavo-list>{head}<cmavo-entry>{cmavo}<description>never</description></cmavo-entry></cmavo-list>"
+        ));
+        blocks.into_iter().next().expect("one cmavo list")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_pause_dot_before_a_nested_valsi_stays_attached() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-entry>",
+            "<cmavo>.<valsi>ui</valsi></cmavo>",
+            "</cmavo-entry></cmavo-list>",
+        ));
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), ".ui");
+        assert!(
+            is_dictionary_word_link(rows[0][0].inlines(), ".ui", "ui"),
+            "got {:?}",
+            rows[0][0]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn hidden_markup_in_a_cmavo_cell_does_not_join_the_word() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-entry><cmavo>",
+            "coi<indexterm><primary>hidden term</primary></indexterm>",
+            "<anchor xml:id=\"hidden-anchor\"/>.",
+            "<phrase role=\"display-none\">hidden</phrase>co'o",
+            "</cmavo></cmavo-entry></cmavo-list>",
+        ));
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), "coi.co'o");
+        assert_eq!(
+            rows[0][0].inlines(),
+            [CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language: Some("jbo".to_owned()),
+                inlines: vec![CllInline::Text("coi.co'o".to_owned())],
+            }]
+            .as_slice()
+        );
+        assert!(
+            !rows[0][0]
+                .inlines()
+                .iter()
+                .any(|inline| matches!(inline, CllInline::Link { .. }))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_false_on_a_cmavo_cell_does_not_link() {
+        assert_opted_out_cell(r#"<cmavo valid="false">coi</cmavo>"#, "coi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn glossary_false_on_a_gismu_cell_does_not_link() {
+        assert_opted_out_cell(r#"<gismu glossary="false">klama</gismu>"#, "klama");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_maybe_on_a_nested_valsi_does_not_link() {
+        assert_opted_out_cell(r#"<cmavo><valsi valid="maybe">coi</valsi></cmavo>"#, "coi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_dot_valsi_outside_a_word_cell_stays_plain() {
+        for cell_xml in [
+            "<description><valsi>.</valsi></description>",
+            "<description>[<valsi>.</valsi>]</description>",
+            "<description><valsi>...</valsi></description>",
+            "<selmaho><valsi>.</valsi></selmaho>",
+        ] {
+            let xml = format!(
+                "<cmavo-list><cmavo-entry><cmavo>coi</cmavo>{cell_xml}</cmavo-entry></cmavo-list>"
+            );
+            let (blocks, _) = probe_blocks(&xml);
+            let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+                panic!("expected one cmavo list, got {blocks:?}");
+            };
+            assert!(
+                matches!(rows[0][0].as_data(), data!(CllCmavoListCell::Word { .. })),
+                "{cell_xml}"
+            );
+            assert!(
+                matches!(rows[0][1].as_data(), data!(CllCmavoListCell::Other { .. })),
+                "{cell_xml}"
+            );
+            let inlines = rows[0][1].inlines();
+            assert!(
+                rows[0][1].word_cell().is_none(),
+                "{cell_xml} reached the word view: {inlines:?}"
+            );
+            let expected = if cell_xml.contains("[<valsi>") {
+                "[ . ]"
+            } else if cell_xml.contains("...") {
+                "..."
+            } else {
+                "."
+            };
+            assert_eq!(crate::inline_plain_text(inlines), expected, "{cell_xml}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_english_bracket_in_a_description_stays_an_ordinary_cell() {
+        let (blocks, _) = probe_blocks(concat!(
+            "<cmavo-list><cmavo-entry><cmavo>coi</cmavo>",
+            "<description>[idiom]</description>",
+            "<description>[<valsi>klama</valsi>]</description>",
+            "</cmavo-entry></cmavo-list>",
+        ));
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert!(matches!(
+            rows[0][1].as_data(),
+            data!(CllCmavoListCell::Other { .. })
+        ));
+        assert_eq!(
+            rows[0][1].inlines(),
+            [CllInline::Text("[idiom]".to_owned())].as_slice()
+        );
+        // `[idiom]` has the bracket shape. The ordinary cell is what keeps
+        // the reader from treating that text as a word cell.
+        assert!(rows[0][1].word_inlines().is_none());
+        assert_eq!(crate::inline_plain_text(rows[0][1].inlines()), "[idiom]");
+        assert!(matches!(
+            rows[0][2].as_data(),
+            data!(CllCmavoListCell::Other { .. })
+        ));
+        assert_eq!(crate::inline_plain_text(rows[0][2].inlines()), "[ klama ]");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_marked_valsi_stays_an_unlinked_lojban_span() {
+        for valid in ["false", "maybe"] {
+            let xml = format!(
+                "<cmavo-list><cmavo-entry><cmavo>coi</cmavo><description><valsi valid=\"{valid}\">coi</valsi></description></cmavo-entry></cmavo-list>"
+            );
+            let (blocks, _) = probe_blocks(&xml);
+            let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+                panic!("expected one cmavo list, got {blocks:?}");
+            };
+            assert!(
+                is_unlinked_lojban_word(rows[0][1].inlines(), "coi"),
+                "valid={valid}: {:?}",
+                rows[0][1]
+            );
+            assert!(rows[0][1].word_cell().is_none());
+            assert_eq!(crate::inline_plain_text(rows[0][1].inlines()), "coi");
+
+            let paragraph = format!("<para><valsi valid=\"{valid}\">coi</valsi></para>");
+            let outside = probe_inlines(&paragraph);
+            assert!(
+                is_unlinked_lojban_word(&outside, "coi"),
+                "valid={valid} outside a table: {outside:?}"
+            );
+            assert_eq!(paragraph_text(&paragraph), "coi");
+        }
+        let spaced = probe_inlines("<para>see <valsi valid=\"false\">coi ro</valsi> now</para>");
+        assert!(
+            matches!(
+                spaced.as_slice(),
+                [
+                    CllInline::Text(lead),
+                    CllInline::LanguageSpan {
+                        kind: CllLanguageSpanKind::MarkedValsi,
+                        language: Some(language),
+                        inlines,
+                    },
+                    CllInline::Text(tail),
+                ] if lead == "see "
+                    && tail == " now"
+                    && language == "jbo"
+                    && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "coi ro")
+            ),
+            "{spaced:?}"
+        );
+        assert_eq!(
+            paragraph_text("<para>see <valsi valid=\"false\">coi ro</valsi> now</para>"),
+            "see coi ro now"
+        );
+        let still_linked = probe_inlines("<para><valsi valid=\"true\">coi</valsi></para>");
+        assert!(
+            is_dictionary_word_link(&still_linked, "coi", "coi"),
+            "valid=true still links, got {still_linked:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_paragraph_keeps_spaces_inside_a_bracketed_valsi() {
+        let alone = paragraph_text("<para>[<valsi>klama</valsi>]</para>");
+        let after_text = paragraph_text("<para>see [<valsi>klama</valsi>]</para>");
+        assert_eq!(alone, "[ klama ]");
+        assert_eq!(after_text, "see [ klama ]");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_opted_out_cell(cell_xml: &str, text: &str) {
+        let xml = format!("<cmavo-list><cmavo-entry>{cell_xml}</cmavo-entry></cmavo-list>");
+        let (blocks, _) = probe_blocks(&xml);
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert!(
+            is_unlinked_lojban_word(rows[0][0].inlines(), text),
+            "got {:?}",
+            rows[0][0]
+        );
+        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), text);
+    }
+
+    #[requires(!xml.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn paragraph_text(xml: &str) -> String {
+        let (blocks, _) = probe_blocks(xml);
+        match &blocks[0] {
+            CllBlock::Paragraph { text, .. } => text.clone(),
+            _ => panic!("expected one paragraph, got {blocks:?}"),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_dictionary_word_link(cell: &[CllInline], display: &str, target: &str) -> bool {
+        is_word_link(cell, CllLinkKind::Dictionary, display, target)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_marked_bracket(cell: &[CllInline], word: &str) -> bool {
+        matches!(
+            cell,
+            [
+                CllInline::Text(open),
+                CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::MarkedValsi,
+                    language,
+                    inlines,
+                },
+                CllInline::Text(close),
+            ] if open == "["
+                && close == "]"
+                && language.as_deref() == Some("jbo")
+                && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == word)
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_unlinked_lojban_word(cell: &[CllInline], text: &str) -> bool {
+        matches!(
+            cell,
+            [CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::MarkedValsi,
+                language,
+                inlines,
+            }] if language.as_deref() == Some("jbo")
+                && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_dictionary_miss_word(cell: &[CllInline], text: &str) -> bool {
+        matches!(
+            cell,
+            [CllInline::LanguageSpan {
+                kind: CllLanguageSpanKind::JboPhrase,
+                language,
+                inlines,
+            }] if language.as_deref() == Some("jbo")
+                && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_rafsi_word_link(cell: &[CllInline], display: &str, target: &str) -> bool {
+        is_word_link(cell, CllLinkKind::Rafsi, display, target)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_word_link(cell: &[CllInline], kind: CllLinkKind, display: &str, target: &str) -> bool {
+        matches!(
+            cell,
+            [CllInline::Link {
+                target: link_target,
+                inlines,
+                kind: link_kind,
+            }] if link_kind == &kind
+                && link_target == target
+                && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == display)
+        )
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_marked_lujvo_keeps_its_vlacku_link() {
+        assert!(single_bare_lujvo("jbobliku"), "jbobliku is a lujvo");
+        assert!(single_bare_lujvo("brivla"), "brivla is a lujvo");
+        assert!(!single_bare_lujvo("klama"), "a gismu is not a lujvo");
+        assert!(!single_bare_lujvo("coi"), "a cmavo is not a lujvo");
+        assert!(
+            !single_bare_lujvo("zzzz"),
+            "a morphology error stays unlinked"
+        );
+        assert!(
+            !single_bare_lujvo("coi ro"),
+            "more than one word stays unlinked"
+        );
+        assert!(
+            !single_bare_lujvo("zo jbobliku"),
+            "a quote is not a bare lujvo"
+        );
+        assert!(crate::cmavo_table::is_dictionary_token("jbobliku"));
+        assert!(crate::cmavo_table::is_dictionary_token("brivla"));
+
+        for (valid, word) in [("maybe", "jbobliku"), ("false", "brivla")] {
+            let paragraph = format!("<para><valsi valid=\"{valid}\">{word}</valsi></para>");
+            let outside = probe_inlines(&paragraph);
+            assert!(
+                is_dictionary_word_link(&outside, word, word),
+                "valid={valid} {word} links, got {outside:?}"
+            );
+            assert_eq!(paragraph_text(&paragraph), word);
+        }
+
+        // `brivla` is in the shipped dictionary. A cell mark does not opt it
+        // out, so the ordinary lookup links it.
+        for (valid, word) in [("false", "brivla")] {
+            assert_linked_cell(&format!("<cmavo valid=\"{valid}\">{word}</cmavo>"), word);
+            assert_linked_cell(
+                &format!("<cmavo><valsi valid=\"{valid}\">{word}</valsi></cmavo>"),
+                word,
+            );
+            let parts = word_cell_from_inner(&format!(
+                "<valsi valid=\"{valid}\">{word}</valsi><valsi>coi</valsi>"
+            ));
+            assert_eq!(
+                parts.word_parts().as_deref(),
+                Some([word_part(word, Some(word)), word_part("coi", Some("coi"))].as_slice()),
+                "valid={valid} {word} in a cmavo cell"
+            );
+            assert!(
+                !entry_opted_out(&format!("<cmavo valid=\"{valid}\">{word}</cmavo>")),
+                "{word}"
+            );
+        }
+
+        // `jbobliku` is not in the shipped dictionary. A lujvo mark does not
+        // add a link. The cell stores a marked span, so the word stays
+        // searchable. The same span is used for a rule-12 part.
+        for (valid, word) in [("maybe", "jbobliku")] {
+            for cell_xml in [
+                format!("<cmavo valid=\"{valid}\">{word}</cmavo>"),
+                format!("<cmavo><valsi valid=\"{valid}\">{word}</valsi></cmavo>"),
+            ] {
+                let cell = entry_cell(&cell_xml);
+                assert!(
+                    is_unlinked_lojban_word(cell.inlines(), word),
+                    "{cell_xml} got {cell:?}"
+                );
+                assert!(!entry_opted_out(&cell_xml), "{cell_xml}");
+            }
+            let parts = word_cell_from_inner(&format!(
+                "<valsi valid=\"{valid}\">{word}</valsi><valsi>coi</valsi>"
+            ));
+            assert_eq!(
+                parts.word_parts().as_deref(),
+                Some([word_part(word, None), word_part("coi", Some("coi"))].as_slice()),
+                "valid={valid} {word} in a cmavo cell"
+            );
+            assert!(
+                matches!(
+                    parts.inlines().first(),
+                    Some(CllInline::LanguageSpan {
+                        kind: CllLanguageSpanKind::MarkedValsi,
+                        inlines,
+                        ..
+                    }) if matches!(inlines.as_slice(), [CllInline::Text(text)] if text == word)
+                ),
+                "valid={valid} {word} part is a marked span, got {parts:?}"
+            );
+        }
+
+        for (valid, word) in [("maybe", "klama"), ("maybe", "coi"), ("false", "zzzz")] {
+            let paragraph = format!("<para><valsi valid=\"{valid}\">{word}</valsi></para>");
+            let outside = probe_inlines(&paragraph);
+            assert!(
+                is_unlinked_lojban_word(&outside, word),
+                "valid={valid} {word} stays unlinked, got {outside:?}"
+            );
+            assert_opted_out_cell(&format!("<cmavo valid=\"{valid}\">{word}</cmavo>"), word);
+            assert_opted_out_cell(
+                &format!("<cmavo><valsi valid=\"{valid}\">{word}</valsi></cmavo>"),
+                word,
+            );
+            let parts = word_cell_from_inner(&format!(
+                "<valsi valid=\"{valid}\">{word}</valsi><valsi>coi</valsi>"
+            ));
+            assert_eq!(
+                parts.word_parts().as_deref(),
+                Some([word_part(word, None), word_part("coi", Some("coi"))].as_slice()),
+                "valid={valid} {word} part stays unlinked"
+            );
+        }
+
+        assert_opted_out_cell(r#"<gismu glossary="false">jbobliku</gismu>"#, "jbobliku");
+        assert_opted_out_cell(
+            r#"<cmavo glossary="false" valid="maybe">jbobliku</cmavo>"#,
+            "jbobliku",
+        );
+        let quoted = probe_inlines(r#"<para><valsi valid="false">zo jbobliku</valsi></para>"#);
+        assert!(
+            is_unlinked_lojban_word(&quoted, "zo jbobliku"),
+            "a quoted lujvo stays unlinked, got {quoted:?}"
+        );
+    }
+
+    #[requires(!cell_xml.is_empty())]
+    #[requires(!word.is_empty())]
+    #[ensures(true)]
+    fn assert_linked_cell(cell_xml: &str, word: &str) {
+        let xml = format!("<cmavo-list><cmavo-entry>{cell_xml}</cmavo-entry></cmavo-list>");
+        let (blocks, _) = probe_blocks(&xml);
+        let CllBlock::CmavoList { rows, .. } = &blocks[0] else {
+            panic!("expected one cmavo list, got {blocks:?}");
+        };
+        assert!(
+            is_dictionary_word_link(rows[0][0].inlines(), word, word),
+            "{cell_xml} got {:?}",
+            rows[0][0]
+        );
+        assert_eq!(crate::inline_plain_text(rows[0][0].inlines()), word);
+    }
+
+    /// The vendored book has 210 valsi elements marked `valid="false"` or `valid="maybe"`.
+    /// 153 of them are one bare lujvo and keep a vlacku link. 23 of those use
+    /// `valid="false"`. 130 use `valid="maybe"`. None of the 210 sits in a cmavo list.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn marked_lujvo_in_the_vendored_book_keep_vlacku_links() {
+        const LINKED_SPELLINGS: &[&str] = &[
+            "bisycla",
+            "blokle",
+            "bridyvalsi",
+            "bridyvla",
+            "brivalsi",
+            "calkyguzme",
+            "cinctu",
+            "fetsygau",
+            "ge'urzdani",
+            "ge'uzda",
+            "gerkyzda",
+            "gerkyzdani",
+            "gerselzda",
+            "gerzdani",
+            "gripau",
+            "klamau",
+            "krespa",
+            "labmau",
+            "lamgri",
+            "lange'u",
+            "likygau",
+            "likyri'a",
+            "linku'i",
+            "livgyterbilma",
+            "lo'ikle",
+            "lo'irlei",
+            "logjybangirzu",
+            "logjybangri",
+            "logjybangygirzu",
+            "logjybangygri",
+            "logjybaugirzu",
+            "logjybaugri",
+            "lojbangirzu",
+            "lojbangri",
+            "lojbangygirzu",
+            "lojbangygri",
+            "lojbaugirzu",
+            "lojbaugri",
+            "lotkle",
+            "lotlei",
+            "mampa'u",
+            "manskapi",
+            "metcalfe",
+            "mi'erxanpli",
+            "minkemxanpli",
+            "mudysiclu",
+            "naknykemcinctu",
+            "naknykemcinctuca",
+            "naknykemcinsyctu",
+            "naknykemcinsyctuca",
+            "nakykemcinctuca",
+            "nakykemcinsyctu",
+            "nakykemcinsyctuca",
+            "nalbrablo",
+            "nalmle",
+            "nelcymau",
+            "nilkla",
+            "normle",
+            "nunctikezgau",
+            "nunji'a",
+            "nunkalte",
+            "nunkilca'a",
+            "nunklama",
+            "nunpinxe",
+            "nunsoidji",
+            "nunte'a",
+            "nunterji'a",
+            "pacraistu",
+            "paslinku'i",
+            "pevrisnyjelca",
+            "posydji",
+            "rairgugde",
+            "risnyjelca",
+            "ro'inre'o",
+            "rokre'o",
+            "seldzukla",
+            "selgekmau",
+            "seljdasku",
+            "selkanla",
+            "selkemdzukla",
+            "selklamau",
+            "selnelcymau",
+            "selselgekmau",
+            "selseljdasku",
+            "selzda",
+            "sikcurnu",
+            "smabru",
+            "soidji",
+            "speranto",
+            "terci'e",
+            "tergusni",
+            "terkakpa",
+            "terklamau",
+            "terlantroge'u",
+            "ti'ifla",
+            "tosymabru",
+            "turdu'i",
+            "velmikce",
+            "xancypliminde",
+            "xanmi'e",
+            "xanplimi'e",
+            "xaskemcakcurnu",
+            "xasycakcurnu",
+            "xelklama",
+            "zilpavypinxe",
+            "zilrelselpinxe",
+            "zuljamfu",
+            "zunlyjamfu",
+            "zunlyjma",
+        ];
+        let mut marked = 0usize;
+        let mut in_cmavo_list = 0usize;
+        let mut linked_rows = 0usize;
+        let mut false_rows = 0usize;
+        let mut maybe_rows = 0usize;
+        let mut spellings = BTreeSet::new();
+        for (source_path, _, compressed) in EMBEDDED_CLL_CHAPTERS {
+            let xml = decode_chapter_xml(compressed).expect("embedded chapter decodes");
+            let xml = sanitize_xml_entities(&xml);
+            let document = Document::parse(&xml)
+                .unwrap_or_else(|error| panic!("{source_path} parses: {error}"));
+            for node in document.descendants() {
+                if !node.is_element() || !node.has_tag_name("valsi") {
+                    continue;
+                }
+                let valid = attr_value(node, "valid");
+                if !matches!(valid, Some("false" | "maybe")) {
+                    continue;
+                }
+                marked += 1;
+                if node
+                    .ancestors()
+                    .any(|ancestor| ancestor.is_element() && ancestor.has_tag_name("cmavo-list"))
+                {
+                    in_cmavo_list += 1;
+                }
+                let text = visible_text(node);
+                if matches!(marked_word_link(node, &text), MarkedWordLink::Lujvo) {
+                    linked_rows += 1;
+                    match valid {
+                        Some("false") => false_rows += 1,
+                        Some("maybe") => maybe_rows += 1,
+                        _ => panic!("marked valsi has valid={valid:?}"),
+                    }
+                    spellings.insert(text);
+                }
+            }
+        }
+        assert_eq!(marked, 210);
+        assert_eq!(in_cmavo_list, 0);
+        assert_eq!(linked_rows, 153);
+        assert_eq!(false_rows, 23);
+        assert_eq!(maybe_rows, 130);
+        assert_eq!(
+            spellings,
+            LINKED_SPELLINGS
+                .iter()
+                .map(|spelling| (*spelling).to_owned())
+                .collect::<BTreeSet<_>>()
+        );
+    }
+
+    /// One written lujvo covers its own span.
+    ///
+    /// Erasure, a second word, and separator punctuation stay unlinked.
+    /// A pause period can sit outside the word span. An inner comma stays
+    /// inside that span.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_marked_lujvo_is_one_written_word() {
+        let rejected = [
+            "jbobliku coi si",
+            "coi si jbobliku",
+            "coi su jbobliku",
+            "coi sa ro jbobliku",
+            "-jbobliku",
+            "jbobliku-",
+            "jbobliku?",
+            ",jbobliku",
+            "jbobliku,",
+            "jbobliku ?",
+            "[jbobliku]",
+            "[ro'inre'o]",
+            "zo jbobliku",
+            "coi ro",
+            "klama",
+            "coi",
+            "zzzz",
+            "",
+            "   ",
+        ];
+        for sample in rejected {
+            assert!(
+                !single_bare_lujvo(sample),
+                "{sample:?} is not one written lujvo"
+            );
+            if sample.trim().is_empty() {
+                continue;
+            }
+            let paragraph = format!("<para><valsi valid=\"false\">{sample}</valsi></para>");
+            let outside = probe_inlines(&paragraph);
+            assert!(
+                is_unlinked_lojban_word(&outside, sample),
+                "{sample:?} stays unlinked, got {outside:?}"
+            );
+        }
+
+        let cyrillic = "\u{04CF}jbobliku\u{04CF}";
+        let kept = [
+            (".jbobliku.", "jbobliku"),
+            ("jbobli,ku", "jbobliku"),
+            (cyrillic, "jbobliku"),
+        ];
+        for (shown, target) in kept {
+            assert!(single_bare_lujvo(shown), "{shown:?} is one written lujvo");
+            let paragraph = format!("<para><valsi valid=\"maybe\">{shown}</valsi></para>");
+            let outside = probe_inlines(&paragraph);
+            assert!(
+                is_dictionary_word_link(&outside, shown, target),
+                "{shown:?} links to {target}, got {outside:?}"
+            );
+        }
+
+        let split =
+            probe_inlines("<para><valsi valid=\"maybe\">jbo<phrase>bliku</phrase></valsi></para>");
+        assert!(
+            is_unlinked_lojban_word(&split, "jbo bliku"),
+            "a padded child stays two words, got {split:?}"
+        );
+
+        for (cell_xml, word) in [
+            (r#"<gismu valid="maybe">[jbobliku]</gismu>"#, "jbobliku"),
+            (r#"<gismu valid="maybe">[ro'inre'o]</gismu>"#, "ro'inre'o"),
+            (
+                r#"<gismu>[<valsi valid="maybe">jbobliku</valsi>]</gismu>"#,
+                "jbobliku",
+            ),
+            (
+                r#"<gismu>[<valsi valid="maybe">ro'inre'o</valsi>]</gismu>"#,
+                "ro'inre'o",
+            ),
+        ] {
+            let cell = entry_cell(cell_xml);
+            let target = if word == "ro'inre'o" {
+                Some(word)
+            } else {
+                None
+            };
+            assert_eq!(
+                cell.word_cell().and_then(|word_cell| word_cell.bracket()),
+                Some((word, target)),
+                "{cell_xml} got {cell:?}"
+            );
+            if target.is_none() {
+                assert!(
+                    is_marked_bracket(cell.inlines(), word),
+                    "{cell_xml} got {cell:?}"
+                );
+            }
+            assert!(!entry_opted_out(cell_xml), "{cell_xml} stays opted in");
+        }
+
+        let linked_gismu = entry_cell("<gismu>[jundi]</gismu>");
+        assert_eq!(
+            linked_gismu
+                .word_cell()
+                .and_then(|word_cell| word_cell.bracket()),
+            Some(("jundi", Some("jundi")))
+        );
+        let plain_bracket = r#"<gismu valid="maybe">[jundi]</gismu>"#;
+        let unlinked_gismu = entry_cell(plain_bracket);
+        assert_eq!(
+            unlinked_gismu
+                .word_cell()
+                .and_then(|word_cell| word_cell.bracket()),
+            Some(("jundi", None)),
+            "{unlinked_gismu:?}"
+        );
+        assert!(entry_opted_out(plain_bracket));
+        assert!(
+            is_marked_bracket(unlinked_gismu.inlines(), "jundi"),
+            "{unlinked_gismu:?}"
+        );
+        let hidden_glossary = r#"<gismu glossary="false" valid="maybe">[jbobliku]</gismu>"#;
+        let glossary = entry_cell(hidden_glossary);
+        assert_eq!(
+            glossary
+                .word_cell()
+                .and_then(|word_cell| word_cell.bracket()),
+            Some(("jbobliku", None)),
+            "{glossary:?}"
+        );
+        assert!(
+            is_marked_bracket(glossary.inlines(), "jbobliku"),
+            "{glossary:?}"
+        );
+        assert!(entry_opted_out(hidden_glossary));
+
+        let lojbau = r#"<gismu valid="maybe"><valsi>lojbau</valsi><valsi>girzu</valsi></gismu>"#;
+        let lojbau_cell = entry_cell(lojbau);
+        assert_eq!(
+            lojbau_cell.word_parts().as_deref(),
+            Some(
+                [
+                    word_part("lojbau", Some("lojbau")),
+                    word_part("girzu", Some("girzu")),
+                ]
+                .as_slice()
+            ),
+            "lojbaugirzu is one lujvo, got {lojbau_cell:?}"
+        );
+        assert!(!entry_opted_out(lojbau));
+
+        // `jboblikugirzu` is a fu'ivla. The cell mark leaves both parts unlinked.
+        let compound =
+            r#"<gismu valid="maybe"><valsi>jbobliku</valsi><valsi>girzu</valsi></gismu>"#;
+        let compound_cell = entry_cell(compound);
+        assert_eq!(
+            compound_cell.word_parts().as_deref(),
+            Some([word_part("jbobliku", None), word_part("girzu", None)].as_slice()),
+            "{compound_cell:?}"
+        );
+        assert!(entry_opted_out(compound));
+
+        let empty_first = r#"<gismu valid="maybe"><valsi/><valsi>jbobliku</valsi></gismu>"#;
+        let empty_cell = entry_cell(empty_first);
+        assert_eq!(
+            empty_cell.word_parts().as_deref(),
+            Some([word_part("jbobliku", None)].as_slice()),
+            "{empty_cell:?}"
+        );
+        assert!(!entry_opted_out(empty_first));
+
+        let joined = r#"<gismu valid="maybe">jbo<phrase>bliku</phrase></gismu>"#;
+        let joined_cell = entry_cell(joined);
+        assert!(
+            is_unlinked_lojban_word(joined_cell.inlines(), "jbobliku"),
+            "{joined_cell:?}"
+        );
+        assert!(!entry_opted_out(joined));
+
+        let phrase_part = r#"<gismu><valsi valid="maybe">jbo<phrase>bliku</phrase></valsi><valsi>coi</valsi></gismu>"#;
+        let phrase_cell = entry_cell(phrase_part);
+        assert_eq!(
+            phrase_cell.word_parts().as_deref(),
+            Some([word_part("jbobliku", None), word_part("coi", Some("coi")),].as_slice()),
+            "{phrase_cell:?}"
+        );
+        assert!(!entry_opted_out(phrase_part));
+
+        let hidden_lujvo =
+            r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase>coi</cmavo>"#;
+        let hidden_cell = entry_cell(hidden_lujvo);
+        assert!(
+            is_unlinked_lojban_word(hidden_cell.inlines(), "coi"),
+            "a hidden lujvo must not link coi, got {hidden_cell:?}"
+        );
+        assert!(entry_opted_out(hidden_lujvo));
+
+        let hidden_noise =
+            r#"<cmavo><phrase role="display-none" valid="false">zzzz</phrase>coi</cmavo>"#;
+        let noise_cell = entry_cell(hidden_noise);
+        assert!(
+            is_unlinked_lojban_word(noise_cell.inlines(), "coi"),
+            "{noise_cell:?}"
+        );
+        assert!(entry_opted_out(hidden_noise));
+    }
+
+    #[requires(!cell_xml.is_empty())]
+    #[ensures(matches!(
+        ret.as_data(),
+        data!(CllCmavoListCell::Word { .. }) | data!(CllCmavoListCell::Adjacent { .. })
+    ))]
+    fn entry_cell(cell_xml: &str) -> CllCmavoListCell {
+        let xml = format!("<cmavo-list><cmavo-entry>{cell_xml}</cmavo-entry></cmavo-list>");
+        let (blocks, _) = probe_blocks(&xml);
+        let CllBlock::CmavoList { mut rows, .. } = blocks.into_iter().next().unwrap() else {
+            panic!("expected one cmavo list");
+        };
+        rows.remove(0).remove(0)
+    }
+
+    #[requires(!cell_xml.is_empty())]
+    #[ensures(true)]
+    fn entry_opted_out(cell_xml: &str) -> bool {
+        let xml = format!("<cmavo-list><cmavo-entry>{cell_xml}</cmavo-entry></cmavo-list>");
+        let document = Document::parse(&xml).unwrap_or_else(|error| panic!("{cell_xml}: {error}"));
+        let cell = document
+            .descendants()
+            .find(|node| {
+                node.is_element() && (node.has_tag_name("cmavo") || node.has_tag_name("gismu"))
+            })
+            .unwrap_or_else(|| panic!("{cell_xml} has no word cell"));
+        cmavo_cell_opted_out(cell)
+    }
+
+    /// A rule-12 part keeps marks that sit inside it.
+    ///
+    /// Rule 12 starts on the cmavo or gismu tag. A nested valsi is not a
+    /// second rule-12 cell. `glossary="false"` stays unlinked. A nested lujvo
+    /// mark does not opt the part out. The dictionary lookup decides the
+    /// link. A miss stores a marked span. A rule-12 cell does not unwrap a
+    /// bracket pair.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_rule_12_part_keeps_nested_marks() {
+        let nested_glossary = [
+            r#"<cmavo><valsi><valsi glossary="false">co</valsi><valsi>i</valsi></valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><valsi><valsi glossary="false">coi</valsi><valsi/></valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><valsi><valsi valid="false">co</valsi><valsi>i</valsi></valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><valsi><phrase glossary="false">co</phrase><phrase>i</phrase></valsi><valsi>nai</valsi></cmavo>"#,
+        ];
+        for cell_xml in nested_glossary {
+            let cell = entry_cell(cell_xml);
+            assert_eq!(
+                cell.word_parts().as_deref(),
+                Some([word_part("coi", None), word_part("nai", Some("nai"))].as_slice()),
+                "{cell_xml} got {cell:?}"
+            );
+            assert!(!entry_opted_out(cell_xml), "{cell_xml}");
+        }
+
+        let nested_lujvo = [
+            r#"<gismu><valsi><phrase valid="maybe">jbobliku</phrase></valsi><valsi>coi</valsi></gismu>"#,
+            r#"<gismu><valsi><valsi valid="maybe">jbobliku</valsi></valsi><valsi>coi</valsi></gismu>"#,
+        ];
+        for cell_xml in nested_lujvo {
+            let cell = entry_cell(cell_xml);
+            assert_eq!(
+                cell.word_parts().as_deref(),
+                Some([word_part("jbobliku", None), word_part("coi", Some("coi"))].as_slice()),
+                "{cell_xml} got {cell:?}"
+            );
+            assert!(
+                matches!(
+                    cell.inlines().first(),
+                    Some(CllInline::LanguageSpan {
+                        kind: CllLanguageSpanKind::MarkedValsi,
+                        inlines,
+                        ..
+                    }) if matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "jbobliku")
+                ),
+                "{cell_xml} got {cell:?}"
+            );
+            assert!(!entry_opted_out(cell_xml), "{cell_xml}");
+        }
+
+        let phrase_cell = entry_cell(r#"<gismu><phrase valid="maybe">jbobliku</phrase></gismu>"#);
+        assert!(
+            is_unlinked_lojban_word(phrase_cell.inlines(), "jbobliku"),
+            "{phrase_cell:?}"
+        );
+        assert!(!entry_opted_out(
+            r#"<gismu><phrase valid="maybe">jbobliku</phrase></gismu>"#
+        ));
+
+        let split_brackets = r#"<gismu valid="maybe"><valsi>[</valsi><valsi>jbobliku</valsi><valsi>]</valsi></gismu>"#;
+        let bracket_cell = entry_cell(split_brackets);
+        assert_eq!(
+            bracket_cell.word_parts().as_deref(),
+            Some(
+                [
+                    word_part("[", None),
+                    word_part("jbobliku", None),
+                    word_part("]", None),
+                ]
+                .as_slice()
+            ),
+            "{bracket_cell:?}"
+        );
+        assert!(entry_opted_out(split_brackets));
+    }
+
+    /// A marked descendant in a single-word cell unwraps one bracket pair.
+    ///
+    /// The paragraph arm and a rule-12 part keep the raw spelling. Brackets
+    /// in those spellings stay unlinked.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_marked_descendant_unwraps_one_bracket_pair() {
+        for cell_xml in [
+            r#"<gismu><phrase valid="maybe">[jbobliku]</phrase></gismu>"#,
+            r#"<gismu><valsi valid="maybe">[jbobliku]</valsi></gismu>"#,
+        ] {
+            let cell = entry_cell(cell_xml);
+            assert!(cell.word_parts().is_none(), "{cell_xml} got {cell:?}");
+            assert_eq!(
+                cell.word_cell().and_then(|word_cell| word_cell.bracket()),
+                Some(("jbobliku", None)),
+                "{cell_xml} got {cell:?}"
+            );
+            assert!(
+                is_marked_bracket(cell.inlines(), "jbobliku"),
+                "{cell_xml} got {cell:?}"
+            );
+            assert!(!entry_opted_out(cell_xml), "{cell_xml}");
+        }
+
+        let paragraph = r#"<para><valsi valid="maybe">[jbobliku]</valsi></para>"#;
+        let outside = probe_inlines(paragraph);
+        assert!(
+            is_unlinked_lojban_word(&outside, "[jbobliku]"),
+            "a paragraph keeps the brackets, got {outside:?}"
+        );
+
+        let part = r#"<gismu><valsi valid="maybe">[jbobliku]</valsi><valsi>coi</valsi></gismu>"#;
+        let part_cell = entry_cell(part);
+        assert_eq!(
+            part_cell.word_parts().as_deref(),
+            Some([word_part("[jbobliku]", None), word_part("coi", Some("coi")),].as_slice()),
+            "{part_cell:?}"
+        );
+        assert!(
+            matches!(
+                part_cell.inlines().first(),
+                Some(CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::MarkedValsi,
+                    inlines,
+                    ..
+                }) if matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "[jbobliku]")
+            ),
+            "{part_cell:?}"
+        );
+        assert!(!entry_opted_out(part), "{part}");
+    }
+
+    /// A rule-12 cell reads `glossary="false"` on a skipped hidden child.
+    ///
+    /// An index term, an anchor, and display-none text are skipped. The mark
+    /// on that child leaves every part unlinked. A visible nested glossary
+    /// does not opt out its sibling.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_rule_12_cell_obeys_glossary_false_on_a_hidden_child() {
+        let hidden = [
+            r#"<cmavo><phrase role="display-none" glossary="false">x</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><indexterm glossary="false"><primary>x</primary></indexterm><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><indexterm><primary glossary="false">x</primary></indexterm><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><anchor glossary="false" xml:id="hidden-glossary"/><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+        ];
+        for cell_xml in hidden {
+            let cell = entry_cell(cell_xml);
+            assert_eq!(
+                cell.word_parts().as_deref(),
+                Some([word_part("roi", None), word_part("nai", None)].as_slice()),
+                "{cell_xml} got {cell:?}"
+            );
+            assert!(entry_opted_out(cell_xml), "{cell_xml}");
+        }
+    }
+
+    /// A rule-12 cell reads `valid` on a skipped hidden child.
+    ///
+    /// An index term, an anchor, and display-none text are skipped. The fold
+    /// judges the joined cell spelling. `valid` of `false` or `maybe` leaves
+    /// every part unlinked when that spelling is not one bare lujvo. A hidden
+    /// bare lujvo keeps the links when the cell spelling is one bare lujvo.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_rule_12_cell_obeys_valid_on_a_hidden_child() {
+        for valid in ["false", "maybe"] {
+            let hidden = [
+                format!(
+                    "<cmavo><phrase role=\"display-none\" valid=\"{valid}\">x</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"
+                ),
+                format!(
+                    "<cmavo><indexterm valid=\"{valid}\"><primary>x</primary></indexterm><valsi>roi</valsi><valsi>nai</valsi></cmavo>"
+                ),
+                format!(
+                    "<cmavo><indexterm><primary valid=\"{valid}\">x</primary></indexterm><valsi>roi</valsi><valsi>nai</valsi></cmavo>"
+                ),
+                format!(
+                    "<cmavo><anchor valid=\"{valid}\" xml:id=\"hidden-valid\"/><valsi>roi</valsi><valsi>nai</valsi></cmavo>"
+                ),
+            ];
+            for cell_xml in hidden {
+                let cell = entry_cell(&cell_xml);
+                assert_eq!(
+                    cell.word_parts().as_deref(),
+                    Some([word_part("roi", None), word_part("nai", None)].as_slice()),
+                    "{cell_xml} got {cell:?}"
+                );
+                assert!(entry_opted_out(&cell_xml), "{cell_xml}");
+            }
+
+            let hidden_lujvo = format!(
+                "<cmavo><phrase role=\"display-none\" valid=\"{valid}\">jbobliku</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"
+            );
+            let cell = entry_cell(&hidden_lujvo);
+            assert_eq!(
+                cell.word_parts().as_deref(),
+                Some([word_part("roi", None), word_part("nai", None)].as_slice()),
+                "{hidden_lujvo} got {cell:?}"
+            );
+            assert!(entry_opted_out(&hidden_lujvo), "{hidden_lujvo}");
+
+            let linked = format!(
+                "<gismu><phrase role=\"display-none\" valid=\"{valid}\">jbobliku</phrase><valsi>lojbau</valsi><valsi>girzu</valsi></gismu>"
+            );
+            let cell = entry_cell(&linked);
+            assert_eq!(
+                cell.word_parts().as_deref(),
+                Some(
+                    [
+                        word_part("lojbau", Some("lojbau")),
+                        word_part("girzu", Some("girzu")),
+                    ]
+                    .as_slice()
+                ),
+                "{linked} got {cell:?}"
+            );
+            assert!(!entry_opted_out(&linked), "{linked}");
+        }
+    }
+
+    /// Carbon's round 17 inputs for hidden marks, lujvo misses, and brackets.
+    ///
+    /// A hidden lujvo mark uses the cell spelling. A comma lujvo miss stays
+    /// one marked span. A cell lujvo mark uses that same miss for each part.
+    /// One marked span of a bracketed word is not a bracket cell.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_round_17_cell_inputs() {
+        let opted_out_parts = [
+            r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase><valsi>coi</valsi><valsi/></cmavo>"#,
+            r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><phrase role="display-none" valid="maybe">jbobliku</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><indexterm valid="false"><primary>jbobliku</primary></indexterm><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<cmavo><phrase role="display-none" valid="false">[jbobliku]</phrase><valsi>roi</valsi><valsi>nai</valsi></cmavo>"#,
+            r#"<gismu><phrase role="display-none" valid="maybe">[jbobliku]</phrase><valsi>lojbau</valsi><valsi>girzu</valsi></gismu>"#,
+        ];
+        for cell_xml in opted_out_parts {
+            assert!(entry_opted_out(cell_xml), "{cell_xml}");
+            let cell = entry_cell(cell_xml);
+            let parts = cell.word_parts().expect(cell_xml);
+            assert!(
+                parts.iter().all(|part| part.target.is_none()),
+                "{cell_xml} got {cell:?}"
+            );
+        }
+
+        let single_words = [
+            (
+                r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase>coi</cmavo>"#,
+                "coi",
+            ),
+            (
+                r#"<cmavo><phrase role="display-none" valid="false">jbobliku</phrase>roinai</cmavo>"#,
+                "roinai",
+            ),
+        ];
+        for (cell_xml, shown) in single_words {
+            assert!(entry_opted_out(cell_xml), "{cell_xml}");
+            let cell = entry_cell(cell_xml);
+            assert!(
+                is_unlinked_lojban_word(cell.inlines(), shown),
+                "{cell_xml} got {cell:?}"
+            );
+        }
+
+        let linked = r#"<gismu><phrase role="display-none" valid="maybe">jbobliku</phrase><valsi>lojbau</valsi><valsi>girzu</valsi></gismu>"#;
+        let linked_cell = entry_cell(linked);
+        assert_eq!(
+            linked_cell.word_parts().as_deref(),
+            Some(
+                [
+                    word_part("lojbau", Some("lojbau")),
+                    word_part("girzu", Some("girzu")),
+                ]
+                .as_slice()
+            ),
+            "{linked_cell:?}"
+        );
+        assert!(!entry_opted_out(linked));
+
+        let comma_xml = r#"<gismu valid="maybe">jbobli,ku</gismu>"#;
+        let comma = entry_cell(comma_xml);
+        assert!(
+            is_unlinked_lojban_word(comma.inlines(), "jbobli,ku"),
+            "{comma:?}"
+        );
+        assert!(!entry_opted_out(comma_xml));
+        assert!(comma.word_cell().is_none(), "{comma:?}");
+        let site = embedded_cll_site().expect("embedded CLL site");
+        let (blocks, _) = probe_blocks(&format!(
+            "<cmavo-list><cmavo-entry>{comma_xml}</cmavo-entry></cmavo-list>"
+        ));
+        let comma_tags = super::super::block_tagged_words(&site, &blocks[0]);
+        assert!(comma_tags.contains("jbobliku"), "{comma_tags:?}");
+
+        let part_mark =
+            entry_cell(r#"<gismu><valsi/><valsi valid="maybe">jbobliku</valsi></gismu>"#);
+        assert!(
+            is_unlinked_lojban_word(part_mark.inlines(), "jbobliku"),
+            "{part_mark:?}"
+        );
+        let bare = entry_cell(r#"<gismu valid="maybe">jbobliku</gismu>"#);
+        assert!(
+            is_unlinked_lojban_word(bare.inlines(), "jbobliku"),
+            "{bare:?}"
+        );
+        let cell_mark =
+            entry_cell(r#"<gismu valid="maybe"><valsi/><valsi>jbobliku</valsi></gismu>"#);
+        assert!(
+            is_unlinked_lojban_word(cell_mark.inlines(), "jbobliku"),
+            "{cell_mark:?}"
+        );
+        assert!(!entry_opted_out(
+            r#"<gismu valid="maybe"><valsi/><valsi>jbobliku</valsi></gismu>"#
+        ));
+
+        let split =
+            entry_cell(r#"<gismu valid="maybe"><valsi>jbobli</valsi><valsi>bliku</valsi></gismu>"#);
+        assert!(
+            matches!(
+                split.inlines().first(),
+                Some(CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::MarkedValsi,
+                    inlines,
+                    ..
+                }) if matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "jbobli")
+            ),
+            "{split:?}"
+        );
+        assert!(
+            matches!(
+                split.inlines().get(1),
+                Some(CllInline::Link {
+                    target,
+                    kind: CllLinkKind::Dictionary,
+                    inlines,
+                }) if target == "bliku"
+                    && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "bliku")
+            ),
+            "{split:?}"
+        );
+
+        let noise = entry_cell(r#"<gismu valid="false">zo,is.</gismu>"#);
+        assert!(
+            matches!(noise.inlines(), [CllInline::Text(text)] if text == "zo,is."),
+            "{noise:?}"
+        );
+        assert!(entry_opted_out(r#"<gismu valid="false">zo,is.</gismu>"#));
+
+        let paragraph = probe_inlines(r#"<para><valsi valid="maybe">jbobli,ku</valsi></para>"#);
+        assert!(
+            matches!(
+                paragraph.as_slice(),
+                [CllInline::Link {
+                    target,
+                    kind: CllLinkKind::Dictionary,
+                    inlines,
+                }] if target == "jbobliku"
+                    && matches!(inlines.as_slice(), [CllInline::Text(text)] if text == "jbobli,ku")
+            ),
+            "{paragraph:?}"
+        );
+
+        let bracket_span = marked_valsi_span("[jundi]");
+        let bracket_inlines = [bracket_span];
+        assert!(crate::cmavo_table::cmavo_word_cell(&bracket_inlines).is_none());
+        let token_span = marked_valsi_span("jundi");
+        let token_inlines = [token_span];
+        let token = crate::cmavo_table::cmavo_word_cell(&token_inlines).expect("jundi");
+        assert_eq!(token.unlinked_token(), Some("jundi"));
+    }
+
+    /// An unlinked marked word stays in the word search.
+    ///
+    /// The tags match a dictionary link for the same text. A `jbophrase`
+    /// span does not add those tags. An unmarked dictionary miss in a cell
+    /// does not add them either. A marked lujvo miss does. Section 4.7 still
+    /// matches `slinku'i`.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_unlinked_marked_word_stays_searchable() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let tags = |xml: &str| {
+            let (blocks, _) = probe_blocks(xml);
+            super::super::block_tagged_words(&site, &blocks[0])
+        };
+        assert!(tags(r#"<para><valsi valid="false">slinku'i</valsi></para>"#).contains("slinku'i"));
+        assert!(!tags(r#"<para><jbophrase>slinku'i</jbophrase></para>"#).contains("slinku'i"));
+        assert!(tags(
+            r#"<cmavo-list><cmavo-entry><gismu glossary="false">klama</gismu></cmavo-entry></cmavo-list>"#
+        )
+        .contains("klama"));
+        assert!(
+            !tags(r#"<cmavo-list><cmavo-entry><gismu>jbobliku</gismu></cmavo-entry></cmavo-list>"#)
+                .contains("jbobliku")
+        );
+        assert!(tags(
+            r#"<cmavo-list><cmavo-entry><gismu valid="maybe">jbobliku</gismu></cmavo-entry></cmavo-list>"#
+        )
+        .contains("jbobliku"));
+        let bracket_cell = entry_cell(r#"<gismu glossary="false">[jbobliku]</gismu>"#);
+        assert!(is_marked_bracket(bracket_cell.inlines(), "jbobliku"));
+        assert!(tags(
+            r#"<cmavo-list><cmavo-entry><gismu glossary="false">[jbobliku]</gismu></cmavo-entry></cmavo-list>"#
+        )
+        .contains("jbobliku"));
+        let miss_xml = r#"<cmavo-list><cmavo-entry><cmavo><valsi>jbobliku</valsi><valsi>coi</valsi></cmavo></cmavo-entry></cmavo-list>"#;
+        let miss_tags = tags(miss_xml);
+        assert!(miss_tags.contains("jbobliku"), "{miss_tags:?}");
+        assert!(miss_tags.contains("coi"), "{miss_tags:?}");
+        let miss_cell = entry_cell(r#"<cmavo><valsi>jbobliku</valsi><valsi>coi</valsi></cmavo>"#);
+        assert!(
+            matches!(
+                miss_cell.inlines().first(),
+                Some(CllInline::LanguageSpan {
+                    kind: CllLanguageSpanKind::JboPhrase,
+                    ..
+                })
+            ),
+            "{miss_cell:?}"
+        );
+        let part_tags = tags(
+            r#"<cmavo-list><cmavo-entry><cmavo><valsi valid="false">slinku'i</valsi><valsi>coi</valsi></cmavo></cmavo-entry></cmavo-list>"#,
+        );
+        assert!(part_tags.contains("slinku'i"), "{part_tags:?}");
+        assert!(part_tags.contains("coi"), "{part_tags:?}");
+
+        let shown = "zo,is.";
+        let mut expected =
+            super::super::collect_tagged_words(&super::normalize_valsis_query(shown));
+        expected.extend(super::super::collect_tagged_words(shown));
+        assert_eq!(
+            tags(r#"<para><valsi valid="false">zo,is.</valsi></para>"#),
+            expected
+        );
+        assert_eq!(tags(r#"<para><valsi>zo,is.</valsi></para>"#), expected);
+
+        assert!(
+            site.search_chunks.iter().any(|chunk| {
+                chunk.section_number.as_deref() == Some("4.7")
+                    && chunk.tagged_words.contains("slinku'i")
+            }),
+            "slinku'i stays in section 4.7"
+        );
+    }
+
+    /// Every `valsi` element adds its word to the section search.
+    ///
+    /// The word can render as a link, as a Lojban span, or as text inside a
+    /// cell. The two `ki` cells in section 10.27 stay one text node each.
+    /// The section chunk still contains `ki`.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_valsi_element_inside_cell_text_stays_searchable() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let tags = |xml: &str| {
+            let (blocks, _) = probe_blocks(xml);
+            super::super::block_tagged_words(&site, &blocks[0])
+        };
+        let list =
+            |cell: &str| format!("<cmavo-list><cmavo-entry>{cell}</cmavo-entry></cmavo-list>");
+
+        let tense = entry_cell("<cmavo>tense+ <valsi>ki</valsi></cmavo>");
+        assert!(matches!(tense.inlines(), [CllInline::Text(text)] if text == "tense+ ki"));
+        assert_eq!(tense.valsi_words(), ["ki".to_owned()].as_slice());
+        assert!(tags(&list("<cmavo>tense+ <valsi>ki</valsi></cmavo>")).contains("ki"));
+
+        let alone = entry_cell("<cmavo><valsi>ki</valsi> alone</cmavo>");
+        assert!(matches!(alone.inlines(), [CllInline::Text(text)] if text == "ki alone"));
+        assert_eq!(alone.valsi_words(), ["ki".to_owned()].as_slice());
+        assert!(tags(&list("<cmavo><valsi>ki</valsi> alone</cmavo>")).contains("ki"));
+
+        assert!(site.search_chunks.iter().any(|chunk| {
+            chunk.kind == CllSearchChunkKind::Section
+                && chunk.section_number.as_deref() == Some("10.27")
+                && chunk.tagged_words.contains("ki")
+        }));
     }
 }

@@ -19,31 +19,32 @@ pub const DISCORD_MARKDOWN_ESCAPED: &[char] = &[
     '\\', '*', '_', '~', '`', '|', '>', '[', ']', '(', ')', '<', ':', '@',
 ];
 
-/// Escape one line so Discord renders it verbatim. Heading (`#`), subtext
-/// (`-#`), bullet (`-`, `+`) and ordered-list (`1.`) syntax only triggers at
-/// the start of a line, so those characters are escaped only there; every
-/// other escape is unconditional.
+/// Escape one line so Discord renders it verbatim.
+///
+/// A heading (`#`), subtext (`-#`), bullet (`-`), or ordered list (`1.`) is
+/// syntax at the start of a line. The character after the marker is the one
+/// Discord's own rule accepts. The end of the piece also ends a list marker
+/// and a subtext marker, because more text can follow on the same line. If
+/// `line` begins a line, pass `at_line_start` as true. If `line` contains a
+/// CR, that CR is a line ending. The CR stays in the output. Every other
+/// escape is unconditional.
 #[requires(!line.contains('\n'))]
-#[ensures(scope.is_exceeded() || (!ret.trim_start().starts_with(['-', '#', '+'])))]
 #[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
-pub fn escape_discord_markdown_line_in_scope(
+#[expensive_ensures(scope.is_exceeded() || super::commonmark_lines(&ret).iter().enumerate().all(|(index, (content, _))| {
+    (index == 0 && !at_line_start) || discord_marker_byte(content).is_none()
+}))]
+pub(crate) fn escape_discord_markdown_line_at(
     line: &str,
     scope: &jbotci_budget::TextScope,
+    at_line_start: bool,
 ) -> String {
-    let indent = line.len() - line.trim_start().len();
+    if line.as_bytes().contains(&b'\r') {
+        return escape_discord_markdown_at(line, scope, at_line_start);
+    }
+    let marker_at = at_line_start.then(|| discord_marker_byte(line)).flatten();
     let mut escaped = scope.buffer();
-    // True while only digits have followed the indent: a `.` there would
-    // complete an ordered-list marker.
-    let mut in_ordered_prefix = true;
     for (index, character) in line.char_indices() {
-        let after_indent = index >= indent;
-        let escape = DISCORD_MARKDOWN_ESCAPED.contains(&character)
-            || (index == indent && matches!(character, '-' | '#' | '+'))
-            || (after_indent && index > indent && in_ordered_prefix && character == '.');
-        if after_indent && !character.is_ascii_digit() {
-            in_ordered_prefix = false;
-        }
-        if escape {
+        if DISCORD_MARKDOWN_ESCAPED.contains(&character) || marker_at == Some(index) {
             escaped.push('\\');
         }
         escaped.push(character);
@@ -51,19 +52,157 @@ pub fn escape_discord_markdown_line_in_scope(
     escaped.into_piece()
 }
 
+/// Byte index of the one character that starts a Discord line marker.
+///
+/// A heading is one to three `#` characters. Discord then accepts JavaScript
+/// whitespace, and it also accepts the end of the line. Subtext is `-#`. A
+/// bullet is `-`. An ordered list is digits and then `.`. Those three accept
+/// an ASCII space, and they accept the end of the piece. A tab does not
+/// count. `+` is not a marker.
+#[requires(true)]
+#[ensures(ret.is_none_or(|index| {
+    line.is_char_boundary(index)
+        && index < line.len()
+        && matches!(line.as_bytes()[index], b'#' | b'-' | b'.')
+}))]
+fn discord_marker_byte(line: &str) -> Option<usize> {
+    // The indent is a space or a tab. A no-break space is not an indent.
+    // Discord's own rules indent with ASCII spaces. A tab stays here because
+    // this check is only the gap before the marker.
+    let indent = line
+        .bytes()
+        .take_while(|byte| *byte == b' ' || *byte == b'\t')
+        .count();
+    let tail = &line[indent..];
+    let bytes = tail.as_bytes();
+    if bytes.is_empty() {
+        return None;
+    }
+    let hashes = bytes.iter().take_while(|byte| **byte == b'#').count();
+    if (1..=3).contains(&hashes) && discord_heading_separator(&tail[hashes..]) {
+        return Some(indent);
+    }
+    if bytes[0] == b'-' {
+        let rest = &tail[1..];
+        if rest.starts_with('#') && discord_space_separator(&rest[1..]) {
+            return Some(indent);
+        }
+        if discord_space_separator(rest) {
+            return Some(indent);
+        }
+    }
+    let digits = bytes
+        .iter()
+        .take_while(|byte| byte.is_ascii_digit())
+        .count();
+    if digits >= 1
+        && bytes.get(digits) == Some(&b'.')
+        && discord_space_separator(&tail[digits + 1..])
+    {
+        return Some(indent + digits);
+    }
+    None
+}
+
+/// True for a character in JavaScript `\s`.
+///
+/// Discord's heading rule uses that set after one to three `#` characters.
+/// The set is every character Rust calls whitespace, plus U+FEFF, except
+/// U+0085.
+#[requires(true)]
+#[ensures(ret == (character == '\u{feff}' || (character.is_whitespace() && character != '\u{0085}')))]
+fn discord_js_whitespace(character: char) -> bool {
+    matches!(
+        character,
+        '\t' | '\n'
+            | '\u{000b}'
+            | '\u{000c}'
+            | '\r'
+            | ' '
+            | '\u{00a0}'
+            | '\u{1680}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202f}'
+            | '\u{205f}'
+            | '\u{3000}'
+            | '\u{feff}'
+    ) || ('\u{2000}'..='\u{200a}').contains(&character)
+}
+
+/// True when `rest` can end a Discord heading.
+///
+/// The end of the line counts. A line feed is JavaScript whitespace, so a
+/// heading can take its text from the next line. A following character also
+/// counts when it is in that set. U+3000 is in the set.
+#[requires(true)]
+#[ensures(ret == (rest.is_empty() || rest.chars().next().is_some_and(|character| {
+    character == '\u{feff}' || (character.is_whitespace() && character != '\u{0085}')
+})))]
+fn discord_heading_separator(rest: &str) -> bool {
+    rest.is_empty() || rest.chars().next().is_some_and(discord_js_whitespace)
+}
+
+/// True when `rest` can end a `-` bullet, an `N.` list, or a `-#` marker.
+///
+/// Discord accepts one ASCII space and then more text on the same line.
+/// The end of this piece also counts. A later cell can follow on the same
+/// line. A tab does not count. U+3000 does not count. A lone space after
+/// `-#` counts. The Discord input block uses `-# ` as a header, so that
+/// prefix stays escaped. `+` is not a bullet.
+#[requires(true)]
+// The predicate is the function body. A second copy can agree with the same defect.
+#[ensures(true)]
+fn discord_space_separator(rest: &str) -> bool {
+    rest.is_empty() || rest.starts_with(' ')
+}
+
+/// Escape one line that begins at column zero.
+#[requires(!line.contains('\n'))]
+#[ensures(scope.is_exceeded() || (line.is_empty() == ret.is_empty()))]
+#[expensive_ensures(scope.is_exceeded() || super::commonmark_lines(&ret).iter().all(|(content, _)| {
+    discord_marker_byte(content).is_none()
+}))]
+pub fn escape_discord_markdown_line_in_scope(
+    line: &str,
+    scope: &jbotci_budget::TextScope,
+) -> String {
+    escape_discord_markdown_line_at(line, scope, true)
+}
+
 /// Escape arbitrary text, line by line, so Discord renders it verbatim.
+///
+/// The first line uses `at_line_start`. Each later line begins a line of its own.
+/// A line ends at LF, CRLF, or a lone CR. The ending stays in the output.
+#[requires(true)]
+#[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
+#[ensures(scope.is_exceeded() || (ret.split('\n').count() == text.split('\n').count()))]
+#[expensive_ensures(scope.is_exceeded() || super::commonmark_lines(&ret).iter().enumerate().all(|(index, (content, _))| {
+    (index == 0 && !at_line_start) || discord_marker_byte(content).is_none()
+}))]
+pub(crate) fn escape_discord_markdown_at(
+    text: &str,
+    scope: &jbotci_budget::TextScope,
+    at_line_start: bool,
+) -> String {
+    let mut escaped = scope.buffer();
+    for (index, (line, ending)) in super::commonmark_lines(text).into_iter().enumerate() {
+        escaped.push_str(&escape_discord_markdown_line_at(
+            line,
+            scope,
+            at_line_start || index > 0,
+        ));
+        escaped.push_str(ending);
+    }
+    escaped.into_piece()
+}
+
+/// Escape arbitrary text that begins at column zero.
 #[requires(true)]
 #[ensures(scope.is_exceeded() || (text.is_empty() == ret.is_empty()))]
 #[ensures(scope.is_exceeded() || (ret.split('\n').count() == text.split('\n').count()))]
 pub fn escape_discord_markdown_in_scope(text: &str, scope: &jbotci_budget::TextScope) -> String {
-    let mut escaped = scope.buffer();
-    for (index, line) in text.split('\n').enumerate() {
-        if index > 0 {
-            escaped.push('\n');
-        }
-        escaped.push_str(&escape_discord_markdown_line_in_scope(line, scope));
-    }
-    escaped.into_piece()
+    escape_discord_markdown_at(text, scope, true)
 }
 
 /// The longest run of consecutive backticks in `text`.
@@ -210,22 +349,111 @@ mod tests {
         assert_eq!(escape_discord_markdown_line("1. one"), "1\\. one");
         assert_eq!(
             escape_discord_markdown_line("1.5 not a list"),
-            "1\\.5 not a list"
+            "1.5 not a list"
         );
         assert_eq!(
             escape_discord_markdown_line("v1.5 not a list"),
             "v1.5 not a list"
         );
-        assert_eq!(escape_discord_markdown_line("+ plus"), "\\+ plus");
+        assert_eq!(escape_discord_markdown_line("+ plus"), "+ plus");
         assert_eq!(escape_discord_markdown_line("a + b"), "a + b");
         assert_eq!(
             escape_discord_markdown_line("mi klama .i do"),
             "mi klama .i do"
         );
+        assert_eq!(escape_discord_markdown(".ui"), ".ui");
+        assert_eq!(escape_discord_markdown(".uinai"), ".uinai");
+        let scope = jbotci_budget::TextScope::new(
+            jbotci_budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+        );
+        assert_eq!(
+            escape_discord_markdown_at("roi-nai", &scope, true),
+            "roi-nai"
+        );
+        assert_eq!(escape_discord_markdown_at("-nai", &scope, false), "-nai");
+        assert_eq!(escape_discord_markdown_at("-nai", &scope, true), "-nai");
+        assert_eq!(escape_discord_markdown_line("#a"), "#a");
+        assert_eq!(escape_discord_markdown_line("# a"), "\\# a");
+        assert_eq!(escape_discord_markdown_line("## a"), "\\## a");
+        assert_eq!(escape_discord_markdown_line("-nai"), "-nai");
+        assert_eq!(escape_discord_markdown_line("- a"), "\\- a");
+        assert_eq!(escape_discord_markdown_line("1.a"), "1.a");
+        assert_eq!(escape_discord_markdown_line("1."), "1\\.");
+        assert_eq!(escape_discord_markdown_line("-"), "\\-");
+        assert_eq!(escape_discord_markdown_line("-# sub"), "\\-# sub");
+        assert_eq!(escape_discord_markdown_line("-#sub"), "-#sub");
+        assert_eq!(
+            escape_discord_markdown_at("1. aroi", &scope, true),
+            "1\\. aroi"
+        );
+        assert_eq!(escape_discord_markdown_at("1. a", &scope, false), "1. a");
         assert_eq!(
             escape_discord_markdown_line(":x: [a](b)"),
             "\\:x\\: \\[a\\]\\(b\\)"
         );
+        assert_eq!(escape_discord_markdown("#\r\n"), "\\#\r\n");
+        assert_eq!(escape_discord_markdown("1.\r\n"), "1\\.\r\n");
+        assert_eq!(escape_discord_markdown("1.\r"), "1\\.\r");
+        assert_eq!(
+            escape_discord_markdown_line("#\u{3000}title"),
+            "\\#\u{3000}title"
+        );
+        assert_eq!(
+            escape_discord_markdown_line("#\u{00a0}title"),
+            "\\#\u{00a0}title"
+        );
+        assert_eq!(
+            escape_discord_markdown_line("#\u{feff}title"),
+            "\\#\u{feff}title"
+        );
+        assert_eq!(
+            escape_discord_markdown_line("#\u{0085}title"),
+            "#\u{0085}title"
+        );
+        assert_eq!(escape_discord_markdown_line("#### a"), "#### a");
+        assert_eq!(escape_discord_markdown_line("-#"), "\\-#");
+        assert_eq!(escape_discord_markdown_line("-# "), "\\-# ");
+        assert_eq!(
+            escape_discord_markdown_line("-#\u{3000}title"),
+            "-#\u{3000}title"
+        );
+        assert_eq!(escape_discord_markdown_line("- "), "\\- ");
+        assert_eq!(escape_discord_markdown_line("-  x"), "\\-  x");
+        assert_eq!(escape_discord_markdown_line("-\titem"), "-\titem");
+        assert_eq!(escape_discord_markdown_line("#\ttitle"), "\\#\ttitle");
+        assert_eq!(escape_discord_markdown_line("-#\ttitle"), "-#\ttitle");
+        assert_eq!(
+            escape_discord_markdown_line("-\u{3000}item"),
+            "-\u{3000}item"
+        );
+        assert_eq!(escape_discord_markdown_line("1. "), "1\\. ");
+        assert_eq!(escape_discord_markdown_line("1.  "), "1\\.  ");
+        assert_eq!(
+            escape_discord_markdown_line("1.\u{3000}item"),
+            "1.\u{3000}item"
+        );
+        assert_eq!(escape_discord_markdown("#\r"), "\\#\r");
+        assert_eq!(escape_discord_markdown("a\r# b"), "a\r\\# b");
+        assert_eq!(escape_discord_markdown("\u{00a0}# a"), "\u{00a0}# a");
+        assert_eq!(escape_discord_markdown("  # a"), "  \\# a");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn javascript_whitespace_matches_rust_whitespace_except_two_points() {
+        for code in 0..=0x10FFFF {
+            let Some(character) = char::from_u32(code) else {
+                continue;
+            };
+            let javascript_space =
+                character == '\u{feff}' || (character.is_whitespace() && character != '\u{0085}');
+            assert_eq!(
+                discord_js_whitespace(character),
+                javascript_space,
+                "U+{code:04X}"
+            );
+        }
     }
 
     #[test]

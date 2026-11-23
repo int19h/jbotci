@@ -1077,7 +1077,7 @@ pub enum CllBlock {
         id: Option<String>,
         titles: Vec<Vec<CllInline>>,
         headers: Vec<Vec<CllInline>>,
-        rows: Vec<Vec<Vec<CllInline>>>,
+        rows: Vec<Vec<CllCmavoListCell>>,
     },
     Lojbanization {
         id: Option<String>,
@@ -1101,6 +1101,132 @@ pub enum CllBlock {
         latex: String,
         markup: String,
     },
+}
+
+/// One body cell of a cmavo list.
+///
+/// A `Word` cell is one `cmavo` cell or one `gismu` cell. An `Adjacent` cell
+/// is that same column when rule 12 applies: the cell held only adjacent
+/// `valsi` elements. Empty elements are discarded after that decision, so the
+/// cell can keep zero or one part. The importer is the only builder of those
+/// two variants. Every other column is `Other`, and it keeps the inlines the
+/// rest of the book uses. `valsi_words` lists each `valsi` element in a word
+/// cell or a rule-12 cell. Word search tags that list. A link or a marked
+/// span of the same word also tags it.
+#[invariant(true)]
+#[invariant(::Word { inlines, .. } => crate::cmavo_table::word_cell_shape(inlines))]
+#[expensive_invariant(
+    ::Adjacent { inlines, .. } => crate::cmavo_table::cmavo_word_parts(inlines).is_some()
+)]
+#[invariant(::Other { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CllCmavoListCell {
+    /// A `cmavo` cell or a `gismu` cell that is not a rule-12 group.
+    ///
+    /// `inlines` hold the visible cell. The list is empty, one text node,
+    /// one dictionary link, one Lojban span, or brackets around one link or
+    /// one marked span. `valsi_words` holds each `valsi` element in the cell.
+    Word {
+        inlines: Vec<CllInline>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        valsi_words: Vec<String>,
+    },
+    /// A rule-12 `cmavo` cell or `gismu` cell.
+    ///
+    /// `inlines` are the parts that still have text. Each part keeps its own
+    /// link or its own Lojban span. `valsi_words` holds each `valsi` element
+    /// in the cell.
+    Adjacent {
+        inlines: Vec<CllInline>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        valsi_words: Vec<String>,
+    },
+    /// A selmaho cell, a description cell, or any other column.
+    Other { inlines: Vec<CllInline> },
+}
+
+impl CllCmavoListCell {
+    /// The inlines stored in this cell.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn inlines(&self) -> &[CllInline] {
+        match self.as_data() {
+            data!(CllCmavoListCell::Word { inlines, .. })
+            | data!(CllCmavoListCell::Adjacent { inlines, .. })
+            | data!(CllCmavoListCell::Other { inlines }) => inlines,
+        }
+    }
+
+    /// The text of each `valsi` element stored for word search.
+    ///
+    /// An ordinary column has none. Its `valsi` elements stay in the inlines.
+    #[requires(true)]
+    #[ensures(matches!(self.as_data(), data!(CllCmavoListCell::Other { .. })) -> ret.is_empty())]
+    pub fn valsi_words(&self) -> &[String] {
+        match self.as_data() {
+            data!(CllCmavoListCell::Word { valsi_words, .. })
+            | data!(CllCmavoListCell::Adjacent { valsi_words, .. }) => valsi_words,
+            data!(CllCmavoListCell::Other { .. }) => &[],
+        }
+    }
+
+    /// The inlines when this cell is a `cmavo` cell or a `gismu` cell.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn word_inlines(&self) -> Option<&[CllInline]> {
+        match self.as_data() {
+            data!(CllCmavoListCell::Word { inlines, .. })
+            | data!(CllCmavoListCell::Adjacent { inlines, .. }) => Some(inlines),
+            data!(CllCmavoListCell::Other { .. }) => None,
+        }
+    }
+
+    /// The single-word view of this cell.
+    ///
+    /// An ordinary cell returns none, even when its text has a bracket shape.
+    /// A rule-12 cell returns none, including when one part remains.
+    #[requires(true)]
+    #[ensures(match self.as_data() {
+        data!(CllCmavoListCell::Other { .. }) | data!(CllCmavoListCell::Adjacent { .. }) => {
+            ret.is_none()
+        }
+        data!(CllCmavoListCell::Word { .. }) => true,
+    })]
+    pub fn word_cell(&self) -> Option<crate::cmavo_table::CllCmavoWordCell<'_>> {
+        match self.as_data() {
+            data!(CllCmavoListCell::Word { inlines, .. }) => {
+                crate::cmavo_table::cmavo_word_cell(inlines)
+            }
+            data!(CllCmavoListCell::Adjacent { .. }) | data!(CllCmavoListCell::Other { .. }) => {
+                None
+            }
+        }
+    }
+
+    /// The adjacent valsi parts of this cell.
+    ///
+    /// The cell records that rule 12 applies. Empty valsi elements are
+    /// discarded after that decision, so zero or one part can remain. Each
+    /// part is the shown text and the dictionary target when that part links.
+    /// An ordinary cell returns none.
+    #[requires(true)]
+    #[ensures(match self.as_data() {
+        data!(CllCmavoListCell::Other { .. }) | data!(CllCmavoListCell::Word { .. }) => {
+            ret.is_none()
+        }
+        data!(CllCmavoListCell::Adjacent { inlines, .. }) => {
+            ret.as_ref().is_some_and(|parts| parts.len() == inlines.len())
+        }
+    })]
+    pub fn word_parts(&self) -> Option<Vec<crate::cmavo_table::CllCmavoWordPart<'_>>> {
+        match self.as_data() {
+            data!(CllCmavoListCell::Adjacent { inlines, .. }) => {
+                crate::cmavo_table::cmavo_word_parts(inlines)
+            }
+            data!(CllCmavoListCell::Word { .. }) | data!(CllCmavoListCell::Other { .. }) => None,
+        }
+    }
 }
 
 #[invariant(true)]
@@ -1169,6 +1295,12 @@ pub enum CllInline {
 pub enum CllLanguageSpanKind {
     ForeignPhrase,
     JboPhrase,
+    /// A marked word that stays unlinked.
+    ///
+    /// The reader sees the same Lojban span as `JboPhrase`. Word search
+    /// finds the word. The tags use the same normalization as a dictionary
+    /// link. A `jbophrase` span does not use this kind.
+    MarkedValsi,
 }
 
 #[invariant(true)]
@@ -1213,39 +1345,29 @@ pub enum CllLinkRenderMode {
 
 use crate::search::CllSearchChunk;
 
+/// One render target.
+///
+/// HTML carries a link mode. Markdown carries a dialect and does not carry a
+/// link mode. GitHub Markdown is what the CLI and the MCP tool emit. Discord
+/// Markdown is what a Discord message shows. Both Markdown dialects omit link
+/// destinations.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CllRenderFormat {
-    /// GitHub-flavoured Markdown: pipe tables, `$…$` math, the book's text
-    /// verbatim. What the CLI and the MCP tool emit.
-    Markdown,
-    Html,
-    Raw,
-    /// Discord's Markdown dialect: no tables, math or HTML, `-#` subtext, and
-    /// every text run escaped so the client cannot misread it as formatting.
-    DiscordMarkdown,
+#[invariant(::Html(_) => true)]
+#[invariant(::Markdown(_) => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CllRenderTarget {
+    /// HTML. `Web` keeps the interactive links. `Plain` omits destinations.
+    Html(CllLinkRenderMode),
+    /// Markdown in one dialect. The dialect carries no link mode.
+    Markdown(CllMarkdownDialect),
 }
 
-/// The Markdown dialect a text format renders in.
+/// The Markdown dialect a text target renders in.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CllMarkdownDialect {
     GitHub,
     Discord,
-}
-
-impl CllRenderFormat {
-    /// The Markdown dialect of a text format; `None` for HTML.
-    #[requires(true)]
-    #[ensures(ret.is_none() == (self == CllRenderFormat::Html))]
-    pub fn markdown_dialect(self) -> Option<CllMarkdownDialect> {
-        match self {
-            CllRenderFormat::Html => None,
-            CllRenderFormat::Markdown | CllRenderFormat::Raw => Some(CllMarkdownDialect::GitHub),
-            CllRenderFormat::DiscordMarkdown => Some(CllMarkdownDialect::Discord),
-        }
-    }
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]

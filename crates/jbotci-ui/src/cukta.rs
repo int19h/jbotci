@@ -1950,6 +1950,7 @@ pub(super) fn render_cll_inline(
             let class_name = cll_language_span_class(*kind);
             let child_context = lojban_context
                 || *kind == CllLanguageSpanKind::JboPhrase
+                || *kind == CllLanguageSpanKind::MarkedValsi
                 || cll_language_is_lojban(language.as_deref());
             rsx! {
                 span { class: "{class_name}", lang: language.clone().unwrap_or_default(),
@@ -1985,78 +1986,20 @@ pub(super) fn render_cll_inline(
             inlines,
             kind,
         } => {
-            let href = cll_spa_inline_href(base_path, *kind, target);
-            let class_name = format!("spa-cll-link {}", cll_link_kind_class(*kind));
-            let tooltip = cll_dictionary_tooltip_for_link(base_path, *kind, target);
             let child_context = lojban_context || cll_link_text_is_lojban(*kind);
-            let route = jbotci_route_from_href(base_path, &href).map(|route| {
-                let pending_scroll =
-                    cukta_pending_scroll_for_explicit_route_link(base_path, &route);
-                let click_route = route.clone();
-                (route, click_route, pending_scroll)
-            });
-            if let Some(card) = &tooltip {
-                rsx! {
-                    span { class: "dictionary-tooltip-host",
-                        if let Some((route, click_route, pending_scroll)) = route {
-                            Link {
-                                class: "{class_name}",
-                                to: route,
-                                onclick_only: true,
-                                onclick: move |_| {
-                                    push_route_with_cukta_scroll_intent(
-                                        pending_cukta_scroll,
-                                        pending_scroll.clone(),
-                                        click_route.clone(),
-                                    );
-                                },
-                                for child in inlines.iter() {
-                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
-                                }
-                            }
-                        } else {
-                            a {
-                                class: "{class_name}",
-                                href: "{href}",
-                                for child in inlines.iter() {
-                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
-                                }
-                            }
-                        }
-                        { render_dictionary_tooltip(card, false, base_path, script) }
-                    }
+            let child = rsx! {
+                for child in inlines.iter() {
+                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
                 }
-            } else {
-                if let Some((route, click_route, pending_scroll)) = route {
-                    rsx! {
-                        Link {
-                            class: "{class_name}",
-                            to: route,
-                            onclick_only: true,
-                            onclick: move |_| {
-                                push_route_with_cukta_scroll_intent(
-                                    pending_cukta_scroll,
-                                    pending_scroll.clone(),
-                                    click_route.clone(),
-                                );
-                            },
-                                for child in inlines.iter() {
-                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
-                                }
-                            }
-                    }
-                } else {
-                    rsx! {
-                        a {
-                            class: "{class_name}",
-                            href: "{href}",
-                                for child in inlines.iter() {
-                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
-                                }
-                            }
-                    }
-                }
-            }
+            };
+            render_cll_link_with_child(
+                target,
+                *kind,
+                pending_cukta_scroll,
+                base_path,
+                script,
+                child,
+            )
         }
         CllInline::Code(text) => rsx! { code { { render_page_find_text(page_find, text) } } },
         CllInline::Elidable {
@@ -2089,6 +2032,19 @@ pub(super) fn render_cll_inline(
 pub(super) fn display_lojban_text(script: GentufaScript, text: &str) -> String {
     render_lojban_text_for_script(text, script, display_lojban_phoneme_options())
         .unwrap_or_else(|_| text.to_owned())
+}
+
+/// The script form of one cmavo-table word.
+///
+/// A word the morphology accepts uses that rendering. A word it rejects uses
+/// the loose script map, so the selected script still applies.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn display_cmavo_word(script: GentufaScript, text: &str) -> String {
+    match render_lojban_text_for_script(text, script, display_lojban_phoneme_options()) {
+        Ok(rendered) => rendered,
+        Err(_) => render_loose_latin_text_for_script(script, text),
+    }
 }
 
 #[requires(true)]
@@ -2250,13 +2206,232 @@ pub(super) fn render_cll_interlinear(
     }
 }
 
+/// One dictionary, rafsi or parse link around `child`.
+///
+/// The caller builds `child`. A bracketed cmavo word uses this so the link
+/// wraps the word and the brackets stay outside it.
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_link_with_child(
+    target: &str,
+    kind: CllLinkKind,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+    script: GentufaScript,
+    child: Element,
+) -> Element {
+    let href = cll_spa_inline_href(base_path, kind, target);
+    let class_name = format!("spa-cll-link {}", cll_link_kind_class(kind));
+    let tooltip = cll_dictionary_tooltip_for_link(base_path, kind, target);
+    let route = jbotci_route_from_href(base_path, &href).map(|route| {
+        let pending_scroll = cukta_pending_scroll_for_explicit_route_link(base_path, &route);
+        let click_route = route.clone();
+        (route, click_route, pending_scroll)
+    });
+    match (tooltip, route) {
+        (Some(card), Some((route, click_route, pending_scroll))) => rsx! {
+            span { class: "dictionary-tooltip-host",
+                Link {
+                    class: "{class_name}",
+                    to: route,
+                    onclick_only: true,
+                    onclick: move |_| {
+                        push_route_with_cukta_scroll_intent(
+                            pending_cukta_scroll,
+                            pending_scroll.clone(),
+                            click_route.clone(),
+                        );
+                    },
+                    {child}
+                }
+                { render_dictionary_tooltip(&card, false, base_path, script) }
+            }
+        },
+        (Some(card), None) => rsx! {
+            span { class: "dictionary-tooltip-host",
+                a {
+                    class: "{class_name}",
+                    href: "{href}",
+                    {child}
+                }
+                { render_dictionary_tooltip(&card, false, base_path, script) }
+            }
+        },
+        (None, Some((route, click_route, pending_scroll))) => rsx! {
+            Link {
+                class: "{class_name}",
+                to: route,
+                onclick_only: true,
+                onclick: move |_| {
+                    push_route_with_cukta_scroll_intent(
+                        pending_cukta_scroll,
+                        pending_scroll.clone(),
+                        click_route.clone(),
+                    );
+                },
+                {child}
+            }
+        },
+        (None, None) => rsx! {
+            a {
+                class: "{class_name}",
+                href: "{href}",
+                {child}
+            }
+        },
+    }
+}
+
+/// One cmavo-list body cell.
+///
+/// A bracket cell is one page-find string, `[` plus the scripted word plus `]`.
+/// The link wraps only the word. An unlinked dictionary token is one scripted
+/// string. Every other cell walks its inlines.
+#[requires(true)]
+#[ensures(true)]
+fn render_cmavo_list_cell(
+    cell: &CllCmavoListCell,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
+    if let Some(word_cell) = cell.word_cell() {
+        if let Some((word, target)) = word_cell.bracket() {
+            return render_cmavo_bracket_cell(
+                word,
+                target,
+                pending_cukta_scroll,
+                base_path,
+                script,
+                page_find,
+            );
+        }
+        if let Some(text) = word_cell.unlinked_token() {
+            let shown = display_cmavo_word(script, text);
+            return rsx! {
+                span { class: "spa-cll-jbophrase", lang: "jbo",
+                    { render_page_find_text(page_find, &shown) }
+                }
+            };
+        }
+    }
+    if let Some(parts) = cell.word_parts() {
+        return render_cmavo_word_parts(&parts, pending_cukta_scroll, base_path, script, page_find);
+    }
+    let inlines = cell.inlines();
+    rsx! {
+        for inline in inlines.iter() {
+            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
+        }
+    }
+}
+
+/// Adjacent valsi parts as one page-find string, drawn side by side.
+///
+/// Each part keeps its own link or Lojban span. A search for the whole
+/// spelling, such as `roinai`, matches the cell once.
+#[requires(true)]
+#[ensures(true)]
+fn render_cmavo_word_parts(
+    parts: &[CllCmavoWordPart<'_>],
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
+    let shown_parts: Vec<String> = parts
+        .iter()
+        .map(|part| display_cmavo_word(script, part.text))
+        .collect();
+    let full: String = shown_parts.concat();
+    if full.is_empty() {
+        return rsx! {};
+    }
+    let pieces = page_find_pieces_for(page_find, &full);
+    let mut cursor = 0usize;
+    let mut children = Vec::new();
+    for (part, shown) in parts.iter().zip(shown_parts.iter()) {
+        let start = cursor;
+        let end = cursor + shown.len();
+        cursor = end;
+        let inner = clip_page_find_pieces(&pieces, start, end);
+        let node = render_page_find_pieces(page_find, &inner);
+        let child = if let Some(target) = part.target {
+            render_cll_link_with_child(
+                target,
+                CllLinkKind::Dictionary,
+                pending_cukta_scroll,
+                base_path,
+                script,
+                node,
+            )
+        } else {
+            rsx! {
+                span { class: "spa-cll-jbophrase", lang: "jbo",
+                    { node }
+                }
+            }
+        };
+        children.push(child);
+    }
+    rsx! {
+        for child in children {
+            { child }
+        }
+    }
+}
+
+/// `[word]` as one page-find string, with the link around the word only.
+///
+/// An unlinked word keeps a Lojban span. The class is `spa-cll-jbophrase`.
+#[requires(true)]
+#[ensures(true)]
+fn render_cmavo_bracket_cell(
+    word: &str,
+    target: Option<&str>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
+    let shown = display_cmavo_word(script, word);
+    let full = format!("[{shown}]");
+    let pieces = page_find_pieces_for(page_find, &full);
+    let end = full.len();
+    let open = clip_page_find_pieces(&pieces, 0, 1);
+    let inner = clip_page_find_pieces(&pieces, 1, end.saturating_sub(1));
+    let close = clip_page_find_pieces(&pieces, end.saturating_sub(1), end);
+    let word_node = render_page_find_pieces(page_find, &inner);
+    let linked = match target {
+        Some(target) => render_cll_link_with_child(
+            target,
+            CllLinkKind::Dictionary,
+            pending_cukta_scroll,
+            base_path,
+            script,
+            word_node,
+        ),
+        None => rsx! {
+            span { class: "spa-cll-jbophrase", lang: "jbo",
+                {word_node}
+            }
+        },
+    };
+    rsx! {
+        { render_page_find_pieces(page_find, &open) }
+        {linked}
+        { render_page_find_pieces(page_find, &close) }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_cll_cmavo_list(
     id: Option<&str>,
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
-    rows: &[Vec<Vec<CllInline>>],
+    rows: &[Vec<CllCmavoListCell>],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
@@ -2288,9 +2463,7 @@ pub(super) fn render_cll_cmavo_list(
                         tr {
                             for cell in row.iter() {
                                 td {
-                                    for inline in cell.iter() {
-                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
-                                    }
+                                    { render_cmavo_list_cell(cell, pending_cukta_scroll, base_path, script, page_find) }
                                 }
                             }
                         }
@@ -2745,7 +2918,7 @@ pub(super) fn cll_table_class(classes: &[String]) -> String {
 pub(super) fn cll_language_span_class(kind: CllLanguageSpanKind) -> &'static str {
     match kind {
         CllLanguageSpanKind::ForeignPhrase => "spa-cll-foreignphrase",
-        CllLanguageSpanKind::JboPhrase => "spa-cll-jbophrase",
+        CllLanguageSpanKind::JboPhrase | CllLanguageSpanKind::MarkedValsi => "spa-cll-jbophrase",
     }
 }
 

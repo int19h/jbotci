@@ -136,7 +136,7 @@ pub(crate) fn walk_block<V: CllBlockVisitor + ?Sized>(visitor: &mut V, block: &C
                 visitor.visit_inline_run(line);
             }
             for cell in rows.iter().flatten() {
-                visitor.visit_inline_run(cell);
+                visitor.visit_inline_run(cell.inlines());
             }
         }
         CllBlock::Lojbanization { lines, .. } => {
@@ -289,9 +289,26 @@ pub(crate) fn walk_block_mut<V: CllBlockVisitor + ?Sized>(visitor: &mut V, block
             for title in titles.iter_mut().chain(headers.iter_mut()) {
                 visitor.visit_inline_run_mut(title);
             }
-            for cell in rows.iter_mut().flatten() {
-                visitor.visit_inline_run_mut(cell);
-            }
+            // Take each cell apart and build it again. A mutable slice of the
+            // inlines would skip the adjacent-part rule.
+            *rows = std::mem::take(rows)
+                .into_iter()
+                .map(|row| {
+                    row.into_iter()
+                        .map(|cell| {
+                            let mut data = cell.into_data();
+                            match &mut data {
+                                data!(CllCmavoListCell::Word { inlines, .. })
+                                | data!(CllCmavoListCell::Adjacent { inlines, .. })
+                                | data!(CllCmavoListCell::Other { inlines }) => {
+                                    visitor.visit_inline_run_mut(inlines);
+                                }
+                            }
+                            CllCmavoListCell::from_data(data)
+                        })
+                        .collect()
+                })
+                .collect();
         }
         CllBlock::Lojbanization { lines, .. } => {
             *lines = std::mem::take(lines)

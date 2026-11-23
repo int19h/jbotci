@@ -644,12 +644,28 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL link target counter is private test traversal accumulator state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:CmavoCellCounts",
+        "test counters for one walk of the vendored cmavo tables",
+    ),
+    (
         "crates/jbotci-cll/src/lib.rs:InlinePlainTextVisitor",
         "inline plain text visitor is private traversal accumulator state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:LinkKindCounter",
+        "a test visitor that counts one link kind",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:ModelCmavoList",
+        "test view of one imported cmavo list. The rows already belong to the loaded site",
+    ),
+    (
         "crates/jbotci-cll/src/lib.rs:StatusNoteCountVisitor",
         "status note counter is private test traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:XmlCmavoCell",
+        "test record of one vendored cmavo cell. The tag is the element name and the text is the visible cell text",
     ),
     (
         "crates/jbotci-cll/src/links.rs:LinkResolution",

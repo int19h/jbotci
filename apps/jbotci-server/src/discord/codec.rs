@@ -1318,9 +1318,27 @@ mod tests {
     fn escaping_neutralizes_markdown_and_header_syntax() {
         assert_eq!(escape_value_line("-# text"), "\\-# text");
         assert_eq!(escape_value_line("1. one"), "1\\. one");
-        assert_eq!(escape_value_line("1.5 not a list"), "1\\.5 not a list");
+        assert_eq!(escape_value_line("1.5 not a list"), "1.5 not a list");
+        assert_eq!(escape_value_line("1.a"), "1.a");
         assert_eq!(escape_value_line("v1.5 not a list"), "v1.5 not a list");
-        assert_eq!(escape_value_line("+ plus"), "\\+ plus");
+        assert_eq!(escape_value_line("+ plus"), "+ plus");
+        assert_eq!(escape_value_line("# a"), "\\# a");
+        assert_eq!(escape_value_line("#a"), "#a");
+        assert_eq!(escape_value_line("- a"), "\\- a");
+        assert_eq!(escape_value_line("-nai"), "-nai");
+        assert_eq!(escape_value_line("#\r"), "\\#\r");
+        assert_eq!(escape_value_line("-"), "\\-");
+        assert_eq!(escape_value_line("-#"), "\\-#");
+        assert_eq!(escape_value_line("1."), "1\\.");
+        assert_eq!(escape_value_line("1.\r"), "1\\.\r");
+        let mut crlf = String::new();
+        for (index, line) in "#\r\n1.\r\n".split('\n').enumerate() {
+            if index > 0 {
+                crlf.push('\n');
+            }
+            crlf.push_str(&escape_value_line(line));
+        }
+        assert_eq!(crlf, "\\#\r\n1\\.\r\n");
         assert_eq!(escape_value_line("a + b"), "a + b");
         assert_eq!(escape_value_line("mi klama .i do"), "mi klama .i do");
         assert_eq!(
@@ -1397,11 +1415,12 @@ mod tests {
 /// -# <status>                             terminator; `status` starts with the tool name
 /// ```
 ///
-/// Because `-` is always escaped inside values, a value line can never start
-/// with the header prefix, so the block parses unambiguously for any input,
-/// including empty lines, a final newline and header look-alike text. Which
-/// fields are present (as opposed to non-empty) is carried by the header's
-/// presence mask, not by the block.
+/// A value line never starts with the header prefix `-# `. If the line is a
+/// real header marker, the hyphen gets a backslash. A line such as `-nai`
+/// stays as typed, and the parser does not read it as a header. The block
+/// parses for every input. This includes an empty line, a final newline, and
+/// text that looks like a header. The presence mask carries which fields are
+/// present. The block does not.
 #[requires(fields.len() == tool.fields().len())]
 #[requires(fields.iter().zip(tool.fields()).all(|((field, _), expected)| field == expected))]
 #[requires(status.starts_with(tool.name()) && !status.contains('\n') && !status.contains('\r'))]
@@ -1419,10 +1438,10 @@ pub(crate) fn encode_input_block(
 
 #[cfg(test)]
 /// Escape one line of a source value for a Text Display. This is the
-/// workspace's Discord text escape, so a value renders exactly as typed, can
-/// never look like a header line, and decodes back to itself.
+/// workspace Discord text escape. The value renders as typed. The line never
+/// starts with the header prefix. The line decodes back to itself.
 #[requires(!line.contains('\n'))]
-#[ensures(!ret.starts_with(HEADER_PREFIX) && !ret.starts_with('-'))]
+#[ensures(!ret.starts_with(HEADER_PREFIX))]
 #[ensures(unescape_value_line(&ret).as_deref() == Ok(line))]
 pub(crate) fn escape_value_line(line: &str) -> String {
     escape_discord_markdown_line(line)

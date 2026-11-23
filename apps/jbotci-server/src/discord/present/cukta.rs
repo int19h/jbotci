@@ -11,7 +11,7 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
-    CllLinkRenderMode, CllParagraphRole, CllRenderFormat, CllSearchChunkKind,
+    CllMarkdownDialect, CllParagraphRole, CllRenderTarget, CllSearchChunkKind,
     cll_section_chapter_title, render_example_with_limit, render_section_with_limit,
     search_chunk_kind_label,
 };
@@ -124,8 +124,7 @@ pub(crate) fn render_in_scope(
                     render_section_with_limit(
                         site,
                         section,
-                        CllRenderFormat::DiscordMarkdown,
-                        CllLinkRenderMode::Plain,
+                        CllRenderTarget::Markdown(CllMarkdownDialect::Discord),
                         text_scope.limit(),
                     ),
                     text_scope,
@@ -143,8 +142,7 @@ pub(crate) fn render_in_scope(
                 render_section_with_limit(
                     site,
                     section,
-                    CllRenderFormat::Markdown,
-                    CllLinkRenderMode::Plain,
+                    CllRenderTarget::Markdown(CllMarkdownDialect::GitHub),
                     text_scope.limit(),
                 ),
                 text_scope,
@@ -162,8 +160,7 @@ pub(crate) fn render_in_scope(
                     render_example_with_limit(
                         site,
                         example,
-                        CllRenderFormat::DiscordMarkdown,
-                        CllLinkRenderMode::Plain,
+                        CllRenderTarget::Markdown(CllMarkdownDialect::Discord),
                         text_scope.limit(),
                     ),
                     text_scope,
@@ -174,8 +171,7 @@ pub(crate) fn render_in_scope(
                 render_example_with_limit(
                     site,
                     example,
-                    CllRenderFormat::Markdown,
-                    CllLinkRenderMode::Plain,
+                    CllRenderTarget::Markdown(CllMarkdownDialect::GitHub),
                     text_scope.limit(),
                 ),
                 text_scope,
@@ -319,7 +315,7 @@ mod tests {
         );
         assert_eq!(rendered.status.text, "cukta · section");
         assert!(
-            rendered.body[0].starts_with("## 4\\.6. rafsi"),
+            rendered.body[0].starts_with("## 4.6. rafsi"),
             "{}",
             rendered.body[0]
         );
