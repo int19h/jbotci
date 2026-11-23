@@ -2088,6 +2088,8 @@ mod tests {
     use axum::response::IntoResponse;
     use std::collections::VecDeque;
     use std::sync::Mutex;
+    use std::sync::mpsc;
+    use tokio::sync::oneshot;
 
     use axum::Router;
     use axum::extract::{Path, State};
@@ -2099,6 +2101,9 @@ mod tests {
     use crate::discord::operations::OperationError;
     use crate::discord::request::DiscordTool;
     use crate::discord::request::PageNumber;
+    use crate::work::paused_blocking::{
+        block_on_hang_guard, drain_blocking_thread, join_ready, paused_runtime, wait_for_worker,
+    };
     use crate::work::{WorkError, WorkGovernor, WorkLane};
 
     const ACTOR: &str = "123456789012345678";
@@ -4846,126 +4851,168 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[test]
     #[requires(true)]
     #[ensures(true)]
-    async fn a_write_that_outlives_its_caller_keeps_the_message_locked() {
-        // The message lock belongs to the work that writes, not to whoever
-        // waits for it. Were it released when the caller gave up, a second
-        // submission could read the old revision, publish, and then be
-        // silently overwritten by the first write landing late.
-        use std::sync::atomic::{AtomicBool, Ordering};
-
-        let locks = Arc::new(MessageLocks::new(4, 4));
-        let governor = WorkGovernor::new(Default::default());
-        let recent = Arc::new(RecentInteractions::new(4));
-        let message = Snowflake::parse(MESSAGE).expect("snowflake");
-        let Admission::First(ticket) = recent.admit(&message) else {
-            panic!("first delivery");
-        };
-        let guard = locks
-            .acquire(&message, Instant::now() + Duration::from_secs(5))
-            .await
-            .expect("the lock");
-        let keepalive: WorkKeepalive = Arc::new(Retained {
-            _ticket: Arc::new(ticket),
-            _guard: guard,
-        });
-
-        let running = Arc::new(AtomicBool::new(false));
-        let release = Arc::new(AtomicBool::new(false));
-        let started = Arc::clone(&running);
-        let held = Arc::clone(&release);
-        let outcome = governor
-            .run_fetch_keeping(
-                Instant::now() + Duration::from_millis(100),
-                Some(keepalive.clone()),
-                move |_cancellation| {
-                    // An in-flight transfer ignores the flag. The HTTP call
-                    // already carries the time left on the deadline, and the
-                    // keepalive stays until this closure returns.
-                    started.store(true, Ordering::Release);
-                    while !held.load(Ordering::Acquire) {
-                        std::thread::sleep(Duration::from_millis(5));
-                    }
-                },
-            )
-            .await;
-        assert!(outcome.is_err(), "the caller stopped waiting for the write");
-        assert!(running.load(Ordering::Acquire), "the write had started");
-
-        // The waiting side lets go of everything it holds; the write has not.
-        drop(keepalive);
-        assert!(
-            locks
-                .acquire(&message, Instant::now() + Duration::from_millis(200))
-                .await
-                .is_err(),
-            "no later edit may enter while the write is in flight"
-        );
-        release.store(true, Ordering::Release);
-        assert!(
-            locks
+    fn a_write_that_outlives_its_caller_keeps_the_message_locked() {
+        // The message lock belongs to the work that writes.
+        // The caller can stop waiting.
+        // The lock stays until the closure returns.
+        let runtime = paused_runtime();
+        block_on_hang_guard(runtime, async {
+            let locks = Arc::new(MessageLocks::new(4, 4));
+            let governor = WorkGovernor::new(Default::default());
+            let recent = Arc::new(RecentInteractions::new(4));
+            let message = Snowflake::parse(MESSAGE).expect("snowflake");
+            let Admission::First(ticket) = recent.admit(&message) else {
+                panic!("first delivery");
+            };
+            let guard = locks
                 .acquire(&message, Instant::now() + Duration::from_secs(5))
                 .await
-                .is_ok(),
-            "the message is free once the work really settles"
-        );
+                .expect("the lock");
+            let keepalive: WorkKeepalive = Arc::new(Retained {
+                _ticket: Arc::new(ticket),
+                _guard: guard,
+            });
+            let (start_tx, start_rx) = oneshot::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let deadline = Instant::now() + Duration::from_secs(1);
+            let held = keepalive.clone();
+            let outcome = tokio::spawn(async move {
+                governor
+                    .run_fetch_keeping(deadline, Some(held), move |_cancellation| {
+                        start_tx
+                            .send(())
+                            .expect("the test waits for the worker start");
+                        release_rx.recv().expect("the test releases the write");
+                    })
+                    .await
+            });
+            wait_for_worker(start_rx)
+                .await
+                .expect("the write starts before the deadline");
+            tokio::time::advance(Duration::from_secs(2)).await;
+            assert!(
+                matches!(
+                    join_ready(
+                        outcome,
+                        "the write caller parked instead of returning TimedOut",
+                    )
+                    .await,
+                    Err(WorkError::TimedOut {
+                        lane: WorkLane::Fetch
+                    })
+                ),
+                "the caller stopped waiting for the write"
+            );
+            drop(keepalive);
+            let locks_for_probe = Arc::clone(&locks);
+            let message_for_probe = message.clone();
+            assert!(
+                join_ready(
+                    tokio::spawn(async move {
+                        locks_for_probe
+                            .acquire(&message_for_probe, Instant::now())
+                            .await
+                    }),
+                    "the held message lock parked instead of returning an error",
+                )
+                .await
+                .is_err(),
+                "no later edit may enter while the write is in flight"
+            );
+            release_tx
+                .send(())
+                .expect("the write is waiting for release");
+            drain_blocking_thread().await;
+            assert!(
+                locks
+                    .acquire(&message, Instant::now() + Duration::from_secs(5))
+                    .await
+                    .is_ok(),
+                "the message is free once the work really settles"
+            );
+        });
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+    #[test]
     #[requires(true)]
     #[ensures(true)]
-    async fn a_delivery_stands_until_its_work_really_ends() {
-        // A handler that gives up waiting does not drop the delivery the work
-        // stands for. The deadline sets the cancellation flag. The job stops
-        // at that flag, and only then does the keepalive drop. Until that
-        // return, the same interaction cannot be admitted again.
-        let recent = Arc::new(RecentInteractions::new(4));
-        let governor = WorkGovernor::new(Default::default());
-        let id = Snowflake::parse("123456789012345678").expect("snowflake");
-        let Admission::First(ticket) = recent.admit(&id) else {
-            panic!("the first delivery");
-        };
-        let ticket = Arc::new(ticket);
-        let keepalive: WorkKeepalive = ticket.clone();
-        let timed_out = governor
-            .run_compute_keeping(
-                Instant::now() + Duration::from_millis(50),
-                Some(keepalive),
-                |cancellation| {
-                    while !cancellation.is_cancelled() {
-                        std::thread::sleep(Duration::from_millis(5));
-                    }
-                    // The caller has already been told. The keepalive stays
-                    // until this function returns.
-                    std::thread::sleep(Duration::from_millis(300));
-                    "done"
-                },
-            )
-            .await;
-        assert!(timed_out.is_err(), "the caller gave up");
-        // The handler drops its own handle and reports privately, as it does
-        // after a timeout.
-        drop(ticket);
-        assert_eq!(
-            recent.active_count(),
-            1,
-            "the delivery still stands while its work runs"
-        );
-        assert!(
-            matches!(recent.admit(&id), Admission::Duplicate),
-            "a redelivery does not start the work again"
-        );
-
-        tokio::time::timeout(Duration::from_secs(2), recent.wait_until_idle())
-            .await
-            .unwrap();
-        assert_eq!(
-            recent.active_count(),
-            0,
-            "and it settles when the work ends"
-        );
+    fn a_delivery_stands_until_its_work_really_ends() {
+        // The caller can stop waiting.
+        // The delivery ticket stays until the closure returns.
+        // The worker blocks on a channel until the test has read that fact.
+        // A late flag fails the test.
+        let runtime = paused_runtime();
+        block_on_hang_guard(runtime, async {
+            let recent = Arc::new(RecentInteractions::new(4));
+            let governor = WorkGovernor::new(Default::default());
+            let id = Snowflake::parse("123456789012345678").expect("snowflake");
+            let Admission::First(ticket) = recent.admit(&id) else {
+                panic!("the first delivery");
+            };
+            let ticket = Arc::new(ticket);
+            let keepalive: WorkKeepalive = ticket.clone();
+            let (start_tx, start_rx) = oneshot::channel();
+            let (check_tx, check_rx) = mpsc::channel();
+            let (flag_tx, flag_rx) = oneshot::channel();
+            let deadline = Instant::now() + Duration::from_secs(1);
+            let timed_out = tokio::spawn(async move {
+                governor
+                    .run_compute_keeping(deadline, Some(keepalive), move |cancellation| {
+                        start_tx
+                            .send(())
+                            .expect("the test waits for the worker start");
+                        check_rx.recv().expect("the test asks for the flag");
+                        flag_tx
+                            .send(cancellation.is_cancelled())
+                            .expect("the test reads the flag");
+                        "done"
+                    })
+                    .await
+            });
+            wait_for_worker(start_rx)
+                .await
+                .expect("the work starts before the deadline");
+            tokio::time::advance(Duration::from_secs(2)).await;
+            assert!(
+                matches!(
+                    join_ready(
+                        timed_out,
+                        "the delivery caller parked instead of returning TimedOut",
+                    )
+                    .await,
+                    Err(WorkError::TimedOut {
+                        lane: WorkLane::Compute
+                    })
+                ),
+                "the caller gave up"
+            );
+            drop(ticket);
+            assert_eq!(
+                recent.active_count(),
+                1,
+                "the delivery still stands while its work runs"
+            );
+            assert!(
+                matches!(recent.admit(&id), Admission::Duplicate),
+                "a redelivery does not start the work again"
+            );
+            check_tx
+                .send(())
+                .expect("the worker is waiting for the flag check");
+            assert!(
+                flag_rx.await.expect("the worker sends the flag"),
+                "the flag is set before the worker returns the permit"
+            );
+            drain_blocking_thread().await;
+            assert_eq!(
+                recent.active_count(),
+                0,
+                "and it settles when the work ends"
+            );
+        });
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
