@@ -266,15 +266,6 @@ pub(super) struct LujvoPartRangeMemo {
     pub(super) failure: Option<LujvoParseFailure>,
 }
 
-#[invariant(prefix_start <= prefix_end && prefix_end <= index && index <= end)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct IndicatorBoundaryKey {
-    prefix_start: usize,
-    prefix_end: usize,
-    index: usize,
-    end: usize,
-}
-
 /// Memoized results for every recognizer in the stressed-word cycle.
 ///
 /// Every table is a hash map. `new` stores no keys and allocates no square.
@@ -294,7 +285,7 @@ struct IndicatorBoundaryKey {
 /// - Two-index keys are `O(m^2)`. The plain maps are `cmavo_word`,
 ///   `lojban_word`, `brivla_word`, `lujvo_slice`, `fuhivla_shape`,
 ///   `experimental_cgv`, `slinkuhi`, `rafsi_string_starts`, `post_word`,
-///   `indicator_cmavo_starts`, `initial_rafsi_ends`, `extended_rafsi_ends`,
+///   `initial_rafsi_ends`, `extended_rafsi_ends`,
 ///   `any_extended_rafsi_starts`, `fuhivla_rafsi_base_ends`,
 ///   `stressed_extended_rafsi_ends`, `nucleus_has_implicit_stress`,
 ///   `stress_tail_reaches_boundary`, `greedy_rafsi_chain`, `prefix_post_word`,
@@ -308,16 +299,14 @@ struct IndicatorBoundaryKey {
 ///   `cvv_rafsi_unstressed`, `brivla_head_ends`, and `fuhivla_head_ends`.
 ///   The two head maps store the span end and the lookahead end. A fu'ivla
 ///   rafsi lookahead reads past its `y`.
-/// - Four-index keys are `O(m^4)`: `indicator_boundary`.
 ///
 /// Those sizes are the key domains: every index combination a map can store.
 /// A run stores the keys it reaches. In the measured families that reached
 /// set stays quadratic. A stress-context span is one nucleus or one rafsi.
-/// A `cmavo_post_word` prefix is one dictionary cmavo. An
-/// `indicator_boundary` prefix is one indicator cmavo, and its index is the
-/// next non-comma position. `rafsi_string_from` and `rafsi_string_ending`
-/// are reached with the span end as the lookahead. The domain of those maps
-/// stays cubic or quartic. The entries one run writes do not fill that domain.
+/// A `cmavo_post_word` prefix is one dictionary cmavo.
+/// `rafsi_string_from` and `rafsi_string_ending` are reached with the span
+/// end as the lookahead. The domain of those maps stays cubic. The entries
+/// one run writes do not fill that domain.
 ///
 /// Each memoized body runs once per reached key.
 ///
@@ -374,9 +363,7 @@ pub(crate) struct MorphologyRecognitionCache {
     rafsi_string_from: RefCell<HashMap<LookaheadKey, bool>>,
     rafsi_string_ending: RefCell<HashMap<LookaheadKey, bool>>,
     post_word: RefCell<HashMap<SpanKey, bool>>,
-    indicator_cmavo_starts: RefCell<HashMap<SpanKey, bool>>,
     cmavo_post_word: RefCell<HashMap<PrefixEndKey, bool>>,
-    indicator_boundary: RefCell<HashMap<IndicatorBoundaryKey, bool>>,
     initial_rafsi_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
     extended_rafsi_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
     any_extended_rafsi_starts: RefCell<HashMap<SpanKey, bool>>,
@@ -440,9 +427,7 @@ impl MorphologyRecognitionCache {
             rafsi_string_from: RefCell::new(HashMap::new()),
             rafsi_string_ending: RefCell::new(HashMap::new()),
             post_word: RefCell::new(HashMap::new()),
-            indicator_cmavo_starts: RefCell::new(HashMap::new()),
             cmavo_post_word: RefCell::new(HashMap::new()),
-            indicator_boundary: RefCell::new(HashMap::new()),
             initial_rafsi_ends: RefCell::new(HashMap::new()),
             extended_rafsi_ends: RefCell::new(HashMap::new()),
             any_extended_rafsi_starts: RefCell::new(HashMap::new()),
@@ -517,9 +502,7 @@ impl MorphologyRecognitionCache {
             .saturating_add(slots(&self.rafsi_string_from))
             .saturating_add(slots(&self.rafsi_string_ending))
             .saturating_add(slots(&self.post_word))
-            .saturating_add(slots(&self.indicator_cmavo_starts))
             .saturating_add(slots(&self.cmavo_post_word))
-            .saturating_add(slots(&self.indicator_boundary))
             .saturating_add(slots(&self.initial_rafsi_ends))
             .saturating_add(slots(&self.extended_rafsi_ends))
             .saturating_add(slots(&self.any_extended_rafsi_starts))
@@ -1029,23 +1012,6 @@ impl MorphologyRecognitionCache {
         self.sync_accounted();
     }
 
-    #[requires(start <= end && end <= self.char_count)]
-    #[ensures(true)]
-    pub(crate) fn indicator_cmavo_starts(&self, start: usize, end: usize) -> Option<bool> {
-        span_get(&self.indicator_cmavo_starts, start, end)
-    }
-
-    #[requires(start <= end && end <= self.char_count)]
-    #[ensures(self.is_cancelled() || self.indicator_cmavo_starts(start, end) == Some(value))]
-    pub(crate) fn record_indicator_cmavo_starts(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.indicator_cmavo_starts, start, end, value);
-        self.sync_accounted();
-    }
-
     #[requires(prefix_start <= prefix_end && prefix_end <= end && end <= self.char_count)]
     #[ensures(true)]
     pub(crate) fn cmavo_post_word(
@@ -1081,48 +1047,6 @@ impl MorphologyRecognitionCache {
             end: end,
         });
         self.cmavo_post_word.borrow_mut().insert(key, value);
-        self.sync_accounted();
-    }
-
-    #[requires(prefix_start <= prefix_end && prefix_end <= index && index <= end && end <= self.char_count)]
-    #[ensures(true)]
-    pub(crate) fn indicator_boundary(
-        &self,
-        prefix_start: usize,
-        prefix_end: usize,
-        index: usize,
-        end: usize,
-    ) -> Option<bool> {
-        let key = new!(IndicatorBoundaryKey {
-            prefix_start: prefix_start,
-            prefix_end: prefix_end,
-            index: index,
-            end: end,
-        });
-        self.indicator_boundary.borrow().get(&key).copied()
-    }
-
-    #[requires(prefix_start <= prefix_end && prefix_end <= index && index <= end && end <= self.char_count)]
-    #[ensures(self.is_cancelled() || self.indicator_boundary(prefix_start, prefix_end, index, end) == Some(value))]
-    pub(crate) fn record_indicator_boundary(
-        &self,
-        prefix_start: usize,
-        prefix_end: usize,
-        index: usize,
-        end: usize,
-        value: bool,
-    ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        let key = new!(IndicatorBoundaryKey {
-            prefix_start: prefix_start,
-            prefix_end: prefix_end,
-            index: index,
-            end: end,
-        });
-        self.indicator_boundary.borrow_mut().insert(key, value);
         self.sync_accounted();
     }
 
