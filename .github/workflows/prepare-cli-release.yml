@@ -178,11 +178,6 @@ jobs:
             rust:1.100.0-alpine3.24 \
             sh -euc '
               test "$(uname -m)" = "${EXPECTED_UNAME}"
-              channel="$(sed -n '\''s/^channel = "\([^"]*\)"$/\1/p'\'' rust-toolchain.toml)"
-              test -n "${channel}"
-              rustc_version="$(rustc -vV)"
-              test "$(printf "%s\n" "${rustc_version}" | sed -n "s/^release: //p")" = "${channel}"
-              test "$(printf "%s\n" "${rustc_version}" | sed -n "s/^host: //p")" = "${EXPECTED_RUST_HOST}"
               apk add --no-cache \
                 binutils \
                 build-base \
@@ -196,6 +191,7 @@ jobs:
                 python3 \
                 zstd \
                 zstd-dev
+              python3 -m tools.release_compiler gate --file rust-toolchain.toml --host "${EXPECTED_RUST_HOST}"
               test "$(g++ -dumpmachine)" = "${EXPECTED_BINDGEN_TARGET}"
               printf "%s\n" "#include <bits/c++config.h>" | clang++ \
                 --target="${EXPECTED_RUST_HOST}" \
@@ -314,16 +310,13 @@ jobs:
         run: |
           set -euo pipefail
           rustup toolchain install "${RUSTUP_TOOLCHAIN}" --profile minimal
-          test "$(rustc --version)" = "rustc 1.100.0 (0ef1bc386 2026-11-09)"
+          python3 -m tools.release_compiler expect-version --expect "rustc 1.100.0 (0ef1bc386 2026-11-09)"
 
       - name: Build jbotci
         shell: bash
         run: |
           set -euo pipefail
-          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
-          test -n "${channel}"
-          release="$(rustc -vV | sed -n 's/^release: //p')"
-          test "${release}" = "${channel}"
+          python3 -m tools.release_compiler gate --file rust-toolchain.toml
           cargo build --release --locked -p jbotci
 
       - name: Smoke-test and stage binary
@@ -384,20 +377,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Rust toolchain installation failed"
           }
-          $rustVersion = (rustc --version).Trim()
-          if ($LASTEXITCODE -ne 0 -or $rustVersion -ne "rustc 1.100.0 (0ef1bc386 2026-11-09)") {
-            throw "Unexpected Rust compiler: $rustVersion"
+          python -m tools.release_compiler expect-version --expect "rustc 1.100.0 (0ef1bc386 2026-11-09)"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Unexpected Rust compiler"
           }
 
       - name: Build jbotci
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          channel="$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' rust-toolchain.toml)"
-          test -n "${channel}"
-          release="$(rustc -vV | sed -n 's/^release: //p')"
-          test "${release}" = "${channel}"
+          python -m tools.release_compiler gate --file rust-toolchain.toml
+          if ($LASTEXITCODE -ne 0) {
+            throw "The release compiler does not match the pin."
+          }
           cargo build --release --locked -p jbotci
+          if ($LASTEXITCODE -ne 0) {
+            throw "cargo build failed"
+          }
 
       - name: Smoke-test and stage binary
         shell: pwsh

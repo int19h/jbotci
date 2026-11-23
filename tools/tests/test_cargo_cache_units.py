@@ -1959,6 +1959,7 @@ class CargoUnitTests(unittest.TestCase):
             f"Path({str(marker)!r}).write_text(os.environ.get('RUSTUP_AUTO_INSTALL', ''))\n"
         )
         with patch.dict(os.environ, {
+            "GITHUB_ACTIONS": "true",
             "RUSTUP_AUTO_INSTALL": "1",
             "RUSTUP_HOME": RUSTUP_HOME_PIN,
             "CARGO_TARGET_DIR": str(target),
@@ -1990,13 +1991,14 @@ class CargoUnitTests(unittest.TestCase):
             "target": ({**pinned, "CARGO_TARGET_DIR": other}, ("RUSTUP_TOOLCHAIN",)),
             "toolchain": ({**pinned, "RUSTUP_TOOLCHAIN": wrong}, ()),
             "empty-toolchain": ({**pinned, "RUSTUP_TOOLCHAIN": ""}, ()),
+            "empty-home": ({**pinned, "RUSTUP_HOME": ""}, ("RUSTUP_TOOLCHAIN",)),
             "missing-home": ({"CARGO_TARGET_DIR": str(target)}, ("RUSTUP_HOME", "RUSTUP_TOOLCHAIN")),
             "missing-target": ({"RUSTUP_HOME": RUSTUP_HOME_PIN}, ("CARGO_TARGET_DIR", "RUSTUP_TOOLCHAIN")),
         }
         for name, (updates, remove) in cases.items():
             with self.subTest(name=name):
                 journal = self.root / f"reject-{name}.jsonl"
-                with patch.dict(os.environ, updates):
+                with patch.dict(os.environ, {**updates, "GITHUB_ACTIONS": "true"}):
                     for key in remove:
                         os.environ.pop(key, None)
                     with patch(
@@ -2017,6 +2019,7 @@ class CargoUnitTests(unittest.TestCase):
         target = self.layout.target.resolve()
         journal = self.root / "match.jsonl"
         with patch.dict(os.environ, {
+            "GITHUB_ACTIONS": "true",
             "RUSTUP_HOME": RUSTUP_HOME_PIN,
             "CARGO_TARGET_DIR": str(target),
             "RUSTUP_TOOLCHAIN": channel,
@@ -2038,6 +2041,7 @@ class CargoUnitTests(unittest.TestCase):
         self.addCleanup(os.chdir, previous)
         journal = self.root / "relative.jsonl"
         with patch.dict(os.environ, {
+            "GITHUB_ACTIONS": "true",
             "RUSTUP_HOME": RUSTUP_HOME_PIN,
             "CARGO_TARGET_DIR": target.name,
         }):
@@ -2050,6 +2054,98 @@ class CargoUnitTests(unittest.TestCase):
         detail = journal.read_text(encoding="utf-8") if journal.exists() else ""
         self.assertEqual(status, 0, detail)
         compiler.assert_called_once_with(workspace)
+
+    def test_trace_accepts_an_existing_local_rustup_home(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        channel = tomllib.loads(
+            (workspace / "rust-toolchain.toml").read_text(encoding="utf-8")
+        )["toolchain"]["channel"]
+        home = self.root / "local-rustup"
+        home.mkdir()
+        link = self.root / "link-rustup"
+        link.symlink_to(home, target_is_directory=True)
+        target = self.layout.target.resolve()
+        homes = {"directory": home, "symlink": link}
+        spellings = {"unset": None, "true-word": "True", "one": "1"}
+        for home_name, home_path in homes.items():
+            for spelling, actions in spellings.items():
+                with self.subTest(home=home_name, actions=spelling):
+                    journal = self.root / f"local-{home_name}-{spelling}.jsonl"
+                    updates = {
+                        "RUSTUP_HOME": str(home_path),
+                        "CARGO_TARGET_DIR": str(target),
+                        "RUSTUP_TOOLCHAIN": channel,
+                    }
+                    if actions is not None:
+                        updates["GITHUB_ACTIONS"] = actions
+                    with patch.dict(os.environ, updates):
+                        if actions is None:
+                            os.environ.pop("GITHUB_ACTIONS", None)
+                        with patch(
+                            "tools.cargo_inputs_trace.supported_compiler",
+                            return_value=Path("/usr/bin/rustc"),
+                        ) as compiler:
+                            status = trace(workspace, target, journal, ["/bin/true"])
+                    detail = journal.read_text(encoding="utf-8") if journal.exists() else ""
+                    self.assertEqual(status, 0, detail)
+                    compiler.assert_called_once_with(workspace)
+
+    def test_trace_rejects_a_foreign_home_on_github_actions(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        home = self.root / "local-rustup"
+        home.mkdir()
+        target = self.layout.target.resolve()
+        journal = self.root / "foreign-home.jsonl"
+        with patch.dict(os.environ, {
+            "GITHUB_ACTIONS": "true",
+            "RUSTUP_HOME": str(home),
+            "CARGO_TARGET_DIR": str(target),
+        }):
+            os.environ.pop("RUSTUP_TOOLCHAIN", None)
+            with patch(
+                "tools.cargo_inputs_trace.supported_compiler",
+                return_value=Path("/usr/bin/rustc"),
+            ) as compiler:
+                with self.assertRaises(TraceError) as caught:
+                    trace(workspace, target, journal, ["/bin/true"])
+                compiler.assert_not_called()
+        self.assertEqual(str(caught.exception), UNSUPPORTED_COMPILER)
+        self.assertFalse(journal.exists())
+
+    def test_trace_rejects_a_missing_local_rustup_home(self) -> None:
+        workspace = Path(__file__).resolve().parents[2]
+        target = self.layout.target.resolve()
+        (self.root / "not-dir").write_text("x", encoding="utf-8")
+        cases = {
+            "empty": {"RUSTUP_HOME": "", "CARGO_TARGET_DIR": str(target)},
+            "missing": {"CARGO_TARGET_DIR": str(target)},
+            "absent": {"RUSTUP_HOME": str(self.root / "missing"), "CARGO_TARGET_DIR": str(target)},
+            "file": {"RUSTUP_HOME": str(self.root / "not-dir"), "CARGO_TARGET_DIR": str(target)},
+            "empty-toolchain": {
+                "RUSTUP_HOME": str(self.root / "local-rustup"),
+                "CARGO_TARGET_DIR": str(target),
+                "RUSTUP_TOOLCHAIN": "",
+            },
+        }
+        (self.root / "local-rustup").mkdir()
+        for name, updates in cases.items():
+            with self.subTest(name=name):
+                journal = self.root / f"local-reject-{name}.jsonl"
+                with patch.dict(os.environ, updates):
+                    os.environ.pop("GITHUB_ACTIONS", None)
+                    if name != "empty-toolchain":
+                        os.environ.pop("RUSTUP_TOOLCHAIN", None)
+                    if name == "missing":
+                        os.environ.pop("RUSTUP_HOME", None)
+                    with patch(
+                        "tools.cargo_inputs_trace.supported_compiler",
+                        return_value=Path("/usr/bin/rustc"),
+                    ) as compiler:
+                        with self.assertRaises(TraceError) as caught:
+                            trace(workspace, target, journal, ["/bin/true"])
+                        compiler.assert_not_called()
+                self.assertEqual(str(caught.exception), UNSUPPORTED_COMPILER)
+                self.assertFalse(journal.exists())
 
     def assert_trace_layout_error(self, line: str, reason: str) -> None:
         output = io.StringIO()

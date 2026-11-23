@@ -1145,13 +1145,17 @@ class Parser:
 def require_trace_environment(env: dict[str, str], workspace: Path, target: Path) -> None:
     """Stop when the trace environment does not match the pins.
 
-    `RUSTUP_HOME` must equal the pinned home.
+    On GitHub Actions, `RUSTUP_HOME` must equal the pinned home.
+    A local trace requires an existing `RUSTUP_HOME` directory.
     `CARGO_TARGET_DIR` must equal the session target.
     `RUSTUP_TOOLCHAIN` must be unset, or it must equal the channel in `rust-toolchain.toml`.
-    The comparison uses the real path of each directory.
+    The target comparison uses the real path.
     """
     home = env.get("RUSTUP_HOME")
-    if home is None or Path(home).resolve() != Path(RUSTUP_HOME_PIN).resolve():
+    if env.get("GITHUB_ACTIONS") == "true":
+        if home is None or Path(home).resolve() != Path(RUSTUP_HOME_PIN).resolve():
+            raise TraceError(UNSUPPORTED_COMPILER)
+    elif not home or not Path(home).is_dir():
         raise TraceError(UNSUPPORTED_COMPILER)
     cargo_target = env.get("CARGO_TARGET_DIR")
     if cargo_target is None or Path(cargo_target).resolve() != Path(target).resolve():

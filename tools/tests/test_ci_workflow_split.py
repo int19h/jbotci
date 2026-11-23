@@ -12,8 +12,10 @@ import unittest
 from pathlib import Path
 
 from tools.cargo_inputs_trace import DX_VERSION, RUSTUP_HOME_PIN
+from tools.release_compiler import toolchain_channel
 from tools.workflow_pins import (
-    PinError, exactly_one, job_env_values, rust_image_versions, workflow_image_versions,
+    PinError, exactly_one, job_env_values, mapping_values, rust_image_versions,
+    workflow_image_versions,
 )
 
 
@@ -297,9 +299,7 @@ class CiWorkflowSplitTests(unittest.TestCase):
 
     def test_ci_rust_images_match_the_toolchain_channel(self) -> None:
         toolchain = (REPOSITORY_ROOT / "rust-toolchain.toml").read_text(encoding="utf-8")
-        channel = re.search(r'(?m)^channel = "([^"]+)"$', toolchain)
-        self.assertIsNotNone(channel)
-        version = channel.group(1)
+        version = toolchain_channel(toolchain)
         self.assertRegex(version, r"^[0-9]+\.[0-9]+\.[0-9]+$")
         prepare = (REPOSITORY_ROOT / ".github/workflows/prepare-cli-release.yml").read_text(encoding="utf-8")
         dockerfile = (REPOSITORY_ROOT / "deploy/render/Dockerfile").read_text(encoding="utf-8")
@@ -322,10 +322,19 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertIn(f"rust:{version}-trixie", self.render_workflow)
         self.assertIn(f"rust:{version}-alpine3.24", prepare)
         self.assertIn(f"FROM rust:{version}-bookworm AS build\n", dockerfile)
+        self.assertEqual(mapping_values(prepare, "RUSTUP_TOOLCHAIN"), [version, version])
         job_toolchains = job_env_values(prepare, "RUSTUP_TOOLCHAIN")
-        self.assertEqual(len(job_toolchains), 2)
-        self.assertEqual({value for _job, value in job_toolchains}, {version})
-        self.assertEqual(prepare.count("rustc -vV"), 3)
+        self.assertEqual(
+            [(name, value) for name, value in job_toolchains],
+            [("build-macos", version), ("build-windows", version)],
+        )
+        pattern = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+        for name, next_job in (("build-macos", "build-windows"), ("build-windows", "package")):
+            job = prepare.split(f"  {name}:\n", 1)[1].split(f"  {next_job}:\n", 1)[0]
+            self.assertEqual(exactly_one(job, "RUSTUP_TOOLCHAIN", pattern), version)
+        self.assertEqual(prepare.count(f"--env RUSTUP_TOOLCHAIN={version}"), 1)
+        self.assertEqual(prepare.count("tools.release_compiler gate --file rust-toolchain.toml"), 3)
+        self.assertEqual(prepare.count("rustc -vV"), 0)
         self.assertGreaterEqual(prepare.count("rust-toolchain.toml"), 3)
         compilers = re.findall(r"rustc ([0-9]+\.[0-9]+\.[0-9]+) \(", prepare)
         self.assertGreaterEqual(len(compilers), 2)

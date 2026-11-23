@@ -50,13 +50,19 @@ class CargoCacheTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.profile_dir, ignore_errors=True)
         global_config = self.case / "gitconfig"
         global_config.write_text("", encoding="utf-8")
+        # CI has the pinned home. A local run uses the rustup home on this machine.
+        if Path(RUSTUP_HOME_PIN).is_dir():
+            rustup_home = RUSTUP_HOME_PIN
+        else:
+            rustup_home = os.environ.get("RUSTUP_HOME") or str(Path.home() / ".rustup")
+        self.assertTrue(Path(rustup_home).is_dir(), rustup_home)
         self.env = dict(
             os.environ,
             CARGO_TARGET_DIR=str(self.target),
             CARGO_BUILD_JOBS="8",
             GIT_CONFIG_GLOBAL=str(global_config),
             GIT_CONFIG_NOSYSTEM="1",
-            RUSTUP_HOME=RUSTUP_HOME_PIN,
+            RUSTUP_HOME=rustup_home,
         )
         # The trace reads the workspace pin. The fixture uses the project file.
         # An ambient toolchain override must not select a different compiler.

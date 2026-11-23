@@ -126,11 +126,16 @@ Every `rustup` call in the trace uses that same value.
 Rustup then does not download a toolchain during that trace.
 The Render image workflow sets the same variable for every job.
 Before the first compiler query, the trace reads its own environment.
-`RUSTUP_HOME` must equal the pinned home.
+When `GITHUB_ACTIONS` is `true`, `RUSTUP_HOME` must equal the pinned home in the Test workflow.
+When `GITHUB_ACTIONS` is not `true`, `RUSTUP_HOME` must name an existing directory, and that directory can differ from the pinned home.
 `CARGO_TARGET_DIR` must equal the session target.
 `RUSTUP_TOOLCHAIN` must be unset, or it must equal the channel in `rust-toolchain.toml`.
 When a value does not match, the trace stops.
 The compiler configuration is not supported.
+
+When the pinned home exists, the Cargo cache integration tests use that home.
+When the pinned home is absent, those tests use `RUSTUP_HOME` from the environment.
+When that variable is absent, those tests use the `.rustup` directory in the home directory.
 The trace reads declarations with PyYAML.
 The Debian package `python3-yaml` provides PyYAML.
 CI installs that package in each job that runs the trace.
@@ -144,9 +149,19 @@ A flow mapping is a declaration.
 A quoted key is a declaration.
 An inline comment is not part of the value.
 Each Rust image tag must name the channel in `rust-toolchain.toml`.
-Each release build runs `rustc -vV` before it starts Cargo.
-The release line must equal the channel in `rust-toolchain.toml`.
-When the release line does not match, the job fails.
+The release workflow calls the tool `tools.release_compiler`.
+The tool reads `rust-toolchain.toml` with `tomllib`.
+`tomllib` is the Python reader for TOML.
+The tool compares the `release` line from `rustc -vV` with the channel in that file.
+On Linux, the tool also compares the `host` line with the expected host.
+Each release step only calls the tool.
+
+On Linux, the call comes after the `apk` install of `python3` and before `cargo rustc`.
+On macOS and Windows, the install step calls the tool with the expected version line.
+On Windows, the build step uses PowerShell.
+When `$LASTEXITCODE` is not zero after `cargo build`, the Windows build step fails.
+The CI job for a pull request runs the unit tests for the tool.
+Those tests use toolchain files with Unix line endings (LF) and Windows line endings (CRLF).
 `dx` is the Dioxus command.
 Before the traced command starts, the trace looks up `dx` on `PATH`.
 The trace reads the Dioxus CLI version from the Render image workflow.
