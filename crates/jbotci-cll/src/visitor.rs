@@ -289,9 +289,35 @@ pub(crate) fn walk_block_mut<V: CllBlockVisitor + ?Sized>(visitor: &mut V, block
             for title in titles.iter_mut().chain(headers.iter_mut()) {
                 visitor.visit_inline_run_mut(title);
             }
-            for cell in rows.iter_mut().flatten() {
-                visitor.visit_inline_run_mut(cell.inlines_mut());
-            }
+            // Take each cell apart and build it again. A mutable slice of the
+            // inlines would skip the adjacent-part rule.
+            *rows = std::mem::take(rows)
+                .into_iter()
+                .map(|row| {
+                    row.into_iter()
+                        .map(|cell| {
+                            let rebuilt = match cell.into_data() {
+                                data!(CllCmavoListCell::Word { inlines }) => {
+                                    let mut inlines = inlines;
+                                    visitor.visit_inline_run_mut(&mut inlines);
+                                    data!(CllCmavoListCell::Word { inlines })
+                                }
+                                data!(CllCmavoListCell::Adjacent { inlines }) => {
+                                    let mut inlines = inlines;
+                                    visitor.visit_inline_run_mut(&mut inlines);
+                                    data!(CllCmavoListCell::Adjacent { inlines })
+                                }
+                                data!(CllCmavoListCell::Other { inlines }) => {
+                                    let mut inlines = inlines;
+                                    visitor.visit_inline_run_mut(&mut inlines);
+                                    data!(CllCmavoListCell::Other { inlines })
+                                }
+                            };
+                            CllCmavoListCell::from_data(rebuilt)
+                        })
+                        .collect()
+                })
+                .collect();
         }
         CllBlock::Lojbanization { lines, .. } => {
             *lines = std::mem::take(lines)

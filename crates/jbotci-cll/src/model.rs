@@ -1143,21 +1143,6 @@ impl CllCmavoListCell {
         }
     }
 
-    /// The inlines stored in this cell, for a visitor that rewrites links.
-    ///
-    /// The result is a slice, so a visitor cannot push another inline into a
-    /// word cell. The cell wrapper has no mutable view, so this method borrows
-    /// the inner list.
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn inlines_mut(&mut self) -> &mut [CllInline] {
-        match &mut self.0 {
-            CllCmavoListCellData::Word { inlines }
-            | CllCmavoListCellData::Adjacent { inlines }
-            | CllCmavoListCellData::Other { inlines } => inlines.as_mut_slice(),
-        }
-    }
-
     /// The inlines when this cell is a `cmavo` cell or a `gismu` cell.
     #[requires(true)]
     #[ensures(true)]
