@@ -2638,6 +2638,10 @@ mod tests {
 
     use super::*;
     use bityzba::requires;
+    use jbotci_dictionary::{
+        CmavoSequenceIndexEntry, DefinitionId, DictionaryPatternEntry, DictionaryUser,
+        RafsiIndexEntry, Score, WordIndexEntry, build_owned_indexes,
+    };
     use jbotci_interrupt::assert_exit_check;
     use jbotci_morphology::segment_words_with_modifiers;
 
@@ -2789,6 +2793,115 @@ mod tests {
     ) -> VlackuSearchOutput {
         super::run_vlacku_requests(dictionary, requests, options)
             .expect("the test token stays clear")
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn leak_string(value: String) -> &'static str {
+        Box::leak(value.into_boxed_str())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn leak_slice<T>(value: Vec<T>) -> &'static [T] {
+        Box::leak(value.into_boxed_slice())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.word == word)]
+    fn synthetic_entry(word: &'static str, word_type: WordType) -> DictionaryEntry<'static> {
+        DictionaryEntry {
+            word,
+            word_type,
+            definition: "synthetic definition",
+            definition_id: DefinitionId(1),
+            notes: "",
+            score: Score(1.0),
+            gloss_keywords: &[],
+            place_keywords: &[],
+            rafsi: &[],
+            selmaho: None,
+            etymology: None,
+            jargon: None,
+            user: DictionaryUser {
+                username: "synthetic",
+                realname: None,
+            },
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.entries().len() == entries.len())]
+    fn synthetic_dictionary(
+        entries: &'static [DictionaryEntry<'static>],
+    ) -> &'static Dictionary<'static> {
+        let indexes = build_owned_indexes(entries).into_data();
+        let word_index = leak_slice(
+            indexes
+                .word_index
+                .into_iter()
+                .map(|entry| WordIndexEntry {
+                    key: leak_string(entry.key),
+                    targets: leak_slice(entry.targets),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let rafsi_index = leak_slice(
+            indexes
+                .rafsi_index
+                .into_iter()
+                .map(|entry| RafsiIndexEntry {
+                    key: leak_string(entry.key),
+                    targets: leak_slice(entry.targets),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let pattern_index = leak_slice(
+            indexes
+                .pattern_index
+                .into_iter()
+                .map(|entry| DictionaryPatternEntry {
+                    entry_index: entry.entry_index,
+                    word_key: leak_string(entry.word_key),
+                    rafsi_keys: leak_slice(
+                        entry
+                            .rafsi_keys
+                            .into_iter()
+                            .map(leak_string)
+                            .collect::<Vec<_>>(),
+                    ),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let cmavo_sequence_index = leak_slice(
+            indexes
+                .cmavo_sequence_index
+                .into_iter()
+                .map(|entry| {
+                    let entry = entry.into_data();
+                    CmavoSequenceIndexEntry::from_static_parts(
+                        leak_slice(
+                            entry
+                                .components
+                                .into_iter()
+                                .map(leak_string)
+                                .collect::<Vec<_>>(),
+                        ),
+                        leak_slice(entry.targets),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
+        Box::leak(Box::new(Dictionary::from_static_slices(
+            entries,
+            word_index,
+            rafsi_index,
+            pattern_index,
+            &[],
+            &[],
+            cmavo_sequence_index,
+            indexes.max_cmavo_sequence_len,
+        )))
     }
 
     #[test]
@@ -3353,25 +3466,48 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn exact_valsi_search_returns_all_h_and_apostrophe_spelling_matches() {
-        for query in ["gaurkihu", "gaurki'u"] {
-            let result = search(
-                jbotci_dictionary_data::english(),
-                &[VlackuRequest::valsi(query.to_owned())],
-                &VlackuSearchOptions::default(),
-            );
+    fn exact_search_finds_synthetic_headwords_with_any_text_shape() {
+        let entries = leak_slice(vec![
+            synthetic_entry("fa'onai", WordType::Nalvla),
+            synthetic_entry("mi klama", WordType::Phrase),
+            synthetic_entry("mi not!word", WordType::Phrase),
+            synthetic_entry("not!word", WordType::Nalvla),
+        ]);
+        let dictionary = synthetic_dictionary(entries);
+        dictionary
+            .validate()
+            .expect("synthetic dictionary is valid");
 
+        for (query, invalid_lojban_word) in [
+            ("fa'onai", true),
+            ("mi klama", false),
+            ("mi not!word", true),
+            ("not!word", true),
+        ] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default().with_data(data! {
+                    count: usize::MAX,
+                    decompose_lujvo: true,
+                }),
+            );
             assert_eq!(result.outcome, VlackuOutcome::Found, "{query}");
-            assert!(result.diagnostics.is_empty(), "{query}");
-            for word in ["gaurkihu", "gaurki'u"] {
-                assert!(
-                    result
-                        .cards
-                        .iter()
-                        .any(|card| card.word == word && !card.invalid_lojban_word),
-                    "{query} did not return {word}: {:?}",
-                    words(&result.cards)
+            let card = result
+                .cards
+                .iter()
+                .find(|card| card.word == query)
+                .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
+            assert!(card.known, "{query}");
+            assert_eq!(card.invalid_lojban_word, invalid_lojban_word, "{query}");
+            assert!(card.decomposition.is_empty(), "{query}");
+            if invalid_lojban_word {
+                assert_eq!(
+                    result.diagnostics,
+                    [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")]
                 );
+            } else {
+                assert!(result.diagnostics.is_empty(), "{query}");
             }
         }
     }
