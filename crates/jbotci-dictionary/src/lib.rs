@@ -14,7 +14,9 @@ pub use compounds::{
 use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
-use jbotci_morphology::{ShortRafsiShape, fold_lojban_diacritic, possible_short_rafsi_forms};
+use jbotci_morphology::{
+    ShortRafsiShape, fold_lojban_diacritic, normalize_latin_apostrophe, possible_short_rafsi_forms,
+};
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -1022,7 +1024,7 @@ pub fn normalize_lookup_query(raw: &str) -> String {
 pub fn normalize_pattern_lookup_key(raw: &str) -> String {
     normalize_lookup_query(raw)
         .chars()
-        .map(|value| if value == 'h' { '\'' } else { value })
+        .map(normalize_latin_apostrophe)
         .collect()
 }
 
@@ -1056,18 +1058,9 @@ fn normalize_lookup_token(raw: &str) -> String {
     raw.chars()
         .filter_map(fold_lojban_diacritic)
         .flat_map(char::to_lowercase)
-        .map(normalize_apostrophe)
+        .map(normalize_latin_apostrophe)
         .filter(|value| is_lookup_char(*value))
         .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_apostrophe(value: char) -> char {
-    match value {
-        '’' | 'ʼ' => '\'',
-        other => other,
-    }
 }
 
 #[requires(true)]
@@ -1355,6 +1348,9 @@ mod tests {
         assert_eq!(normalize_lookup_query(" .Án,iis. "), "aniis");
         assert_eq!(normalize_lookup_query("daʼoi"), "da'oi");
         assert_eq!(normalize_lookup_query("da’oi"), "da'oi");
+        assert_eq!(normalize_lookup_query("da\u{02d2}oi"), "da'oi");
+        assert_eq!(normalize_lookup_query("da\u{a78b}oi"), "da'oi");
+        assert_eq!(normalize_lookup_query("dahoi"), "da'oi");
         assert_eq!(normalize_lookup_query("lo  brodá"), "lo broda");
     }
 
@@ -1363,7 +1359,9 @@ mod tests {
     #[ensures(true)]
     fn pattern_lookup_key_uses_apostrophe_spelling() {
         assert_eq!(normalize_pattern_lookup_key("daʼoi"), "da'oi");
+        assert_eq!(normalize_pattern_lookup_key("da\u{2019}oi"), "da'oi");
         assert_eq!(normalize_pattern_lookup_key("dahoi"), "da'oi");
+        assert_eq!(normalize_pattern_lookup_key("da\u{02d2}oi"), "da'oi");
     }
 
     #[test]

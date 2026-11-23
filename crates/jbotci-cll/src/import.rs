@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::sync::OnceLock;
 
 use bzip2::read::BzDecoder;
-use jbotci_morphology::normalize_lojban_input_text;
+use jbotci_morphology::{normalize_latin_apostrophe, normalize_lojban_input_text};
 use roxmltree::{Document, Node};
 use sha2::{Digest, Sha256};
 
@@ -2155,9 +2155,8 @@ pub(crate) fn normalize_valsis_query(text: &str) -> String {
     normalized
         .trim()
         .trim_matches('.')
-        .to_ascii_lowercase()
-        .replace('h', "'")
         .chars()
+        .map(|character| normalize_latin_apostrophe(character).to_ascii_lowercase())
         .filter(|character| {
             character.is_ascii_lowercase() || character.is_ascii_digit() || *character == '\''
         })

@@ -7,7 +7,7 @@ use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, MorphologyOptions, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData,
-    canonicalize_text, lex_single_word, normalize_lojban_input_text,
+    canonicalize_text, lex_single_word, normalize_latin_apostrophe, normalize_lojban_input_text,
     segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{
@@ -2387,9 +2387,8 @@ fn normalize_glob_literal(value: char) -> Option<char> {
     if chars.next().is_some() {
         return None;
     }
-    if value == 'h' {
-        Some('\'')
-    } else if value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' {
+    let value = normalize_latin_apostrophe(value);
+    if value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' {
         Some(value)
     } else {
         None
@@ -3000,6 +2999,36 @@ mod tests {
                 "{query}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_accepts_latin_apostrophes() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let ascii = search(
+            dictionary,
+            &[VlackuRequest::valsi("da'*".to_owned())],
+            &options,
+        );
+        assert_eq!(ascii.outcome, VlackuOutcome::Found);
+        assert!(!ascii.cards.is_empty(), "{:?}", ascii.diagnostics);
+        for query in ["da\u{2019}*", "da\u{02bc}*", "dah*", "da\u{02d2}*"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, ascii.outcome, "{query}");
+            assert_eq!(result.cards, ascii.cards, "{query}");
+        }
+        let word_break = search(
+            dictionary,
+            &[VlackuRequest::valsi("da\u{2018}*".to_owned())],
+            &options,
+        );
+        assert_eq!(word_break.outcome, VlackuOutcome::Invalid);
     }
 
     #[test]

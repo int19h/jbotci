@@ -1676,19 +1676,7 @@ fn stressable_uppercase_vowel(value: char, options: &MorphologyOptions) -> char 
 #[requires(true)]
 #[ensures(true)]
 fn is_latin_apostrophe(value: char) -> bool {
-    matches!(
-        value,
-        '\'' | 'h'
-            | 'H'
-            | '\u{2019}'
-            | '\u{02bc}'
-            | '\u{a78b}'
-            | '\u{a78c}'
-            | '\u{02bb}'
-            | '\u{02bf}'
-            | '\u{02b0}'
-            | '\u{02d2}'
-    )
+    crate::LATIN_APOSTROPHE_CHARACTERS.contains(&value)
 }
 
 #[requires(true)]

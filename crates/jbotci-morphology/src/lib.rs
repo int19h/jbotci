@@ -173,17 +173,41 @@ pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
     "CMEVLA",
 ];
 
+/// Latin letters and marks that stand for the Lojban apostrophe.
+///
+/// `normalize_latin_apostrophe` maps each of these characters to ASCII `'`.
+/// U+2018 is absent from this set. It stays a word break.
+pub const LATIN_APOSTROPHE_CHARACTERS: &[char] = &[
+    '\'', 'h', 'H', '\u{2019}', '\u{02bc}', '\u{a78b}', '\u{a78c}', '\u{02bb}', '\u{02bf}',
+    '\u{02b0}', '\u{02d2}',
+];
+
+/// Map a Latin Lojban apostrophe spelling to ASCII `'`.
+///
+/// Any other character stays unchanged.
+#[requires(true)]
+#[ensures(LATIN_APOSTROPHE_CHARACTERS.contains(&value) == (ret == '\''))]
+#[ensures(!LATIN_APOSTROPHE_CHARACTERS.contains(&value) -> ret == value)]
+pub fn normalize_latin_apostrophe(value: char) -> char {
+    if LATIN_APOSTROPHE_CHARACTERS.contains(&value) {
+        '\''
+    } else {
+        value
+    }
+}
+
 /// Characters reserved from the permissive ignorable tier even when their
 /// Unicode properties classify them as punctuation, symbols, or emoji.
 ///
-/// Period, comma, and apostrophe belong to morphology proper. ASCII digits,
-/// dollar, subscript digits/signs, and the pandi brackets are reserved for the
+/// Period and comma belong to morphology proper. Latin apostrophe spellings
+/// are reserved through `LATIN_APOSTROPHE_CHARACTERS`. ASCII digits, dollar,
+/// subscript digits/signs, and the pandi brackets are reserved for the
 /// substitutive families specified by issue #411. U+2011 NON-BREAKING HYPHEN
 /// remains reserved for those families and `zei` compound rendering. ASCII
 /// hyphen is deliberately absent: it is already part of the legacy separator
 /// set and must retain that behavior in every dialect.
 pub const PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS: &[char] = &[
-    '.', ',', '\'', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}', '\u{2081}',
+    '.', ',', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}', '\u{2081}',
     '\u{2082}', '\u{2083}', '\u{2084}', '\u{2085}', '\u{2086}', '\u{2087}', '\u{2088}', '\u{2089}',
     '\u{208a}', '\u{208b}', '\u{2e24}', '\u{2e25}', '\u{2011}',
 ];
@@ -194,8 +218,10 @@ pub const PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS: &[char] = &[
 /// modifiers do not leave otherwise-ignored emoji sequences malformed.
 #[requires(true)]
 #[ensures(ret -> !PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS.contains(&value))]
+#[ensures(ret -> !LATIN_APOSTROPHE_CHARACTERS.contains(&value))]
 pub fn is_permissive_ignorable_character(value: char) -> bool {
-    !PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS.contains(&value)
+    !LATIN_APOSTROPHE_CHARACTERS.contains(&value)
+        && !PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS.contains(&value)
         && (matches!(
             value.general_category_group(),
             GeneralCategoryGroup::Punctuation | GeneralCategoryGroup::Symbol
@@ -4818,7 +4844,7 @@ mod tests {
         assert_eq!(
             PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS,
             &[
-                '.', ',', '\'', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}',
+                '.', ',', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}',
                 '\u{2081}', '\u{2082}', '\u{2083}', '\u{2084}', '\u{2085}', '\u{2086}', '\u{2087}',
                 '\u{2088}', '\u{2089}', '\u{208a}', '\u{208b}', '\u{2e24}', '\u{2e25}', '\u{2011}',
             ]
@@ -4828,6 +4854,101 @@ mod tests {
                 !is_permissive_ignorable_character(*reserved),
                 "reserved character U+{:04X} became ignorable",
                 *reserved as u32
+            );
+        }
+        for apostrophe in LATIN_APOSTROPHE_CHARACTERS {
+            assert_eq!(normalize_latin_apostrophe(*apostrophe), '\'');
+            assert!(
+                !is_permissive_ignorable_character(*apostrophe),
+                "apostrophe U+{:04X} became ignorable",
+                *apostrophe as u32
+            );
+        }
+        assert_eq!(normalize_latin_apostrophe('\u{2018}'), '\u{2018}');
+        assert_eq!(normalize_latin_apostrophe('\u{02be}'), '\u{02be}');
+        assert!(segment::is_separator('\u{2018}'));
+        assert!(!LATIN_APOSTROPHE_CHARACTERS.contains(&'\u{2018}'));
+    }
+
+    /// Issue #1120. Permissive mode keeps every Latin apostrophe inside the word.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_keeps_latin_apostrophes_inside_words() {
+        let permissive = permissive_lexer_options();
+        let apostrophes = ['\'', '\u{2019}', '\u{02bc}', '\u{02d2}'];
+        for apostrophe in apostrophes {
+            let joined = format!("jo{apostrophe}a");
+            let invalid = format!("mi{apostrophe}do");
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let joined_attempt =
+                    segment_words_with_modifiers_with_options_and_source_id_attempt(
+                        &joined, options, None,
+                    );
+                let joined_data = joined_attempt.into_data();
+                let permissive_mode = options.permissive_lexer;
+                let words = joined_data.result.unwrap_or_else(|error| {
+                    panic!("{joined} in permissive={permissive_mode}: {error}")
+                });
+                assert_eq!(
+                    base_phoneme_texts(&words),
+                    vec!["jo'a".to_owned()],
+                    "{joined}"
+                );
+                assert!(
+                    joined_data
+                        .warnings
+                        .iter()
+                        .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                    "{joined}"
+                );
+
+                let invalid_attempt =
+                    segment_words_with_modifiers_with_options_and_source_id_attempt(
+                        &invalid, options, None,
+                    );
+                let invalid_data = invalid_attempt.into_data();
+                let Err(error) = invalid_data.result else {
+                    panic!("{invalid} became words in permissive={permissive_mode}");
+                };
+                let MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::InvalidApostrophe,
+                    ..
+                } = error
+                else {
+                    panic!("{invalid}: {error:?}");
+                };
+                assert!(
+                    invalid_data
+                        .warnings
+                        .iter()
+                        .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                    "{invalid}"
+                );
+            }
+        }
+
+        let break_source = "jo\u{2018}a";
+        for options in [&MorphologyOptions::default(), &permissive] {
+            let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+                break_source,
+                options,
+                None,
+            );
+            let data = attempt.into_data();
+            let words = data
+                .result
+                .unwrap_or_else(|error| panic!("{break_source}: {error}"));
+            assert_eq!(
+                base_phoneme_texts(&words),
+                vec!["jo".to_owned(), "a".to_owned()],
+                "{break_source}"
+            );
+            assert!(
+                data.warnings
+                    .iter()
+                    .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                "{break_source}"
             );
         }
     }
