@@ -224,14 +224,20 @@ fn render_wrapped_segment(
 ) -> std::io::Result<()> {
     let text = &segment.text;
     let mut start = 0;
+    let mut index = 0;
     let mut whitespace = None;
-    for (index, character) in text.char_indices() {
-        if character == '\n' {
-            let content_end = if index > start && text.as_bytes()[index - 1] == b'\r' {
-                index - 1
-            } else {
-                index
-            };
+    while index < text.len() {
+        let character = text[index..].chars().next().expect("utf-8 character");
+        let character_len = character.len_utf8();
+        if character == '\n' || character == '\r' {
+            let (content_end, consumed, ending) =
+                if character == '\r' && text.as_bytes().get(index + 1) == Some(&b'\n') {
+                    (index, 2, "\r\n")
+                } else if character == '\n' {
+                    (index, 1, "\n")
+                } else {
+                    (index, 1, "\r")
+                };
             if start != content_end {
                 push_soft_run(
                     rendered,
@@ -243,25 +249,27 @@ fn render_wrapped_segment(
                     wrap_width,
                 )?;
             }
-            push_hard_break(rendered, line_width, line_text, &text[content_end..=index])?;
-            start = index + 1;
+            push_hard_break(rendered, line_width, line_text, ending)?;
+            index += consumed;
+            start = index;
             whitespace = None;
-        } else {
-            let next_whitespace = character.is_whitespace();
-            if whitespace.is_some_and(|old| old != next_whitespace) {
-                push_soft_run(
-                    rendered,
-                    line_width,
-                    line_text,
-                    segment.role,
-                    &text[start..index],
-                    color,
-                    wrap_width,
-                )?;
-                start = index;
-            }
-            whitespace = Some(next_whitespace);
+            continue;
         }
+        let next_whitespace = character.is_whitespace();
+        if whitespace.is_some_and(|old| old != next_whitespace) {
+            push_soft_run(
+                rendered,
+                line_width,
+                line_text,
+                segment.role,
+                &text[start..index],
+                color,
+                wrap_width,
+            )?;
+            start = index;
+        }
+        whitespace = Some(next_whitespace);
+        index += character_len;
     }
     if start != text.len() {
         push_soft_run(
@@ -343,7 +351,7 @@ fn push_visible_run(
     color: bool,
     width: usize,
 ) -> std::io::Result<()> {
-    if !color {
+    if !color || visible_text.chars().all(char::is_whitespace) {
         rendered.write_all(visible_text.as_bytes())?;
     } else {
         match role {
@@ -367,7 +375,7 @@ fn push_visible_run(
     Ok(())
 }
 
-#[requires(line_ending == "\n" || line_ending == "\r\n")]
+#[requires(line_ending == "\n" || line_ending == "\r\n" || line_ending == "\r")]
 #[ensures(*line_width == 0 && line_text.is_empty() || ret.is_err())]
 fn push_hard_break(
     rendered: &mut BudgetedWriter,
@@ -822,6 +830,53 @@ mod tests {
         );
         assert_eq!(rendered.lines().nth(1), Some(""), "{rendered:?}");
         assert!(!rendered.contains("\r\x1b"), "{rendered:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn styled_notes_leave_whitespace_lines_and_lone_cr_unstyled() {
+        let note = DiagnosticStyledNote::new(
+            DiagnosticNoteMode::Summary,
+            vec![DiagnosticTextSegment::new(
+                DiagnosticTextRole::Construct,
+                "hello\n   \n\t\nworld\rwide".to_owned(),
+            )],
+        );
+        let rendered = render_styled_note(
+            &note,
+            new!(DiagnosticRenderOptions {
+                color: true,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
+                terminal_width: 80,
+            }),
+        );
+
+        let mut lines = Vec::new();
+        let mut rest = rendered.as_str();
+        while let Some(index) = rest.find(['\n', '\r']) {
+            lines.push(&rest[..index]);
+            let width = if rest.as_bytes().get(index) == Some(&b'\r')
+                && rest.as_bytes().get(index + 1) == Some(&b'\n')
+            {
+                2
+            } else {
+                1
+            };
+            rest = &rest[index + width..];
+        }
+        lines.push(rest);
+        assert_eq!(
+            lines,
+            [
+                "\x1b[97mhello\x1b[39m",
+                "   ",
+                "\t",
+                "\x1b[97mworld\x1b[39m",
+                "\x1b[97mwide\x1b[39m"
+            ]
+        );
     }
 
     #[test]
