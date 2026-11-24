@@ -22,7 +22,8 @@ The trust step exercises recursive file listing and Git metadata reads before Ca
 The CLI release tooling job installs actionlint 1.7.12 and compares the archive with its pinned SHA-256 before extraction.
 It runs actionlint on every workflow with ShellCheck enabled.
 When actionlint is installed, the local Python workflow tests run the same command.
-Install ShellCheck too before you run those tests.
+Install ShellCheck before you run the actionlint tests.
+Install `shfmt` and `python3-markdown-it` before you run the drift tests.
 
 ## Completed and unfinished units
 
@@ -34,6 +35,8 @@ An interrupted rebuild can leave an empty hash file beside metadata from the las
 If the first build stops during the hash write, the empty hash can precede the metadata.
 Inventory treats both units as unfinished.
 Restore and save remove its fingerprint and artifacts.
+The scanner accepts only a Cargo hash name for the pinned layout.
+The same metadata rules apply to empty and non-empty hashes.
 A malformed non-empty hash, invalid metadata, or multiple metadata files still cause an error.
 
 Before a successful save, CI records each unit whose committed fingerprint is newer than that marker.
@@ -172,8 +175,12 @@ A second declaration is an error.
 A flow mapping is a declaration.
 A quoted key is a declaration.
 An inline comment is not part of the value.
-Each Rust image tag must name the channel in `rust-toolchain.toml`, including tags with a registry prefix.
-The tests also compare the version text in this guide and `README.md` with that channel.
+Each Rust image tag must name the channel in `rust-toolchain.toml`.
+The drift tests read YAML image declarations and direct image commands in Bash steps.
+They accept registry prefixes, shell quotes, and tags such as `1.100.0-slim-bookworm`.
+If a shell command uses a variable for its image, set the full image reference in `env`.
+A container can also use the output of the image resolver.
+The tests compare the version text in this guide and `README.md` after they read Markdown formatting.
 
 ## Release compiler checks
 
@@ -282,4 +289,6 @@ Every restore prefix also requires the same lockfile hash.
 Only successful jobs save target caches.
 DX state and other generated state stay out of the cache.
 CI disables and removes incremental directories because their session hashes do not identify Cargo units.
-Cargo recreates unhashed uplifted outputs from retained hashed artifacts after a restore.
+Cargo recreates uplifted outputs, which are copies outside the unit directory.
+Save and restore remove the entire `examples` directory for that profile.
+The original examples stay in the retained unit directories.

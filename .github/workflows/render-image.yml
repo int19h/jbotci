@@ -350,11 +350,12 @@ jobs:
             SERVER_EMBEDDING_MODEL_KEY=${{ env.SERVER_EMBEDDING_MODEL_KEY }}
 
       - name: Smoke test pushed image
+        env:
+          SMOKE_IMAGE: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
         run: |
           set -eux
-          image="${IMAGE_NAME}:sha-${GITHUB_SHA}"
-          docker pull "${image}"
-          container_id="$(docker run -d --rm -p 127.0.0.1:8080:10000 "${image}")"
+          docker pull "${SMOKE_IMAGE}"
+          container_id="$(docker run -d --rm -p 127.0.0.1:8080:10000 "${SMOKE_IMAGE}")"
           trap 'docker stop "${container_id}" >/dev/null 2>&1 || true' EXIT
           health_ready=0
           for attempt in $(seq 1 30); do

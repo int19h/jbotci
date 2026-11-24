@@ -89,8 +89,7 @@ def exactly_one(text: str, key: str, pattern: re.Pattern[str]) -> str:
     return found[0]
 
 
-def _jobs(text: str) -> list[tuple[str, YamlMapping]]:
-    root = load_workflow(text)
+def _jobs(root: object) -> list[tuple[str, YamlMapping]]:
     if not isinstance(root, YamlMapping):
         raise PinError("The workflow pin is unavailable.")
     jobs: list[tuple[str, YamlMapping]] = []
@@ -124,53 +123,10 @@ def _string_values(node: object, key: str) -> list[str]:
 def job_env_values(text: str, key: str) -> list[tuple[str, str]]:
     """Return `(job, value)` for each job-level `env` declaration of `key`."""
     found: list[tuple[str, str]] = []
-    for job_name, job in _jobs(text):
+    for job_name, job in _jobs(load_workflow(text)):
         for env in _direct(job, "env"):
             if not isinstance(env, YamlMapping):
                 raise PinError("The workflow pin is unavailable.")
             for value in _string_values(env, key):
                 found.append((job_name, value))
     return found
-
-
-def _strings(node: object) -> list[str]:
-    found: list[str] = []
-
-    def walk(current: object) -> None:
-        if isinstance(current, str):
-            found.append(current)
-        elif isinstance(current, YamlMapping):
-            for _name, value in current.pairs:
-                walk(value)
-        elif isinstance(current, list):
-            for item in current:
-                walk(item)
-
-    walk(node)
-    return found
-
-
-_IMAGE_TOKEN = re.compile(r"(?<![A-Za-z0-9._:-])rust:[^\s\"'`]+")
-_IMAGE_TAG = re.compile(r"rust:([0-9]+\.[0-9]+\.[0-9]+)-[A-Za-z0-9.]+")
-
-
-def rust_image_versions(text: str) -> list[str]:
-    """Return the version from each `rust:` image tag in `text`.
-
-    A tag must be `rust:<version>-<name>`. A registry or namespace can precede it.
-    """
-    versions: list[str] = []
-    for token in _IMAGE_TOKEN.findall(text):
-        match = _IMAGE_TAG.fullmatch(token)
-        if match is None:
-            raise PinError("The workflow pin is unavailable.")
-        versions.append(match.group(1))
-    return versions
-
-
-def workflow_image_versions(text: str) -> list[str]:
-    """Return the version from each Rust image tag in a workflow."""
-    versions: list[str] = []
-    for piece in _strings(load_workflow(text)):
-        versions.extend(rust_image_versions(piece))
-    return versions

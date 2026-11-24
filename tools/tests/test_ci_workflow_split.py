@@ -11,18 +11,36 @@ import textwrap
 import unittest
 from pathlib import Path
 
+from markdown_it import MarkdownIt
+
 from tools.cargo_inputs_trace import dioxus_cli_version, shared_rustup_home
 from tools.release_compiler import toolchain_channel
-from tools.workflow_pins import (
-    PinError, exactly_one, job_env_values, mapping_values, rust_image_versions,
-    workflow_image_versions,
-)
+from tools.workflow_images import dockerfile_image_versions, workflow_image_versions
+from tools.workflow_pins import PinError, exactly_one, job_env_values, mapping_values
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = REPOSITORY_ROOT / ".github/workflows"
 TEST_WORKFLOW = WORKFLOWS / "test.yml"
 RENDER_WORKFLOW = WORKFLOWS / "render-image.yml"
+
+
+_DOCUMENTED_VERSION = re.compile(r"\b(?:Rust|Cargo)\s+v?([0-9][A-Za-z0-9.+-]*)")
+
+
+def documented_versions(markdown: str) -> set[str]:
+    """Read version mentions from Markdown text and inline code."""
+    versions = set()
+    for block in MarkdownIt("commonmark").parse(markdown):
+        if block.type != "inline":
+            continue
+        line = "".join(
+            token.content if token.type in ("text", "code_inline") else
+            " " if token.type in ("softbreak", "hardbreak") else ""
+            for token in block.children or []
+        )
+        versions.update(version.removesuffix(".") for version in _DOCUMENTED_VERSION.findall(line))
+    return versions
 
 
 class CiWorkflowSplitTests(unittest.TestCase):
@@ -311,7 +329,7 @@ class CiWorkflowSplitTests(unittest.TestCase):
                     self.assertEqual(tag, version)
         prepare = (WORKFLOWS / "prepare-cli-release.yml").read_text(encoding="utf-8")
         dockerfile = (REPOSITORY_ROOT / "deploy/render/Dockerfile").read_text(encoding="utf-8")
-        self.assertEqual(set(rust_image_versions(dockerfile)), {version})
+        self.assertEqual(set(dockerfile_image_versions(dockerfile)), {version})
 
         self.assertIn(f"rust:{version}-bookworm", self.test_workflow)
         self.assertIn(f"rust:{version}-bookworm", self.render_workflow)
@@ -340,8 +358,13 @@ class CiWorkflowSplitTests(unittest.TestCase):
         for name in ("README.md", "docs/ci/cargo-cache.md"):
             with self.subTest(file=name):
                 text = (REPOSITORY_ROOT / name).read_text(encoding="utf-8")
-                versions = re.findall(r"\b(?:Rust|Cargo)\s+`?([0-9][A-Za-z0-9.+-]*)", text)
-                self.assertEqual({version.removesuffix(".") for version in versions}, {self.channel})
+                self.assertEqual(documented_versions(text), {self.channel})
+
+    def test_formatted_stale_version_is_detected_beside_current_version(self) -> None:
+        for mention in ("**Rust** 1.99.0", "Rust v1.99.0", "[Rust](https://www.rust-lang.org/) `v1.99.0`"):
+            with self.subTest(mention=mention):
+                text = f"CI uses Rust 1.100.0.\n\nUse {mention} for the manual job.\n"
+                self.assertEqual(documented_versions(text), {"1.99.0", "1.100.0"})
 
     def test_render_image_disables_rustup_auto_install(self) -> None:
         version = exactly_one(
@@ -397,6 +420,63 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertEqual(workflow_image_versions(overridden), ["1.99.0", "1.100.0", "1.100.0"])
         with self.assertRaises(PinError):
             workflow_image_versions(images.replace("docker.io/library/rust:1.100.0-bookworm", "docker.io/library/rust:latest"))
+
+
+    def test_literal_images_can_use_shell_quoting_and_compound_tag_suffixes(self) -> None:
+        images = (
+            "jobs:\n"
+            "  build:\n"
+            "    container: 'docker.io/library/rust:1.100.0-slim-bookworm'\n"
+            "    steps:\n"
+            "      - run: |\n"
+            "          echo info # docker pull rust:latest\n"
+            "          docker pull docker.io/library/rust:'1.99.0'-bookworm\n"
+            '          id="$(docker run --rm docker.io/library/ru"st:1.99".1-slim-bookworm)"\n'
+        )
+        self.assertEqual(workflow_image_versions(images), ["1.100.0", "1.99.0", "1.99.1"])
+
+    def test_computed_image_references_require_an_explicit_pin(self) -> None:
+        for command in (
+            'docker pull "rust:${RUST_VERSION}-bookworm"',
+            'docker run --rm "$IMAGE"',
+            'docker image pull "$(printf %s rust:1.100.0-bookworm)"',
+            'resolve-image "${{ matrix.rust_image }}"',
+        ):
+            with self.subTest(command=command):
+                workflow = f"jobs:\n  build:\n    steps:\n      - run: |\n          {command}\n"
+                with self.assertRaisesRegex(PinError, "explicit image pin"):
+                    workflow_image_versions(workflow)
+        with self.assertRaisesRegex(PinError, "explicit image pin"):
+            workflow_image_versions("jobs:\n  build:\n    container: ${{ matrix.rust_image }}\n")
+
+    def test_shell_image_uses_the_effective_yaml_environment_pin(self) -> None:
+        workflow = (
+            "env: {BUILD_IMAGE: 'rust:1.99.0-slim-bookworm'}\n"
+            "jobs:\n"
+            "  build:\n"
+            "    steps:\n"
+            '      - run: docker run --rm "$BUILD_IMAGE"\n'
+            "      - env: {BUILD_IMAGE: 'rust:1.100.0-slim-bookworm'}\n"
+            '        run: docker run --rm "$BUILD_IMAGE"\n'
+        )
+        self.assertEqual(workflow_image_versions(workflow), ["1.99.0", "1.100.0"])
+        changed = workflow.replace(
+            'run: docker run --rm "$BUILD_IMAGE"',
+            'run: BUILD_IMAGE=rust:1.99.2-bookworm; docker run --rm "$BUILD_IMAGE"',
+            1,
+        )
+        with self.assertRaisesRegex(PinError, "explicit image pin"):
+            workflow_image_versions(changed)
+
+    def test_yaml_services_and_container_actions_are_image_references(self) -> None:
+        workflow = (
+            "jobs:\n"
+            "  build:\n"
+            "    services: {builder: {image: 'rust:1.99.0-bookworm'}}\n"
+            "    steps:\n"
+            "      - uses: docker://rust:1.100.0-slim-bookworm\n"
+        )
+        self.assertEqual(workflow_image_versions(workflow), ["1.99.0", "1.100.0"])
 
 
 class TracedTargetTests(unittest.TestCase):
