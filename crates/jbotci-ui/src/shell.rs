@@ -145,7 +145,7 @@ pub(super) fn critical_startup_css() -> &'static str {
     r#"
 .app-topbar-brand-logo {
   display: block;
-  height: 1.9rem;
+  height: min(1.9rem, 11vw);
   width: auto;
 }
 

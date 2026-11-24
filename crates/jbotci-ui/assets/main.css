@@ -1384,6 +1384,23 @@ body::-webkit-scrollbar-thumb:hover,
   border-radius: 0;
 }
 
+.gentufa-output-frame {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gentufa-output-frame > .brackets-section,
+.gentufa-output-frame > .view-toolbar {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gentufa-output-frame > .brackets-section {
+  order: -1;
+}
+
 .parse-page .brackets-output-stack {
   display: grid;
   gap: 0.5rem;
@@ -1404,6 +1421,11 @@ body::-webkit-scrollbar-thumb:hover,
   white-space: pre-wrap;
   word-break: break-word;
   overflow: visible;
+}
+
+.parse-page .brackets-output:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 2px;
 }
 
 .app-page.orthography-zbalermorna .parse-page .brackets-output {
@@ -1446,9 +1468,12 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .gentufa-diagnostics-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .parse-page .gentufa-diagnostics-title {
@@ -1640,8 +1665,8 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .view-toolbar.is-three-rows {
-  grid-template-columns: max-content minmax(0, 1fr);
-  grid-template-areas: "text text" "views views" "controls controls";
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "text" "views" "controls";
   row-gap: 0.35rem;
 }
 
@@ -1692,9 +1717,13 @@ body::-webkit-scrollbar-thumb:hover,
   position: relative;
   z-index: 1;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
   gap: 0;
+  row-gap: 0.2rem;
   width: auto;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   border-bottom: 0;
 }
@@ -1752,6 +1781,8 @@ body::-webkit-scrollbar-thumb:hover,
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 0.45rem 1.35rem;
+  min-width: 0;
+  max-width: 100%;
   margin: 0 0 0.32rem auto;
 }
 
@@ -1773,9 +1804,22 @@ body::-webkit-scrollbar-thumb:hover,
   position: relative;
   z-index: 3;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   align-self: start;
+  row-gap: 0.2rem;
+  min-width: 0;
+  max-width: 100%;
   margin-top: calc(-0.55rem - 1px);
+}
+
+.parse-page .gentufa-toolbar-fit-probe .view-tabs,
+.parse-page .gentufa-toolbar-fit-probe .text-tabs,
+.parse-page .gentufa-toolbar-first-row-fit-probe .view-tabs,
+.parse-page .gentufa-toolbar-first-row-fit-probe .text-tabs {
+  flex-wrap: nowrap;
+  max-width: none;
+  min-width: max-content;
 }
 
 .parse-page .text-tab {
@@ -1831,12 +1875,19 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .blocks-svg-link {
-  position: absolute;
+  position: sticky;
+  grid-area: 1 / 1;
+  justify-self: end;
+  align-self: start;
   top: 0;
   right: 0;
   z-index: 5;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0;
+  width: max-content;
+  max-width: min(100%, 100vw);
   transform: none;
   font-size: 0.64rem;
   font-style: normal;
@@ -1882,7 +1933,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .blocks-container {
-  display: block;
+  display: grid;
   width: max-content;
   min-width: 0;
   margin-inline: auto;
@@ -1896,6 +1947,8 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .blocks-grid {
   display: inline-grid;
+  grid-area: 1 / 1;
+  justify-self: start;
   width: max-content;
   min-width: 0;
   gap: var(--blocks-gap);
@@ -5886,7 +5939,13 @@ body::-webkit-scrollbar-thumb:hover,
 @media (max-width: 760px) {
   .app-topbar-inner {
     grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 0.35rem;
+    column-gap: min(0.35rem, 1.75vw);
+  }
+
+  .app-topbar-left {
+    gap: min(0.16rem, 0.8vw);
+    padding-left: min(0.2rem, 1vw);
+    min-width: 0;
   }
 
   .app-topbar-left {
@@ -5900,11 +5959,28 @@ body::-webkit-scrollbar-thumb:hover,
   .app-topbar-right {
     grid-column: 2;
     display: block;
-    min-width: 10rem;
+    min-width: min(10rem, 50vw);
+    max-width: 100%;
+    padding-right: min(0.2rem, 1vw);
+  }
+
+  .app-topbar-settings {
+    margin-left: min(0.45rem, 2.25vw);
+  }
+
+  .app-topbar-brand-logo {
+    height: min(1.9rem, 11vw);
+    width: auto;
+  }
+
+  .app-page .app-topbar .app-topbar-settings-toggle {
+    width: min(1.55rem, 9vw);
+    min-width: min(1.55rem, 9vw);
+    height: min(1.55rem, 9vw);
   }
 
   .app-topbar-theme {
-    margin-left: 0.35rem;
+    margin-left: min(0.35rem, 1.75vw);
   }
 
   .app-page .app-topbar .spa-nav {
@@ -5913,12 +5989,18 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .app-page .app-topbar .app-topbar-nav-carousel {
-    --topbar-carousel-item-width: 3.65rem;
+    --topbar-carousel-item-width: min(3.65rem, 18vw);
     --topbar-carousel-gap: 0.08rem;
-    width: clamp(6.35rem, 38vw, 12.2rem);
-    min-width: 5.7rem;
-    flex-basis: clamp(6.35rem, 38vw, 12.2rem);
-    margin-left: 0.28rem;
+    width: min(12.2rem, 38vw);
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 auto;
+    flex-basis: min(12.2rem, 38vw);
+    margin-left: min(0.28rem, 1.4vw);
+  }
+
+  .app-page .app-topbar .app-topbar-nav-carousel-track {
+    min-width: 0;
   }
 
   .app-page .app-topbar .app-topbar-carousel-link {
@@ -5935,7 +6017,9 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .page-find-control {
-    width: 10rem;
+    width: min(10rem, 50vw);
+    min-width: 0;
+    max-width: min(10rem, 50vw);
   }
 
   .spa-page .page-container {
@@ -6101,9 +6185,9 @@ body::-webkit-scrollbar-thumb:hover,
 
 @media (min-width: 400px) and (max-width: 760px) {
   .app-page .app-topbar .app-topbar-nav-carousel {
-    width: 7.7rem;
-    min-width: 7.1rem;
-    flex-basis: 7.7rem;
+    width: min(7.7rem, 34vw);
+    min-width: 0;
+    flex-basis: min(7.7rem, 34vw);
   }
 }
 

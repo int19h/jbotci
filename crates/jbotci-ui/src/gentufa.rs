@@ -596,13 +596,15 @@ pub(super) fn render_success(
     rsx! {
         section { class: "result-section",
             { render_reference_overlay(&reference_hover_value) }
-            { render_surface_output(success, output_value, settings_value.script, page_find) }
-            div {
-                id: "gentufa-view-toolbar",
-                class: "view-toolbar {toolbar_layout_value.class()}",
-                { render_view_tabs(view_mode, view_mode_value, false) }
-                { render_output_controls(display, display_value, false) }
-                { render_text_output_tabs(output, output_value) }
+            div { class: "gentufa-output-frame",
+                div {
+                    id: "gentufa-view-toolbar",
+                    class: "view-toolbar {toolbar_layout_value.class()}",
+                    { render_view_tabs(view_mode, view_mode_value, false) }
+                    { render_output_controls(display, display_value, false) }
+                    { render_text_output_tabs(output, output_value) }
+                }
+                { render_surface_output(success, output_value, settings_value.script, page_find) }
             }
             { render_gentufa_toolbar_fit_probe(view_mode, view_mode_value, display, display_value, output_value) }
             { render_diagnostics_pane(
@@ -646,6 +648,7 @@ pub(super) fn render_surface_output(
                     id: "gentufa-text-output",
                     class: "brackets-output compact-output",
                     role: "tabpanel",
+                    tabindex: "0",
                     aria_labelledby: "{active_tab_id}",
                     "data-mode": "{mode}",
                     span { class: "brackets-output-markup",
@@ -1028,12 +1031,6 @@ pub(super) fn render_blocks(
         "blocks-container gloss-hidden"
     };
     let gloss_row = success.blocks_layout.max_row + 1;
-    let export_anchor_id = success
-        .blocks_layout
-        .blocks
-        .iter()
-        .min_by_key(|block| (block.row, std::cmp::Reverse(block.col + block.col_span)))
-        .map(|block| block.block_id.as_str());
     rsx! {
         section { class: "blocks-view",
             div { class: "blocks-scroll-shell",
@@ -1050,6 +1047,7 @@ pub(super) fn render_blocks(
                         class: "{container_class}",
                         "data-elided": "0",
                         "data-col-count": "{column_count}",
+                        { render_blocks_export_links(&success.blocks_layout, show_glosses, script, activity, export_task) }
                         div {
                             class: "blocks-grid",
                             style: "grid-template-columns: {column_template}; grid-template-rows: {row_template};",
@@ -1058,7 +1056,7 @@ pub(super) fn render_blocks(
                             }
                             for block in success.blocks_layout.blocks.iter() {
                                 { render_block_reference_height_sizer(block) }
-                                { render_block(block, &success.diagnostics, reference_hover, reference_tooltip_open, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task, page_find) }
+                                { render_block(block, &success.diagnostics, reference_hover, reference_tooltip_open, script, page_find) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -1208,12 +1206,7 @@ pub(super) fn render_block(
     diagnostics: &[Diagnostic],
     reference_hover: Signal<ReferenceHoverState>,
     reference_tooltip_open: Signal<Option<HoveredReference>>,
-    export_anchor_id: Option<&str>,
-    export_layout: &GentufaBlocksLayout,
-    export_show_glosses: bool,
     export_script: GentufaScript,
-    activity: Signal<AsyncActivityState>,
-    export_task: Signal<Option<LatestAsyncTask>>,
     page_find: &PageFindContext,
 ) -> Element {
     let row = block.row + 1;
@@ -1236,9 +1229,6 @@ pub(super) fn render_block(
         block.row_span, block.col_span, block.color, block.color
     );
     let native_title = block_native_title(block, diagnostics, export_script);
-    let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
-    let export_controls =
-        is_export_anchor.then(|| (export_layout.clone(), export_show_glosses, export_script));
     let token_kind = block
         .token_kind
         .map(|kind| kind.to_string())
@@ -1310,43 +1300,50 @@ pub(super) fn render_block(
                     }
                 }
             }
-            if let Some((export_layout, export_show_glosses, export_script)) = export_controls {
-                {
-                    let svg_layout = export_layout.clone();
-                    let png_layout = export_layout.clone();
-                    let svg_activity = activity;
-                    let png_activity = activity;
-                    let svg_export_task = export_task;
-                    let png_export_task = export_task;
-                    rsx! {
-                span { class: "blocks-svg-link",
-                    button {
-                        class: "export-link",
-                        r#type: "button",
-                        onclick: move |_| {
-                            let layout = svg_layout.clone();
-                            cancel_compute_channel(COMPUTE_CHANNEL_EXPORT);
-                            spawn_latest_tracked(svg_export_task, svg_activity, AsyncTaskKind::Export, async move {
-                                download_gentufa_blocks_svg(layout, export_show_glosses, export_script).await;
-                            });
-                        },
-                        "SVG"
-                    }
-                    button {
-                        class: "export-link",
-                        r#type: "button",
-                        onclick: move |_| {
-                            let layout = png_layout.clone();
-                            cancel_compute_channel(COMPUTE_CHANNEL_EXPORT);
-                            spawn_latest_tracked(png_export_task, png_activity, AsyncTaskKind::Export, async move {
-                                download_gentufa_blocks_png(layout, export_show_glosses, export_script).await;
-                            });
-                        },
-                        "PNG"
-                    }
-                }
-                    }
-                }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_blocks_export_links(
+    export_layout: &GentufaBlocksLayout,
+    export_show_glosses: bool,
+    export_script: GentufaScript,
+    activity: Signal<AsyncActivityState>,
+    export_task: Signal<Option<LatestAsyncTask>>,
+) -> Element {
+    let svg_layout = export_layout.clone();
+    let png_layout = export_layout.clone();
+    let svg_activity = activity;
+    let png_activity = activity;
+    let svg_export_task = export_task;
+    let png_export_task = export_task;
+    rsx! {
+        span { class: "blocks-svg-link",
+            button {
+                class: "export-link",
+                r#type: "button",
+                onclick: move |_| {
+                    let layout = svg_layout.clone();
+                    cancel_compute_channel(COMPUTE_CHANNEL_EXPORT);
+                    spawn_latest_tracked(svg_export_task, svg_activity, AsyncTaskKind::Export, async move {
+                        download_gentufa_blocks_svg(layout, export_show_glosses, export_script).await;
+                    });
+                },
+                "SVG"
+            }
+            button {
+                class: "export-link",
+                r#type: "button",
+                onclick: move |_| {
+                    let layout = png_layout.clone();
+                    cancel_compute_channel(COMPUTE_CHANNEL_EXPORT);
+                    spawn_latest_tracked(png_export_task, png_activity, AsyncTaskKind::Export, async move {
+                        download_gentufa_blocks_png(layout, export_show_glosses, export_script).await;
+                    });
+                },
+                "PNG"
             }
         }
     }
