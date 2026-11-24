@@ -3,7 +3,10 @@
 //! A renderer builds this value first. One serializer turns it into ANSI.
 //! Line breaks separate lines. They never sit inside a segment.
 
-use bityzba::{invariant, new, requires};
+use std::io::{self, Write};
+
+#[allow(unused_imports)]
+use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 
 /// Color and text attributes for one visible run.
 ///
@@ -90,7 +93,8 @@ impl LineBreak {
 /// One visible run on a line.
 ///
 /// The text is not empty and holds no line break. A run of only whitespace
-/// has the default style.
+/// has the default style. The serializer escapes other C0 and C1 controls
+/// when it writes the run.
 #[invariant(!text.is_empty(), "a segment contains text")]
 #[invariant(
     !text.contains('\n') && !text.contains('\r'),
@@ -134,67 +138,92 @@ pub(crate) struct StyledText {
     pub(crate) lines: Vec<StyledLine>,
 }
 
+const RESET_BYTES: &[u8] = b"\x1b[0m";
+
 impl StyledText {
+    /// Write the document.
+    ///
+    /// CR and LF stay line breaks. Every other C0 or C1 control is a visible
+    /// `\u{...}` escape, in color mode and in plain mode. Color mode may also
+    /// write its own ANSI sequences. Those sequences are the only raw ESC bytes.
     #[requires(true)]
     #[ensures(true)]
-    #[expensive_ensures(color || (!ret.contains('\u{1b}') && ret == visible_text(self)))]
+    #[expensive_ensures(
+        serialization_obeys_control_rule(&ret, color)
+            && (color || (ret == escaped_visible_text(self)))
+    )]
     pub(crate) fn serialize(&self, color: bool) -> String {
-        let mut output = String::new();
-        for line in &self.lines {
-            if color {
-                let mut current = TextStyle::default();
-                for segment in &line.segments {
-                    push_style_transition(&mut output, current, segment.style);
-                    output.push_str(&segment.text);
-                    current = segment.style;
-                }
-                if current.is_styled() {
-                    output.push_str("\x1b[0m");
-                }
-            } else {
-                for segment in &line.segments {
-                    output.push_str(&segment.text);
-                }
-            }
-            if let Some(ending) = line.ending {
-                output.push_str(ending.as_str());
-            }
-        }
-        output
+        let mut output = Vec::new();
+        self.write_to(&mut output, color, None)
+            .expect("vector write");
+        String::from_utf8(output).expect("styled output is UTF-8")
+    }
+
+    /// Write the document into a byte budget and stop when the caller cancels.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn write_limited(
+        &self,
+        color: bool,
+        limit: crate::budget::ByteLimit,
+        cancellation: &jbotci_interrupt::CancellationToken,
+    ) -> io::Result<String> {
+        let mut writer = crate::budget::OutputBudget::new(limit).writer();
+        self.write_to(&mut writer, color, Some(cancellation))?;
+        writer
+            .into_string()
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
     }
 
     /// Cut the document so its serialization fits in `max_chars` characters.
     ///
-    /// The cut walks the typed text. It appends `…` as its own segment. It
-    /// does not slice an escape sequence.
+    /// The cut walks the typed lines. It appends `…` as its own segment. It
+    /// does not slice an escape sequence. It does not split a CR LF pair.
     #[requires(max_chars > 0)]
     #[ensures(ret.chars().count() <= max_chars)]
-    #[ensures(self.serialize(color).chars().count() > max_chars || ret == self.serialize(color))]
+    #[expensive_ensures(
+        self.serialize(color).chars().count() > max_chars || (ret == self.serialize(color))
+    )]
     pub(crate) fn within_char_budget(&self, max_chars: usize, color: bool) -> String {
-        let full = self.serialize(color);
-        if full.chars().count() <= max_chars {
-            return full;
+        if serialized_char_count(self, color) <= max_chars {
+            return self.serialize(color);
         }
-        let visible = visible_char_count(self);
-        let mut low = 0usize;
-        let mut high = visible;
-        let mut best = 0usize;
-        while low <= high {
-            let mid = low + (high - low) / 2;
-            let candidate = prefix_with_ellipsis(self, mid);
-            if candidate.serialize(color).chars().count() <= max_chars {
-                best = mid;
-                if mid == visible {
-                    break;
+        let keep = visible_prefix_that_fits(self, max_chars, color);
+        prefix_with_ellipsis(self, keep).serialize(color)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_to(
+        &self,
+        writer: &mut impl Write,
+        color: bool,
+        cancellation: Option<&jbotci_interrupt::CancellationToken>,
+    ) -> io::Result<()> {
+        for line in &self.lines {
+            poll(cancellation)?;
+            if color {
+                let mut current = TextStyle::default();
+                for segment in &line.segments {
+                    poll(cancellation)?;
+                    write_style_transition(writer, current, segment.style)?;
+                    write_escaped(writer, &segment.text, cancellation)?;
+                    current = segment.style;
                 }
-                low = mid + 1;
-            } else if mid == 0 {
-                break;
+                if current.is_styled() {
+                    writer.write_all(RESET_BYTES)?;
+                }
             } else {
-                high = mid - 1;
+                for segment in &line.segments {
+                    poll(cancellation)?;
+                    write_escaped(writer, &segment.text, cancellation)?;
+                }
+            }
+            if let Some(ending) = line.ending {
+                writer.write_all(ending.as_str().as_bytes())?;
             }
         }
-        prefix_with_ellipsis(self, best).serialize(color)
+        Ok(())
     }
 }
 
@@ -219,10 +248,21 @@ pub(crate) fn plain_line(text: &str) -> StyledText {
     builder.finish()
 }
 
+/// Bytes already promised to the serializer for this document.
+#[invariant(*limit > 0 && *used <= *limit)]
+struct ByteAccount {
+    limit: usize,
+    color: bool,
+    used: usize,
+    open: TextStyle,
+}
+
 #[invariant(true)]
 pub(crate) struct StyledBuilder {
     finished: Vec<StyledLine>,
     current: Vec<StyledSegment>,
+    account: Option<ByteAccount>,
+    error: Option<io::Error>,
 }
 
 impl StyledBuilder {
@@ -232,18 +272,51 @@ impl StyledBuilder {
         Self {
             finished: Vec::new(),
             current: Vec::new(),
+            account: None,
+            error: None,
+        }
+    }
+
+    /// Reject text once the serialized form would pass `limit`.
+    ///
+    /// `color` selects the same ANSI bytes the serializer writes.
+    #[requires(limit > 0)]
+    #[ensures(true)]
+    pub(crate) fn set_byte_budget(&mut self, limit: usize, color: bool) {
+        self.account = Some(new!(ByteAccount {
+            limit,
+            color,
+            used: 0,
+            open: TextStyle::default(),
+        }));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn check_budget(&self) -> io::Result<()> {
+        if self.error.is_some() {
+            Err(output_too_large())
+        } else {
+            Ok(())
         }
     }
 
     /// Append text. Line breaks become line endings. Whitespace-only pieces
-    /// lose their style.
+    /// lose their style. An adjacent CR and LF with no text between them
+    /// become one CR LF break.
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn push_text(&mut self, text: &str, style: TextStyle) {
+        if self.error.is_some() {
+            return;
+        }
         let mut rest = text;
         while let Some((content, kind, after)) = split_first_line_break(rest) {
             self.push_segment(content, style);
             self.end_line(kind);
+            if self.error.is_some() {
+                return;
+            }
             rest = after;
         }
         self.push_segment(rest, style);
@@ -265,6 +338,45 @@ impl StyledBuilder {
     #[requires(true)]
     #[ensures(self.current.is_empty())]
     pub(crate) fn end_line(&mut self, ending: LineBreak) {
+        if self.error.is_some() {
+            self.current.clear();
+            return;
+        }
+        if self.current.is_empty()
+            && ending == LineBreak::Lf
+            && self
+                .finished
+                .last()
+                .is_some_and(|line| line.ending == Some(LineBreak::Cr))
+        {
+            if !self.try_charge(1) {
+                self.error = Some(output_too_large());
+                return;
+            }
+            let line = self.finished.pop().expect("previous line");
+            self.finished
+                .push(line.with_data(data! { ending: Some(LineBreak::CrLf) }));
+            return;
+        }
+        let reset = self
+            .account
+            .as_ref()
+            .map(|account| {
+                if account.color && account.open.is_styled() {
+                    RESET_BYTES.len()
+                } else {
+                    0
+                }
+            })
+            .unwrap_or(0);
+        if !self.try_charge(reset + ending.as_str().len()) {
+            self.current.clear();
+            self.error = Some(output_too_large());
+            return;
+        }
+        if let Some(account) = self.account.take() {
+            self.account = Some(account.with_data(data! { open: TextStyle::default() }));
+        }
         let segments = std::mem::take(&mut self.current);
         self.finished.push(new!(StyledLine {
             segments,
@@ -276,6 +388,9 @@ impl StyledBuilder {
     #[ensures(true)]
     fn append_document(&mut self, document: &StyledText) {
         for line in &document.lines {
+            if self.error.is_some() {
+                return;
+            }
             for segment in &line.segments {
                 self.push_segment(&segment.text, segment.style);
             }
@@ -288,21 +403,45 @@ impl StyledBuilder {
     #[requires(true)]
     #[ensures(!ret.lines.is_empty())]
     #[ensures(ret.lines.last().is_some_and(|line| line.ending.is_none()))]
-    pub(crate) fn finish(mut self) -> StyledText {
+    pub(crate) fn finish(self) -> StyledText {
+        self.try_finish()
+            .expect("an unlimited document has no byte budget")
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|text| !text.lines.is_empty()) || ret.is_err())]
+    pub(crate) fn try_finish(mut self) -> io::Result<StyledText> {
+        if let Some(error) = self.error.take() {
+            return Err(error);
+        }
+        let reset = self
+            .account
+            .as_ref()
+            .map(|account| {
+                if account.color && account.open.is_styled() {
+                    RESET_BYTES.len()
+                } else {
+                    0
+                }
+            })
+            .unwrap_or(0);
+        if !self.try_charge(reset) {
+            return Err(output_too_large());
+        }
         let segments = std::mem::take(&mut self.current);
         self.finished.push(new!(StyledLine {
             segments,
             ending: None,
         }));
-        new!(StyledText {
+        Ok(new!(StyledText {
             lines: self.finished,
-        })
+        }))
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn push_segment(&mut self, text: &str, style: TextStyle) {
-        if text.is_empty() {
+        if text.is_empty() || self.error.is_some() {
             return;
         }
         let style = if text.chars().all(char::is_whitespace) {
@@ -310,11 +449,34 @@ impl StyledBuilder {
         } else {
             style
         };
-        if self
+        let merging = self
             .current
             .last()
-            .is_some_and(|segment| segment.style == style)
-        {
+            .is_some_and(|segment| segment.style == style);
+        if let Some(account) = self.account.as_ref() {
+            let transition = if account.color && !merging {
+                style_transition_len(account.open, style)
+            } else {
+                0
+            };
+            let room = account
+                .limit
+                .saturating_sub(account.used)
+                .saturating_sub(transition);
+            let Some(text_bytes) = escaped_byte_len_within(text, room) else {
+                self.error = Some(output_too_large());
+                return;
+            };
+            let open = if merging { account.open } else { style };
+            if !self.try_charge(transition + text_bytes) {
+                self.error = Some(output_too_large());
+                return;
+            }
+            if let Some(account) = self.account.take() {
+                self.account = Some(account.with_data(data! { open: open }));
+            }
+        }
+        if merging {
             let mut combined = self.current.pop().expect("segment").text.clone();
             combined.push_str(text);
             self.current.push(new!(StyledSegment {
@@ -328,6 +490,160 @@ impl StyledBuilder {
             style,
         }));
     }
+
+    #[requires(true)]
+    #[ensures(ret == self.account.is_none() || self.account.as_ref().is_some_and(|account| account.used <= account.limit))]
+    fn try_charge(&mut self, bytes: usize) -> bool {
+        let Some(account) = self.account.take() else {
+            return true;
+        };
+        match account.used.checked_add(bytes) {
+            Some(next) if next <= account.limit => {
+                self.account = Some(account.with_data(data! { used: next }));
+                true
+            }
+            _ => {
+                self.account = Some(account);
+                false
+            }
+        }
+    }
+}
+
+/// C0 and C1 controls other than CR and LF.
+///
+/// U+007F is not in either set, so this function leaves it unchanged.
+#[requires(true)]
+#[ensures(ret == (((character as u32) <= 0x1F || ((character as u32) >= 0x80 && (character as u32) <= 0x9F)) && character != '\n' && character != '\r'))]
+pub(crate) fn is_raw_terminal_control(character: char) -> bool {
+    let code = character as u32;
+    character != '\n' && character != '\r' && (code <= 0x1F || (0x80..=0x9F).contains(&code))
+}
+
+/// Replace C0 and C1 controls other than CR and LF with `\u{hex}`.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn escape_terminal_controls(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.chars().any(is_raw_terminal_control) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut output = String::new();
+    push_escaped_controls(&mut output, text, false);
+    std::borrow::Cow::Owned(output)
+}
+
+/// Replace C1 controls with `\u{hex}` and leave C0 for a JSON writer.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn escape_c1_controls(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.chars().any(is_c1_control) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut output = String::new();
+    push_escaped_controls(&mut output, text, true);
+    std::borrow::Cow::Owned(output)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_c1_control(character: char) -> bool {
+    (0x80..=0x9F).contains(&(character as u32))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_escaped_controls(output: &mut String, text: &str, c1_only: bool) {
+    let mut start = 0usize;
+    for (index, character) in text.char_indices() {
+        let replace = if c1_only {
+            is_c1_control(character)
+        } else {
+            is_raw_terminal_control(character)
+        };
+        if !replace {
+            continue;
+        }
+        output.push_str(&text[start..index]);
+        push_control_escape(output, character);
+        start = index + character.len_utf8();
+    }
+    output.push_str(&text[start..]);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_control_escape(output: &mut String, character: char) {
+    let mut bytes = [0u8; 6];
+    let len = control_escape_bytes(character, &mut bytes);
+    output.push_str(std::str::from_utf8(&bytes[..len]).expect("escape is ASCII"));
+}
+
+#[requires(true)]
+#[ensures(ret == 5 || ret == 6)]
+fn control_escape_bytes(character: char, bytes: &mut [u8; 6]) -> usize {
+    let code = character as u32;
+    let hex = b"0123456789abcdef";
+    bytes[0] = b'\\';
+    bytes[1] = b'u';
+    bytes[2] = b'{';
+    if code < 16 {
+        bytes[3] = hex[code as usize];
+        bytes[4] = b'}';
+        5
+    } else {
+        bytes[3] = hex[((code >> 4) & 0xF) as usize];
+        bytes[4] = hex[(code & 0xF) as usize];
+        bytes[5] = b'}';
+        6
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_control_escape(output: &mut impl Write, character: char) -> io::Result<()> {
+    let mut bytes = [0u8; 6];
+    let len = control_escape_bytes(character, &mut bytes);
+    output.write_all(&bytes[..len])
+}
+
+#[requires(true)]
+#[ensures(ret == 1 || ret == 5 || ret == 6)]
+fn escaped_char_len(character: char) -> usize {
+    if is_raw_terminal_control(character) {
+        control_escape_len(character)
+    } else {
+        1
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == 5 || ret == 6)]
+fn control_escape_len(character: char) -> usize {
+    if (character as u32) < 16 { 5 } else { 6 }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escaped_byte_len(character: char) -> usize {
+    if is_raw_terminal_control(character) {
+        control_escape_len(character)
+    } else {
+        character.len_utf8()
+    }
+}
+
+/// Count escaped bytes until `room` is passed. `None` means the text is larger.
+#[requires(true)]
+#[ensures(ret.is_some_and(|len| len <= room) || ret.is_none())]
+fn escaped_byte_len_within(text: &str, room: usize) -> Option<usize> {
+    let mut used = 0usize;
+    for character in text.chars() {
+        used = used.saturating_add(escaped_byte_len(character));
+        if used > room {
+            return None;
+        }
+    }
+    Some(used)
 }
 
 #[requires(true)]
@@ -350,44 +666,121 @@ fn split_first_line_break(text: &str) -> Option<(&str, LineBreak, &str)> {
 
 #[requires(true)]
 #[ensures(true)]
-fn push_style_transition(output: &mut String, from: TextStyle, to: TextStyle) {
+fn write_style_transition(
+    output: &mut impl Write,
+    from: TextStyle,
+    to: TextStyle,
+) -> io::Result<()> {
     if from == to {
-        return;
+        return Ok(());
     }
     if !to.is_styled() {
-        output.push_str("\x1b[0m");
-        return;
+        output.write_all(RESET_BYTES)?;
+        return Ok(());
     }
     // Close attributes before opening the next color. A following bracket can
     // then keep the attribute close next to the text, as in `\x1b[3mtoi\x1b[23m`.
     if from.is_styled() && from.italic && !to.italic {
-        output.push_str("\x1b[23m");
+        output.write_all(b"\x1b[23m")?;
     }
     if from.is_styled() && from.strikethrough && !to.strikethrough {
-        output.push_str("\x1b[29m");
+        output.write_all(b"\x1b[29m")?;
     }
     if !from.is_styled() || to.color != from.color {
         if let Some(color) = to.color {
-            output.push_str(color);
+            output.write_all(color.as_bytes())?;
         } else if from.color.is_some() {
-            output.push_str("\x1b[39m");
+            output.write_all(b"\x1b[39m")?;
         }
     }
     if to.italic && !from.italic {
-        output.push_str("\x1b[3m");
+        output.write_all(b"\x1b[3m")?;
     }
     if to.strikethrough && !from.strikethrough {
-        output.push_str("\x1b[9m");
+        output.write_all(b"\x1b[9m")?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn style_transition_len(from: TextStyle, to: TextStyle) -> usize {
+    let mut count = LenWriter(0);
+    write_style_transition(&mut count, from, to).expect("counter write");
+    count.0
+}
+
+struct LenWriter(usize);
+
+impl Write for LenWriter {
+    #[requires(true)]
+    #[ensures(true)]
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.0 += bytes.len();
+        Ok(bytes.len())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn visible_text(text: &StyledText) -> String {
+fn write_escaped(
+    writer: &mut impl Write,
+    text: &str,
+    cancellation: Option<&jbotci_interrupt::CancellationToken>,
+) -> io::Result<()> {
+    let mut start = 0usize;
+    let mut since_poll = 0usize;
+    for (index, character) in text.char_indices() {
+        if since_poll == 1024 {
+            poll(cancellation)?;
+            since_poll = 0;
+        }
+        since_poll += 1;
+        if !is_raw_terminal_control(character) {
+            continue;
+        }
+        if index > start {
+            writer.write_all(text[start..index].as_bytes())?;
+        }
+        write_control_escape(writer, character)?;
+        start = index + character.len_utf8();
+    }
+    if start < text.len() {
+        writer.write_all(text[start..].as_bytes())?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn poll(cancellation: Option<&jbotci_interrupt::CancellationToken>) -> io::Result<()> {
+    if let Some(token) = cancellation {
+        token
+            .check()
+            .map_err(|error| io::Error::new(io::ErrorKind::Interrupted, error))?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn output_too_large() -> io::Error {
+    io::Error::new(io::ErrorKind::FileTooLarge, "output byte limit")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escaped_visible_text(text: &StyledText) -> String {
     let mut output = String::new();
     for line in &text.lines {
         for segment in &line.segments {
-            output.push_str(&segment.text);
+            output.push_str(&escape_terminal_controls(&segment.text));
         }
         if let Some(ending) = line.ending {
             output.push_str(ending.as_str());
@@ -398,17 +791,126 @@ fn visible_text(text: &StyledText) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn visible_char_count(text: &StyledText) -> usize {
-    text.lines
-        .iter()
-        .map(|line| {
-            line.segments
-                .iter()
-                .map(|segment| segment.text.chars().count())
-                .sum::<usize>()
-                + line.ending.map(LineBreak::char_count).unwrap_or(0)
-        })
-        .sum()
+fn serialized_char_count(text: &StyledText, color: bool) -> usize {
+    let mut count = 0usize;
+    for line in &text.lines {
+        let mut style = TextStyle::default();
+        for segment in &line.segments {
+            if color {
+                count += style_transition_len(style, segment.style);
+            }
+            count += segment.text.chars().map(escaped_char_len).sum::<usize>();
+            style = segment.style;
+        }
+        if color && style.is_styled() {
+            count += RESET_BYTES.len();
+        }
+        if let Some(ending) = line.ending {
+            count += ending.char_count();
+        }
+    }
+    count
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn ellipsis_char_len(color: bool, style: TextStyle) -> usize {
+    let reset = if color && style.is_styled() {
+        RESET_BYTES.len()
+    } else {
+        0
+    };
+    reset + 1
+}
+
+/// Largest raw visible prefix whose colored serialization, plus `…`, fits.
+#[requires(true)]
+#[ensures(true)]
+fn visible_prefix_that_fits(text: &StyledText, max_chars: usize, color: bool) -> usize {
+    let mut best = 0usize;
+    let mut serialized = 0usize;
+    let mut visible = 0usize;
+    let mut style = TextStyle::default();
+    for line in &text.lines {
+        for segment in &line.segments {
+            let transition = if color {
+                style_transition_len(style, segment.style)
+            } else {
+                0
+            };
+            let mut at = serialized + transition;
+            for character in segment.text.chars() {
+                let with_ellipsis =
+                    at + escaped_char_len(character) + ellipsis_char_len(color, segment.style);
+                if with_ellipsis > max_chars {
+                    return best;
+                }
+                at += escaped_char_len(character);
+                visible += 1;
+                best = visible;
+            }
+            serialized = at;
+            style = segment.style;
+        }
+        if let Some(ending) = line.ending {
+            let reset = if color && style.is_styled() {
+                RESET_BYTES.len()
+            } else {
+                0
+            };
+            let break_chars = ending.char_count();
+            let with_ellipsis =
+                serialized + reset + break_chars + ellipsis_char_len(color, TextStyle::default());
+            if with_ellipsis > max_chars {
+                return best;
+            }
+            serialized += reset + break_chars;
+            visible += break_chars;
+            best = visible;
+            style = TextStyle::default();
+        }
+    }
+    best
+}
+
+/// The output has no raw C0 or C1 control except CR, LF, and color sequences.
+#[requires(true)]
+#[ensures(true)]
+fn serialization_obeys_control_rule(text: &str, color: bool) -> bool {
+    let mut characters = text.chars().peekable();
+    while let Some(character) = characters.next() {
+        if character == '\u{1b}' {
+            if !color || !skip_style_sequence(&mut characters) {
+                return false;
+            }
+            continue;
+        }
+        if is_raw_terminal_control(character) {
+            return false;
+        }
+    }
+    true
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn skip_style_sequence(characters: &mut std::iter::Peekable<std::str::Chars<'_>>) -> bool {
+    if characters.next() != Some('[') {
+        return false;
+    }
+    let mut saw_parameter = false;
+    for _ in 0..16 {
+        match characters.next() {
+            Some(character) if character.is_ascii_digit() || character == ';' => {
+                saw_parameter = true;
+            }
+            Some(character) if saw_parameter && (b'@'..=b'~').contains(&(character as u8)) => {
+                return true;
+            }
+            _ => return false,
+        }
+    }
+    false
 }
 
 /// Keep the first `keep` visible characters, then append an unstyled `…`.
@@ -417,7 +919,7 @@ fn visible_char_count(text: &StyledText) -> usize {
 /// at all, so a cut never leaves a bare `\r` from a `\r\n` pair inside a
 /// segment.
 #[requires(true)]
-#[ensures(ret.serialize(false).ends_with('…'))]
+#[expensive_ensures(ret.serialize(false).ends_with('…'))]
 fn prefix_with_ellipsis(text: &StyledText, keep: usize) -> StyledText {
     let mut builder = StyledBuilder::new();
     let mut remaining = keep;
@@ -459,4 +961,125 @@ fn prefix_with_ellipsis(text: &StyledText, keep: usize) -> StyledText {
     }
     builder.push_text("…", TextStyle::default());
     builder.finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_from(text: &str) -> StyledText {
+        let mut builder = StyledBuilder::new();
+        builder.push_text(text, TextStyle::default());
+        builder.finish()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn one_chunk_keeps_crlf_whole_at_the_cut() {
+        let document = document_from("a\r\nbbbb");
+        assert_eq!(document.serialize(false), "a\r\nbbbb");
+        assert_eq!(document.within_char_budget(3, false), "a…");
+        assert_eq!(document.within_char_budget(4, false), "a\r\n…");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_join_keeps_crlf_whole_at_the_cut() {
+        let joined = join_with_lf(&[document_from("a\r"), document_from("bbbb")]);
+        assert_eq!(joined.serialize(false), "a\r\nbbbb");
+        assert_eq!(joined.within_char_budget(3, false), "a…");
+        assert_eq!(joined.within_char_budget(4, false), "a\r\n…");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn two_pushes_keep_crlf_whole_at_the_cut() {
+        let mut builder = StyledBuilder::new();
+        builder.push_text("a\r", TextStyle::default());
+        builder.push_text("\nbbbb", TextStyle::default());
+        let document = builder.finish();
+        assert_eq!(document.serialize(false), "a\r\nbbbb");
+        assert_eq!(document.within_char_budget(3, false), "a…");
+        assert_eq!(document.within_char_budget(4, false), "a\r\n…");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_lone_cr_stays_when_the_next_character_differs() {
+        let document = document_from("a\rb");
+        assert_eq!(document.serialize(false), "a\rb");
+        assert_eq!(document.within_char_budget(3, false), "a\rb");
+        assert_eq!(document.within_char_budget(2, false), "a…");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn controls_use_the_same_visible_escape_in_both_modes() {
+        let mut builder = StyledBuilder::new();
+        builder.push_text("a\u{1b}b\u{9f}\t", TextStyle::for_depth(0));
+        let document = builder.finish();
+        let plain = document.serialize(false);
+        let colored = document.serialize(true);
+        assert_eq!(plain, "a\\u{1b}b\\u{9f}\\u{9}");
+        assert!(colored.contains("a\\u{1b}b\\u{9f}\\u{9}"));
+        assert!(serialization_obeys_control_rule(&plain, false));
+        assert!(serialization_obeys_control_rule(&colored, true));
+        assert!(!plain.chars().any(is_raw_terminal_control));
+        assert_eq!(
+            plain.chars().count(),
+            serialized_char_count(&document, false)
+        );
+        assert_eq!(
+            colored.chars().count(),
+            serialized_char_count(&document, true)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_small_budget_does_not_copy_a_long_run() {
+        let mut builder = StyledBuilder::new();
+        builder.set_byte_budget(32, false);
+        builder.push_text(&"a".repeat(1_000_000), TextStyle::default());
+        let error = builder
+            .try_finish()
+            .expect_err("32 bytes cannot hold the run");
+        assert_eq!(error.kind(), io::ErrorKind::FileTooLarge);
+
+        let mut colored = StyledBuilder::new();
+        colored.set_byte_budget(32, true);
+        colored.push_text(&"a".repeat(1_000_000), TextStyle::for_depth(0));
+        let colored_error = colored
+            .try_finish()
+            .expect_err("32 bytes cannot hold the colored run");
+        assert_eq!(colored_error.kind(), io::ErrorKind::FileTooLarge);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_cancelled_serializer_returns_interrupted() {
+        let source = jbotci_interrupt::CancellationSource::new();
+        source.cancel();
+        let document = document_from("hello");
+        let error = document
+            .write_limited(
+                false,
+                crate::budget::ByteLimit::new(100).expect("positive limit"),
+                &source.token(),
+            )
+            .expect_err("a cancelled write stops");
+        assert_eq!(error.kind(), io::ErrorKind::Interrupted);
+    }
 }

@@ -2796,7 +2796,8 @@ impl TreeRenderer<'_> {
                 self.output.write_all(b"\x1b[9m")?;
             }
         }
-        serde_json::to_writer(&mut self.output, text).map_err(std::io::Error::other)?;
+        let escaped = crate::styled::escape_c1_controls(text);
+        serde_json::to_writer(&mut self.output, escaped.as_ref()).map_err(std::io::Error::other)?;
         if self.color {
             if error || elided {
                 self.output.write_all(b"\x1b[29m")?;

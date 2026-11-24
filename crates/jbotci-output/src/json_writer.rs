@@ -83,7 +83,10 @@ fn key<W: Write>(
             Color::Field
         },
         options.color,
-        |output| serde_json::to_writer(output, text).map_err(json_io_error),
+        |output| {
+            let escaped = crate::styled::escape_c1_controls(text);
+            serde_json::to_writer(output, escaped.as_ref()).map_err(json_io_error)
+        },
     )
 }
 
@@ -127,20 +130,17 @@ fn write_value(
             punctuation(output, b"}", options)
         }
         Value::Object(fields) => write_object(output, fields, indent, options, compact),
-        scalar => colored(
-            output,
-            if matches!(scalar, Value::String(_)) {
-                Color::String
-            } else {
-                Color::Number
-            },
-            options.color,
-            |output| {
-                scalar
-                    .serialize(&mut serde_json::Serializer::new(output))
-                    .map_err(json_io_error)
-            },
-        ),
+        Value::String(text) => {
+            let escaped = crate::styled::escape_c1_controls(text);
+            colored(output, Color::String, options.color, |output| {
+                serde_json::to_writer(output, escaped.as_ref()).map_err(json_io_error)
+            })
+        }
+        scalar => colored(output, Color::Number, options.color, |output| {
+            scalar
+                .serialize(&mut serde_json::Serializer::new(output))
+                .map_err(json_io_error)
+        }),
     }
 }
 

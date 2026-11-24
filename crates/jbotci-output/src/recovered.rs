@@ -1603,7 +1603,7 @@ mod tests {
             ("zoi gy hello\n   \nworld gy", "hello\n   \nworld"),
             ("zoi gy hello\n\r\r\nworld gy", "hello\n\r\r\nworld"),
             ("zoi gy hello\rworld gy", "hello\rworld"),
-            ("la'o gy hello\n\t\nworld gy", "hello\n\t\nworld"),
+            ("la'o gy hello\n\t\nworld gy", "hello\n\\u{9}\nworld"),
         ];
         for (source, payload) in cases {
             let tree = parse_generated_syntax(source);
@@ -1633,6 +1633,92 @@ mod tests {
             for rendered in [&plain_brackets, &plain_text] {
                 assert!(rendered.contains(payload), "{source:?}: {rendered:?}");
                 assert!(!rendered.contains('\u{1b}'), "{source:?}: {rendered:?}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_control_in_a_quote_is_a_visible_escape() {
+        let source = "mi nelci zoi gy.a\u{1b}b\u{80}.gy";
+        let tree = parse_generated_syntax(source);
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let limit = crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit");
+        for color in [false, true] {
+            let options = BracketRenderOptions {
+                color,
+                ..BracketRenderOptions::default()
+            };
+            let bracketed = crate::pretty_generated_model_brackets_with_limit(
+                &tree, source, options, limit, &cancel,
+            )
+            .expect("control quote brackets");
+            let plain = crate::pretty_generated_model_plain_with_limit(
+                &tree, source, options, limit, &cancel,
+            )
+            .expect("control quote plain");
+            for rendered in [&bracketed, &plain] {
+                assert!(rendered.contains("a\\u{1b}b\\u{80}"), "{rendered:?}");
+                assert!(!rendered.contains('\u{80}'), "{rendered:?}");
+                if !color {
+                    assert!(!rendered.contains('\u{1b}'), "{rendered:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_megabyte_quote_stops_at_32_bytes() {
+        // A long run of letters makes the vowel parser recurse until the
+        // stack overflows. `#` is one byte, it is not a letter, and it is
+        // not a word separator, so this quote stays one megabyte of text.
+        let source = format!("zoi gy.{}.gy", "#".repeat(1_000_000));
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(&source).expect("a quote segments");
+        let generated = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            &source,
+            &ParseOptions::default(),
+        )
+        .expect("a quote parses");
+        let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            &source,
+            &ParseOptions::default(),
+        )
+        .expect("a recovered quote parses");
+        let limit = crate::budget::ByteLimit::new(32).expect("positive limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        for color in [false, true] {
+            let options = BracketRenderOptions {
+                color,
+                ..BracketRenderOptions::default()
+            };
+            let results = [
+                crate::pretty_generated_model_brackets_with_limit(
+                    &generated, &source, options, limit, &cancel,
+                ),
+                crate::pretty_generated_model_plain_with_limit(
+                    &generated, &source, options, limit, &cancel,
+                ),
+                pretty_recovered_syntax_brackets_with_limit(
+                    &recovered, &source, options, limit, &cancel,
+                ),
+                pretty_recovered_syntax_plain_with_limit(
+                    &recovered, &source, options, limit, &cancel,
+                ),
+                crate::pretty_morphology_brackets_with_limit(
+                    &words, &source, options, limit, &cancel,
+                ),
+            ];
+            for result in results {
+                assert!(
+                    matches!(result, Err(crate::OutputError::Limit { .. })),
+                    "{color}: {result:?}"
+                );
             }
         }
     }

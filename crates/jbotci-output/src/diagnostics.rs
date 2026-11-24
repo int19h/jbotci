@@ -297,7 +297,9 @@ fn push_soft_run(
     wrap_width: usize,
 ) -> std::io::Result<()> {
     let visible_text = visible_segment_text(role, text, color, rendered.remaining())?;
-    let run_width = UnicodeWidthStr::width(visible_text.as_ref());
+    let blank = visible_text.chars().all(char::is_whitespace);
+    let escaped = crate::styled::escape_terminal_controls(visible_text.as_ref());
+    let run_width = UnicodeWidthStr::width(escaped.as_ref());
     if text.chars().all(char::is_whitespace) {
         if *line_width == 0 || *line_width + run_width <= wrap_width {
             push_visible_run(
@@ -305,9 +307,10 @@ fn push_soft_run(
                 line_width,
                 line_text,
                 role,
-                visible_text.as_ref(),
+                escaped.as_ref(),
                 color,
                 run_width,
+                blank,
             )?;
         } else {
             push_auto_break(rendered, line_width, line_text)?;
@@ -325,9 +328,10 @@ fn push_soft_run(
         line_width,
         line_text,
         role,
-        visible_text.as_ref(),
+        escaped.as_ref(),
         color,
         run_width,
+        blank,
     )
 }
 
@@ -350,8 +354,9 @@ fn push_visible_run(
     visible_text: &str,
     color: bool,
     width: usize,
+    blank: bool,
 ) -> std::io::Result<()> {
-    if !color || visible_text.chars().all(char::is_whitespace) {
+    if !color || blank {
         rendered.write_all(visible_text.as_bytes())?;
     } else {
         match role {
@@ -872,11 +877,40 @@ mod tests {
             [
                 "\x1b[97mhello\x1b[39m",
                 "   ",
-                "\t",
+                "\\u{9}",
                 "\x1b[97mworld\x1b[39m",
                 "\x1b[97mwide\x1b[39m"
             ]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn styled_notes_escape_controls_in_both_modes() {
+        let note = DiagnosticStyledNote::new(
+            DiagnosticNoteMode::Summary,
+            vec![DiagnosticTextSegment::new(
+                DiagnosticTextRole::Construct,
+                "a\u{1b}b\u{9f}".to_owned(),
+            )],
+        );
+        for color in [false, true] {
+            let rendered = render_styled_note(
+                &note,
+                new!(DiagnosticRenderOptions {
+                    color,
+                    detail: DiagnosticDetailMode::Summary,
+                    glyphs: GlyphStyle::default(),
+                    terminal_width: 80,
+                }),
+            );
+            assert!(rendered.contains("a\\u{1b}b\\u{9f}"), "{rendered:?}");
+            assert!(!rendered.contains('\u{9f}'), "{rendered:?}");
+            if !color {
+                assert!(!rendered.contains('\u{1b}'), "{rendered:?}");
+            }
+        }
     }
 
     #[test]

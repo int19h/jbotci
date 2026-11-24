@@ -1,7 +1,6 @@
-use crate::budget::{ByteLimit, OutputBudget};
+use crate::budget::ByteLimit;
 use crate::styled::{self, StyledBuilder, StyledText, TextStyle};
 use bityzba::{invariant, new, requires};
-use std::io::Write;
 
 use crate::{
     BracketRenderOptions, BracketSourceConstruct, BracketSourceFragment, BracketSourceFragmentRole,
@@ -238,14 +237,15 @@ pub(crate) fn render_bracketed_with_limit(
     cancellation
         .check()
         .map_err(|_| crate::OutputError::Interrupted)?;
-    let document = build_bracket_document(expr, options, cancellation).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::Interrupted {
-            crate::OutputError::Interrupted
-        } else {
-            crate::OutputError::from_render_io(error, limit)
-        }
-    })?;
-    write_serialized(document.serialize(options.color), limit)
+    let document =
+        build_bracket_document(expr, options, cancellation, Some(limit)).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::Interrupted {
+                crate::OutputError::Interrupted
+            } else {
+                crate::OutputError::from_render_io(error, limit)
+            }
+        })?;
+    write_document(&document, options.color, limit, cancellation)
 }
 
 #[requires(true)]
@@ -262,24 +262,28 @@ pub(crate) fn render_plain_with_limit(
     cancellation
         .check()
         .map_err(|_| crate::OutputError::Interrupted)?;
-    let document = build_plain_document(expr, options, cancellation).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::Interrupted {
-            crate::OutputError::Interrupted
-        } else {
-            crate::OutputError::from_render_io(error, limit)
-        }
-    })?;
-    write_serialized(document.serialize(options.color), limit)
+    let document =
+        build_plain_document(expr, options, cancellation, Some(limit)).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::Interrupted {
+                crate::OutputError::Interrupted
+            } else {
+                crate::OutputError::from_render_io(error, limit)
+            }
+        })?;
+    write_document(&document, options.color, limit, cancellation)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
-fn write_serialized(text: String, limit: ByteLimit) -> Result<String, crate::OutputError> {
-    let mut output = OutputBudget::new(limit).writer();
-    output
-        .write_all(text.as_bytes())
-        .map_err(|error| crate::OutputError::from_render_io(error, limit))?;
-    Ok(output.into_string().expect("styled output is UTF-8"))
+fn write_document(
+    document: &styled::StyledText,
+    color: bool,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, crate::OutputError> {
+    document
+        .write_limited(color, limit, cancellation)
+        .map_err(|error| crate::OutputError::from_render_io(error, limit))
 }
 
 #[requires(true)]
@@ -338,15 +342,25 @@ fn check_cancellation(cancellation: &jbotci_interrupt::CancellationToken) -> std
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn bracket_document(expr: &SExpr, options: BracketRenderOptions) -> StyledText {
-    build_bracket_document(expr, options, &jbotci_interrupt::CancellationToken::never())
-        .expect("bracket document build does not cancel")
+    build_bracket_document(
+        expr,
+        options,
+        &jbotci_interrupt::CancellationToken::never(),
+        None,
+    )
+    .expect("bracket document build does not cancel")
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn plain_document(expr: &SExpr, options: BracketRenderOptions) -> StyledText {
-    build_plain_document(expr, options, &jbotci_interrupt::CancellationToken::never())
-        .expect("plain document build does not cancel")
+    build_plain_document(
+        expr,
+        options,
+        &jbotci_interrupt::CancellationToken::never(),
+        None,
+    )
+    .expect("plain document build does not cancel")
 }
 
 #[requires(true)]
@@ -355,10 +369,14 @@ fn build_bracket_document(
     expr: &SExpr,
     options: BracketRenderOptions,
     cancellation: &jbotci_interrupt::CancellationToken,
+    budget: Option<ByteLimit>,
 ) -> std::io::Result<StyledText> {
     let mut builder = StyledBuilder::new();
+    if let Some(limit) = budget {
+        builder.set_byte_budget(limit.get(), options.color);
+    }
     append_bracketed(&mut builder, 0, expr, options, cancellation)?;
-    Ok(builder.finish())
+    builder.try_finish()
 }
 
 #[requires(true)]
@@ -367,10 +385,14 @@ fn build_plain_document(
     expr: &SExpr,
     options: BracketRenderOptions,
     cancellation: &jbotci_interrupt::CancellationToken,
+    budget: Option<ByteLimit>,
 ) -> std::io::Result<StyledText> {
     let mut builder = StyledBuilder::new();
+    if let Some(limit) = budget {
+        builder.set_byte_budget(limit.get(), options.color);
+    }
     append_plain(&mut builder, 0, expr, options, cancellation)?;
-    Ok(builder.finish())
+    builder.try_finish()
 }
 
 #[requires(true)]
@@ -402,13 +424,13 @@ fn append_bracketed(
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> std::io::Result<()> {
     check_cancellation(cancellation)?;
+    builder.check_budget()?;
     match expr {
         SExpr::Leaf { text, role, .. } => {
             if text.is_empty() && *role != LeafRole::Error {
                 return Ok(());
             }
-            append_leaf(builder, depth, text, *role);
-            Ok(())
+            append_leaf(builder, depth, text, *role)
         }
         SExpr::Node { children, .. } => {
             let children = children
@@ -428,9 +450,11 @@ fn append_bracketed(
                 open_token.push('\u{200a}');
             }
             builder.push_text(&open_token, node_style);
+            builder.check_budget()?;
             for (index, child) in children.iter().enumerate() {
                 if index > 0 {
                     builder.push_separator(starts_with_line_break(child));
+                    builder.check_budget()?;
                 }
                 append_bracketed(builder, depth + 1, child, options, cancellation)?;
             }
@@ -440,7 +464,7 @@ fn append_bracketed(
             }
             close_token.push_str(close);
             builder.push_text(&close_token, node_style);
-            Ok(())
+            builder.check_budget()
         }
     }
 }
@@ -455,13 +479,13 @@ fn append_plain(
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> std::io::Result<()> {
     check_cancellation(cancellation)?;
+    builder.check_budget()?;
     match expr {
         SExpr::Leaf { text, role, .. } => {
             if text.is_empty() && *role != LeafRole::Error {
                 return Ok(());
             }
-            append_leaf(builder, depth, text, *role);
-            Ok(())
+            append_leaf(builder, depth, text, *role)
         }
         SExpr::Node { children, .. } => {
             let children = children
@@ -471,6 +495,7 @@ fn append_plain(
             for (index, child) in children.iter().enumerate() {
                 if index > 0 {
                     builder.push_separator(starts_with_line_break(child));
+                    builder.check_budget()?;
                 }
                 append_plain(builder, depth + 1, child, options, cancellation)?;
             }
@@ -481,7 +506,12 @@ fn append_plain(
 
 #[requires(true)]
 #[ensures(true)]
-fn append_leaf(builder: &mut StyledBuilder, depth: usize, text: &str, role: LeafRole) {
+fn append_leaf(
+    builder: &mut StyledBuilder,
+    depth: usize,
+    text: &str,
+    role: LeafRole,
+) -> std::io::Result<()> {
     let style = leaf_style(depth, role);
     if role == LeafRole::Error {
         let marker = TextStyle::error_marker();
@@ -491,8 +521,10 @@ fn append_leaf(builder: &mut StyledBuilder, depth: usize, text: &str, role: Leaf
     } else {
         builder.push_text(text, style);
     }
+    builder.check_budget()
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn render_bracketed_with_options(expr: &SExpr, options: BracketRenderOptions) -> String {
@@ -514,6 +546,7 @@ pub(crate) fn render_bracketed_source_fragments_with_options(
     render_source_fragments_at_depth(0, expr, options)
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn render_bracketed_at_depth(
@@ -986,7 +1019,7 @@ mod tests {
             ),
             (
                 "hello\n\t\nworld",
-                "\x1b[35mhello\x1b[0m\n\t\n\x1b[35mworld\x1b[0m",
+                "\x1b[35mhello\x1b[0m\n\\u{9}\n\x1b[35mworld\x1b[0m",
             ),
             ("hello\rworld", "\x1b[35mhello\x1b[0m\r\x1b[35mworld\x1b[0m"),
             (
@@ -1084,6 +1117,76 @@ mod tests {
                     super::assert_document_round_trip(&expr, depth, options);
                 }
             }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_byte_limit_matches_the_serialized_length() {
+        let expr = SExpr::Leaf {
+            text: "abc".to_owned(),
+            range: None,
+            role: LeafRole::Normal,
+        };
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        for color in [false, true] {
+            for plain in [false, true] {
+                let options = BracketRenderOptions {
+                    color,
+                    ..BracketRenderOptions::default()
+                };
+                let full = if plain {
+                    super::plain_document(&expr, options).serialize(color)
+                } else {
+                    super::bracket_document(&expr, options).serialize(color)
+                };
+                assert!(full.len() > 1, "{full:?}");
+                let fit = ByteLimit::new(full.len()).expect("positive limit");
+                let short = ByteLimit::new(full.len() - 1).expect("positive limit");
+                let rendered = if plain {
+                    super::render_plain_with_limit(&expr, options, fit, &cancel)
+                } else {
+                    super::render_bracketed_with_limit(&expr, options, fit, &cancel)
+                };
+                assert_eq!(rendered.expect("exact limit"), full);
+                let rejected = if plain {
+                    super::render_plain_with_limit(&expr, options, short, &cancel)
+                } else {
+                    super::render_bracketed_with_limit(&expr, options, short, &cancel)
+                };
+                assert!(
+                    matches!(rejected, Err(crate::OutputError::Limit { .. })),
+                    "{rejected:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_megabyte_leaf_stops_at_32_bytes() {
+        let expr = SExpr::Leaf {
+            text: "a".repeat(1_000_000),
+            range: None,
+            role: LeafRole::Normal,
+        };
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let limit = ByteLimit::new(32).expect("positive limit");
+        for color in [false, true] {
+            let options = BracketRenderOptions {
+                color,
+                ..BracketRenderOptions::default()
+            };
+            assert!(matches!(
+                super::render_bracketed_with_limit(&expr, options, limit, &cancel),
+                Err(crate::OutputError::Limit { .. })
+            ));
+            assert!(matches!(
+                super::render_plain_with_limit(&expr, options, limit, &cancel),
+                Err(crate::OutputError::Limit { .. })
+            ));
         }
     }
 }
