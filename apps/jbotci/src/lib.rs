@@ -1699,7 +1699,7 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
             )?;
         }
         VlaseiFormat::Json => {
@@ -1709,7 +1709,7 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
             )?;
         }
         VlaseiFormat::Tree => {}
@@ -1725,7 +1725,7 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
             )?;
         }
         VlaseiFormat::Brackets => {
