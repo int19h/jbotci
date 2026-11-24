@@ -1069,7 +1069,8 @@ pub(super) fn render_dictionary_tooltip_card(
     script: GentufaScript,
     class_name: &str,
 ) -> Element {
-    let display_word = display_lojban_text(script, &card.display_word);
+    let display_word =
+        display_lojban_text_if(script, &card.display_word, !card.invalid_lojban_word);
     rsx! {
         span { class: "{class_name}", role: "tooltip",
             span { class: "tooltip-word-line",
@@ -1176,7 +1177,8 @@ pub(super) fn render_reference_dictionary_card(
     base_path: &str,
     script: GentufaScript,
 ) -> Element {
-    let display_word = display_lojban_text(script, &card.display_word);
+    let display_word =
+        display_lojban_text_if(script, &card.display_word, !card.invalid_lojban_word);
     rsx! {
         span { class: "rich-dictionary-tooltip reference-definition-card",
             span { class: "tooltip-word-line",
@@ -1376,7 +1378,8 @@ pub(super) fn render_vlacku_headword_line(
             word_types: Vec::new(),
         },
     );
-    let display_word = display_lojban_text(script, &card.display_word);
+    let display_word =
+        display_lojban_text_if(script, &card.display_word, !card.invalid_lojban_word);
     rsx! {
         div { class: "dictionary-word-cluster",
             h2 { class: "word dictionary-headword-title",
@@ -1407,7 +1410,7 @@ pub(super) fn render_vlacku_headword_line(
                     { render_vlacku_inline_separator("≘") }
                     span { class: "dictionary-inline-pill-row",
                         for rafsi in card.rafsi.iter() {
-                            { render_rafsi_pill(jvozba_pane, jvozba_available, &card.word, rafsi, script, page_find) }
+                            { render_rafsi_pill(jvozba_pane, jvozba_available, card.can_add_to_jvozba, &card.word, rafsi, script, page_find) }
                         }
                     }
                 }
@@ -1999,6 +2002,7 @@ pub(super) fn render_vlacku_rafsi_add_piece(
 pub(super) fn render_rafsi_pill(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
+    can_add_to_jvozba: bool,
     source_word: &str,
     rafsi: &str,
     script: GentufaScript,
@@ -2008,7 +2012,7 @@ pub(super) fn render_rafsi_pill(
     let rafsi_value = rafsi.to_owned();
     let source_value = source_word.to_owned();
     let display_rafsi = display_lujvo_fragment(script, rafsi, LujvoFragmentKind::Rafsi);
-    if pane_open {
+    if pane_open && can_add_to_jvozba {
         rsx! {
             button {
                 class: "chip rafsi-chip dictionary-jvozba-add-pill dictionary-jvozba-add-pill-hint",

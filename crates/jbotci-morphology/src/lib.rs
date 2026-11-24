@@ -3561,6 +3561,12 @@ fn normalized_lojban_input_separator(value: char) -> char {
 }
 
 #[requires(true)]
+#[ensures(true)]
+pub fn is_separator_character(value: char) -> bool {
+    segment::is_separator(value)
+}
+
+#[requires(true)]
 #[ensures(ret == matches!(value, '.' | 'ӏ' | 'Ӏ' | '\u{ed89}'))]
 pub fn is_period_character(value: char) -> bool {
     value == '.' || segment::is_cyrillic_period(value) || segment::is_zbalermorna_period(value)

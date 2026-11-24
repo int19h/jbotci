@@ -10,8 +10,8 @@ use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     Cmavo, LujvoPart, MorphologyOptions, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData,
-    canonicalize_text, is_period_character, lex_single_word, normalize_lojban_input_text,
-    normalize_lojban_input_text_unchecked_with_options,
+    canonicalize_text, is_period_character, is_separator_character, lex_single_word,
+    normalize_lojban_input_text, normalize_lojban_input_text_unchecked_with_options,
     segment_words_for_display_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id,
 };
@@ -2183,9 +2183,6 @@ fn has_word_after_faho(words: &[WordLike]) -> bool {
         .is_some_and(|index| index + 1 < words.len())
 }
 
-/// Segment the query with the caller's flag. A morphology error that is not
-/// the flag is "this text is not words", which is the old `.ok()` answer.
-/// The flag is not that answer.
 /// Decide whether a dictionary headword has usable morphology.
 ///
 /// Queries keep the round-5 rule and accept separator punctuation as user noise.
@@ -2194,19 +2191,69 @@ fn has_word_after_faho(words: &[WordLike]) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn headword_has_morphology(text: &str) -> bool {
-    match exact_query_words(text, &jbotci_interrupt::CancellationToken::never()) {
-        Ok(Some(words)) => headword_gaps_are_lojban_orthography(text, &words),
-        _ => false,
-    }
+    let Ok(Some(exact_words)) =
+        exact_query_words(text, &jbotci_interrupt::CancellationToken::never())
+    else {
+        return false;
+    };
+    let morphology = MorphologyOptions::default();
+    let words = match segment_words_for_display_with_options_and_source_id(text, &morphology, None)
+    {
+        Ok(words) => words,
+        Err(_) => exact_words,
+    };
+    headword_gaps_are_lojban_orthography(text, &words)
 }
 
-/// Check the source gaps of a dictionary headword against its morphology spans.
-/// Outside word and verbatim quote spans, only whitespace, pause periods, and
-/// syllable commas are valid orthography. Other silent separators make the
-/// headword invalid even when its text parses.
+/// Check source gaps against every word span returned by display segmentation.
+/// Quote-skipped hesitations need their own morphology pass because the quote
+/// constructor omits their spans from its returned tree.
 #[requires(true)]
 #[ensures(true)]
 fn headword_gaps_are_lojban_orthography(text: &str, words: &[WordLike]) -> bool {
+    let mut spans = words
+        .iter()
+        .flat_map(|word| word.source_spans())
+        .collect::<Vec<_>>();
+    spans.sort_unstable_by_key(|span| (span.char_start, span.char_end));
+    let mut byte_cursor = 0;
+    for span in spans {
+        if byte_cursor < span.byte_start
+            && !headword_gap_is_orthography(&text[byte_cursor..span.byte_start])
+        {
+            return false;
+        }
+        byte_cursor = byte_cursor.max(span.byte_end);
+    }
+    byte_cursor == text.len() || headword_gap_is_orthography(&text[byte_cursor..])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn headword_gap_is_orthography(gap: &str) -> bool {
+    if gap
+        .chars()
+        .all(|value| value.is_whitespace() || value == ',' || is_period_character(value))
+    {
+        return true;
+    }
+    let Ok(words) = segment_words_for_display_with_options_and_source_id(
+        gap,
+        &MorphologyOptions::default(),
+        None,
+    ) else {
+        return false;
+    };
+    !words.is_empty()
+        && words
+            .iter()
+            .all(|word| word.bare_word().and_then(Word::cmavo) == Some(Cmavo::Y))
+        && spans_leave_only_orthography(gap, &words)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn spans_leave_only_orthography(text: &str, words: &[WordLike]) -> bool {
     let mut spans = words
         .iter()
         .flat_map(|word| word.source_spans())
@@ -2230,6 +2277,10 @@ fn headword_gaps_are_lojban_orthography(text: &str, words: &[WordLike]) -> bool 
     }
     true
 }
+
+/// Segment the query with the caller's flag. A morphology error that is not
+/// the flag is "this text is not words", which is the old `.ok()` answer.
+/// The flag is not that answer.
 
 #[requires(true)]
 #[ensures(true)]
@@ -3788,10 +3839,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn headword_gaps_reject_every_silent_separator_but_accept_quote_payloads() {
-        for separator in [
-            '?', '!', '(', ')', '[', ']', '{', '}', '<', '>', ';', ':', '-', '"', '«', '»', '“',
-            '”', '‘', '⟨', '⟩', '⟦', '⟧', '⁅', '⁆', '⦇', '⦈', '⦉', '⦊', '⦪', '⦫',
-        ] {
+        for separator in (0..=0x10ffff).filter_map(char::from_u32).filter(|value| {
+            is_separator_character(*value) && !value.is_whitespace() && !is_period_character(*value)
+        }) {
             let query = format!("xa{separator}");
             assert!(!headword_has_morphology(&query), "{query:?}");
         }
@@ -3815,6 +3865,19 @@ mod tests {
             "la'o gy. a;b .gy.",
             "mi . klama",
             "mi , klama",
+            "mi .y. klama",
+            ".y. klama",
+            "klama .y.",
+            "mi y klama",
+            "mi si klama",
+            "mi klama si",
+            "mi sa klama",
+            "mi su klama",
+            "klama fa'o",
+            "klama .y. zei zarci",
+            "zo .y. klama",
+            "ma'oi .y. klama",
+            "lo'ai .y. klama le'ai",
         ] {
             let words = exact_query_words(headword, &jbotci_interrupt::CancellationToken::never())
                 .expect("clear cancellation")

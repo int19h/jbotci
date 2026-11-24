@@ -1113,7 +1113,10 @@ fn collect_vlacku_card_page_find_entries(
     card: &VlackuWebCard,
     script: GentufaScript,
 ) {
-    push_page_find_entry(entries, display_lojban_text(script, &card.display_word));
+    push_page_find_entry(
+        entries,
+        display_lojban_text_if(script, &card.display_word, !card.invalid_lojban_word),
+    );
     if let Some(ipa) = &card.ipa {
         push_page_find_entry(entries, format!("/{ipa}/"));
     }
