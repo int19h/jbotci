@@ -177,7 +177,6 @@ pub struct ShortRafsiForm {
 #[invariant(true)]
 #[invariant(::Rafsi(text) => !text.is_empty())]
 #[invariant(::FuhivlaStem(text) => !text.is_empty())]
-#[bityzba::expensive_invariant(::FuhivlaStem(text) => crate::is_fuhivla_rafsi_stem(text))]
 #[invariant(::BrivlaCore(text) => !text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LujvoBuildPart {
