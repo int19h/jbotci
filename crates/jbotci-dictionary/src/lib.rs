@@ -1646,6 +1646,7 @@ mod tests {
             assert_eq!(matched.entry.word, word);
             assert!(dictionary.rafsi_availability(stem).is_free());
         }
+        assert!(fuivla_stem_rafsi("\u{0301},").is_none());
         assert!(dictionary.lookup_rafsi("spaget").next().is_none());
         assert!(dictionary.rafsi_availability("spaget").is_free());
     }

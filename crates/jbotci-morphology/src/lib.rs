@@ -3386,7 +3386,7 @@ pub fn is_word_forming_character(value: char) -> bool {
 /// Letters are lowercase. Commas are removed. Stress marks and glide marks
 /// become plain vowels. Each Latin apostrophe spelling becomes `'`.
 #[requires(true)]
-#[ensures(!ret.is_empty() || text.is_empty())]
+#[ensures(!ret.is_empty() || canonical_text_chars(text).next().is_none())]
 #[bityzba::expensive_ensures(ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value)))]
 pub fn canonicalize_text(text: &str) -> String {
     canonical_text_chars(text).collect()
