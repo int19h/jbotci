@@ -196,6 +196,28 @@ class CargoCacheTests(unittest.TestCase):
                 self.assertFalse(broken.directory.parent.exists())
                 self.assertTrue((fresh.directory / cargo_inputs.RECORD).is_file())
 
+    def test_cargo_recreates_example_copies_after_cache_cleanup(self) -> None:
+        example = self.repo / "examples/demo.rs"
+        example.parent.mkdir()
+        example.write_text("fn main() {}\n")
+        self._commit(Version.A)
+        state = self.case / "example"
+        cargo_inputs.begin(self.layout, state)
+        result = self._trace_build(state, "build", "--example", "demo")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        copy = self.profile_dir / "examples/demo"
+        self.assertTrue(copy.is_file())
+
+        stats = cargo_inputs.save(self.layout, state)
+        self.assertEqual(stats["retained"], 1)
+        self.assertFalse(copy.exists())
+        stats = cargo_inputs.restore(self.layout, normalize=False)
+        self.assertEqual(stats["retained"], 1)
+
+        result = self._run(["cargo", "build", "--offline", "--verbose", "--profile", self.profile, "--example", "demo"])
+        self.assertIn("Fresh cache-audit", result.stderr)
+        self.assertTrue(copy.is_file())
+
     def test_three_successful_builds_keep_the_selected_feature_current(self) -> None:
         manifest = self.repo / "Cargo.toml"
         manifest.write_text(manifest.read_text() + "\n[features]\nextra = []\n")

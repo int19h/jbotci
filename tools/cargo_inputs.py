@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import struct
 import subprocess
 import tomllib
@@ -18,7 +19,7 @@ from uuid import uuid4
 
 from tools.cargo_inputs_trace import TraceError, trace
 from tools.cargo_unit_layout import (
-    RECORD, UNIT_ID, empty_fingerprint_hash, inside_unit_out, profile_inside_target,
+    RECORD, UNIT_ID, is_fingerprint_hash_name, inside_unit_out, profile_inside_target,
 )
 
 VERSION = 1
@@ -134,7 +135,8 @@ class Unit:
     directory: Path
     stem: str
     kind: Kind
-    metadata: dict
+    dependency_hashes: tuple[int, ...]
+    script_environment: dict[str, str | None]
     cargo_hash: int
 
     @property
@@ -216,6 +218,55 @@ def build_unit_child(child: Path) -> Path | None:
     return fingerprint
 
 
+def is_u64(value: object) -> bool:
+    return type(value) is int and 0 <= value < 2**64
+
+
+def dependency_hashes(data: dict, path: Path) -> tuple[int, ...]:
+    dependencies = data.get("deps")
+    if not isinstance(dependencies, list):
+        raise InputError(f"A fingerprint metadata file has no dependency list: {path}")
+    hashes = []
+    for dependency in dependencies:
+        if not isinstance(dependency, list) or len(dependency) != 4:
+            raise InputError(f"A fingerprint metadata file has an invalid dependency entry: {path}")
+        package_id, name, public, cargo_hash = dependency
+        if not (is_u64(package_id) and isinstance(name, str) and isinstance(public, bool) and is_u64(cargo_hash)):
+            raise InputError(f"A fingerprint metadata file has an invalid dependency entry: {path}")
+        hashes.append(cargo_hash)
+    return tuple(hashes)
+
+
+def fingerprint_environment(data: dict, path: Path, kind: Kind) -> dict[str, str | None]:
+    local_inputs = data.get("local", [] if kind is Kind.COMPILE else None)
+    error = f"A fingerprint metadata file has invalid local inputs: {path}"
+    if not isinstance(local_inputs, list):
+        raise InputError(error)
+    environment = {}
+    for local in local_inputs:
+        if not isinstance(local, dict) or len(local) != 1:
+            raise InputError(error)
+        name, value = next(iter(local.items()))
+        if name == "Precalculated" and isinstance(value, str):
+            continue
+        if not isinstance(value, dict):
+            raise InputError(error)
+        if name == "CheckDepInfo":
+            if isinstance(value.get("dep_info"), str) and value.get("fingerprint") in ("mtime", "content"):
+                continue
+        if name == "RerunIfChanged" and isinstance(value.get("output"), str):
+            paths = value.get("paths")
+            if isinstance(paths, list) and all(isinstance(item, str) for item in paths):
+                continue
+        if name != "RerunIfEnvChanged" or "val" not in value:
+            raise InputError(error)
+        variable, contents = value.get("var"), value["val"]
+        if not isinstance(variable, str) or (contents is not None and not isinstance(contents, str)):
+            raise InputError(error)
+        environment[variable] = contents
+    return environment
+
+
 def read_unit(layout: Layout, directory: Path) -> Unit | None:
     """Read a committed Cargo fingerprint, or return None for an unfinished unit.
 
@@ -234,26 +285,40 @@ def read_unit(layout: Layout, directory: Path) -> Unit | None:
     if len(metadata) > 1:
         raise InputError(f"A fingerprint directory must contain one metadata file: {directory}")
     if not metadata:
-        if not unknown or (len(unknown) == 1 and empty_fingerprint_hash(unknown[0])):
+        if not unknown:
             return None
+        if len(unknown) == 1 and is_fingerprint_hash_name(unknown[0].name):
+            info = unknown[0].lstat()
+            if stat.S_ISREG(info.st_mode) and info.st_size == 0:
+                return None
         raise InputError(f"Unknown fingerprint entry: {unknown[0]}")
 
     path = metadata[0]
+    marker = directory / path.stem
+    if not is_fingerprint_hash_name(marker.name):
+        raise InputError(f"Unknown fingerprint entry: {marker}")
+    for entry in unknown:
+        if entry != marker:
+            raise InputError(f"Unknown fingerprint entry: {entry}")
     try:
+        if not all(stat.S_ISREG(entry.lstat().st_mode) for entry in (path, marker)):
+            raise InputError(f"A fingerprint file must be a regular file: {directory}")
         data = json.loads(path.read_text())
-        short = (directory / path.stem).read_text()
+        short = marker.read_text()
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise InputError(f"A fingerprint directory is unreadable: {directory}") from error
-    if not isinstance(data, dict) or not isinstance(data.get("deps"), list):
-        raise InputError(f"A fingerprint metadata file has no dependency list: {path}")
+    if not isinstance(data, dict):
+        raise InputError(f"A fingerprint metadata file must contain an object: {path}")
+    kind = Kind.RUN if path.stem.startswith("run-build-script-") else Kind.COMPILE
+    dependencies = dependency_hashes(data, path)
+    environment = fingerprint_environment(data, path, kind)
     if short == "":
         return None
     if not UNIT_ID.fullmatch(short):
-        raise InputError(f"A fingerprint hash file must contain 16 hex characters: {directory / path.stem}")
+        raise InputError(f"A fingerprint hash file must contain 16 hex characters: {marker}")
     value = int.from_bytes(bytes.fromhex(short), "little")
-    kind = Kind.RUN if path.stem.startswith("run-build-script-") else Kind.COMPILE
     key = directory.relative_to(layout.target).as_posix()
-    return Unit(key, directory, path.stem, kind, data, value)
+    return Unit(key, directory, path.stem, kind, dependencies, environment, value)
 
 
 @dataclass(frozen=True)
@@ -285,8 +350,8 @@ def inventory(layout: Layout) -> dict[str, Unit]:
 
 def dependency_keys(unit: Unit, units: dict[str, Unit]) -> tuple[str, ...]:
     result: set[str] = set()
-    for dependency in unit.metadata["deps"]:
-        candidates = [other for other in units.values() if other.cargo_hash == dependency[3]]
+    for cargo_hash in unit.dependency_hashes:
+        candidates = [other for other in units.values() if other.cargo_hash == cargo_hash]
         if not candidates:
             raise InputError(f"A dependency of {unit.key} has no unit record")
         # Cargo can share a fingerprint across profiles. Bind every match rather
@@ -514,12 +579,8 @@ def discard_unrecorded(layout: Layout, scanned: UnitInventory, retained: set[str
                 match = UNIT_HASH.search(path.name)
                 if match is None or match[1] not in valid_hashes:
                     remove(path)
-        examples = profile / "examples"
-        if examples.is_dir():
-            for path in list(examples.iterdir()):
-                match = UNIT_HASH.search(path.name)
-                if match and match[1] not in valid_hashes:
-                    remove(path)
+        # Cargo can recreate every example copy from the retained unit outputs.
+        remove(profile / "examples")
         build = profile / "build"
         if not build.is_dir():
             continue
@@ -550,14 +611,8 @@ def scrub_outputs(layout: Layout, profiles: set[Path]) -> None:
         if inside_unit_out(layout.target, profile):
             continue
         for entry in profile.iterdir():
-            if entry.name not in ("deps", "build", "examples", ".cargo-lock"):
+            if entry.name not in ("deps", "build", ".cargo-lock"):
                 remove(entry)
-        # Unhashed example aliases also carry no unit identity.
-        examples = profile / "examples"
-        if examples.exists():
-            for entry in examples.iterdir():
-                if not UNIT_HASH.search(entry.name):
-                    remove(entry)
     if layout.profiles is not None:
         return
 
@@ -724,10 +779,8 @@ def make_record(layout: Layout, unit: Unit, descriptor: dict, snapshots: dict[Pa
                 paths.extend(files)
             else:
                 paths.append(path)
-        for local in unit.metadata["local"]:
-            if "RerunIfEnvChanged" in local:
-                entry = local["RerunIfEnvChanged"]
-                env[entry["var"]] = None if entry["val"] is None else sha(entry["val"].encode())
+        env = {name: None if value is None else sha(value.encode())
+               for name, value in unit.script_environment.items()}
     files = {layout.path_key(path): file_snapshot(path, snapshots) for path in paths}
     return {"version": VERSION, "unit": unit.key, "kind": unit.kind.value,
             "cargo": unit.fingerprint_digest(), "package": layout.path_key(package),

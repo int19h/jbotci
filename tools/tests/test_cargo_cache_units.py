@@ -50,10 +50,10 @@ class CargoUnitTests(unittest.TestCase):
                 c.Layout(self.workspace, target)
 
     def test_identical_dependency_fingerprints_bind_all_profiles(self) -> None:
-        first = c.Unit("debug/child", self.layout.target / "debug/build/child/aaaaaaaaaaaaaaaa/fingerprint", "lib-child", c.Kind.COMPILE, {"deps": []}, 42)
-        second = c.Unit("release/child", self.layout.target / "release/build/child/bbbbbbbbbbbbbbbb/fingerprint", "lib-child", c.Kind.COMPILE, {"deps": []}, 42)
+        first = c.Unit("debug/child", self.layout.target / "debug/build/child/aaaaaaaaaaaaaaaa/fingerprint", "lib-child", c.Kind.COMPILE, (), {}, 42)
+        second = c.Unit("release/child", self.layout.target / "release/build/child/bbbbbbbbbbbbbbbb/fingerprint", "lib-child", c.Kind.COMPILE, (), {}, 42)
         parent = c.Unit("release/parent", self.layout.target / "release/build/parent/cccccccccccccccc/fingerprint", "lib-parent", c.Kind.COMPILE,
-                        {"deps": [[0, "child", False, 42]]}, 43)
+                        (42,), {}, 43)
         units = {unit.key: unit for unit in (first, second, parent)}
         self.assertEqual(c.dependency_keys(parent, units), (first.key, second.key))
 
@@ -378,19 +378,45 @@ class CargoUnitTests(unittest.TestCase):
         self.assertEqual(c.restore(self.layout, normalize=False), {"retained": 0, "invalidated": 0})
         self.assertFalse(directory.parent.exists())
 
-    def test_an_empty_hash_does_not_hide_invalid_metadata(self) -> None:
+    def test_metadata_validation_is_the_same_for_both_commitment_states(self) -> None:
         directory = self.layout.target / "debug/build/demo/0123456789abcdef/fingerprint"
         directory.mkdir(parents=True)
-        (directory / "bin-demo").write_bytes(b"")
-        metadata = directory / "bin-demo.json"
-        for value, error in (
-            ("{}", "no dependency list"),
-            ("not JSON", "unreadable"),
-        ):
-            with self.subTest(value=value):
-                metadata.write_text(value)
-                with self.assertRaisesRegex(c.InputError, error):
-                    c.inventory(self.layout)
+        cases = [
+            ("bin-demo", "{}", "no dependency list"),
+            ("bin-demo", "not JSON", "unreadable"),
+            ("bin-demo", '{"deps":[null]}', "invalid dependency entry"),
+            ("bin-demo", '{"deps":[[0,"child",false]]}', "invalid dependency entry"),
+            ("bin-demo", '{"deps":[[false,"child",false,5]]}', "invalid dependency entry"),
+            ("bin-demo", '{"deps":[[0,2,false,5]]}', "invalid dependency entry"),
+            ("bin-demo", '{"deps":[[0,"child",0,5]]}', "invalid dependency entry"),
+            ("bin-demo", '{"deps":[[0,"child",false,true]]}', "invalid dependency entry"),
+            ("bin-demo", '{"deps":[[0,"child",false,-1]]}', "invalid dependency entry"),
+            ("bin-demo", '{"deps":[[0,"child",false,18446744073709551616]]}', "invalid dependency entry"),
+            ("format-k2", '{"deps":[]}', "Unknown fingerprint entry"),
+            ("run-build-script-demo", '{"deps":[]}', "invalid local inputs"),
+            ("run-build-script-demo", '{"deps":[],"local":[null]}', "invalid local inputs"),
+            ("run-build-script-demo", '{"deps":[],"local":[{"RerunIfEnvChanged":{"var":"ENV"}}]}', "invalid local inputs"),
+            ("run-build-script-demo", '{"deps":[],"local":[{"RerunIfEnvChanged":{"var":8,"val":null}}]}', "invalid local inputs"),
+            ("run-build-script-demo", '{"deps":[],"local":[{"RerunIfEnvChanged":{"var":"ENV","val":8}}]}', "invalid local inputs"),
+        ]
+        for stem, value, error in cases:
+            marker = directory / stem
+            metadata = directory / (stem + ".json")
+            metadata.write_text(value)
+            for hash_text in ("", "1111111111111111"):
+                with self.subTest(stem=stem, value=value, committed=bool(hash_text)):
+                    marker.write_text(hash_text)
+                    with self.assertRaisesRegex(c.InputError, error):
+                        c.inventory(self.layout)
+            marker.unlink()
+            metadata.unlink()
+
+    def test_a_second_marker_is_an_error_even_with_valid_metadata(self) -> None:
+        directory = self.layout.target / "debug/build/demo/0123456789abcdef/fingerprint"
+        self.write_fingerprint(directory, "bin-demo", 1)
+        (directory / "bin-stray").write_bytes(b"")
+        with self.assertRaisesRegex(c.InputError, "Unknown fingerprint entry"):
+            c.inventory(self.layout)
 
     def test_a_fingerprint_file_in_place_of_a_directory_fails_closed(self) -> None:
         unit = self.layout.target / "debug/build/demo/0123456789abcdef"
@@ -407,7 +433,7 @@ class CargoUnitTests(unittest.TestCase):
         build_output.write_text("cargo:rerun-if-changed=version.txt\n")
         build_unit = c.Unit(
             "build-unit", build_dir, "run-build-script-build-script-build",
-            c.Kind.RUN, {"deps": []}, 1,
+            c.Kind.RUN, (), {}, 1,
         )
         self.assertEqual(c.build_script_output(build_unit), build_output)
         self.assertEqual(build_unit.profile, self.layout.target / "opt")
@@ -857,19 +883,20 @@ class CargoUnitTests(unittest.TestCase):
         bad_artifact = profile / f"build/app/{bad}/out/stale"
         stale_build = profile / f"build/other/{stale}/out/libother.rlib"
         self.write_record(layout, good_dir, "bin-app")
-        self.write_fingerprint(bad_dir, "bin-bad", 9)
+        self.write_fingerprint(bad_dir, f"example-demo-{good}", 9)
         stale_deps = profile / f"deps/libother-{stale}.rlib"
         good_deps = profile / f"deps/libapp-{good}.rlib"
         unhashed_deps = profile / "deps/unhashed.rlib"
         stale_example = profile / f"examples/demo-{stale}"
-        good_example = profile / f"examples/demo-{good}"
+        # The failed example name ends in the retained sibling's unit ID.
+        colliding_example = profile / f"examples/demo-{good}"
         unhashed_example = profile / "examples/alias"
         uplifted = profile / "stale-binary"
         stray = profile / "build/stray.txt"
         unexecuted = profile / f"build/app/{'c' * 16}/out/probe"
         paths = [
             good_artifact, bad_artifact, stale_build, stale_deps, good_deps, unhashed_deps,
-            stale_example, good_example, unhashed_example, uplifted, stray, unexecuted,
+            stale_example, colliding_example, unhashed_example, uplifted, stray, unexecuted,
         ]
         for path in paths:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -889,7 +916,7 @@ class CargoUnitTests(unittest.TestCase):
         self.assertTrue(good_dir.is_dir())
         self.assertTrue(good_artifact.is_file())
         self.assertTrue(good_deps.is_file())
-        self.assertTrue(good_example.is_file())
+        self.assertFalse(colliding_example.exists())
         self.assertFalse(bad_dir.exists())
         self.assertFalse(bad_artifact.exists())
         self.assertFalse(stale_build.exists())
@@ -982,7 +1009,7 @@ class CargoUnitTests(unittest.TestCase):
     def write_fingerprint(self, directory: Path, stem: str, cargo_hash: int) -> None:
         directory.mkdir(parents=True, exist_ok=True)
         (directory / stem).write_text(cargo_hash.to_bytes(8, "little").hex())
-        (directory / f"{stem}.json").write_text('{"deps":[]}')
+        (directory / f"{stem}.json").write_text('{"deps":[],"local":[]}')
 
     def test_a_package_name_that_ends_in_16_hex_characters_stays(self) -> None:
         target = self.layout.target
@@ -1036,7 +1063,7 @@ class CargoUnitTests(unittest.TestCase):
         key = debug_fingerprint.relative_to(target).as_posix()
         c.discard_unrecorded(self.layout, scanned, {key}, c.profile_directories(self.layout, scanned))
         self.assertTrue(debug_dependency.is_file())
-        self.assertTrue(debug_example.is_file())
+        self.assertFalse(debug_example.exists())
         self.assertFalse(release_dependency.exists())
         self.assertFalse(release_example.exists())
 

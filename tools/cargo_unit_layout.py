@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
-import stat
 
 
 RECORD = "jbotci-inputs-v1.json"
@@ -15,12 +14,8 @@ EXACT_TEST_MARKERS = tuple(f"test-{kind}-" for kind in _TARGET_KINDS)
 _FINGERPRINT_STEM = re.compile(rf"(?:(?:test-|doc-)?(?:{'|'.join(_TARGET_KINDS)})|(?:run-)?build-script)-.+")
 
 
-def empty_fingerprint_hash(path: Path) -> bool:
-    """Recognize a zero-byte Cargo hash before Cargo writes its metadata."""
-    if not _FINGERPRINT_STEM.fullmatch(path.name):
-        return False
-    info = path.lstat()
-    return stat.S_ISREG(info.st_mode) and info.st_size == 0
+def is_fingerprint_hash_name(name: str) -> bool:
+    return _FINGERPRINT_STEM.fullmatch(name) is not None
 
 
 def fingerprint_from_out(out_dir: Path) -> Path | None:
