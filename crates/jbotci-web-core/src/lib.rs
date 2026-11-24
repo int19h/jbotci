@@ -2739,6 +2739,7 @@ pub struct VlackuCompositionPiece {
 pub struct VlackuCompositionSource {
     pub word: String,
     pub href: String,
+    pub is_surface: bool,
 }
 
 pub use jbotci_search::vlacku::VlackuCompositionKind as VlackuCompositionPieceKind;
@@ -6239,27 +6240,33 @@ fn web_composition_piece(
     base_path: &str,
     piece: jbotci_search::vlacku::VlackuCompositionPiece,
 ) -> VlackuCompositionPiece {
+    let sources = piece
+        .sources
+        .into_iter()
+        .map(|word| {
+            let href = vlacku_web_url(
+                base_path,
+                &VlackuWebState {
+                    min_votes: Default::default(),
+                    mode: VlackuWebMode::Word,
+                    query: word.clone(),
+                    count: VLACKU_WEB_DEFAULT_COUNT,
+                    word_types: Vec::new(),
+                },
+            );
+            let is_surface = jbotci_morphology::canonical_text_eq(&piece.surface, &word);
+            new!(VlackuCompositionSource {
+                word,
+                href,
+                is_surface
+            })
+        })
+        .collect();
     VlackuCompositionPiece {
         kind: piece.kind,
         display_surface: piece.surface.clone(),
         surface: piece.surface,
-        sources: piece
-            .sources
-            .into_iter()
-            .map(|word| {
-                let href = vlacku_web_url(
-                    base_path,
-                    &VlackuWebState {
-                        min_votes: Default::default(),
-                        mode: VlackuWebMode::Word,
-                        query: word.clone(),
-                        count: VLACKU_WEB_DEFAULT_COUNT,
-                        word_types: Vec::new(),
-                    },
-                );
-                new!(VlackuCompositionSource { word, href })
-            })
-            .collect(),
+        sources,
     }
 }
 
@@ -10884,20 +10891,14 @@ mod tests {
             Some("jenjigu")
         );
         assert!(!jenjigu_piece.sources[0].href.is_empty());
-        assert!(jbotci_morphology::canonical_text_eq(
-            &jenjigu_piece.surface,
-            &jenjigu_piece.sources[0].word
-        ));
+        assert!(jenjigu_piece.sources[0].is_surface);
 
         let dirce_piece = headword
             .decomposition
             .iter()
             .find(|piece| piece.sources.first().map(|source| source.word.as_str()) == Some("dirce"))
             .expect("dirce component");
-        assert!(!jbotci_morphology::canonical_text_eq(
-            &dirce_piece.surface,
-            &dirce_piece.sources[0].word
-        ));
+        assert!(!dirce_piece.sources[0].is_surface);
     }
 
     #[test]

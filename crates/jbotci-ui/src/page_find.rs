@@ -1172,7 +1172,7 @@ fn collect_vlacku_composition_piece_page_find_entries(
         push_page_find_entry(entries, "fu'ivla rafsi".to_owned());
     }
     for source in &piece.sources {
-        if !jbotci_morphology::canonical_text_eq(&piece.surface, &source.word) {
+        if !source.is_surface {
             push_page_find_entry(entries, display_lojban_text(script, &source.word));
         }
     }

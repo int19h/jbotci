@@ -1892,8 +1892,8 @@ pub(super) fn render_composition_piece(
         VlackuCompositionPieceKind::Rafsi => {
             let display_surface =
                 display_lujvo_fragment(script, &piece.display_surface, LujvoFragmentKind::Rafsi);
-            if let Some(source) = piece.sources.first() {
-                let source = &source.word;
+            if let Some(origin) = piece.sources.first() {
+                let source = &origin.word;
                 let display_source = display_lojban_text(script, source);
                 let href = vlacku_web_url(
                     base_path,
@@ -1905,7 +1905,7 @@ pub(super) fn render_composition_piece(
                         word_types: Vec::new(),
                     },
                 );
-                if jbotci_morphology::canonical_text_eq(&piece.surface, source) {
+                if origin.is_surface {
                     rsx! {
                         { render_vlacku_word_action(
                             jvozba_pane,

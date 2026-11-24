@@ -1230,6 +1230,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
                 sources: vec![new!(jbotci_web_core::VlackuCompositionSource {
                     word: "broda".to_owned(),
                     href: "/vlacku/broda".to_owned(),
+                    is_surface: false,
                 })],
             }],
             can_add_to_jvozba: true,
