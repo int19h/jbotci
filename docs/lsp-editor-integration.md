@@ -29,7 +29,7 @@ The server first prepares morphology and attempts an incremental diagnostic upda
 If that update produces a provisional result, the server publishes it and waits until the 200 ms debounce deadline.
 A provisional result supplies diagnostics before full syntax analysis completes.
 
-When the server schedules the analysis, the deadline starts.
+The deadline starts when the server schedules the analysis.
 An initial document or a failed incremental gate proceeds directly to full syntax analysis.
 A debounce interval delays repeated work while edits arrive.
 The server discards analysis results whose document version or generation no longer matches.
@@ -52,12 +52,12 @@ That set applies in both strict and permissive modes.
 
 The dialect configuration controls an additional permissive tier.
 Unicode punctuation, symbols, emoji, and emoji components act as word separators, except for explicitly reserved characters.
-`PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS` lists these reservations:
+`PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS` lists the reservations:
 
 - Period and comma.
 - ASCII digits and `$`.
-- Subscript digits U+2080 to U+2089 and signs U+208A to U+208B.
-- Brackets U+2E24 to U+2E25 and non-breaking hyphen U+2011.
+- Subscript digits U+2080–U+2089 and signs U+208A–U+208B.
+- Brackets U+2E24–U+2E25 and non-breaking hyphen U+2011.
 
 Latin apostrophe spellings have a separate reservation.
 `LATIN_APOSTROPHE_CHARACTERS` holds that set.
@@ -111,7 +111,7 @@ Do not name it by an ancestor whose earlier fields are already complete.
 This naming rule applies to both the summary and the detailed note.
 
 `syntax_expectation_summary_constructs` limits the summary to constructs relevant to the enclosing scope, free modifiers, and end of input.
-When the expectation set contains a construct relevant to that scope, it applies this filter.
+It applies this filter only when the expectation set contains a construct relevant to that scope.
 `syntax_detailed_segments` presents the full expectation set without this filter.
 The summary and the detailed note can therefore contain different numbers of alternatives.
 
@@ -126,8 +126,8 @@ The shared renderer omits layout-only labels.
 The renderer handles word groups as follows:
 
 - A dictionary-attested cmavo sequence replaces the constituent card with the longest contiguous sequence that contains the cursor.
-- A ZEI compound uses its own dictionary card where that card exists. It uses the component cards in other cases.
-- A lujvo uses its dictionary entry where that entry exists. It uses its decomposition and component cards in other cases.
+- A ZEI compound uses its own dictionary card when available, otherwise its component cards.
+- A lujvo uses its dictionary entry when available, otherwise its decomposition and component cards.
 - A fu'ivla without a dictionary entry receives morphology information.
 - A cmevla receives morphology information.
 - A foreign quotation payload receives no hover card.
@@ -175,7 +175,7 @@ The result also records the source of each candidate.
 The LSP drops results from cancelled requests.
 
 The LSP always returns a `CompletionList`.
-When grammar work stops early, it sets `isIncomplete` to `true`. Clients can then request completion on the next keystroke.
+It sets `isIncomplete` to `true` when grammar work stops early, so clients can request completion on the next keystroke.
 Fallback items say `morphology only: grammar completion did not finish` in their detail text.
 Complete lists set `isIncomplete` to `false`.
 
@@ -233,7 +233,7 @@ Its syntax index records node parents, depth, preorder, and source spans.
 Reference edges record targets and the rules that resolve them.
 Place analysis provides frames, sumti assignments, and queries such as `frames_for_node` and `first_argument_for_place`.
 
-When `try_into_valid()` succeeds for the whole tree, the recovered tree renderer adds references.
+The recovered tree renderer adds references only when `try_into_valid()` succeeds for the whole tree.
 A recovery error anywhere prevents reference and place analysis throughout the document.
 The language server provides morphology and syntax features without this analysis.
 See [#408](https://github.com/int19h/jbotci/issues/408) for work on analysis of recovered trees.
@@ -249,12 +249,12 @@ The extension adds Lojban providers to eligible Markdown documents.
 URLs, code fences, and HTML can produce diagnostics because the server analyzes them as Lojban text.
 
 The server path comes from `jbotci.serverPath` or `PATH`.
-When an eligible document opens, the extension starts the server.
+The extension starts the server when an eligible document opens.
 See [the extension README](../editors/vscode/README.md) for configuration and packaging commands.
 
 ## Tests
 
-IDE tests cover document queries, position conversion, diagnostics, completion, highlights, inlays, and tree regions.
+IDE tests cover document queries, position conversion, diagnostics, completion, highlighting, inlays, and tree regions.
 Protocol tests drive `jbotci lsp` through standard input and output.
 The tests cover initialization, document changes, requests, and response positions.
 

@@ -189,8 +189,33 @@ impl<'a> Dictionary<'a> {
     /// Entries with the same score stay in source order.
     #[requires(true)]
     #[ensures(true)]
+    #[bityzba::expensive_ensures({
+        let mut ranked = self.lookup_words(query);
+        match ret {
+            None => ranked.next().is_none(),
+            Some(entry) => {
+                ranked.next().is_some_and(|best| std::ptr::eq(best, entry))
+                    && ranked.all(|other| other.score.get() <= entry.score.get())
+            }
+        }
+    })]
     pub fn lookup_word(&self, query: &str) -> Option<&DictionaryEntry<'a>> {
-        self.lookup_words(query).next()
+        let normalized = normalize_lookup_query(query);
+        let targets = self
+            .word_index_entry(&normalized)
+            .map(|entry| entry.targets)
+            .unwrap_or(&[]);
+        targets
+            .iter()
+            .copied()
+            .min_by(|left, right| {
+                self.entry_at(*right)
+                    .score
+                    .get()
+                    .total_cmp(&self.entry_at(*left).score.get())
+                    .then(left.cmp(right))
+            })
+            .map(|index| self.entry_at(index))
     }
 
     /// Return every entry for a normalized lookup query.
@@ -204,18 +229,13 @@ impl<'a> Dictionary<'a> {
         query: &str,
     ) -> impl Iterator<Item = &'lookup DictionaryEntry<'a>> + 'lookup {
         let normalized = normalize_lookup_query(query);
-        // Copy the targets before the entry lookup. The index borrow and the
-        // entry table borrow are both borrows of `self`.
-        let targets = self
+        let mut indices = self
             .word_index_entry(&normalized)
-            .map(|entry| entry.targets.to_vec())
-            .unwrap_or_default();
-        let mut entries = targets
-            .into_iter()
-            .map(|index| self.entry_at(index))
-            .collect::<Vec<_>>();
-        sort_entries_by_score_descending(&mut entries);
-        entries.into_iter()
+            .map(|entry| entry.targets)
+            .unwrap_or(&[])
+            .to_vec();
+        rank_entry_indices_by_score(self, &mut indices);
+        indices.into_iter().map(|index| self.entry_at(index))
     }
 
     /// Return the definition entries for one lookup key.
@@ -224,7 +244,8 @@ impl<'a> Dictionary<'a> {
     /// key are ordered by score, from high to low. Entries with the same score
     /// stay in source order.
     #[requires(true)]
-    #[ensures({
+    #[ensures(entry_indices_ranked_by_score(self, &ret))]
+    #[bityzba::expensive_ensures({
         let normalized = normalize_lookup_query(query);
         let mut stored = self
             .word_index_entry(&normalized)
@@ -236,7 +257,7 @@ impl<'a> Dictionary<'a> {
         let mut ranked = ret.clone();
         stored.sort();
         ranked.sort();
-        stored == ranked && entry_indices_ranked_by_score(self, &ret)
+        stored == ranked
     })]
     pub fn exact_definition_indices(&self, query: &str) -> Vec<EntryIndex> {
         let normalized = normalize_lookup_query(query);
@@ -286,17 +307,26 @@ impl<'a> Dictionary<'a> {
     /// ordered by score, from high to low. Entries with the same score stay in
     /// source order. The stored index keeps source order.
     #[requires(true)]
-    #[ensures({
+    #[ensures(entry_indices_ranked_by_score(self, &ret))]
+    #[bityzba::expensive_ensures({
         let mut stored = self.cmavo_sequence_targets(components).to_vec();
         let mut ranked = ret.clone();
         stored.sort();
         ranked.sort();
-        stored == ranked && entry_indices_ranked_by_score(self, &ret)
+        stored == ranked
     })]
     pub fn lookup_cmavo_sequence<S: AsRef<str>>(&self, components: &[S]) -> Vec<EntryIndex> {
         let mut targets = self.cmavo_sequence_targets(components).to_vec();
         rank_entry_indices_by_score(self, &mut targets);
         targets
+    }
+
+    /// Return whether a cmavo sequence has any stored entry.
+    #[requires(true)]
+    #[ensures(true)]
+    #[bityzba::expensive_ensures(ret == !self.cmavo_sequence_targets(components).is_empty())]
+    pub fn has_cmavo_sequence<S: AsRef<str>>(&self, components: &[S]) -> bool {
+        !self.cmavo_sequence_targets(components).is_empty()
     }
 
     /// Return the first non-empty gloss keyword for each lookup word.
@@ -307,6 +337,14 @@ impl<'a> Dictionary<'a> {
     /// than by individual lookup operations.
     #[requires(true)]
     #[ensures(ret.len() == words.len())]
+    #[bityzba::expensive_ensures(ret.iter().zip(words).all(|(gloss, word)| {
+        *gloss
+            == self
+                .lookup_words(word)
+                .flat_map(|entry| entry.gloss_keywords)
+                .map(|keyword| keyword.word)
+                .find(|item| !item.is_empty())
+    }))]
     pub fn first_gloss_keywords_for_words(&self, words: &[&str]) -> Vec<Option<&'a str>> {
         words
             .iter()
@@ -338,28 +376,31 @@ impl<'a> Dictionary<'a> {
             entry.key < normalized.as_str() || entry.key.starts_with(&normalized)
         });
         let mut position = start;
+        let mut pending = Vec::new();
+        let mut cursor = 0;
         std::iter::from_fn(move || {
-            if position >= end {
-                return None;
+            loop {
+                if cursor < pending.len() {
+                    let index = pending[cursor];
+                    cursor += 1;
+                    return Some(self.entry_at(index));
+                }
+                if position >= end {
+                    return None;
+                }
+                pending = self.word_index[position].targets.to_vec();
+                position += 1;
+                rank_entry_indices_by_score(self, &mut pending);
+                cursor = 0;
             }
-            // Copy this key's targets before the entry lookup. Both borrows
-            // are borrows of `self`, and they must not overlap.
-            let targets = self.word_index[position].targets.to_vec();
-            position += 1;
-            let mut entries = targets
-                .into_iter()
-                .map(|index| self.entry_at(index))
-                .collect::<Vec<_>>();
-            sort_entries_by_score_descending(&mut entries);
-            Some(entries)
         })
-        .flatten()
     }
 
     /// Return all dictionary entries associated with a rafsi query.
     ///
     /// Entries that share the key are ordered by score, from high to low.
-    /// Entries with the same score stay in source order.
+    /// Entries with the same score stay in source order. Two matches for one
+    /// entry stay in input order.
     #[requires(true)]
     #[ensures(true)]
     pub fn lookup_rafsi<'lookup>(
@@ -367,21 +408,16 @@ impl<'a> Dictionary<'a> {
         query: &str,
     ) -> impl Iterator<Item = RafsiMatch<'lookup, 'a>> + 'lookup {
         let normalized = normalize_lookup_query(query);
-        // Copy the targets before the entry lookup. The index borrow and the
-        // entry table borrow are both borrows of `self`.
-        let targets = self
+        let mut targets = self
             .rafsi_index_entry(&normalized)
-            .map(|entry| entry.targets.to_vec())
-            .unwrap_or_default();
-        let mut matches = targets
-            .into_iter()
-            .map(|target| RafsiMatch {
-                entry: self.entry_at(target.entry_index),
-                source: target.source,
-            })
-            .collect::<Vec<_>>();
-        sort_rafsi_matches_by_entry_score_descending(&mut matches);
-        matches.into_iter()
+            .map(|entry| entry.targets)
+            .unwrap_or(&[])
+            .to_vec();
+        rank_rafsi_targets_by_entry_score(self, &mut targets);
+        targets.into_iter().map(|target| RafsiMatch {
+            entry: self.entry_at(target.entry_index),
+            source: target.source,
+        })
     }
 
     /// Return every short rafsi `gismu` could claim, with its availability.
@@ -429,21 +465,21 @@ impl<'a> Dictionary<'a> {
     /// word spelling against word type — so the filter is a real guard rather
     /// than a formality.
     #[requires(!rafsi.is_empty())]
-    #[ensures(
+    #[bityzba::expensive_ensures(
         ret.is_free()
             != self
                 .lookup_rafsi(rafsi)
                 .any(|matched| matched.source.listed_standing().is_some()),
         "any listed claimant takes the form, whatever its word type"
     )]
-    #[ensures(
+    #[bityzba::expensive_ensures(
         (ret.claim_kind() == Some(RafsiClaimKind::Official))
             == self
                 .lookup_rafsi(rafsi)
                 .any(|matched| matched.source.listed_standing() == Some(RafsiClaimKind::Official)),
         "an official claim outranks any experimental one"
     )]
-    #[ensures(
+    #[bityzba::expensive_ensures(
         ret.claimant_words().iter().map(String::as_str).eq(
             self.lookup_rafsi(rafsi)
                 .filter(|matched| {
@@ -1032,12 +1068,12 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
                         standing: rafsi.standing,
                     },
                 });
-            pattern_rafsi_keys.push(normalize_pattern_lookup_key(rafsi.form));
+            pattern_rafsi_keys.push(normalize_lookup_query(rafsi.form));
         }
 
         if entry.word_type.is_gismu_like() {
             for (rafsi, source) in universal_gismu_rafsi_forms(entry.word) {
-                pattern_rafsi_keys.push(normalize_pattern_lookup_key(&rafsi));
+                pattern_rafsi_keys.push(normalize_lookup_query(&rafsi));
                 rafsi_map.entry(rafsi).or_default().push(RafsiIndexTarget {
                     entry_index,
                     source,
@@ -1047,7 +1083,7 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
 
         pattern_index.push(OwnedPatternIndexEntry {
             entry_index,
-            word_key: normalize_pattern_lookup_key(entry.word),
+            word_key: normalize_lookup_query(entry.word),
             rafsi_keys: pattern_rafsi_keys,
         });
     }
@@ -1104,46 +1140,40 @@ fn entry_indices_ranked_by_score(dictionary: &Dictionary<'_>, indices: &[EntryIn
         })
 }
 
-#[requires(true)]
-#[ensures(entries.windows(2).all(|pair| {
-    let order = pair[0].score.get().total_cmp(&pair[1].score.get());
-    order.is_gt()
-        || (order.is_eq() && std::ptr::from_ref(pair[0]) <= std::ptr::from_ref(pair[1]))
-}))]
-fn sort_entries_by_score_descending(entries: &mut [&DictionaryEntry<'_>]) {
-    // Same score keeps the earlier entry. Two copies of one entry keep input
-    // order because this sort is stable.
-    entries.sort_by(|left, right| {
-        right
+#[requires(targets.iter().all(|target| target.entry_index.0 < dictionary.entries.len()))]
+#[ensures(rafsi_targets_ranked_by_entry_score(dictionary, targets))]
+fn rank_rafsi_targets_by_entry_score(
+    dictionary: &Dictionary<'_>,
+    targets: &mut [RafsiIndexTarget],
+) {
+    // Equal score and the same entry compare equal. `sort_by` is stable, so
+    // the listed form and the universal form of one entry keep input order.
+    targets.sort_by(|left, right| {
+        dictionary
+            .entry_at(right.entry_index)
             .score
             .get()
-            .total_cmp(&left.score.get())
-            .then_with(|| std::ptr::from_ref(*left).cmp(&std::ptr::from_ref(*right)))
+            .total_cmp(&dictionary.entry_at(left.entry_index).score.get())
+            .then(left.entry_index.cmp(&right.entry_index))
     });
 }
 
 #[requires(true)]
-#[ensures(matches_.windows(2).all(|pair| {
-    let order = pair[0]
-        .entry
-        .score
-        .get()
-        .total_cmp(&pair[1].entry.score.get());
-    order.is_gt()
-        || (order.is_eq()
-            && std::ptr::from_ref(pair[0].entry) <= std::ptr::from_ref(pair[1].entry))
-}))]
-fn sort_rafsi_matches_by_entry_score_descending(matches_: &mut [RafsiMatch<'_, '_>]) {
-    // Same score keeps the earlier entry. Two matches for one entry keep input
-    // order because this sort is stable.
-    matches_.sort_by(|left, right| {
-        right
-            .entry
-            .score
-            .get()
-            .total_cmp(&left.entry.score.get())
-            .then_with(|| std::ptr::from_ref(left.entry).cmp(&std::ptr::from_ref(right.entry)))
-    });
+#[ensures(true)]
+fn rafsi_targets_ranked_by_entry_score(
+    dictionary: &Dictionary<'_>,
+    targets: &[RafsiIndexTarget],
+) -> bool {
+    targets
+        .iter()
+        .all(|target| target.entry_index.0 < dictionary.entries.len())
+        && targets.windows(2).all(|pair| {
+            let order = dictionary.entries[pair[0].entry_index.0]
+                .score
+                .get()
+                .total_cmp(&dictionary.entries[pair[1].entry_index.0].score.get());
+            order.is_gt() || (order.is_eq() && pair[0].entry_index <= pair[1].entry_index)
+        })
 }
 
 /// Return v0-compatible normalized lookup text.
@@ -1155,13 +1185,6 @@ pub fn normalize_lookup_query(raw: &str) -> String {
         .filter(|token| !token.is_empty())
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-/// Return normalized text for dictionary pattern matching.
-#[requires(true)]
-#[ensures(ret == normalize_lookup_query(raw))]
-pub fn normalize_pattern_lookup_key(raw: &str) -> String {
-    normalize_lookup_query(raw)
 }
 
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
@@ -1494,10 +1517,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn pattern_lookup_key_uses_apostrophe_spelling() {
-        assert_eq!(normalize_pattern_lookup_key("daʼoi"), "da'oi");
-        assert_eq!(normalize_pattern_lookup_key("da\u{2019}oi"), "da'oi");
-        assert_eq!(normalize_pattern_lookup_key("dahoi"), "da'oi");
-        assert_eq!(normalize_pattern_lookup_key("da\u{02d2}oi"), "da'oi");
+        assert_eq!(normalize_lookup_query("daʼoi"), "da'oi");
+        assert_eq!(normalize_lookup_query("da\u{2019}oi"), "da'oi");
+        assert_eq!(normalize_lookup_query("dahoi"), "da'oi");
+        assert_eq!(normalize_lookup_query("da\u{02d2}oi"), "da'oi");
     }
 
     #[test]

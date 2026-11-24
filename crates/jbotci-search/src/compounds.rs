@@ -81,7 +81,7 @@ impl BarrierIndex {
 #[invariant(match kind { ParsedCompoundKind::CmavoSequence => components.len() == members.len(), ParsedCompoundKind::Zei => members.len() >= 3 && components.is_empty() })]
 #[expensive_invariant(members.iter().all(|member| member.byte_start < member.byte_end && member.source_id == span.source_id))]
 #[expensive_invariant(members.windows(2).all(|pair| pair[0].byte_end <= pair[1].byte_start && pair[0].char_end <= pair[1].char_start))]
-#[expensive_invariant(entry_indices.windows(2).all(|pair| pair[0] < pair[1]))]
+#[expensive_invariant(entry_indices.iter().enumerate().all(|(left, value)| !entry_indices[..left].contains(value)))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedCompoundMatch {
     pub kind: ParsedCompoundKind,
@@ -89,70 +89,36 @@ pub struct ParsedCompoundMatch {
     pub members: Vec<SourceSpan>,
     pub components: Vec<String>,
     pub lookup_text: String,
+    /// Attested entries, highest score first. Equal scores stay in source order.
     pub entry_indices: Vec<EntryIndex>,
 }
 
-/// Return one card for each attested entry.
-///
-/// The highest score is first. Equal scores stay in source order.
+/// Return one card for each attested entry, in `entry_indices` order.
 #[requires(compound.entry_indices.iter().all(|index| dictionary.entry_for_index(*index).is_some_and(|entry| entry.has_definition())))]
 #[ensures(ret.len() == compound.entry_indices.len())]
-#[ensures({
-    let ranked = ranked_compound_indices(dictionary, compound);
-    let mut stored = compound.entry_indices.clone();
-    let mut ranked_set = ranked.clone();
-    stored.sort();
-    ranked_set.sort();
-    stored == ranked_set
-        && ret.iter().zip(&ranked).all(|(card, index)| {
-            dictionary
-                .entry_for_index(*index)
-                .is_some_and(|entry| card.word == entry.word)
-        })
-})]
+#[bityzba::expensive_ensures(ret.iter().zip(&compound.entry_indices).all(|(card, index)| {
+    dictionary
+        .entry_for_index(*index)
+        .is_some_and(|entry| card.word == entry.word)
+}))]
 pub fn compound_cards(
     dictionary: &Dictionary<'_>,
     compound: &ParsedCompoundMatch,
 ) -> Vec<VlackuCard> {
-    ranked_compound_indices(dictionary, compound)
-        .into_iter()
+    compound
+        .entry_indices
+        .iter()
         .map(|index| {
             dictionary_entry_card(
                 dictionary,
                 dictionary
-                    .entry_for_index(index)
+                    .entry_for_index(*index)
                     .expect("attested entry index"),
                 None,
                 false,
             )
         })
         .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn ranked_compound_indices(
-    dictionary: &Dictionary<'_>,
-    compound: &ParsedCompoundMatch,
-) -> Vec<EntryIndex> {
-    match compound.kind {
-        ParsedCompoundKind::Zei => dictionary.exact_definition_indices(&compound.lookup_text),
-        ParsedCompoundKind::CmavoSequence => dictionary.lookup_cmavo_sequence(&compound.components),
-    }
-}
-
-#[requires(!indices.is_empty())]
-#[requires({
-    let mut sorted = indices.to_vec();
-    sorted.sort();
-    sorted.windows(2).all(|pair| pair[0] < pair[1])
-})]
-#[ensures(ret.windows(2).all(|pair| pair[0] < pair[1]))]
-#[ensures(ret.len() == indices.len())]
-fn entry_indices_in_source_order(indices: &[EntryIndex]) -> Vec<EntryIndex> {
-    let mut ordered = indices.to_vec();
-    ordered.sort();
-    ordered
 }
 
 #[invariant(words.len() == components.len())]
@@ -227,7 +193,7 @@ pub fn recognize_compounds(
 #[ensures(true)]
 #[expensive_ensures((2..=run.words.len().min(dictionary.max_cmavo_sequence_len())).all(|len|
     (0..=run.words.len() - len).all(|start|
-        dictionary.lookup_cmavo_sequence(&run.components[start..start + len]).is_empty()
+!dictionary.has_cmavo_sequence(&run.components[start..start + len])
         || out.iter().any(|selected|
             selected.kind == ParsedCompoundKind::CmavoSequence
                 && selected.span.byte_start < run.words[start + len - 1].span().byte_end
@@ -251,10 +217,7 @@ fn append_partition(
             {
                 continue;
             }
-            if !dictionary
-                .lookup_cmavo_sequence(&run.components[start..end])
-                .is_empty()
-            {
+            if dictionary.has_cmavo_sequence(&run.components[start..end]) {
                 accepted.insert(start, end);
             }
         }
@@ -267,16 +230,14 @@ fn append_partition(
 #[requires(start < end && end <= run.words.len())]
 #[requires(run.words[start].span().byte_start <= run.words[end - 1].span().byte_end)]
 #[requires(run.words[start].span().char_start <= run.words[end - 1].span().char_end)]
-#[requires(!dictionary.lookup_cmavo_sequence(&run.components[start..end]).is_empty())]
+#[requires(dictionary.has_cmavo_sequence(&run.components[start..end]))]
 #[ensures(ret.kind == ParsedCompoundKind::CmavoSequence)]
-#[ensures({
+#[bityzba::expensive_ensures({
     let ranked = dictionary.lookup_cmavo_sequence(&run.components[start..end]);
-    let mut stored = ranked.clone();
-    stored.sort();
-    dictionary
-        .entry_for_index(ranked[0])
-        .is_some_and(|entry| ret.lookup_text == entry.word)
-        && ret.entry_indices == stored
+    ret.entry_indices == ranked
+        && dictionary
+            .entry_for_index(ranked[0])
+            .is_some_and(|entry| ret.lookup_text == entry.word)
 })]
 fn cmavo_match(
     dictionary: &Dictionary<'_>,
@@ -307,16 +268,14 @@ fn cmavo_match(
             .expect("generated index target")
             .word
             .to_owned(),
-        entry_indices: entry_indices_in_source_order(&targets),
+        entry_indices: targets,
     })
 }
 
 #[requires(matches!(word.as_data(), data!(WordLike::ZeiCompound { .. })))]
 #[ensures(ret.as_ref().is_none_or(|item| item.kind == ParsedCompoundKind::Zei))]
-#[ensures(ret.as_ref().is_none_or(|item| {
-    let mut ranked = dictionary.exact_definition_indices(&item.lookup_text);
-    ranked.sort();
-    item.entry_indices == ranked
+#[bityzba::expensive_ensures(ret.as_ref().is_none_or(|item| {
+    item.entry_indices == dictionary.exact_definition_indices(&item.lookup_text)
 }))]
 fn attested_zei(
     dictionary: &Dictionary<'_>,
@@ -354,7 +313,7 @@ fn attested_zei(
         members: spans.into_iter().cloned().collect(),
         components: Vec::new(),
         lookup_text,
-        entry_indices: entry_indices_in_source_order(&targets),
+        entry_indices: targets,
     }))
 }
 
@@ -400,10 +359,7 @@ pub fn cmavo_sequence_containing(
     let cursor = index - start;
     for len in (2..=run.words.len().min(dictionary.max_cmavo_sequence_len())).rev() {
         for offset in (cursor + 1).saturating_sub(len)..=cursor.min(run.words.len() - len) {
-            if !dictionary
-                .lookup_cmavo_sequence(&run.components[offset..offset + len])
-                .is_empty()
-            {
+            if dictionary.has_cmavo_sequence(&run.components[offset..offset + len]) {
                 return Some(cmavo_match(dictionary, &run, offset, offset + len));
             }
         }
@@ -784,7 +740,7 @@ mod tests {
             assert_eq!(recognized[0].kind, ParsedCompoundKind::Zei, "{zei_src}");
             assert_eq!(
                 recognized[0].entry_indices,
-                [EntryIndex(0), EntryIndex(1)],
+                [EntryIndex(1), EntryIndex(0)],
                 "{zei_src}"
             );
             assert_eq!(
@@ -809,7 +765,7 @@ mod tests {
             assert_eq!(recognized[0].lookup_text, "na'e bo", "{cmavo_src}");
             assert_eq!(
                 recognized[0].entry_indices,
-                [EntryIndex(2), EntryIndex(3)],
+                [EntryIndex(3), EntryIndex(2)],
                 "{cmavo_src}"
             );
             let cards = compound_cards(&dictionary, &recognized[0]);

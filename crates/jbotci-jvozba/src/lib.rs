@@ -348,7 +348,7 @@ pub fn word_can_enter_jvozba_pane(
     word_text: &str,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
-    let canonical_word = normalize_jvozba_text(word_text);
+    let canonical_word = canonicalize_text(word_text);
     if pane_candidate_available(candidate_list_for_word(
         JvozbaMode::Lujvo,
         dictionary,
@@ -466,10 +466,8 @@ impl ExpansionPlan<'_, '_> {
     fn append_to(self, destination: &mut Vec<JvozbaInput>) {
         match self {
             Self::Plain { input } => destination.push(match input {
-                JvozbaInput::FixedRafsi(text) => {
-                    JvozbaInput::FixedRafsi(normalize_jvozba_text(text))
-                }
-                JvozbaInput::Word(text) => JvozbaInput::Word(normalize_jvozba_text(text)),
+                JvozbaInput::FixedRafsi(text) => JvozbaInput::FixedRafsi(canonicalize_text(text)),
+                JvozbaInput::Word(text) => JvozbaInput::Word(canonicalize_text(text)),
             }),
             Self::Decomposed { decomposition } => destination.extend(
                 sourced_rafsi_words(&decomposition.segments)
@@ -529,7 +527,7 @@ fn candidate_list_for_input(
 ) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
     match input {
         JvozbaInput::FixedRafsi(rafsi_text) => {
-            let rafsi_text = normalize_jvozba_text(rafsi_text);
+            let rafsi_text = canonicalize_text(rafsi_text);
             if rafsi_text.is_empty() {
                 return Err(JvozbaError::FixedRafsiEmpty);
             }
@@ -555,7 +553,7 @@ fn candidate_list_for_word(
     word_text: &str,
     cancellation: &CancellationToken,
 ) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
-    let canonical_word = normalize_jvozba_text(word_text);
+    let canonical_word = canonicalize_text(word_text);
     let Some(entry) = dictionary.lookup_word(&canonical_word) else {
         return match non_dictionary_word_candidates(
             mode,
@@ -572,7 +570,7 @@ fn candidate_list_for_word(
     let listed_rafsi = entry
         .rafsi
         .iter()
-        .map(|rafsi| normalize_jvozba_text(rafsi.form))
+        .map(|rafsi| canonicalize_text(rafsi.form))
         .collect::<Vec<_>>();
     let gismu_extras = if entry.word_type.is_gismu_like() {
         jbotci_dictionary::universal_gismu_rafsi_forms(&canonical_word)
@@ -810,13 +808,7 @@ fn is_universal_gismu_long_rafsi(rafsi_text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn normalize_lujvo_like_input(raw_word: &str) -> String {
-    normalize_jvozba_text(raw_word.trim().trim_matches('.'))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_jvozba_text(raw: &str) -> String {
-    canonicalize_text(raw)
+    canonicalize_text(raw_word.trim().trim_matches('.'))
 }
 
 #[requires(true)]

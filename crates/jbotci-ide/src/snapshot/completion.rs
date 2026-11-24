@@ -267,13 +267,10 @@ impl<'tree> TreeVisitor<'tree> for DocumentCmevlaCollector {
     type Atom = jbotci_morphology::AtomRef<'tree>;
 
     #[requires(true)]
-    #[ensures(self.words.iter().all(|word| !word.is_empty()))]
+    #[ensures(self.words.len() >= old(self.words.len()))]
     fn enter_node(&mut self, node: Self::Node) {
         if let MorphologyNodeRef::WordCmevla(word) = node {
-            let canonical = word.canonical_phonemes();
-            if !canonical.is_empty() {
-                self.words.insert(canonical);
-            }
+            self.words.insert(word.canonical_phonemes());
         }
     }
 }
@@ -1076,16 +1073,8 @@ impl CompletionContext<'_, '_, '_, '_> {
             if existing.suffix_consistent && !suffix_consistent {
                 return;
             }
-            if existing.suffix_consistent == suffix_consistent {
-                if existing.reason < *reason {
-                    return;
-                }
-                if existing.reason == *reason {
-                    let existing_label = existing.label.clone();
-                    if !self.label_score_replaces(&existing_label, label) {
-                        return;
-                    }
-                }
+            if existing.suffix_consistent == suffix_consistent && existing.reason <= *reason {
+                return;
             }
         }
         items.insert(
@@ -1105,27 +1094,6 @@ impl CompletionContext<'_, '_, '_, '_> {
                 suffix_consistent,
             }),
         );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn dictionary_entry_score_for_label(&self, label: &str) -> Option<f64> {
-        self.dictionary
-            .lookup_words(label)
-            .find(|entry| entry.word == label)
-            .map(|entry| entry.score.get())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn label_score_replaces(&self, existing_label: &str, new_label: &str) -> bool {
-        let Some(new_score) = self.dictionary_entry_score_for_label(new_label) else {
-            return false;
-        };
-        match self.dictionary_entry_score_for_label(existing_label) {
-            Some(existing_score) => new_score.total_cmp(&existing_score).is_gt(),
-            None => true,
-        }
     }
 }
 

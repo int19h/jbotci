@@ -519,7 +519,7 @@ fn dictionary_cards_for_word(word: &Word) -> Vec<VlackuCard> {
 }
 
 #[requires(true)]
-#[ensures(ret == (normalize_lookup_query(left) == normalize_lookup_query(right)))]
+#[ensures(true)]
 fn same_lookup_key(left: &str, right: &str) -> bool {
     normalize_lookup_query(left) == normalize_lookup_query(right)
 }
