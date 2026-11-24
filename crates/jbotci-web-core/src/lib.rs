@@ -7624,6 +7624,27 @@ mod tests {
         })
     }
 
+    /// Room for debug frames between `stacker::maybe_grow` points.
+    ///
+    /// A libtest thread starts at 2 MiB. This recovered parse overflows
+    /// that stack in a debug build. The frames are the parser. They are
+    /// not the morphology word span of issue 1085. They are not the walks
+    /// after the parse in issue 1118. The result bounds in the test stay
+    /// the regression check.
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_on_recovered_parser_stack<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+        std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .name("jbotci-web-core-recovered".to_owned())
+                .stack_size(16 * 1024 * 1024)
+                .spawn_scoped(scope, f)
+                .expect("spawn recovered-parser web-core test thread")
+                .join()
+                .expect("recovered-parser web-core test thread panicked")
+        })
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn tree_reference_keys(
@@ -8321,9 +8342,11 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_nested_statement_result_stays_bounded() {
-        let success = parse_success(
-            "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo lo ka ce'u xendo ije cnikansa ro lo jmive kei ta'i lo racli",
-        );
+        let success = run_on_recovered_parser_stack(|| {
+            parse_success(
+                "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo lo ka ce'u xendo ije cnikansa ro lo jmive kei ta'i lo racli",
+            )
+        });
         let (fragment_count, fragment_depth) = bracket_fragment_stats(&success.bracket_fragments);
         let serialized_len = serde_json::to_vec(&success)
             .expect("serialize recovered web result")
