@@ -17,7 +17,9 @@ from typing import Any
 from uuid import uuid4
 
 from tools.cargo_inputs_trace import TraceError, trace
-from tools.cargo_unit_layout import RECORD, UNIT_ID, inside_unit_out, profile_inside_target
+from tools.cargo_unit_layout import (
+    RECORD, UNIT_ID, empty_fingerprint_hash, inside_unit_out, profile_inside_target,
+)
 
 VERSION = 1
 OLD_TIME_NS = 946684800_000000000
@@ -218,8 +220,8 @@ def read_unit(layout: Layout, directory: Path) -> Unit | None:
     """Read a committed Cargo fingerprint, or return None for an unfinished unit.
 
     Cargo creates the directory before the first build and clears the hash
-    before a rebuild. A zero-byte hash can sit beside metadata from the last
-    build. This still requires exactly one readable, valid metadata file.
+    before a rebuild. Cargo writes the hash before it writes the metadata.
+    If the metadata exists, it must be readable and valid.
     """
     metadata = []
     unknown = []
@@ -232,9 +234,9 @@ def read_unit(layout: Layout, directory: Path) -> Unit | None:
     if len(metadata) > 1:
         raise InputError(f"A fingerprint directory must contain one metadata file: {directory}")
     if not metadata:
-        if unknown:
-            raise InputError(f"Unknown fingerprint entry: {unknown[0]}")
-        return None
+        if not unknown or (len(unknown) == 1 and empty_fingerprint_hash(unknown[0])):
+            return None
+        raise InputError(f"Unknown fingerprint entry: {unknown[0]}")
 
     path = metadata[0]
     try:

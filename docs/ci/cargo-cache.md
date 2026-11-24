@@ -31,7 +31,8 @@ Cargo 1.100.0 leaves the modification time of the hash file unchanged when it re
 Cargo writes a new hash when it rebuilds a compile unit, a build-script binary, or a build-script run.
 
 An interrupted rebuild can leave an empty hash file beside metadata from the last build.
-Inventory treats that unit as unfinished.
+If the first build stops during the hash write, the empty hash can precede the metadata.
+Inventory treats both units as unfinished.
 Restore and save remove its fingerprint and artifacts.
 A malformed non-empty hash, invalid metadata, or multiple metadata files still cause an error.
 

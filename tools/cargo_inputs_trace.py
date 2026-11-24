@@ -14,7 +14,9 @@ import threading
 import tomllib
 from typing import Callable
 
-from tools.cargo_unit_layout import RECORD, UNIT_ID, fingerprint_from_out, inside_unit_out, profile_inside_target
+from tools.cargo_unit_layout import (
+    EXACT_TEST_MARKERS, RECORD, UNIT_ID, fingerprint_from_out, inside_unit_out, profile_inside_target,
+)
 from tools.release_compiler import CompilerPinError, toolchain_channel
 
 
@@ -146,13 +148,6 @@ RUSTC_NAMES = ("rustc", "rustc.exe")
 COMPILER_WRAPPER_ENV = ("RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER")
 COMPILER_CONFIG_KEYS = {"rustc", "rustc-wrapper", "rustc-workspace-wrapper"}
 UNSUPPORTED_COMPILER = "The compiler configuration is not supported."
-EXACT_TEST_MARKERS = (
-    "test-lib-",
-    "test-bin-",
-    "test-integration-test-",
-    "test-example-",
-    "test-bench-",
-)
 
 
 def has_flag(arguments: list[str], name: str) -> bool:

@@ -369,6 +369,15 @@ class CargoUnitTests(unittest.TestCase):
                 with self.assertRaisesRegex(c.InputError, "16 hex characters"):
                     c.inventory(self.layout)
 
+    def test_restore_removes_an_empty_cargo_hash_without_metadata(self) -> None:
+        directory = self.layout.target / "debug/build/demo/0123456789abcdef/fingerprint"
+        directory.mkdir(parents=True)
+        marker = directory / "bin-demo"
+        marker.write_bytes(b"")
+        self.assertEqual(c.inventory(self.layout), {})
+        self.assertEqual(c.restore(self.layout, normalize=False), {"retained": 0, "invalidated": 0})
+        self.assertFalse(directory.parent.exists())
+
     def test_an_empty_hash_does_not_hide_invalid_metadata(self) -> None:
         directory = self.layout.target / "debug/build/demo/0123456789abcdef/fingerprint"
         directory.mkdir(parents=True)
@@ -2343,7 +2352,7 @@ class CargoUnitTests(unittest.TestCase):
         directory = self.layout.target / "debug/build/demo/0123456789abcdef/fingerprint"
         directory.mkdir(parents=True)
         (directory / "invoked.timestamp").write_text("1")
-        (directory / "notes").write_text("x")
+        (directory / "notes").write_bytes(b"")
         with self.assertRaisesRegex(c.InputError, "Unknown fingerprint entry"):
             c.inventory(self.layout)
 
