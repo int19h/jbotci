@@ -1968,8 +1968,15 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    /// Read one `zoi` or `la'o` quote.
+    ///
+    /// The quoted span starts after exactly one separator and the whitespace
+    /// that follows that separator. The span ends before the trailing
+    /// whitespace and exactly one separator. Both sides use `zoi_quote_edge`.
+    /// The quote is empty when the delimiters share one separator. The quote
+    /// is empty when only whitespace stands between the delimiters.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().map_or(true, |words| zoi_quote_span_matches_edge(&self.chars, words)))]
     fn zoi_quote(
         &mut self,
         zoi_word_with_modifiers: WordLike,
@@ -2033,10 +2040,14 @@ impl<'a> Segmenter<'a> {
                 })),
             ));
         }
-        let consumed_open_separator = self.consume_zoi_open_separators();
-        let quoted_start = self.index;
-        let Some((quoted_end, closing_delimiter, close_start)) =
-            self.find_zoi_close(&opening_delimiter, consumed_open_separator)?
+        let after_open = opening_delimiter.span().char_end;
+        let open_edge = zoi_quote_edge(&self.chars, after_open, true);
+        let quoted_start = open_edge
+            .as_ref()
+            .map(|edge| edge.quote_bound)
+            .unwrap_or(after_open);
+        let Some((closing_preview, close_start)) =
+            self.find_zoi_close(&opening_delimiter, quoted_start, open_edge.is_some())?
         else {
             return Err(MorphologyError::UnterminatedZoiQuote {
                 char_offset: quoted_start,
@@ -2044,15 +2055,22 @@ impl<'a> Segmenter<'a> {
                 context: self.context(
                     MorphologyContextKind::DelimitedNonLojbanQuote,
                     after_marker,
-                    self.index,
+                    quoted_start,
                 ),
             });
+        };
+        let quoted_end = if close_start <= quoted_start {
+            quoted_start
+        } else {
+            let edge = zoi_quote_edge(&self.chars, close_start, false)
+                .expect("a closing delimiter has one separator on the quote side");
+            edge.quote_bound.max(quoted_start).min(close_start)
         };
         self.index = close_start;
         let closing = self.next_plain_word()?;
         let zoi =
             into_bare_word(zoi_word_with_modifiers).expect("ZOI marker was checked as a bare word");
-        let closing_delimiter = into_bare_word(closing).unwrap_or(closing_delimiter);
+        let closing_delimiter = into_bare_word(closing).unwrap_or(closing_preview);
         Ok(vec![WordLike::zoi_quote(
             zoi,
             opening_delimiter,
@@ -2425,41 +2443,49 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
-    #[requires(true)]
-    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
+    /// Find the closing delimiter word.
+    ///
+    /// A closing delimiter is a whole word with a word break on both sides.
+    /// `cursor` is the first quote character after the opening separator.
+    /// When `opener_ate_separator` is true, the word at `cursor` can close
+    /// the quote. The two delimiters then share that separator.
+    #[requires(cursor <= self.chars.len())]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(word, start)| word.span().char_start == *start && *start >= cursor && *start <= self.chars.len())))]
     fn find_zoi_close(
         &mut self,
         opening_delimiter: &Word,
-        consumed_open_separator: bool,
-    ) -> Result<Option<(usize, Word, usize)>, MorphologyError> {
+        cursor: usize,
+        opener_ate_separator: bool,
+    ) -> Result<Option<(Word, usize)>, MorphologyError> {
         let opening_delimiter_canonical = canonicalize_text(opening_delimiter.phonemes().as_str());
-        let mut cursor = self.index;
-        if consumed_open_separator
+        if opener_ate_separator
             && let Some(closing_word) =
                 self.zoi_closing_word_at(&opening_delimiter_canonical, cursor)
         {
-            return Ok(Some((cursor, closing_word, cursor)));
-        }
-        while cursor < self.chars.len() {
-            let pause_start = cursor;
-            let mut saw_separator = false;
-            while cursor < self.chars.len() && self.is_strict_word_separator_at(cursor) {
-                saw_separator = true;
-                cursor += 1;
+            let close_start = closing_word.span().char_start;
+            if close_start >= cursor {
+                return Ok(Some((closing_word, close_start)));
             }
-            if saw_separator && cursor < self.chars.len() {
+        }
+        let mut scan = cursor;
+        while scan < self.chars.len() {
+            let mut saw_separator = false;
+            while scan < self.chars.len() && self.is_strict_word_separator_at(scan) {
+                saw_separator = true;
+                scan += 1;
+            }
+            if saw_separator && scan < self.chars.len() {
                 if let Some(closing_word) =
-                    self.zoi_closing_word_at(&opening_delimiter_canonical, cursor)
+                    self.zoi_closing_word_at(&opening_delimiter_canonical, scan)
                 {
-                    return Ok(Some((
-                        trim_trailing_separator_indices(&self.chars, self.index, pause_start),
-                        closing_word,
-                        cursor,
-                    )));
+                    let close_start = closing_word.span().char_start;
+                    if close_start >= scan {
+                        return Ok(Some((closing_word, close_start)));
+                    }
                 }
-                cursor += 1;
+                scan += 1;
             } else {
-                cursor += 1;
+                scan += 1;
             }
         }
         Ok(None)
@@ -3033,25 +3059,6 @@ impl<'a> Segmenter<'a> {
             })
     }
 
-    #[requires(true)]
-    #[ensures(self.index <= self.chars.len())]
-    fn consume_zoi_open_separators(&mut self) -> bool {
-        let start = self.index;
-        if self.peek_char().is_some_and(|value| value == '.') {
-            while self.peek_char().is_some_and(|value| value == '.') {
-                self.index += 1;
-            }
-            while self.peek_char().is_some_and(char::is_whitespace) {
-                self.index += 1;
-            }
-        } else {
-            while self.peek_char().is_some_and(char::is_whitespace) {
-                self.index += 1;
-            }
-        }
-        self.index != start
-    }
-
     #[requires(start <= end && end <= self.chars.len())]
     #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|span| span.byte_start <= span.byte_end && span.char_start <= span.char_end))]
     fn source_span(&self, start: usize, end: usize) -> Result<SourceSpan, MorphologyError> {
@@ -3525,18 +3532,187 @@ fn is_y_word(word: &WordLike) -> bool {
     word.bare_word().is_some_and(Word::is_hesitation)
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[ensures(ret >= start && ret <= end)]
-fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usize) -> usize {
-    let mut trimmed_end = end;
-    while start < trimmed_end
-        && chars
-            .get(trimmed_end - 1)
-            .is_some_and(|source_char| crate::segment::is_separator(source_char.value))
-    {
-        trimmed_end -= 1;
+/// One side of a delimited quote.
+///
+/// `forward` is the opening side. `separator` is the one separator that
+/// this side takes. `quote_bound` is the quote edge after the whitespace
+/// trim. On the opening side the quote starts at `quote_bound`. On the
+/// closing side the quote ends at `quote_bound`.
+#[invariant(!*forward || separator < quote_bound)]
+#[invariant(*forward || quote_bound <= separator)]
+#[derive(Debug)]
+struct ZoiQuoteEdge {
+    forward: bool,
+    separator: usize,
+    quote_bound: usize,
+}
+
+/// The quote boundary on one side of a `zoi` or `la'o` quote.
+///
+/// Each delimiter takes one separator on the side that faces the quote.
+/// A separator is one character from `segment::is_separator`. The set holds
+/// whitespace, period characters, and silent separators such as a semicolon
+/// and an exclamation mark.
+/// A comma is not a separator. Commas between the delimiter word and that
+/// separator stay with the delimiter. Whitespace on the quote side of that
+/// separator is outside the quote. Every other character stays in the quote.
+/// The opening side and the closing side both call this function.
+///
+/// `origin` is the first character after the opening delimiter word, or the
+/// first character of the closing delimiter word. `forward` is true on the
+/// opening side. The result is absent when that side has no separator.
+#[requires(origin <= chars.len())]
+#[ensures(zoi_quote_edge_follows_rule(chars, origin, forward, &ret))]
+fn zoi_quote_edge(chars: &[SourceChar], origin: usize, forward: bool) -> Option<ZoiQuoteEdge> {
+    if forward {
+        let mut separator = origin;
+        while separator < chars.len() && chars[separator].value == ',' {
+            separator += 1;
+        }
+        if separator >= chars.len() || !crate::segment::is_separator(chars[separator].value) {
+            return None;
+        }
+        let mut quote_bound = separator + 1;
+        while quote_bound < chars.len() && chars[quote_bound].value.is_whitespace() {
+            quote_bound += 1;
+        }
+        Some(new!(ZoiQuoteEdge {
+            forward: true,
+            separator,
+            quote_bound,
+        }))
+    } else {
+        let mut separator = origin;
+        while separator > 0 && chars[separator - 1].value == ',' {
+            separator -= 1;
+        }
+        if separator == 0 || !crate::segment::is_separator(chars[separator - 1].value) {
+            return None;
+        }
+        separator -= 1;
+        let mut quote_bound = separator;
+        while quote_bound > 0 && chars[quote_bound - 1].value.is_whitespace() {
+            quote_bound -= 1;
+        }
+        Some(new!(ZoiQuoteEdge {
+            forward: false,
+            separator,
+            quote_bound,
+        }))
     }
-    trimmed_end
+}
+
+/// True when `edge` is the one separator and the following whitespace trim.
+#[requires(origin <= chars.len())]
+#[ensures(true)]
+fn zoi_quote_edge_follows_rule(
+    chars: &[SourceChar],
+    origin: usize,
+    forward: bool,
+    edge: &Option<ZoiQuoteEdge>,
+) -> bool {
+    let Some(edge) = edge else {
+        return zoi_quote_side_has_no_separator(chars, origin, forward);
+    };
+    if edge.forward != forward || edge.separator >= chars.len() {
+        return false;
+    }
+    if !crate::segment::is_separator(chars[edge.separator].value) {
+        return false;
+    }
+    if forward {
+        return edge.separator >= origin
+            && edge.quote_bound <= chars.len()
+            && chars[origin..edge.separator]
+                .iter()
+                .all(|source_char| source_char.value == ',')
+            && chars[edge.separator + 1..edge.quote_bound]
+                .iter()
+                .all(|source_char| source_char.value.is_whitespace())
+            && (edge.quote_bound == chars.len() || !chars[edge.quote_bound].value.is_whitespace());
+    }
+    edge.separator < origin
+        && edge.quote_bound <= edge.separator
+        && chars[edge.separator + 1..origin]
+            .iter()
+            .all(|source_char| source_char.value == ',')
+        && chars[edge.quote_bound..edge.separator]
+            .iter()
+            .all(|source_char| source_char.value.is_whitespace())
+        && (edge.quote_bound == 0 || !chars[edge.quote_bound - 1].value.is_whitespace())
+}
+
+/// True when commas on this side do not lead to a separator.
+#[requires(origin <= chars.len())]
+#[ensures(true)]
+fn zoi_quote_side_has_no_separator(chars: &[SourceChar], origin: usize, forward: bool) -> bool {
+    if forward {
+        let mut index = origin;
+        while index < chars.len() && chars[index].value == ',' {
+            index += 1;
+        }
+        return index == chars.len() || !crate::segment::is_separator(chars[index].value);
+    }
+    let mut index = origin;
+    while index > 0 && chars[index - 1].value == ',' {
+        index -= 1;
+    }
+    index == 0 || !crate::segment::is_separator(chars[index - 1].value)
+}
+
+/// True when the quoted span is the two `zoi_quote_edge` results.
+///
+/// The span starts after exactly one separator and the whitespace that
+/// follows that separator. The span ends before the trailing whitespace
+/// and exactly one separator. An empty closing gap means the delimiters
+/// share one separator.
+#[requires(true)]
+#[ensures(true)]
+fn zoi_quote_span_matches_edge(chars: &[SourceChar], words: &[WordLike]) -> bool {
+    let [word] = words else {
+        return false;
+    };
+    let data!(WordLike::DelimitedNonLojbanQuote {
+        opening_delimiter,
+        quoted_text,
+        closing_delimiter,
+        ..
+    }) = word.as_data()
+    else {
+        return false;
+    };
+    let open_end = opening_delimiter.span().char_end;
+    let quote_start = quoted_text.span.char_start;
+    let quote_end = quoted_text.span.char_end;
+    let close_start = closing_delimiter.span().char_start;
+    if open_end > chars.len()
+        || quote_start > chars.len()
+        || quote_end > chars.len()
+        || close_start > chars.len()
+        || open_end > quote_start
+        || quote_start > quote_end
+        || quote_end > close_start
+    {
+        return false;
+    }
+    if quote_start < quote_end
+        && (chars[quote_start].value.is_whitespace() || chars[quote_end - 1].value.is_whitespace())
+    {
+        return false;
+    }
+    let opening_bound = zoi_quote_edge(chars, open_end, true)
+        .map(|edge| edge.quote_bound)
+        .unwrap_or(open_end);
+    if quote_start != opening_bound {
+        return false;
+    }
+    if close_start <= quote_start {
+        return quote_end == quote_start;
+    }
+    let Some(edge) = zoi_quote_edge(chars, close_start, false) else {
+        return false;
+    };
+    quote_end == edge.quote_bound.max(quote_start).min(close_start)
 }
 
 #[requires(true)]
@@ -4972,6 +5148,80 @@ mod tests {
             };
             assert_eq!(quoted_text.text, "", "{source}");
             assert_eq!(quoted_text.span.byte_start, quoted_text.span.byte_end);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_quote_takes_one_separator_on_each_side() {
+        let cases = [
+            ("zoi gy. hello .gy", "hello"),
+            ("zoi gy;hello .gy", "hello"),
+            ("zoi gy ;hello .gy", ";hello"),
+            ("zoi gy hello; gy", "hello;"),
+            ("zoi gy hello ;gy", "hello"),
+            ("zoi gy hello   gy", "hello"),
+            ("zoi gy John is a man. gy", "John is a man."),
+            ("zoi gy John is a man.gy", "John is a man"),
+            ("zoi gy gy", ""),
+            ("zoi ly.ly", ""),
+            ("zoi gy   gy", ""),
+            ("zoi gy\r\n\tgy", ""),
+            ("zoi gy\r\nhello\r\ngy", "hello"),
+            ("zoi gy\thello\tgy", "hello"),
+            ("zoi gy \r\n\thello\t \r\ngy", "hello"),
+            ("la'o gy;hello .gy", "hello"),
+            ("la'o gy hello; gy", "hello;"),
+            ("la'o gy. hello .gy", "hello"),
+            ("zoi gy . gy", "."),
+            ("zoi gy !!! gy", "!!!"),
+            ("zoi gy..hello.gy", ".hello"),
+            ("zoi gy hello!! gy", "hello!!"),
+            ("zoi gy , gy", ","),
+            ("zoi gy, hello gy", "hello"),
+            ("zoi gy hello, gy", "hello,"),
+            ("zoi gy hello ,gy", "hello"),
+        ];
+        let permissive = MorphologyOptions {
+            permissive_lexer: true,
+            ..MorphologyOptions::default()
+        };
+        for (source, expected) in cases {
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                    source, options, None,
+                )
+                .unwrap_or_else(|error| panic!("quote parse failed for {source}: {error}"));
+                assert_eq!(words.len(), 1, "{source}");
+                let data!(WordLike::DelimitedNonLojbanQuote {
+                    quoted_text,
+                    opening_delimiter,
+                    closing_delimiter,
+                    ..
+                }) = words[0].as_data()
+                else {
+                    panic!("expected a delimited quote for {source}");
+                };
+                assert_eq!(quoted_text.text, expected, "{source}");
+                assert_eq!(
+                    quoted_text.span.byte_start, quoted_text.span.char_start,
+                    "{source}"
+                );
+                assert_eq!(
+                    &source[quoted_text.span.byte_start..quoted_text.span.byte_end],
+                    expected,
+                    "{source}"
+                );
+                assert!(
+                    opening_delimiter.span().byte_end <= quoted_text.span.byte_start,
+                    "{source}"
+                );
+                assert!(
+                    quoted_text.span.byte_end <= closing_delimiter.span().byte_start,
+                    "{source}"
+                );
+            }
         }
     }
 

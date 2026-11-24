@@ -1969,16 +1969,7 @@ fn quoted_words_phonemes<'a>(words: impl Iterator<Item = &'a Word>) -> String {
 #[requires(true)]
 #[ensures(ret.starts_with('«') && ret.ends_with('»'))]
 fn quoted_text_phonemes(text: &Verbatim) -> String {
-    format!("«{}»", drop_leading_zoi_separator(&text.text))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn drop_leading_zoi_separator(text: &str) -> &str {
-    match text.chars().next() {
-        Some(first) if first.is_whitespace() => &text[first.len_utf8()..],
-        _ => text,
-    }
+    format!("«{}»", text.text)
 }
 
 #[requires(true)]

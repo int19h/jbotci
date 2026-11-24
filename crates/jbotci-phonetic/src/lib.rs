@@ -2666,7 +2666,7 @@ fn append_word_like_ipa<'word>(
         }) => chunks.extend([
             word_ipa_chunk(zoi),
             word_ipa_chunk(opening_delimiter),
-            IpaSurfaceChunk::Text(drop_leading_zoi_separator_ref(&quoted_text.text)),
+            IpaSurfaceChunk::Text(&quoted_text.text),
             word_ipa_chunk(closing_delimiter),
         ]),
         data!(WordLike::QuotedWords {
@@ -2713,12 +2713,6 @@ fn word_ipa_chunk(word: &Word) -> IpaSurfaceChunk<'_> {
         word,
         leading_pause_context: LeadingPauseContext::IndependentWord,
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn drop_leading_zoi_separator_ref(text: &str) -> &str {
-    text.strip_prefix(' ').unwrap_or(text)
 }
 
 #[requires(!chunks.is_empty())]
