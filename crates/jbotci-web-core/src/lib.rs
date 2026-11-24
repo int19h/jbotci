@@ -7875,7 +7875,7 @@ mod tests {
                 .spawn_scoped(scope, f)
                 .expect("spawn normal-stack web-core test thread")
                 .join()
-                .expect("normal-stack web-core test thread panicked")
+                .unwrap_or_else(|payload| std::panic::resume_unwind(payload))
         })
     }
 
@@ -8576,6 +8576,14 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_nested_statement_result_stays_bounded() {
+        // A debug build of the recovered parser uses more stack than the
+        // default test thread. The parse itself is unchanged.
+        run_on_normal_stack(|| recovered_nested_statement_result_body());
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_nested_statement_result_body() {
         let success = parse_success(
             "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo lo ka ce'u xendo ije cnikansa ro lo jmive kei ta'i lo racli",
         );
