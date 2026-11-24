@@ -1639,6 +1639,12 @@ body::-webkit-scrollbar-thumb:hover,
   row-gap: 0.35rem;
 }
 
+.parse-page .view-toolbar.is-three-rows {
+  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-areas: "text text" "views views" "controls controls";
+  row-gap: 0.35rem;
+}
+
 .parse-page .view-toolbar .view-tabs { grid-area: views; }
 .parse-page .view-toolbar .controls {
   grid-area: controls;
@@ -1661,6 +1667,13 @@ body::-webkit-scrollbar-thumb:hover,
 .gentufa-toolbar-fit-probe .view-toolbar {
   width: max-content;
   flex-wrap: nowrap;
+}
+
+.parse-page .gentufa-toolbar-first-row-fit-probe {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  width: max-content;
 }
 
 .parse-page .view-toolbar::after {
@@ -1718,6 +1731,16 @@ body::-webkit-scrollbar-thumb:hover,
   border-bottom-color: var(--page-bg);
   color: var(--app-link);
   background: var(--page-bg);
+  font-weight: 500;
+}
+
+.parse-page .view-tab::after,
+.parse-page .text-tab::after {
+  content: attr(data-label);
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
   font-weight: 500;
 }
 

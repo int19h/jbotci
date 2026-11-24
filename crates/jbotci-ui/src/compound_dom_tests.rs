@@ -41,7 +41,7 @@ fn CompoundDomPage() -> Element {
         &PageFindRouteState::default(),
     );
     rsx! {
-        { gentufa::render_compounds_checkbox(display, state.show_compounds) }
+        { gentufa::render_compounds_checkbox(display, state.show_compounds, false) }
         { gentufa::render_blocks(&success, true, GentufaScript::Latin, hover, tooltip, activity, export_task, &page_find) }
     }
 }

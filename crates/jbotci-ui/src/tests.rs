@@ -5507,18 +5507,27 @@ fn gentufa_text_tabs_use_roving_tabindex_and_arrow_navigation() {
 #[requires(true)]
 #[ensures(true)]
 fn gentufa_toolbar_fit_comparison_is_exact() {
-    let metrics = |available_width, one_row_required_width| {
+    let metrics = |available_width, one_row_required_width, two_rows_required_width| {
         new!(GentufaToolbarMetrics {
             available_width,
             one_row_required_width,
+            two_rows_required_width,
         })
     };
     assert_eq!(
-        gentufa_toolbar_layout_from_metrics(metrics(688.0, 688.0)),
+        gentufa_toolbar_layout_from_metrics(metrics(688.0, 688.0, 300.0)),
         GentufaToolbarLayout::OneRow
     );
     assert_eq!(
-        gentufa_toolbar_layout_from_metrics(metrics(687.99, 688.0)),
+        gentufa_toolbar_layout_from_metrics(metrics(687.99, 688.0, 300.0)),
         GentufaToolbarLayout::TwoRows
+    );
+    assert_eq!(
+        gentufa_toolbar_layout_from_metrics(metrics(687.99, 688.0, 687.99)),
+        GentufaToolbarLayout::TwoRows
+    );
+    assert_eq!(
+        gentufa_toolbar_layout_from_metrics(metrics(299.99, 688.0, 300.0)),
+        GentufaToolbarLayout::ThreeRows
     );
 }

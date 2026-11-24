@@ -1105,6 +1105,7 @@ pub(super) fn AppShell() -> Element {
                                     reference_tooltip_open,
                                     activity,
                                     export_task,
+                                    toolbar_layout,
                                     page_find: page_find_context.clone(),
                                 }
                             },

@@ -247,6 +247,9 @@ pub(crate) fn render_bracketed_with_limit(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|text| {
+    !options.color || text.is_empty() || text.lines().all(|line| line.ends_with("\x1b[0m"))
+}) || ret.is_err())]
 pub(crate) fn render_plain_with_limit(
     expr: &SExpr,
     options: BracketRenderOptions,
@@ -352,7 +355,7 @@ fn write_plain(
             }
             write_style_open(output, depth, options, *role)?;
             output.write_all(text.as_bytes())?;
-            write_style_close(output, depth, options, *role)
+            write_plain_style_close(output, options, *role)
         }
         SExpr::Node { children, .. } => {
             let mut children = children.iter().filter(|child| has_text(child)).peekable();
@@ -415,6 +418,27 @@ fn write_style_close(
     }
     if options.color {
         output.write_all(ansi_parent_color_for_depth(depth).as_bytes())?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_plain_style_close(
+    output: &mut crate::budget::BudgetedWriter,
+    options: BracketRenderOptions,
+    role: LeafRole,
+) -> std::io::Result<()> {
+    if role == LeafRole::Error {
+        if options.color {
+            output.write_all(b"\x1b[29m")?;
+        }
+        output.write_all("‼".as_bytes())?;
+    } else if role == LeafRole::Elided && options.color {
+        output.write_all(b"\x1b[23m")?;
+    }
+    if options.color {
+        output.write_all(b"\x1b[0m")?;
     }
     Ok(())
 }

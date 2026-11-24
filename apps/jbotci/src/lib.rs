@@ -1699,7 +1699,7 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
         }
         VlaseiFormat::Json => {
@@ -1709,7 +1709,7 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
         }
         VlaseiFormat::Tree => {}
@@ -1725,7 +1725,7 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
         }
         VlaseiFormat::Brackets => {
@@ -1784,7 +1784,7 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
         }
         GentufaFormat::Json => {
@@ -1798,7 +1798,7 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
         }
         GentufaFormat::Blocks => {
@@ -1820,7 +1820,7 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
             let _ = resolve_gentufa_blocks_output_type(input)?;
         }

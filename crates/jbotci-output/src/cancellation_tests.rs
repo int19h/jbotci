@@ -15,10 +15,11 @@ use jbotci_syntax::parse_syntax_tree;
 use crate::budget::ByteLimit;
 use crate::{
     BracketRenderOptions, OutputError, TreeRenderOptions,
-    pretty_generated_model_brackets_with_limit, pretty_generated_model_tree_with_limit,
-    pretty_morphology_brackets_with_limit, pretty_morphology_tree_with_limit,
-    pretty_recovered_morphology_brackets_with_limit, pretty_recovered_morphology_raw_with_limit,
-    pretty_recovered_morphology_tree_with_limit, pretty_recovered_syntax_brackets_with_limit,
+    pretty_generated_model_brackets_with_limit, pretty_generated_model_plain_with_limit,
+    pretty_generated_model_tree_with_limit, pretty_morphology_brackets_with_limit,
+    pretty_morphology_tree_with_limit, pretty_recovered_morphology_brackets_with_limit,
+    pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
+    pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_plain_with_limit,
 };
 
 #[test]
@@ -44,6 +45,24 @@ fn cancellation_stops_bracket_tree_and_morphology_rendering() {
     .expect("clear flag renders brackets");
     assert!(!brackets.is_empty());
     let stopped = pretty_generated_model_brackets_with_limit(
+        parse.parse_tree.as_ref(),
+        &text,
+        BracketRenderOptions::default(),
+        limit,
+        &token,
+    );
+    assert!(matches!(stopped, Err(OutputError::Interrupted)));
+
+    let plain = pretty_generated_model_plain_with_limit(
+        parse.parse_tree.as_ref(),
+        &text,
+        BracketRenderOptions::default(),
+        limit,
+        &clear,
+    )
+    .expect("clear flag renders plain text");
+    assert!(!plain.is_empty());
+    let stopped = pretty_generated_model_plain_with_limit(
         parse.parse_tree.as_ref(),
         &text,
         BracketRenderOptions::default(),
@@ -178,6 +197,20 @@ fn a_late_trip_stops_inside_each_renderer() {
         is_interrupted,
     );
     assert!(!recovered_brackets.is_empty());
+
+    let recovered_plain = assert_exit_check(
+        |token| {
+            pretty_recovered_syntax_plain_with_limit(
+                &recovered,
+                bad,
+                BracketRenderOptions::default(),
+                limit,
+                token,
+            )
+        },
+        is_interrupted,
+    );
+    assert!(!recovered_plain.is_empty());
 
     let morphology_tree = assert_exit_check(
         |token| {

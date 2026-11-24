@@ -167,7 +167,11 @@ impl GentufaTextOutput {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     pub fn tab_label(self) -> &'static str {
-        self.query_value()
+        match self {
+            Self::Groups => "groups",
+            Self::Plain => "plain",
+            Self::Ipa => "IPA",
+        }
     }
 }
 
@@ -4995,20 +4999,24 @@ pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
 pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
     let mut state = GentufaWebState::default();
     let mut legacy_ipa = false;
+    let mut explicit_output = false;
     for (key, value) in parse_query_pairs(query) {
         match key.as_str() {
             "text" => state.text = value,
             "dialect" => state.dialect = Some(value),
             "view" => {
+                let value = value.trim();
                 if value.eq_ignore_ascii_case("ipa") {
                     legacy_ipa = true;
-                } else if let Some(view_mode) = parse_gentufa_view_mode(&value) {
+                } else if let Some(view_mode) = parse_gentufa_view_mode(value) {
                     state.view_mode = view_mode;
+                    legacy_ipa = false;
                 }
             }
             "output" => {
                 if let Some(output) = parse_gentufa_text_output(&value) {
                     state.output = output;
+                    explicit_output = true;
                 }
             }
             "glosses" => state.show_glosses = parse_query_bool(&value, false),
@@ -5017,7 +5025,7 @@ pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
             _ => {}
         }
     }
-    if legacy_ipa && state.output == GentufaTextOutput::Groups {
+    if legacy_ipa && !explicit_output {
         state.view_mode = GentufaWebViewMode::Blocks;
         state.output = GentufaTextOutput::Ipa;
     }
@@ -10650,6 +10658,16 @@ mod tests {
         assert_eq!(ipa_state.view_mode, GentufaWebViewMode::Blocks);
         assert_eq!(ipa_state.output, GentufaTextOutput::Ipa);
         assert_eq!(gentufa_web_url("", &ipa_state), "/gentufa?output=ipa");
+
+        let padded_ipa = parse_gentufa_web_route("/gentufa", "?view=%20ipa");
+        assert_eq!(padded_ipa.output, GentufaTextOutput::Ipa);
+        let last_view = parse_gentufa_web_route("/gentufa", "?view=ipa&view=tree");
+        assert_eq!(last_view.view_mode, GentufaWebViewMode::Tree);
+        assert_eq!(last_view.output, GentufaTextOutput::Groups);
+        let explicit_groups = parse_gentufa_web_route("/gentufa", "?view=ipa&output=groups");
+        assert_eq!(explicit_groups.output, GentufaTextOutput::Groups);
+        assert_eq!(GentufaTextOutput::Ipa.tab_label(), "IPA");
+        assert_eq!(GentufaTextOutput::Ipa.query_value(), "ipa");
 
         let plain_state = parse_gentufa_web_route("/gentufa", "?output=plain");
         assert_eq!(plain_state.output, GentufaTextOutput::Plain);

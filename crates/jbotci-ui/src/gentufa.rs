@@ -27,6 +27,7 @@ pub(super) fn gentufa_page_snapshot(
 pub(super) enum GentufaToolbarLayout {
     OneRow,
     TwoRows,
+    ThreeRows,
 }
 
 impl GentufaToolbarLayout {
@@ -36,6 +37,7 @@ impl GentufaToolbarLayout {
         match self {
             Self::OneRow => "is-one-row",
             Self::TwoRows => "is-two-rows",
+            Self::ThreeRows => "is-three-rows",
         }
     }
 }
@@ -43,6 +45,7 @@ impl GentufaToolbarLayout {
 #[invariant(
     available_width.is_finite() && *available_width > 0.0
         && one_row_required_width.is_finite() && *one_row_required_width > 0.0
+        && two_rows_required_width.is_finite() && *two_rows_required_width > 0.0
 )]
 #[cfg_attr(
     all(not(target_arch = "wasm32"), feature = "desktop"),
@@ -52,22 +55,27 @@ impl GentufaToolbarLayout {
 pub(super) struct GentufaToolbarMetrics {
     available_width: f64,
     one_row_required_width: f64,
+    two_rows_required_width: f64,
 }
 
 #[cfg(any(test, target_arch = "wasm32", feature = "desktop"))]
 #[requires(true)]
 #[ensures(ret == if metrics.one_row_required_width <= metrics.available_width {
     GentufaToolbarLayout::OneRow
-} else {
+} else if metrics.two_rows_required_width <= metrics.available_width {
     GentufaToolbarLayout::TwoRows
+} else {
+    GentufaToolbarLayout::ThreeRows
 })]
 pub(super) fn gentufa_toolbar_layout_from_metrics(
     metrics: GentufaToolbarMetrics,
 ) -> GentufaToolbarLayout {
     if metrics.one_row_required_width <= metrics.available_width {
         GentufaToolbarLayout::OneRow
-    } else {
+    } else if metrics.two_rows_required_width <= metrics.available_width {
         GentufaToolbarLayout::TwoRows
+    } else {
+        GentufaToolbarLayout::ThreeRows
     }
 }
 
@@ -89,9 +97,11 @@ fn measure_gentufa_toolbar_metrics() -> Option<GentufaToolbarMetrics> {
     let document = web_sys::window()?.document()?;
     let live = document.get_element_by_id("gentufa-view-toolbar")?;
     let probe = document.get_element_by_id("gentufa-toolbar-fit-probe")?;
+    let first_row_probe = document.get_element_by_id("gentufa-toolbar-first-row-fit-probe")?;
     try_new!(GentufaToolbarMetrics {
         available_width: element_content_box_width(&live),
         one_row_required_width: element_content_box_width(&probe),
+        two_rows_required_width: element_content_box_width(&first_row_probe),
     })
     .ok()
 }
@@ -104,7 +114,8 @@ async fn measure_gentufa_toolbar_metrics() -> Option<GentufaToolbarMetrics> {
         r#"
         const live = document.getElementById("gentufa-view-toolbar");
         const probe = document.getElementById("gentufa-toolbar-fit-probe");
-        if (!live || !probe) {
+        const firstRowProbe = document.getElementById("gentufa-toolbar-first-row-fit-probe");
+        if (!live || !probe || !firstRowProbe) {
             return null;
         }
         const state = window.__jbotciGentufaToolbar
@@ -114,7 +125,7 @@ async fn measure_gentufa_toolbar_metrics() -> Option<GentufaToolbarMetrics> {
                 state.observer.disconnect();
             }
             state.observer = new ResizeObserver(() => {
-                if (!document.contains(live) || !document.contains(probe)) {
+                if (!document.contains(live) || !document.contains(probe) || !document.contains(firstRowProbe)) {
                     if (state.observer) {
                         state.observer.disconnect();
                     }
@@ -128,11 +139,13 @@ async fn measure_gentufa_toolbar_metrics() -> Option<GentufaToolbarMetrics> {
             });
             state.observer.observe(live);
             state.observer.observe(probe);
+            state.observer.observe(firstRowProbe);
             state.live = live;
         }
         return {
-            available_width: live.clientWidth,
-            one_row_required_width: probe.clientWidth,
+            available_width: live.getBoundingClientRect().width,
+            one_row_required_width: probe.getBoundingClientRect().width,
+            two_rows_required_width: firstRowProbe.getBoundingClientRect().width,
         };
         "#,
     )
@@ -148,9 +161,21 @@ fn observe_gentufa_toolbar(layout: Signal<GentufaToolbarLayout>) -> Option<Eleme
     let document = web_sys::window()?.document()?;
     let live = document.get_element_by_id("gentufa-view-toolbar")?;
     let probe = document.get_element_by_id("gentufa-toolbar-fit-probe")?;
-    ElementResizeObserver::attach(live.clone(), &[&live, &probe], move || {
-        schedule_gentufa_toolbar_layout_measure(layout)
-    })
+    let first_row_probe = document.get_element_by_id("gentufa-toolbar-first-row-fit-probe")?;
+    ElementResizeObserver::attach(
+        live.clone(),
+        &[&live, &probe, &first_row_probe],
+        move || measure_and_update_gentufa_toolbar_layout(layout),
+    )
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn measure_and_update_gentufa_toolbar_layout(layout: Signal<GentufaToolbarLayout>) {
+    if let Some(metrics) = measure_gentufa_toolbar_metrics() {
+        update_gentufa_toolbar_layout(layout, gentufa_toolbar_layout_from_metrics(metrics));
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -234,9 +259,7 @@ pub(super) fn use_gentufa_toolbar_observer(
 #[ensures(true)]
 pub(super) fn schedule_gentufa_toolbar_layout_measure(layout: Signal<GentufaToolbarLayout>) {
     platform::schedule_visual_measure_task(move || async move {
-        if let Some(metrics) = measure_gentufa_toolbar_metrics() {
-            update_gentufa_toolbar_layout(layout, gentufa_toolbar_layout_from_metrics(metrics));
-        }
+        measure_and_update_gentufa_toolbar_layout(layout);
     });
 }
 
@@ -293,6 +316,7 @@ pub(super) fn GentufaPage(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     activity: Signal<AsyncActivityState>,
     export_task: Signal<Option<LatestAsyncTask>>,
+    toolbar_layout: Signal<GentufaToolbarLayout>,
     page_find: PageFindContext,
 ) -> Element {
     let snapshot = use_memo(move || {
@@ -303,10 +327,10 @@ pub(super) fn GentufaPage(
         )
     });
     let snapshot = snapshot.read().clone();
-    let toolbar_layout = use_signal(|| GentufaToolbarLayout::OneRow);
     let observe_toolbar = use_gentufa_toolbar_observer(toolbar_layout);
     use_effect(move || {
         let _ = parsed_text.read();
+        let _ = parsed_dialect.read();
         let _ = activity.read();
         observe_toolbar();
         schedule_gentufa_toolbar_layout_measure(toolbar_layout);
@@ -573,6 +597,14 @@ pub(super) fn render_success(
         section { class: "result-section",
             { render_reference_overlay(&reference_hover_value) }
             { render_surface_output(success, output_value, settings_value.script, page_find) }
+            div {
+                id: "gentufa-view-toolbar",
+                class: "view-toolbar {toolbar_layout_value.class()}",
+                { render_view_tabs(view_mode, view_mode_value, false) }
+                { render_output_controls(display, display_value, false) }
+                { render_text_output_tabs(output, output_value) }
+            }
+            { render_gentufa_toolbar_fit_probe(view_mode, view_mode_value, display, display_value, output_value) }
             { render_diagnostics_pane(
                 &success.diagnostics,
                 source,
@@ -585,14 +617,6 @@ pub(super) fn render_success(
                 settings_value.script,
                 Some(page_find),
             ) }
-            div {
-                id: "gentufa-view-toolbar",
-                class: "view-toolbar {toolbar_layout_value.class()}",
-                { render_view_tabs(view_mode, view_mode_value) }
-                { render_output_controls(display, display_value) }
-                { render_text_output_tabs(output, output_value) }
-            }
-            { render_gentufa_toolbar_fit_probe(view_mode, view_mode_value, display, display_value, output_value) }
             match view_mode_value {
                 GentufaWebViewMode::Blocks => rsx! {
                     { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, reference_tooltip_open, activity, export_task, page_find) }
@@ -799,11 +823,13 @@ pub(super) fn render_text_output_tabs(
                     aria_controls: "gentufa-text-output",
                     tabindex: if mode == current { "0" } else { "-1" },
                     title: "{mode.tab_title()}",
+                    "data-label": "{mode.tab_label()}",
                     onclick: move |_| {
                         output.set(mode);
                         focus_text_output_tab(mode);
                     },
                     onkeydown: move |event| {
+                        let current = *output.peek();
                         if let Some(next) = next_text_output_for_arrow(current, &event.key()) {
                             event.prevent_default();
                             output.set(next);
@@ -826,8 +852,10 @@ fn render_text_output_tabs_probe(current: GentufaTextOutput) -> Element {
                 button {
                     class: "text-tab",
                     r#type: "button",
+                    disabled: true,
                     tabindex: "-1",
                     title: "{mode.tab_title()}",
+                    "data-label": "{mode.tab_label()}",
                     aria_selected: if mode == current { "true" } else { "false" },
                     "{mode.tab_label()}"
                 }
@@ -848,8 +876,15 @@ fn render_gentufa_toolbar_fit_probe(
     rsx! {
         div { id: "gentufa-toolbar-fit-probe", class: "gentufa-toolbar-fit-probe", aria_hidden: "true",
             div { class: "view-toolbar is-one-row",
-                { render_view_tabs(view_mode, current_view) }
-                { render_output_controls(display, current_display) }
+                { render_view_tabs(view_mode, current_view, true) }
+                { render_output_controls(display, current_display, true) }
+                { render_text_output_tabs_probe(current_output) }
+            }
+            div {
+                id: "gentufa-toolbar-first-row-fit-probe",
+                class: "gentufa-toolbar-fit-probe gentufa-toolbar-first-row-fit-probe",
+                aria_hidden: "true",
+                { render_view_tabs(view_mode, current_view, true) }
                 { render_text_output_tabs_probe(current_output) }
             }
         }
@@ -861,12 +896,16 @@ fn render_gentufa_toolbar_fit_probe(
 pub(super) fn render_view_tabs(
     mut view_mode: Signal<GentufaWebViewMode>,
     current: GentufaWebViewMode,
+    probe: bool,
 ) -> Element {
     rsx! {
         div { class: "view-tabs",
             button {
                 class: view_tab_class(current == GentufaWebViewMode::Blocks),
                 r#type: "button",
+                disabled: probe,
+                tabindex: if probe { "-1" } else { "0" },
+                "data-label": "Blocks",
                 aria_current: if current == GentufaWebViewMode::Blocks { "page" } else { "false" },
                 onclick: move |_| {
                     view_mode.set(GentufaWebViewMode::Blocks);
@@ -876,6 +915,9 @@ pub(super) fn render_view_tabs(
             button {
                 class: view_tab_class(current == GentufaWebViewMode::Tree),
                 r#type: "button",
+                disabled: probe,
+                tabindex: if probe { "-1" } else { "0" },
+                "data-label": "Tree",
                 aria_current: if current == GentufaWebViewMode::Tree { "page" } else { "false" },
                 onclick: move |_| {
                     view_mode.set(GentufaWebViewMode::Tree);
@@ -891,12 +933,13 @@ pub(super) fn render_view_tabs(
 pub(super) fn render_output_controls(
     display: Signal<GentufaDisplayState>,
     current: GentufaDisplayState,
+    probe: bool,
 ) -> Element {
     rsx! {
         div { class: "controls output-controls",
-            { render_gloss_checkbox(display, current.show_glosses) }
-            { render_elided_checkbox(display, current.show_elided) }
-            { render_compounds_checkbox(display, current.show_compounds) }
+            { render_gloss_checkbox(display, current.show_glosses, probe) }
+            { render_elided_checkbox(display, current.show_elided, probe) }
+            { render_compounds_checkbox(display, current.show_compounds, probe) }
         }
     }
 }
@@ -906,12 +949,15 @@ pub(super) fn render_output_controls(
 pub(super) fn render_gloss_checkbox(
     mut display: Signal<GentufaDisplayState>,
     checked: bool,
+    probe: bool,
 ) -> Element {
     rsx! {
         label {
             input {
                 r#type: "checkbox",
                 checked,
+                disabled: probe,
+                tabindex: if probe { "-1" } else { "0" },
                 onchange: move |_| toggle_glosses(&mut display),
             }
             " gloss"
@@ -924,10 +970,17 @@ pub(super) fn render_gloss_checkbox(
 pub(super) fn render_compounds_checkbox(
     mut display: Signal<GentufaDisplayState>,
     checked: bool,
+    probe: bool,
 ) -> Element {
     rsx! {
         label {
-            input { r#type: "checkbox", checked, onchange: move |_| toggle_compounds(&mut display) }
+            input {
+                r#type: "checkbox",
+                checked,
+                disabled: probe,
+                tabindex: if probe { "-1" } else { "0" },
+                onchange: move |_| toggle_compounds(&mut display),
+            }
             " compounds"
         }
     }
@@ -938,12 +991,15 @@ pub(super) fn render_compounds_checkbox(
 pub(super) fn render_elided_checkbox(
     mut display: Signal<GentufaDisplayState>,
     checked: bool,
+    probe: bool,
 ) -> Element {
     rsx! {
         label {
             input {
                 r#type: "checkbox",
                 checked,
+                disabled: probe,
+                tabindex: if probe { "-1" } else { "0" },
                 onchange: move |_| toggle_elided(&mut display),
             }
             " elided"

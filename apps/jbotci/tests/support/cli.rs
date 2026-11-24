@@ -1834,7 +1834,7 @@ fn gentufa_display_flags_parse_with_expected_defaults() {
 #[requires(true)]
 #[ensures(true)]
 fn gentufa_image_only_flags_are_rejected_outside_blocks() {
-    for format in ["brackets", "tree", "json", "raw"] {
+    for format in ["brackets", "plain", "tree", "json", "raw"] {
         assert_gentufa_error_contains(
             &[
                 "jbotci",
@@ -1883,7 +1883,7 @@ fn gentufa_image_only_flags_are_rejected_outside_blocks() {
         ],
         "`--show-elided` is not supported with `--turtai raw`",
     );
-    for format in ["brackets", "tree", "json", "blocks"] {
+    for format in ["brackets", "plain", "tree", "json", "blocks"] {
         let output = run_success_bytes(&[
             "jbotci",
             "gentufa",

@@ -1100,6 +1100,9 @@ pub fn pretty_recovered_syntax_plain_with_limit(
         recovered.parse_tree.as_ref(),
         &mut visitor,
     );
+    if cancellation.is_cancelled() {
+        return Err(OutputError::Interrupted);
+    }
     let value = sexpr::flatten(visitor.finish()?);
     sexpr::render_plain_with_limit(&value, options, limit, cancellation)
 }
@@ -1478,6 +1481,47 @@ mod tests {
             ),
             "mi kláma lo zárci .i do djíca lo nu pínxe lo djácu"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_color_resets_every_styled_leaf_and_every_line() {
+        let color = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let elided = BracketRenderOptions {
+            show_elided: true,
+            ..color
+        };
+        for (source, options) in [
+            ("coi", color),
+            ("mi klama lo zarci", color),
+            ("mi klama lo zarci", elided),
+        ] {
+            let rendered = plain_with_options(source, options);
+            assert!(rendered.ends_with("\x1b[0m"), "{rendered:?}");
+            for (index, _) in rendered.match_indices(' ') {
+                assert!(rendered[..index].ends_with("\x1b[0m"), "{rendered:?}");
+            }
+        }
+        assert_eq!(plain_with_options("coi", color), "\x1b[35mcoĭ\x1b[0m");
+
+        let source = "mi ku .i do";
+        let recovered = parse_recovered_syntax(source);
+        let rendered = pretty_recovered_syntax_plain_with_limit(
+            &recovered,
+            source,
+            color,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("colored recovered plain");
+        assert!(rendered.ends_with("\x1b[0m"), "{rendered:?}");
+        for (index, _) in rendered.match_indices(' ') {
+            assert!(rendered[..index].ends_with("\x1b[0m"), "{rendered:?}");
+        }
     }
 
     #[test]

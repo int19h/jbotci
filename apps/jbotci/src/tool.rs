@@ -211,8 +211,8 @@ pub enum ToolGentufaFormat {
     /// kláma)`. Most token-efficient; omits node-type labels.
     Brackets,
     /// The same normalized words as `brackets`, with single spaces and no
-    /// structural brackets. Supports the same stress, glide, script, elision,
-    /// decomposition, and definition options.
+    /// structural brackets. Supports the same elision, decomposition, and
+    /// definition options.
     Plain,
     /// Verbose debug dump of the raw parser AST. For troubleshooting the parser
     /// itself, not normal use.
@@ -1947,6 +1947,7 @@ mod tests {
         for format in [
             ToolGentufaFormat::Tree,
             ToolGentufaFormat::Brackets,
+            ToolGentufaFormat::Plain,
             ToolGentufaFormat::Raw,
             ToolGentufaFormat::Json,
         ] {
@@ -1993,6 +1994,7 @@ mod tests {
         for format in [
             ToolGentufaFormat::Tree,
             ToolGentufaFormat::Brackets,
+            ToolGentufaFormat::Plain,
             ToolGentufaFormat::Json,
             ToolGentufaFormat::Svg,
         ] {
