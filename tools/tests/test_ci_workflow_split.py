@@ -11,7 +11,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from tools.cargo_inputs_trace import DX_VERSION, RUSTUP_HOME_PIN
+from tools.cargo_inputs_trace import dioxus_cli_version, shared_rustup_home
 from tools.release_compiler import toolchain_channel
 from tools.workflow_pins import (
     PinError, exactly_one, job_env_values, mapping_values, rust_image_versions,
@@ -20,8 +20,9 @@ from tools.workflow_pins import (
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-TEST_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "test.yml"
-RENDER_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "render-image.yml"
+WORKFLOWS = REPOSITORY_ROOT / ".github/workflows"
+TEST_WORKFLOW = WORKFLOWS / "test.yml"
+RENDER_WORKFLOW = WORKFLOWS / "render-image.yml"
 
 
 class CiWorkflowSplitTests(unittest.TestCase):
@@ -29,6 +30,7 @@ class CiWorkflowSplitTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.test_workflow = TEST_WORKFLOW.read_text(encoding="utf-8")
         cls.render_workflow = RENDER_WORKFLOW.read_text(encoding="utf-8")
+        cls.channel = toolchain_channel((REPOSITORY_ROOT / "rust-toolchain.toml").read_text(encoding="utf-8"))
 
     @unittest.skipUnless(shutil.which("actionlint"), "actionlint is not installed")
     def test_every_workflow_passes_actionlint(self) -> None:
@@ -298,25 +300,19 @@ class CiWorkflowSplitTests(unittest.TestCase):
         )
 
     def test_ci_rust_images_match_the_toolchain_channel(self) -> None:
-        toolchain = (REPOSITORY_ROOT / "rust-toolchain.toml").read_text(encoding="utf-8")
-        version = toolchain_channel(toolchain)
+        version = self.channel
         self.assertRegex(version, r"^[0-9]+\.[0-9]+\.[0-9]+$")
-        prepare = (REPOSITORY_ROOT / ".github/workflows/prepare-cli-release.yml").read_text(encoding="utf-8")
+        for path in sorted(WORKFLOWS.iterdir()):
+            if not path.is_file() or path.suffix not in (".yml", ".yaml"):
+                continue
+            with self.subTest(file=path.name):
+                tags = workflow_image_versions(path.read_text(encoding="utf-8"))
+                for tag in tags:
+                    self.assertEqual(tag, version)
+        prepare = (WORKFLOWS / "prepare-cli-release.yml").read_text(encoding="utf-8")
         dockerfile = (REPOSITORY_ROOT / "deploy/render/Dockerfile").read_text(encoding="utf-8")
-        named = {
-            "test": self.test_workflow,
-            "render": self.render_workflow,
-            "prepare": prepare,
-            "dockerfile": dockerfile,
-        }
-        for name, text in named.items():
-            with self.subTest(file=name):
-                if name == "dockerfile":
-                    tags = rust_image_versions(text)
-                else:
-                    tags = workflow_image_versions(text)
-                self.assertGreater(len(tags), 0, name)
-                self.assertEqual(set(tags), {version}, name)
+        self.assertEqual(set(rust_image_versions(dockerfile)), {version})
+
         self.assertIn(f"rust:{version}-bookworm", self.test_workflow)
         self.assertIn(f"rust:{version}-bookworm", self.render_workflow)
         self.assertIn(f"rust:{version}-trixie", self.render_workflow)
@@ -340,18 +336,25 @@ class CiWorkflowSplitTests(unittest.TestCase):
         self.assertGreaterEqual(len(compilers), 2)
         self.assertEqual(set(compilers), {version})
 
+    def test_documented_rust_and_cargo_versions_match_the_toolchain_channel(self) -> None:
+        for name in ("README.md", "docs/ci/cargo-cache.md"):
+            with self.subTest(file=name):
+                text = (REPOSITORY_ROOT / name).read_text(encoding="utf-8")
+                versions = re.findall(r"\b(?:Rust|Cargo)\s+`?([0-9][A-Za-z0-9.+-]*)", text)
+                self.assertEqual({version.removesuffix(".") for version in versions}, {self.channel})
+
     def test_render_image_disables_rustup_auto_install(self) -> None:
         version = exactly_one(
             self.render_workflow,
             "DIOXUS_CLI_VERSION",
             re.compile(r"[0-9]+(?:\.[0-9]+)+"),
         )
-        self.assertEqual(version, DX_VERSION)
+        self.assertEqual(version, dioxus_cli_version())
         homes = [
             exactly_one(workflow, "RUSTUP_HOME", re.compile(r"/[^\s]+"))
             for workflow in (self.test_workflow, self.render_workflow)
         ]
-        self.assertEqual(homes, [RUSTUP_HOME_PIN, RUSTUP_HOME_PIN])
+        self.assertEqual(homes, [shared_rustup_home()] * 2)
         self.assertIn('RUSTUP_AUTO_INSTALL: "0"\n', self.render_workflow)
 
     def test_pinned_keys_reject_every_hidden_declaration(self) -> None:
@@ -378,19 +381,22 @@ class CiWorkflowSplitTests(unittest.TestCase):
                     exactly_one(nested, key, pattern)
                 with self.assertRaises(PinError):
                     exactly_one(malformed, key, pattern)
+
+    def test_rust_image_versions_include_registry_qualified_tags(self) -> None:
         images = (
             "jobs:\n"
             "  build:\n"
             "    container:\n"
-            "      image: rust:1.100.0-bookworm\n"
+            "      image: docker.io/library/rust:1.100.0-bookworm\n"
             "    steps:\n"
             "      - run: resolve-image rust:1.100.0-trixie\n"
+            "      - run: docker pull registry.example:5000/mirror/rust:1.100.0-bookworm\n"
         )
-        self.assertEqual(workflow_image_versions(images), ["1.100.0", "1.100.0"])
-        overridden = images.replace("rust:1.100.0-trixie", "rust:1.99.0-trixie")
-        self.assertEqual(set(workflow_image_versions(overridden)), {"1.100.0", "1.99.0"})
+        self.assertEqual(workflow_image_versions(images), ["1.100.0"] * 3)
+        overridden = images.replace("docker.io/library/rust:1.100.0-bookworm", "docker.io/library/rust:1.99.0-bookworm")
+        self.assertEqual(workflow_image_versions(overridden), ["1.99.0", "1.100.0", "1.100.0"])
         with self.assertRaises(PinError):
-            workflow_image_versions(images.replace("rust:1.100.0-trixie", "rust:latest"))
+            workflow_image_versions(images.replace("docker.io/library/rust:1.100.0-bookworm", "docker.io/library/rust:latest"))
 
 
 class TracedTargetTests(unittest.TestCase):

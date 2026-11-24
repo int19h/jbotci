@@ -150,14 +150,14 @@ def _strings(node: object) -> list[str]:
     return found
 
 
-_IMAGE_TOKEN = re.compile(r"(?<![A-Za-z0-9._/-])rust:[^\s\"'`]+")
+_IMAGE_TOKEN = re.compile(r"(?<![A-Za-z0-9._:-])rust:[^\s\"'`]+")
 _IMAGE_TAG = re.compile(r"rust:([0-9]+\.[0-9]+\.[0-9]+)-[A-Za-z0-9.]+")
 
 
 def rust_image_versions(text: str) -> list[str]:
     """Return the version from each `rust:` image tag in `text`.
 
-    A tag must be `rust:<version>-<name>`.
+    A tag must be `rust:<version>-<name>`. A registry or namespace can precede it.
     """
     versions: list[str] = []
     for token in _IMAGE_TOKEN.findall(text):
