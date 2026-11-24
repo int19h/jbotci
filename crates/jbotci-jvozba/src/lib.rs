@@ -1847,8 +1847,8 @@ mod tests {
             cancellation,
         )
         .expect("fu'ivla lujvo");
-        assert_eq!(reverse.word, "ba'alto'ykla");
-        assert_segment_texts(&reverse, &["ba'alto", "'y", "kla"]);
+        assert_eq!(reverse.word, "ba'altykla");
+        assert_segment_texts(&reverse, &["ba'alt", "y", "kla"]);
     }
 
     #[test]
