@@ -58,10 +58,10 @@ pub(crate) fn ansi_color_for_depth(depth: usize) -> &'static str {
 }
 
 /// The break that ends one line and starts the next.
+///
+/// `Lf` is a newline, `CrLf` is a carriage return followed by a newline,
+/// and `Cr` is a carriage return. The variants have no fields.
 #[invariant(true)]
-#[invariant(::Lf => true)]
-#[invariant(::CrLf => true)]
-#[invariant(::Cr => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LineBreak {
     Lf,

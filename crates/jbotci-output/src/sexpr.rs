@@ -308,23 +308,6 @@ fn starts_with_line_break(expr: &SExpr) -> bool {
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn ends_with_line_break(expr: &SExpr) -> bool {
-    match expr {
-        SExpr::Leaf {
-            role: LeafRole::Error,
-            ..
-        } => false,
-        SExpr::Leaf { text, .. } => text.ends_with('\n') || text.ends_with('\r'),
-        SExpr::Node { children, .. } => children
-            .iter()
-            .rev()
-            .find(|child| has_text(child))
-            .is_some_and(ends_with_line_break),
-    }
-}
-
-#[requires(true)]
 #[ensures(ret.italic == (role == LeafRole::Elided))]
 #[ensures(ret.strikethrough == (role == LeafRole::Error))]
 fn leaf_style(depth: usize, role: LeafRole) -> TextStyle {
