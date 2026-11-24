@@ -313,7 +313,7 @@ pub enum GentufaBracketFragment {
 #[invariant(components.is_empty()
     || (!*known && word_type_key == "lujvo")
     || decomposition.iter().any(|piece| piece.kind == VlackuCompositionPieceKind::FuivlaRafsi))]
-#[invariant(*invalid_lojban_word -> (*known && decomposition.is_empty() && !*can_add_to_jvozba))]
+#[invariant(*invalid_lojban_word -> (*known && ipa.is_none() && decomposition.is_empty() && components.is_empty() && !*can_add_to_jvozba))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DictionaryTooltipCard {
@@ -2669,7 +2669,7 @@ impl fmt::Display for WebComputeError {
 
 impl std::error::Error for WebComputeError {}
 
-#[invariant(*invalid_lojban_word -> (decomposition.is_empty() && !matches!(votes, VlackuVoteDisplay::Unknown) && !*can_add_to_jvozba))]
+#[invariant(*invalid_lojban_word -> (ipa.is_none() && decomposition.is_empty() && !matches!(votes, VlackuVoteDisplay::Unknown) && !*can_add_to_jvozba))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuWebCard {
@@ -6382,7 +6382,9 @@ fn dictionary_tooltip_card_without_components(
         word_type: card.word_type.clone(),
         word_type_key: normalize_word_type_filter(&card.word_type),
         selmaho: card.selmaho,
-        ipa: dictionary_word_ipa(&card.word),
+        ipa: (!card.invalid_lojban_word)
+            .then(|| dictionary_word_ipa(&card.word))
+            .flatten(),
         similarity: card
             .similarity
             .map(|similarity| format!("{:.0}%", similarity * 100.0)),
@@ -6751,7 +6753,9 @@ fn web_card_from_search_card(
     new!(VlackuWebCard {
         entry_index: card.entry_index,
         rank,
-        ipa: dictionary_word_ipa(&card.word),
+        ipa: (!card.invalid_lojban_word)
+            .then(|| dictionary_word_ipa(&card.word))
+            .flatten(),
         word: card.word.clone(),
         display_word: card.word.clone(),
         word_type: card.word_type.clone(),
@@ -11151,7 +11155,9 @@ mod tests {
             let card = dictionary_tooltip_for_word("", word).expect("fallback tooltip");
             assert!(card.known, "{word}");
             assert!(card.invalid_lojban_word, "{word}");
+            assert!(card.ipa.is_none(), "{word}");
             assert!(card.decomposition.is_empty(), "{word}");
+            assert!(card.components.is_empty(), "{word}");
             assert!(!card.can_add_to_jvozba, "{word}");
         }
     }
@@ -11212,11 +11218,14 @@ mod tests {
                 .find(|card| card.word == invalid_word)
                 .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
             assert!(invalid.invalid_lojban_word, "{query}");
+            assert!(invalid.ipa.is_none(), "{query}");
             assert!(!invalid.can_add_to_jvozba, "{query}");
         }
         let invalid_text =
             dictionary_tooltip_for_word("", "zo si si zei fa'o").expect("invalid text tooltip");
         assert!(invalid_text.invalid_lojban_word);
+        assert!(invalid_text.ipa.is_none());
+        assert!(invalid_text.components.is_empty());
         assert!(!invalid_text.can_add_to_jvozba);
     }
 

@@ -1249,6 +1249,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
         word: "fa'onai".to_owned(),
         display_word: "fa'onai".to_owned(),
         invalid_lojban_word: true,
+        ipa: None,
         decomposition: Vec::new(),
         can_add_to_jvozba: false,
     });
