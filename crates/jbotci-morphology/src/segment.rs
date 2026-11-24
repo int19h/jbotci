@@ -70,36 +70,6 @@ pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub(crate) fn normalize_word_lossy_with_options(raw: &str, options: &MorphologyOptions) -> String {
-    let mut source_chars = raw.chars().peekable();
-    let mut output = String::new();
-    while let Some(value) = source_chars.next() {
-        if options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value) {
-            if let Some(payload_value) = source_chars.peek().copied()
-                && let Some(payload) = normalize_zbalermorna_shorthand_payload(payload_value)
-            {
-                source_chars.next();
-                output.push_str(payload);
-                output.push('\'');
-                continue;
-            }
-        }
-        match normalize_char_event(value, options) {
-            Some(event) => match event.as_data() {
-                data!(NormalizedCharEvent::Emit { value, .. }) => output.push(*value),
-                data!(NormalizedCharEvent::EmitText { text }) => output.push_str(text),
-                data!(NormalizedCharEvent::StressPrevious)
-                | data!(NormalizedCharEvent::StressPreviousVowel) => output.push(value),
-                data!(NormalizedCharEvent::Ignore) => {}
-            },
-            None => output.push(value),
-        }
-    }
-    output
-}
-
-#[requires(true)]
 #[ensures(ret.as_ref().is_some_and(|text| text.chars().all(is_valid_normalized_char)) || ret.is_none())]
 pub(crate) fn normalize_word_checked_with_options(
     raw: &str,

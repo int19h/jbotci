@@ -2975,6 +2975,32 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
         .result
 }
 
+#[invariant(faho_terminator.as_ref().is_none_or(|span| source_spans.contains(span)))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModifierSegmentation {
+    pub words: Vec<WordLike>,
+    pub source_spans: Vec<SourceSpan>,
+    pub faho_terminator: Option<SourceSpan>,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_and_coverage_with_options_and_source_id(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> Result<ModifierSegmentation, MorphologyError> {
+    let segmentation =
+        grammar::segment_words_with_modifiers_and_coverage(input, options, source_id)?;
+    let data = segmentation.into_data();
+    let words = apply_compiled_dialect_entries(data.words, &options.compiled_dialect, input)?;
+    Ok(new!(ModifierSegmentation {
+        words,
+        source_spans: data.source_spans,
+        faho_terminator: data.faho_terminator,
+    }))
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
@@ -3517,19 +3543,29 @@ pub fn normalize_lojban_input_text_unchecked_with_options(
     let mut chunk = String::new();
     for value in input.chars() {
         if segment::is_separator(value) {
-            output.push_str(&canonicalize_text(
-                &segment::normalize_word_lossy_with_options(&chunk, options),
-            ));
+            append_normalized_lojban_input_chunk_unchecked(&mut output, &chunk, options);
             chunk.clear();
             output.push(normalized_lojban_input_separator(value));
         } else {
             chunk.push(value);
         }
     }
-    output.push_str(&canonicalize_text(
-        &segment::normalize_word_lossy_with_options(&chunk, options),
-    ));
+    append_normalized_lojban_input_chunk_unchecked(&mut output, &chunk, options);
     output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_normalized_lojban_input_chunk_unchecked(
+    output: &mut String,
+    chunk: &str,
+    options: &MorphologyOptions,
+) {
+    let normalized = segment::normalize_word_with_options(chunk, options);
+    if normalized.is_empty() || normalized.chars().all(|value| value == ',') {
+        return;
+    }
+    output.push_str(&canonicalize_text(&normalized));
 }
 
 #[requires(true)]

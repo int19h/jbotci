@@ -222,13 +222,17 @@ impl<'a> Dictionary<'a> {
             .word_index_entry(query.as_str())
             .map(|entry| entry.targets)
             .unwrap_or(&[]);
-        targets.iter().copied().min_by(|left, right| {
-            self.entry_at(*right)
-                .score
-                .get()
-                .total_cmp(&self.entry_at(*left).score.get())
-                .then(left.cmp(right))
-        })
+        targets
+            .iter()
+            .copied()
+            .filter(|index| !query.is_empty() || self.entry_at(*index).word == query.source_spelling())
+            .min_by(|left, right| {
+                self.entry_at(*right)
+                    .score
+                    .get()
+                    .total_cmp(&self.entry_at(*left).score.get())
+                    .then(left.cmp(right))
+            })
     }
 
     /// Return every entry for a normalized lookup query.
@@ -246,6 +250,9 @@ impl<'a> Dictionary<'a> {
             .map(|entry| entry.targets)
             .unwrap_or(&[])
             .to_vec();
+        if query.is_empty() {
+            indices.retain(|index| self.entry_at(*index).word == query.source_spelling());
+        }
         rank_entry_indices_by_score(self, &mut indices);
         indices.into_iter().map(|index| self.entry_at(index))
     }
@@ -263,7 +270,12 @@ impl<'a> Dictionary<'a> {
             .map_or(&[][..], |entry| entry.targets)
             .iter()
             .copied()
-            .filter(|index| index.0 < self.entries.len() && self.entries[index.0].has_definition())
+            .filter(|index| {
+                index.0 < self.entries.len()
+                    && self.entries[index.0].has_definition()
+                    && (!query.is_empty()
+                        || self.entries[index.0].word == query.source_spelling())
+            })
             .collect::<Vec<_>>();
         let mut ranked = ret.clone();
         stored.sort();
@@ -276,7 +288,10 @@ impl<'a> Dictionary<'a> {
             .map_or(&[][..], |entry| entry.targets)
             .iter()
             .copied()
-            .filter(|index| self.entry_at(*index).has_definition())
+            .filter(|index| {
+                self.entry_at(*index).has_definition()
+                    && (!query.is_empty() || self.entry_at(*index).word == query.source_spelling())
+            })
             .collect::<Vec<_>>();
         rank_entry_indices_by_score(self, &mut targets);
         targets
@@ -1325,9 +1340,11 @@ fn plain_lojban_key(raw: &str) -> Option<String> {
 /// index through the index rule by accident.
 #[invariant(!text.starts_with(' ') && !text.ends_with(' ') && !text.contains("  "), "one space between key words")]
 #[invariant(text.chars().all(|value| value == ' ' || is_lookup_char(value)), "only key characters")]
+#[invariant(source_spelling.as_ref().is_none_or(|_| text.is_empty()), "the original spelling is kept only for an empty key")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LookupKey {
     text: String,
+    source_spelling: Option<Box<str>>,
 }
 
 /// The key of a typed prefix of a word, for a search by word prefix.
@@ -1408,8 +1425,11 @@ impl LookupKey {
     pub fn from_typed(text: &str) -> Result<Self, LookupPatternError> {
         let keyed =
             build_lookup_key::<()>(&[LookupPatternPart::Literal(text)], LookupKeyMode::Lookup)?;
+        let text = key_text_of(&keyed);
+        let source_spelling = text.is_empty().then(|| text.trim().into());
         Ok(new!(LookupKey {
-            text: key_text_of(&keyed),
+            text,
+            source_spelling,
         }))
     }
 
@@ -1417,8 +1437,11 @@ impl LookupKey {
     #[requires(true)]
     #[ensures(true)]
     pub fn from_stored(text: &str) -> Self {
+        let normalized = normalize_lookup_query(text);
+        let source_spelling = normalized.is_empty().then(|| text.trim().into());
         new!(LookupKey {
-            text: normalize_lookup_query(text),
+            text: normalized,
+            source_spelling,
         })
     }
 
@@ -1426,6 +1449,14 @@ impl LookupKey {
     #[ensures(true)]
     pub fn as_str(&self) -> &str {
         &self.text
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn source_spelling(&self) -> &str {
+        self.source_spelling
+            .as_deref()
+            .unwrap_or_else(|| self.as_str())
     }
 
     #[requires(true)]
@@ -1886,6 +1917,7 @@ fn build_lookup_key<T: Clone>(
         keyed.push(new!(LookupKeyPart::Text(current)));
     }
     Ok(keyed)
+
 }
 
 #[requires(true)]
@@ -2357,6 +2389,16 @@ mod tests {
             );
             assert_eq!(LookupKey::from_stored(text).as_str(), key, "{text}");
         }
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_keys_share_morphology_transliteration_and_empty_chunks() {
+        assert_eq!(normalize_lookup_query("шои"), "co'i");
+        assert_eq!(normalize_lookup_query("aклама"), "aklama");
+        assert_eq!(normalize_lookup_query("# , fa'onai"), "fa'onai");
+        assert_eq!(normalize_lookup_query("#"), "");
+        assert_eq!(normalize_lookup_query(","), "");
+    }
     }
 
     #[test]

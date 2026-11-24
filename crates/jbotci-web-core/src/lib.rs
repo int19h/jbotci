@@ -11562,12 +11562,8 @@ mod tests {
         });
 
         assert!(result.cards.is_empty(), "{:?}", result.cards);
-        assert!(
-            result
-                .errors
-                .iter()
-                .any(|error| error.contains(INVALID_LOJBAN_WORD_MESSAGE_PREFIX))
-        );
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.message.as_deref(), Some("No matches found."));
     }
 
     #[test]
