@@ -1132,6 +1132,12 @@ fn collect_vlacku_card_page_find_entries(
             );
         }
     }
+    if card.invalid_lojban_word {
+        push_page_find_entry(
+            entries,
+            jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE.to_owned(),
+        );
+    }
     if let Some(author) = &card.author {
         push_page_find_entry(entries, vlacku_author_credit_text(author));
     }

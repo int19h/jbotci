@@ -80,7 +80,7 @@ pub(crate) fn render_in_scope(
                     escape_in_scope(diagnostic, text_scope)
                 )));
             }
-            if results.is_empty() && diagnostics.is_empty() {
+            if results.is_empty() {
                 lines.push("**No matches found.**".to_owned());
             } else if *valid_missing {
                 lines.push("**No dictionary entry for this word.**".to_owned());
@@ -432,6 +432,24 @@ mod tests {
         assert!(body.contains("1. **fa'onai**"), "{body}");
         assert!(body.contains(INVALID_LOJBAN_WORD_CARD_MESSAGE), "{body}");
         assert!(!body.contains("decomposition:"), "{body}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn filtered_fallback_does_not_claim_dictionary_absence() {
+        let results = PagedResults::from_all(Vec::new(), PageNumber::first()).expect("empty page");
+        let rendered = render(
+            &VlackuOutcome::Results {
+                results,
+                diagnostics: vec!["Invalid Lojban word: fa'onai".to_owned()],
+                valid_missing: true,
+            },
+            &request("fa'onai"),
+        );
+        let body = rendered.body.join("\n");
+        assert!(body.contains("No matches found"), "{body}");
+        assert!(!body.contains("No dictionary entry"), "{body}");
     }
 
     #[test]

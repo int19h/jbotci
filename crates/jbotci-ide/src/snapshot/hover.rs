@@ -621,6 +621,22 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn magic_word_hover_does_not_show_a_false_morphology_warning() {
+        let markdown = DocumentSnapshot::new("zo klama".to_owned(), 1)
+            .hover(0)
+            .expect("magic word hover")
+            .markdown
+            .clone();
+        assert!(markdown.contains("zo"), "{markdown}");
+        assert!(
+            !markdown.contains(jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE),
+            "{markdown}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn lujvo_hover_keeps_the_best_card_for_apostrophe_spellings() {
         for source in ["gaurki'u", "gaurkihu", "gaurki\u{02bc}u", "gaurki\u{2019}u"] {
             let markdown = DocumentSnapshot::new(source.to_owned(), 1)

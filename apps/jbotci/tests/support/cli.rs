@@ -3894,6 +3894,30 @@ fn vlacku_invalid_word_with_entry_outputs_card_and_warning() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn vlacku_lexical_magic_word_has_no_false_morphology_warning() {
+    let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "zo"], false);
+
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stderr.is_empty(), "{}", run.stderr);
+    assert!(run.stdout.contains("1. zo"), "{}", run.stdout);
+    assert!(!run.stdout.contains(INVALID_LOJBAN_WORD_CARD_MESSAGE));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_cyrillic_fallback_uses_the_transliterated_lookup_key() {
+    let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "фа'онай"], false);
+
+    assert_eq!(run.status, CliStatus::Success, "{}", run.stderr);
+    assert!(run.stdout.contains("1. fa'onai"), "{}", run.stdout);
+    assert!(run.stdout.contains(INVALID_LOJBAN_WORD_CARD_MESSAGE));
+    assert!(run.stderr.contains("фа'онай"), "{}", run.stderr);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn vlacku_punctuation_only_query_reports_invalid_input_status() {
     let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "!!!"], false);
 

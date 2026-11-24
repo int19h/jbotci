@@ -1196,7 +1196,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
     let result = new!(VlackuWebResult {
         hidden_by_vote_filter: false,
         state: VlackuWebState::default(),
-        cards: vec![VlackuWebCard {
+        cards: vec![new!(VlackuWebCard {
             entry_index: None,
             rank: 1,
             word: "broda".to_owned(),
@@ -1237,13 +1237,23 @@ fn page_find_collects_vlacku_card_text_without_controls() {
                 })],
             }],
             can_add_to_jvozba: true,
-        }],
+        })],
         word_type_options: Vec::new(),
         dictionary_info: None,
         has_more: true,
         message: Some("semantic message".to_owned()),
         errors: vec!["visible error".to_owned()],
     });
+    let fallback_card = result.cards[0].clone().with_data(data! {
+        rank: 2,
+        word: "fa'onai".to_owned(),
+        display_word: "fa'onai".to_owned(),
+        invalid_lojban_word: true,
+        decomposition: Vec::new(),
+        can_add_to_jvozba: false,
+    });
+    let cards = vec![result.cards[0].clone(), fallback_card];
+    let result = result.with_data(data! { cards: cards });
     let mut entries = Vec::new();
 
     collect_vlacku_page_find_entries(&mut entries, &result, GentufaScript::Latin);
@@ -1266,6 +1276,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
         "note body",
         "etymology: ",
         "etymology body",
+        jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE,
         "Load more",
     ] {
         assert!(texts.contains(&expected.to_owned()), "missing {expected}");
@@ -1486,6 +1497,27 @@ fn page_find_marks_every_composition_and_message_label_in_index_order() {
             );
         }
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_tooltip_renders_the_missing_morphology_notice() {
+    let card = dictionary_tooltip_for_word("", "fa'onai").expect("fallback tooltip");
+    let mut dom = VirtualDom::new(|| {
+        let card = consume_context::<DictionaryTooltipCard>();
+        render_dictionary_tooltip_card(
+            &card,
+            false,
+            "",
+            GentufaScript::Latin,
+            "rich-dictionary-tooltip",
+        )
+    })
+    .with_root_context(card);
+    dom.rebuild_in_place();
+    let html = dioxus::ssr::render(&dom);
+    assert!(html.contains(jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE));
 }
 
 #[test]

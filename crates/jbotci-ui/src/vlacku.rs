@@ -1092,6 +1092,9 @@ pub(super) fn render_dictionary_tooltip_card(
                     }
                 }
             }
+            if card.invalid_lojban_word {
+                span { class: "tooltip-notes", "{jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE}" }
+            }
             if !card.decomposition.is_empty() {
                 span { class: "tooltip-row tooltip-decomposition",
                     span { class: "tooltip-label", "decomposition" }
@@ -1191,6 +1194,9 @@ pub(super) fn render_reference_dictionary_card(
                         }
                     }
                 }
+            }
+            if card.invalid_lojban_word {
+                span { class: "tooltip-notes", "{jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE}" }
             }
             if !card.decomposition.is_empty() {
                 span { class: "tooltip-row tooltip-decomposition",
