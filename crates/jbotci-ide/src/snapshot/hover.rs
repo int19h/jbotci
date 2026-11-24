@@ -1,5 +1,6 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use jbotci_dictionary::normalize_lookup_query;
 use jbotci_morphology::{LujvoPart, Word, WordKind, WordLike, WordLikeData, canonicalize_text};
 use jbotci_output::{render_vlacku_cards_markdown, render_vlacku_headword_markdown};
 use jbotci_search::compounds::{cmavo_sequence_containing, compound_cards};
@@ -248,6 +249,7 @@ fn zei_compound_hover_markdown(word_like: &WordLike) -> String {
     let dictionary = jbotci_dictionary_data::english();
     let own_cards = dictionary
         .exact_definition_indices(&lookup_text)
+        .into_iter()
         .map(|index| {
             dictionary_entry_card(
                 dictionary,
@@ -365,17 +367,16 @@ fn dictionary_cards_for_word_like_component(word_like: &WordLike) -> Vec<VlackuC
     let Some(lookup_text) = word_like_lookup_text(word_like) else {
         return Vec::new();
     };
-    let canonical_lookup = canonicalize_text(&lookup_text);
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
-        &[VlackuRequest::valsi(lookup_text)],
+        &[VlackuRequest::valsi(lookup_text.clone())],
         &hover_vlacku_options(false),
     )
     .expect("a caller with no deadline holds a token that stays clear");
     output
         .cards
         .into_iter()
-        .filter(|card| card.author.is_some() && canonicalize_text(&card.word) == canonical_lookup)
+        .filter(|card| card.author.is_some() && same_lookup_key(&card.word, &lookup_text))
         .collect()
 }
 
@@ -410,7 +411,7 @@ fn lujvo_hover_markdown(word: &Word) -> String {
     let own_cards = output
         .cards
         .iter()
-        .filter(|card| card.author.is_some() && canonicalize_text(&card.word) == lookup_text)
+        .filter(|card| card.author.is_some() && same_lookup_key(&card.word, &lookup_text))
         .cloned()
         .map(|card| with_decomposition(card, decomposition.clone()))
         .collect::<Vec<_>>();
@@ -421,7 +422,7 @@ fn lujvo_hover_markdown(word: &Word) -> String {
             output
                 .cards
                 .iter()
-                .find(|card| canonicalize_text(&card.word) == lookup_text)
+                .find(|card| same_lookup_key(&card.word, &lookup_text))
                 .cloned()
                 .map(|card| with_decomposition(card, decomposition))
                 .expect("a morphology-valid lujvo search has a classification card"),
@@ -430,9 +431,7 @@ fn lujvo_hover_markdown(word: &Word) -> String {
             output
                 .cards
                 .iter()
-                .filter(|card| {
-                    card.author.is_some() && canonicalize_text(&card.word) != lookup_text
-                })
+                .filter(|card| card.author.is_some() && !same_lookup_key(&card.word, &lookup_text))
                 .cloned()
                 .map(without_decomposition),
         );
@@ -464,9 +463,9 @@ fn morphology_lujvo_decomposition(
     cards: &[VlackuCard],
 ) -> Vec<VlackuCompositionPiece> {
     let lookup_text = word.canonical_phonemes();
-    let annotated = cards.iter().find(|card| {
-        canonicalize_text(&card.word) == lookup_text && !card.decomposition.is_empty()
-    });
+    let annotated = cards
+        .iter()
+        .find(|card| same_lookup_key(&card.word, &lookup_text) && !card.decomposition.is_empty());
     word.lujvo_parts()
         .expect("lujvo words carry parsed parts")
         .iter()
@@ -479,7 +478,7 @@ fn morphology_lujvo_decomposition(
             let surface = canonicalize_text(part.phonemes().as_str());
             let source = annotated
                 .and_then(|card| card.decomposition.get(index))
-                .filter(|piece| piece.kind == kind && canonicalize_text(&piece.surface) == surface)
+                .filter(|piece| piece.kind == kind && same_lookup_key(&piece.surface, &surface))
                 .and_then(|piece| piece.source.clone());
             VlackuCompositionPiece {
                 kind,
@@ -520,6 +519,12 @@ fn dictionary_cards_for_word(word: &Word) -> Vec<VlackuCard> {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn same_lookup_key(left: &str, right: &str) -> bool {
+    normalize_lookup_query(left) == normalize_lookup_query(right)
+}
+
+#[requires(true)]
 #[ensures(ret.count == usize::MAX)]
 #[ensures(ret.decompose_lujvo == decompose_lujvo)]
 fn hover_vlacku_options(decompose_lujvo: bool) -> VlackuSearchOptions {
@@ -545,5 +550,55 @@ mod tests {
         let selected = snapshot.cmavo_sequence_documentation(2).unwrap();
         assert_eq!(selected.span.byte_start, 3);
         assert_eq!(selected.span.byte_end, 8);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_key_matches_h_and_modifier_apostrophe_cards() {
+        assert!(same_lookup_key("nuhempcr", "nu'empcr"));
+        assert!(same_lookup_key("gaurkihu", "gaurki'u"));
+        assert!(same_lookup_key("gaurki\u{02bc}u", "gaurki'u"));
+        assert!(same_lookup_key("gaurki\u{2019}u", "gaurki'u"));
+        assert!(!same_lookup_key("jo\u{2018}a", "jo'a"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zei_hover_keeps_the_h_spelling_component_card() {
+        for source in [
+            "nu'empcr zei klama",
+            "nu\u{02bc}empcr zei klama",
+            "nuhempcr zei klama",
+        ] {
+            let markdown = DocumentSnapshot::new(source.to_owned(), 1)
+                .hover(0)
+                .expect("zei hover")
+                .markdown
+                .clone();
+            assert!(
+                markdown.contains("New Hampshire"),
+                "{source} dropped the nuhempcr card: {markdown}"
+            );
+            assert!(markdown.contains("nu'empcr zei klama"), "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_hover_keeps_the_best_card_for_apostrophe_spellings() {
+        for source in ["gaurki'u", "gaurkihu", "gaurki\u{02bc}u", "gaurki\u{2019}u"] {
+            let markdown = DocumentSnapshot::new(source.to_owned(), 1)
+                .hover(0)
+                .expect("lujvo hover")
+                .markdown
+                .clone();
+            let best = markdown.find("gaurki'u").expect("best lujvo card");
+            if let Some(worse) = markdown.find("gaurkihu") {
+                assert!(best < worse, "{source}");
+            }
+        }
     }
 }

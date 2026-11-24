@@ -173,17 +173,41 @@ pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
     "CMEVLA",
 ];
 
+/// Latin letters and marks that stand for the Lojban apostrophe.
+///
+/// `normalize_latin_apostrophe` maps each of these characters to ASCII `'`.
+/// U+2018 is absent from this set. It stays a word break.
+pub const LATIN_APOSTROPHE_CHARACTERS: &[char] = &[
+    '\'', 'h', 'H', '\u{2019}', '\u{02bc}', '\u{a78b}', '\u{a78c}', '\u{02bb}', '\u{02bf}',
+    '\u{02b0}', '\u{02d2}',
+];
+
+/// Map a Latin Lojban apostrophe spelling to ASCII `'`.
+///
+/// Any other character stays unchanged.
+#[requires(true)]
+#[ensures(LATIN_APOSTROPHE_CHARACTERS.contains(&value) == (ret == '\''))]
+#[ensures(!LATIN_APOSTROPHE_CHARACTERS.contains(&value) -> ret == value)]
+pub fn normalize_latin_apostrophe(value: char) -> char {
+    if LATIN_APOSTROPHE_CHARACTERS.contains(&value) {
+        '\''
+    } else {
+        value
+    }
+}
+
 /// Characters reserved from the permissive ignorable tier even when their
 /// Unicode properties classify them as punctuation, symbols, or emoji.
 ///
-/// Period, comma, and apostrophe belong to morphology proper. ASCII digits,
-/// dollar, subscript digits/signs, and the pandi brackets are reserved for the
+/// Period and comma belong to morphology proper. Latin apostrophe spellings
+/// are reserved through `LATIN_APOSTROPHE_CHARACTERS`. ASCII digits, dollar,
+/// subscript digits/signs, and the pandi brackets are reserved for the
 /// substitutive families specified by issue #411. U+2011 NON-BREAKING HYPHEN
 /// remains reserved for those families and `zei` compound rendering. ASCII
 /// hyphen is deliberately absent: it is already part of the legacy separator
 /// set and must retain that behavior in every dialect.
 pub const PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS: &[char] = &[
-    '.', ',', '\'', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}', '\u{2081}',
+    '.', ',', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}', '\u{2081}',
     '\u{2082}', '\u{2083}', '\u{2084}', '\u{2085}', '\u{2086}', '\u{2087}', '\u{2088}', '\u{2089}',
     '\u{208a}', '\u{208b}', '\u{2e24}', '\u{2e25}', '\u{2011}',
 ];
@@ -194,8 +218,10 @@ pub const PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS: &[char] = &[
 /// modifiers do not leave otherwise-ignored emoji sequences malformed.
 #[requires(true)]
 #[ensures(ret -> !PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS.contains(&value))]
+#[ensures(ret -> !LATIN_APOSTROPHE_CHARACTERS.contains(&value))]
 pub fn is_permissive_ignorable_character(value: char) -> bool {
-    !PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS.contains(&value)
+    !LATIN_APOSTROPHE_CHARACTERS.contains(&value)
+        && !PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS.contains(&value)
         && (matches!(
             value.general_category_group(),
             GeneralCategoryGroup::Punctuation | GeneralCategoryGroup::Symbol
@@ -3339,14 +3365,25 @@ pub fn is_word_forming_character(value: char) -> bool {
     is_word_forming_character_with_options(value, &MorphologyOptions::default())
 }
 
+/// Return the canonical spelling of Lojban text.
+///
+/// Letters are lowercase. Commas are removed. Stress marks and glide marks
+/// become plain vowels. Each Latin apostrophe spelling becomes `'`.
 #[requires(true)]
 #[ensures(!ret.is_empty() || text.is_empty())]
+#[bityzba::expensive_ensures(ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value)))]
 pub fn canonicalize_text(text: &str) -> String {
+    canonical_text_chars(text).collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn canonical_text_chars(text: &str) -> impl Iterator<Item = char> + '_ {
     text.chars()
         .filter(|value| *value != ',')
         .filter_map(fold_lojban_diacritic)
         .flat_map(char::to_lowercase)
-        .collect()
+        .map(normalize_latin_apostrophe)
 }
 
 #[requires(true)]
@@ -3432,28 +3469,16 @@ pub fn is_period_character(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+#[bityzba::expensive_ensures(ret == (canonicalize_text(left) == canonicalize_text(right)))]
 pub fn canonical_text_eq(left: &str, right: &str) -> bool {
-    left.chars()
-        .filter(|value| *value != ',')
-        .filter_map(fold_lojban_diacritic)
-        .flat_map(char::to_lowercase)
-        .eq(right
-            .chars()
-            .filter(|value| *value != ',')
-            .filter_map(fold_lojban_diacritic)
-            .flat_map(char::to_lowercase))
+    canonical_text_chars(left).eq(canonical_text_chars(right))
 }
 
 #[requires(true)]
 #[ensures(ret -> !text.is_empty())]
 pub fn canonical_text_is_all(text: &str, expected: char) -> bool {
     let mut saw_char = false;
-    for value in text
-        .chars()
-        .filter(|value| *value != ',')
-        .filter_map(fold_lojban_diacritic)
-        .flat_map(char::to_lowercase)
-    {
+    for value in canonical_text_chars(text) {
         if value != expected {
             return false;
         }
@@ -4818,7 +4843,7 @@ mod tests {
         assert_eq!(
             PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS,
             &[
-                '.', ',', '\'', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}',
+                '.', ',', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}',
                 '\u{2081}', '\u{2082}', '\u{2083}', '\u{2084}', '\u{2085}', '\u{2086}', '\u{2087}',
                 '\u{2088}', '\u{2089}', '\u{208a}', '\u{208b}', '\u{2e24}', '\u{2e25}', '\u{2011}',
             ]
@@ -4828,6 +4853,101 @@ mod tests {
                 !is_permissive_ignorable_character(*reserved),
                 "reserved character U+{:04X} became ignorable",
                 *reserved as u32
+            );
+        }
+        for apostrophe in LATIN_APOSTROPHE_CHARACTERS {
+            assert_eq!(normalize_latin_apostrophe(*apostrophe), '\'');
+            assert!(
+                !is_permissive_ignorable_character(*apostrophe),
+                "apostrophe U+{:04X} became ignorable",
+                *apostrophe as u32
+            );
+        }
+        assert_eq!(normalize_latin_apostrophe('\u{2018}'), '\u{2018}');
+        assert_eq!(normalize_latin_apostrophe('\u{02be}'), '\u{02be}');
+        assert!(segment::is_separator('\u{2018}'));
+        assert!(!LATIN_APOSTROPHE_CHARACTERS.contains(&'\u{2018}'));
+    }
+
+    /// Issue #1120. Permissive mode keeps every Latin apostrophe inside the word.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_keeps_latin_apostrophes_inside_words() {
+        let permissive = permissive_lexer_options();
+        let apostrophes = ['\'', '\u{2019}', '\u{02bc}', '\u{02d2}'];
+        for apostrophe in apostrophes {
+            let joined = format!("jo{apostrophe}a");
+            let invalid = format!("mi{apostrophe}do");
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let joined_attempt =
+                    segment_words_with_modifiers_with_options_and_source_id_attempt(
+                        &joined, options, None,
+                    );
+                let joined_data = joined_attempt.into_data();
+                let permissive_mode = options.permissive_lexer;
+                let words = joined_data.result.unwrap_or_else(|error| {
+                    panic!("{joined} in permissive={permissive_mode}: {error}")
+                });
+                assert_eq!(
+                    base_phoneme_texts(&words),
+                    vec!["jo'a".to_owned()],
+                    "{joined}"
+                );
+                assert!(
+                    joined_data
+                        .warnings
+                        .iter()
+                        .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                    "{joined}"
+                );
+
+                let invalid_attempt =
+                    segment_words_with_modifiers_with_options_and_source_id_attempt(
+                        &invalid, options, None,
+                    );
+                let invalid_data = invalid_attempt.into_data();
+                let Err(error) = invalid_data.result else {
+                    panic!("{invalid} became words in permissive={permissive_mode}");
+                };
+                let MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::InvalidApostrophe,
+                    ..
+                } = error
+                else {
+                    panic!("{invalid}: {error:?}");
+                };
+                assert!(
+                    invalid_data
+                        .warnings
+                        .iter()
+                        .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                    "{invalid}"
+                );
+            }
+        }
+
+        let break_source = "jo\u{2018}a";
+        for options in [&MorphologyOptions::default(), &permissive] {
+            let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+                break_source,
+                options,
+                None,
+            );
+            let data = attempt.into_data();
+            let words = data
+                .result
+                .unwrap_or_else(|error| panic!("{break_source}: {error}"));
+            assert_eq!(
+                base_phoneme_texts(&words),
+                vec!["jo".to_owned(), "a".to_owned()],
+                "{break_source}"
+            );
+            assert!(
+                data.warnings
+                    .iter()
+                    .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                "{break_source}"
             );
         }
     }
@@ -5610,6 +5730,9 @@ mod tests {
     #[ensures(true)]
     fn typed_cmavo_parsing_is_canonical_and_multi_class() {
         assert_eq!(Cmavo::from_text("NÁ'E"), Some(Cmavo::Nahe));
+        assert_eq!(Cmavo::from_text("na\u{02bc}e"), Some(Cmavo::Nahe));
+        assert_eq!(Cmavo::from_text("na\u{2019}e"), Some(Cmavo::Nahe));
+        assert_eq!(Cmavo::from_text("nahe"), Some(Cmavo::Nahe));
         assert_eq!(Cmavo::Nahe.canonical_text(), "na'e");
         assert!(Selmaho::Nahe.contains(Cmavo::Nahe));
         assert_eq!(Cmavo::Nahe.primary_selmaho(), Some(Selmaho::Nahe));
@@ -5621,6 +5744,43 @@ mod tests {
         let word = test_word(WordKind::Cmavo, "na'e", 0);
         assert_eq!(word.selmaho_kind(), Some(Selmaho::Nahe));
         assert_eq!(word.selmaho(), Some("NAhE"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn canonical_text_folds_latin_apostrophe_spellings() {
+        assert_eq!(canonicalize_text("nahe"), "na'e");
+        assert_eq!(canonicalize_text("NA\u{02bc}E"), "na'e");
+        assert_eq!(canonicalize_text("nA\u{2019}e"), "na'e");
+        assert_eq!(canonicalize_text("TA'Á,kla"), "ta'akla");
+        assert_eq!(canonicalize_text("co\u{2018}a"), "co\u{2018}a");
+        assert!(canonical_text_eq("nahe", "na'e"));
+        assert!(canonical_text_eq("nuhempcr", "nu'empcr"));
+        assert!(!canonical_text_eq("jo\u{2018}a", "jo'a"));
+        assert!(canonical_text_is_all("ý,y", 'y'));
+        assert!(!canonical_text_is_all("yhy", 'y'));
+
+        let lujvo = parse_lujvo_word_parts("ta'akla");
+        assert!(lujvo.is_some());
+        for word in ["TA'Á,kla", "ta\u{02bc}akla", "ta\u{2019}akla", "tahakla"] {
+            assert_eq!(parse_lujvo_word_parts(word), lujvo, "{word}");
+        }
+
+        let cmevla = parse_cmevla_lujvo_word_part_candidates("ta'arklam");
+        assert_eq!(cmevla.len(), 1);
+        for word in [
+            "TA'Á,rklam",
+            "ta\u{02bc}arklam",
+            "ta\u{2019}arklam",
+            "taharklam",
+        ] {
+            assert_eq!(
+                parse_cmevla_lujvo_word_part_candidates(word),
+                cmevla,
+                "{word}"
+            );
+        }
     }
 
     #[test]

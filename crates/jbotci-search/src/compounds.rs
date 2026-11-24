@@ -81,7 +81,7 @@ impl BarrierIndex {
 #[invariant(match kind { ParsedCompoundKind::CmavoSequence => components.len() == members.len(), ParsedCompoundKind::Zei => members.len() >= 3 && components.is_empty() })]
 #[expensive_invariant(members.iter().all(|member| member.byte_start < member.byte_end && member.source_id == span.source_id))]
 #[expensive_invariant(members.windows(2).all(|pair| pair[0].byte_end <= pair[1].byte_start && pair[0].char_end <= pair[1].char_start))]
-#[expensive_invariant(entry_indices.windows(2).all(|pair| pair[0] < pair[1]))]
+#[expensive_invariant(entry_indices.iter().enumerate().all(|(left, value)| !entry_indices[..left].contains(value)))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedCompoundMatch {
     pub kind: ParsedCompoundKind,
@@ -89,12 +89,18 @@ pub struct ParsedCompoundMatch {
     pub members: Vec<SourceSpan>,
     pub components: Vec<String>,
     pub lookup_text: String,
+    /// Attested entries, highest score first. Equal scores stay in source order.
     pub entry_indices: Vec<EntryIndex>,
 }
 
-/// Construct only real entry cards; callers choose their presentation's first-card policy.
+/// Return one card for each attested entry, in `entry_indices` order.
 #[requires(compound.entry_indices.iter().all(|index| dictionary.entry_for_index(*index).is_some_and(|entry| entry.has_definition())))]
 #[ensures(ret.len() == compound.entry_indices.len())]
+#[bityzba::expensive_ensures(ret.iter().zip(&compound.entry_indices).all(|(card, index)| {
+    dictionary
+        .entry_for_index(*index)
+        .is_some_and(|entry| card.word == entry.word)
+}))]
 pub fn compound_cards(
     dictionary: &Dictionary<'_>,
     compound: &ParsedCompoundMatch,
@@ -187,7 +193,7 @@ pub fn recognize_compounds(
 #[ensures(true)]
 #[expensive_ensures((2..=run.words.len().min(dictionary.max_cmavo_sequence_len())).all(|len|
     (0..=run.words.len() - len).all(|start|
-        dictionary.lookup_cmavo_sequence(&run.components[start..start + len]).is_empty()
+!dictionary.has_cmavo_sequence(&run.components[start..start + len])
         || out.iter().any(|selected|
             selected.kind == ParsedCompoundKind::CmavoSequence
                 && selected.span.byte_start < run.words[start + len - 1].span().byte_end
@@ -211,10 +217,7 @@ fn append_partition(
             {
                 continue;
             }
-            if !dictionary
-                .lookup_cmavo_sequence(&run.components[start..end])
-                .is_empty()
-            {
+            if dictionary.has_cmavo_sequence(&run.components[start..end]) {
                 accepted.insert(start, end);
             }
         }
@@ -227,8 +230,15 @@ fn append_partition(
 #[requires(start < end && end <= run.words.len())]
 #[requires(run.words[start].span().byte_start <= run.words[end - 1].span().byte_end)]
 #[requires(run.words[start].span().char_start <= run.words[end - 1].span().char_end)]
-#[requires(!dictionary.lookup_cmavo_sequence(&run.components[start..end]).is_empty())]
+#[requires(dictionary.has_cmavo_sequence(&run.components[start..end]))]
 #[ensures(ret.kind == ParsedCompoundKind::CmavoSequence)]
+#[bityzba::expensive_ensures({
+    let ranked = dictionary.lookup_cmavo_sequence(&run.components[start..end]);
+    ret.entry_indices == ranked
+        && dictionary
+            .entry_for_index(ranked[0])
+            .is_some_and(|entry| ret.lookup_text == entry.word)
+})]
 fn cmavo_match(
     dictionary: &Dictionary<'_>,
     run: &CmavoRun<'_>,
@@ -258,12 +268,15 @@ fn cmavo_match(
             .expect("generated index target")
             .word
             .to_owned(),
-        entry_indices: targets.to_vec(),
+        entry_indices: targets,
     })
 }
 
 #[requires(matches!(word.as_data(), data!(WordLike::ZeiCompound { .. })))]
 #[ensures(ret.as_ref().is_none_or(|item| item.kind == ParsedCompoundKind::Zei))]
+#[bityzba::expensive_ensures(ret.as_ref().is_none_or(|item| {
+    item.entry_indices == dictionary.exact_definition_indices(&item.lookup_text)
+}))]
 fn attested_zei(
     dictionary: &Dictionary<'_>,
     word: &WordLike,
@@ -271,7 +284,7 @@ fn attested_zei(
     barriers: &BarrierIndex,
 ) -> Option<ParsedCompoundMatch> {
     let lookup_text = word_like_lookup_text(word)?;
-    let targets: Vec<_> = dictionary.exact_definition_indices(&lookup_text).collect();
+    let targets = dictionary.exact_definition_indices(&lookup_text);
     if targets.is_empty() {
         return None;
     }
@@ -346,10 +359,7 @@ pub fn cmavo_sequence_containing(
     let cursor = index - start;
     for len in (2..=run.words.len().min(dictionary.max_cmavo_sequence_len())).rev() {
         for offset in (cursor + 1).saturating_sub(len)..=cursor.min(run.words.len() - len) {
-            if !dictionary
-                .lookup_cmavo_sequence(&run.components[offset..offset + len])
-                .is_empty()
-            {
+            if dictionary.has_cmavo_sequence(&run.components[offset..offset + len]) {
                 return Some(cmavo_match(dictionary, &run, offset, offset + len));
             }
         }
@@ -598,5 +608,176 @@ mod tests {
         }
         let missing = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], 0);
         assert!(recognize_compounds(&missing, &words, source, &[]).is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_key_zei_and_cmavo_sequence_rank_the_higher_score() {
+        use jbotci_dictionary::{
+            CmavoSequenceIndexEntry, DefinitionId, DictionaryPatternEntry, Keyword, Score,
+            WordIndexEntry, WordType, build_owned_indexes,
+        };
+
+        static WORSE_ZEI_GLOSS: [Keyword<'static>; 1] = [Keyword {
+            word: "worse-zei",
+            meaning: None,
+        }];
+        static BETTER_ZEI_GLOSS: [Keyword<'static>; 1] = [Keyword {
+            word: "better-zei",
+            meaning: None,
+        }];
+        static WORSE_CMAVO_GLOSS: [Keyword<'static>; 1] = [Keyword {
+            word: "worse-cmavo",
+            meaning: None,
+        }];
+        static BETTER_CMAVO_GLOSS: [Keyword<'static>; 1] = [Keyword {
+            word: "better-cmavo",
+            meaning: None,
+        }];
+
+        let base_zei = *jbotci_dictionary_data::english()
+            .lookup_words("batke zei uidje")
+            .next()
+            .unwrap();
+        let mut worse_zei = base_zei;
+        worse_zei.word = "nuhempcr zei klama";
+        worse_zei.word_type = WordType::ZeiLujvo;
+        worse_zei.definition_id = DefinitionId(101);
+        worse_zei.score = Score(-2.0);
+        worse_zei.gloss_keywords = &WORSE_ZEI_GLOSS;
+        worse_zei.rafsi = &[];
+
+        let mut better_zei = base_zei;
+        better_zei.word = "nu'empcr zei klama";
+        better_zei.word_type = WordType::ZeiLujvo;
+        better_zei.definition_id = DefinitionId(102);
+        better_zei.score = Score(1.0);
+        better_zei.gloss_keywords = &BETTER_ZEI_GLOSS;
+        better_zei.rafsi = &[];
+
+        let base_cmavo = *jbotci_dictionary_data::english()
+            .lookup_words("na'e")
+            .next()
+            .unwrap();
+        let mut worse_cmavo = base_cmavo;
+        worse_cmavo.word = "nahe bo";
+        worse_cmavo.definition_id = DefinitionId(103);
+        worse_cmavo.score = Score(-2.0);
+        worse_cmavo.gloss_keywords = &WORSE_CMAVO_GLOSS;
+        worse_cmavo.rafsi = &[];
+
+        let mut better_cmavo = base_cmavo;
+        better_cmavo.word = "na'e bo";
+        better_cmavo.definition_id = DefinitionId(104);
+        better_cmavo.score = Score(3.0);
+        better_cmavo.gloss_keywords = &BETTER_CMAVO_GLOSS;
+        better_cmavo.rafsi = &[];
+
+        let entries = [worse_zei, better_zei, worse_cmavo, better_cmavo];
+        let owned = build_owned_indexes(&entries);
+        let word_rows: Vec<WordIndexEntry<'_>> = owned
+            .word_index
+            .iter()
+            .map(|row| WordIndexEntry {
+                key: row.key.as_str(),
+                targets: row.targets.as_slice(),
+            })
+            .collect();
+        let pattern_rows: Vec<DictionaryPatternEntry<'_>> = owned
+            .pattern_index
+            .iter()
+            .map(|row| DictionaryPatternEntry {
+                entry_index: row.entry_index,
+                word_key: row.word_key.as_str(),
+                rafsi_keys: &[],
+            })
+            .collect();
+        let component_rows: Vec<Vec<&str>> = owned
+            .cmavo_sequence_index
+            .iter()
+            .map(|row| row.components.iter().map(String::as_str).collect())
+            .collect();
+        let cmavo_rows: Vec<CmavoSequenceIndexEntry<'_>> = component_rows
+            .iter()
+            .zip(&owned.cmavo_sequence_index)
+            .map(|(components, row)| {
+                CmavoSequenceIndexEntry::from_static_parts(
+                    components.as_slice(),
+                    row.targets.as_slice(),
+                )
+            })
+            .collect();
+        let dictionary = Dictionary::from_static_slices(
+            &entries,
+            &word_rows,
+            &[],
+            &pattern_rows,
+            &[],
+            &[],
+            &cmavo_rows,
+            owned.max_cmavo_sequence_len,
+        );
+        assert_eq!(dictionary.validate(), Ok(()));
+        assert_eq!(owned.cmavo_sequence_index.len(), 1);
+        assert_eq!(
+            owned.cmavo_sequence_index[0].targets,
+            [EntryIndex(2), EntryIndex(3)]
+        );
+        assert_eq!(
+            dictionary.lookup_cmavo_sequence(&owned.cmavo_sequence_index[0].components),
+            [EntryIndex(3), EntryIndex(2)]
+        );
+
+        for zei_src in [
+            "nu'empcr zei klama",
+            "nu\u{02bc}empcr zei klama",
+            "nuhempcr zei klama",
+        ] {
+            let words = segment_words_with_modifiers(zei_src).unwrap();
+            let recognized = recognize_compounds(&dictionary, &words, zei_src, &[]);
+            assert_eq!(recognized.len(), 1, "{zei_src}");
+            assert_eq!(recognized[0].kind, ParsedCompoundKind::Zei, "{zei_src}");
+            assert_eq!(
+                recognized[0].entry_indices,
+                [EntryIndex(1), EntryIndex(0)],
+                "{zei_src}"
+            );
+            assert_eq!(
+                recognized[0].lookup_text,
+                crate::vlacku::word_like_lookup_text(&words[0]).unwrap(),
+                "{zei_src}"
+            );
+            let cards = compound_cards(&dictionary, &recognized[0]);
+            assert_eq!(cards[0].word, "nu'empcr zei klama", "{zei_src}");
+            assert_eq!(cards[1].word, "nuhempcr zei klama", "{zei_src}");
+            assert_eq!(
+                dictionary.exact_definition_indices(zei_src),
+                [EntryIndex(1), EntryIndex(0)],
+                "{zei_src}"
+            );
+        }
+
+        for cmavo_src in ["na'e bo", "na\u{02bc}e bo", "nahe bo", "na\u{02bc}ebo"] {
+            let words = segment_words_with_modifiers(cmavo_src).unwrap();
+            let recognized = recognize_compounds(&dictionary, &words, cmavo_src, &[]);
+            assert_eq!(recognized.len(), 1, "{cmavo_src}");
+            assert_eq!(recognized[0].lookup_text, "na'e bo", "{cmavo_src}");
+            assert_eq!(
+                recognized[0].entry_indices,
+                [EntryIndex(3), EntryIndex(2)],
+                "{cmavo_src}"
+            );
+            let cards = compound_cards(&dictionary, &recognized[0]);
+            assert_eq!(cards[0].word, "na'e bo", "{cmavo_src}");
+            assert_eq!(cards[1].word, "nahe bo", "{cmavo_src}");
+            let hover = cmavo_sequence_containing(&dictionary, &words, cmavo_src, 0).unwrap();
+            assert_eq!(hover.lookup_text, "na'e bo", "{cmavo_src}");
+            assert_eq!(
+                compound_cards(&dictionary, &hover)[0].word,
+                "na'e bo",
+                "{cmavo_src}"
+            );
+        }
     }
 }

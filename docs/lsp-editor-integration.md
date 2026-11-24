@@ -54,10 +54,16 @@ The dialect configuration controls an additional permissive tier.
 Unicode punctuation, symbols, emoji, and emoji components act as word separators, except for explicitly reserved characters.
 `PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS` lists the reservations:
 
-- Period, comma, and apostrophe.
+- Period and comma.
 - ASCII digits and `$`.
 - Subscript digits U+2080–U+2089 and signs U+208A–U+208B.
 - Brackets U+2E24–U+2E25 and non-breaking hyphen U+2011.
+
+Latin apostrophe spellings have a separate reservation.
+`LATIN_APOSTROPHE_CHARACTERS` holds that set.
+`normalize_latin_apostrophe` maps each spelling to ASCII `'`.
+U+2018 is not in the set.
+It stays a word break in strict mode and in permissive mode.
 
 The reservations restrict only the additional tier.
 ASCII hyphen remains a separator in both modes.

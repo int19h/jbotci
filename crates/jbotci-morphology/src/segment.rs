@@ -1676,18 +1676,7 @@ fn stressable_uppercase_vowel(value: char, options: &MorphologyOptions) -> char 
 #[requires(true)]
 #[ensures(true)]
 fn is_latin_apostrophe(value: char) -> bool {
-    matches!(
-        value,
-        '\'' | 'h'
-            | 'H'
-            | '\u{2019}'
-            | '\u{a78b}'
-            | '\u{a78c}'
-            | '\u{02bb}'
-            | '\u{02bf}'
-            | '\u{02b0}'
-            | '\u{02d2}'
-    )
+    crate::LATIN_APOSTROPHE_CHARACTERS.contains(&value)
 }
 
 #[requires(true)]
@@ -8629,6 +8618,54 @@ mod tests {
                 "cmavo:nu'o",
                 "gismu:sárcu",
             ]
+        );
+    }
+
+    /// Issue #1119. U+02BC is an apostrophe in a Lojban word. It reads as the
+    /// ASCII apostrophe. A longer word with several U+02BC marks normalizes
+    /// the same way. The displayed text matches the U+2019 form.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modifier_letter_apostrophe_reads_as_ascii_apostrophe() {
+        let options = MorphologyOptions::default();
+        assert_eq!(display_words("jo\u{02bc}a"), ["cmavo:jo'a"]);
+        assert_eq!(display_words("jo\u{02bc}a"), display_words("jo'a"));
+        assert_eq!(display_words("jo\u{02bc}a"), display_words("jo\u{2019}a"));
+        assert_eq!(
+            normalize_word_checked_with_options("jo\u{02bc}a", &options).as_deref(),
+            Some("jo'a")
+        );
+        assert_eq!(
+            normalize_word_checked_with_options("jo\u{02bc}a", &options),
+            normalize_word_checked_with_options("jo\u{2019}a", &options)
+        );
+
+        let ascii = "co'a'a";
+        let modifier = "co\u{02bc}a\u{02bc}a";
+        let curly = "co\u{2019}a\u{2019}a";
+        assert_eq!(display_words(modifier), ["cmavo:co'a'a"]);
+        assert_eq!(display_words(modifier), display_words(ascii));
+        assert_eq!(display_words(modifier), display_words(curly));
+        assert_eq!(
+            normalize_word_checked_with_options(modifier, &options).as_deref(),
+            Some(ascii)
+        );
+        assert_eq!(
+            normalize_word_checked_with_options(modifier, &options),
+            normalize_word_checked_with_options(ascii, &options)
+        );
+        assert_eq!(
+            normalize_word_checked_with_options(modifier, &options),
+            normalize_word_checked_with_options(curly, &options)
+        );
+
+        let curly_text = "danoroidjúnolotcíniconuloválsicunu\u{2019}osárcu";
+        let modifier_text = curly_text.replace('\u{2019}', "\u{02bc}");
+        assert_eq!(display_words(&modifier_text), display_words(curly_text));
+        assert_eq!(
+            normalize_word_checked_with_options(&modifier_text, &options),
+            normalize_word_checked_with_options(curly_text, &options)
         );
     }
 

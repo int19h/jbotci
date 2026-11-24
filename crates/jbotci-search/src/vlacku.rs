@@ -2387,9 +2387,7 @@ fn normalize_glob_literal(value: char) -> Option<char> {
     if chars.next().is_some() {
         return None;
     }
-    if value == 'h' {
-        Some('\'')
-    } else if value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' {
+    if value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' {
         Some(value)
     } else {
         None
@@ -2496,6 +2494,44 @@ mod tests {
             skip: skip,
             count: count,
         })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn apostrophe_spellings_rank_the_higher_scored_entry_first() {
+        let options = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+        });
+        let dictionary = jbotci_dictionary_data::english();
+        let valsi = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("gaurki\u{02bc}u".to_owned())],
+            &options,
+        )
+        .expect("valsi lookup");
+        assert_eq!(
+            valsi
+                .cards
+                .iter()
+                .map(|card| (card.word.as_str(), card.votes))
+                .collect::<Vec<_>>(),
+            vec![("gaurki'u", Some(1)), ("gaurkihu", Some(-2))]
+        );
+        let lujvo = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::lujvo("gaurki\u{02bc}u".to_owned())],
+            &options,
+        )
+        .expect("lujvo lookup");
+        let words = lujvo
+            .cards
+            .iter()
+            .map(|card| card.word.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(&words[..2], ["gaurki'u", "gaurkihu"]);
+        assert!(words.iter().position(|word| *word == "gasnu").unwrap() > 1);
+        assert!(words.iter().position(|word| *word == "krinu").unwrap() > 1);
     }
 
     #[requires(true)]
@@ -3000,6 +3036,36 @@ mod tests {
                 "{query}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_accepts_latin_apostrophes() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let ascii = search(
+            dictionary,
+            &[VlackuRequest::valsi("da'*".to_owned())],
+            &options,
+        );
+        assert_eq!(ascii.outcome, VlackuOutcome::Found);
+        assert!(!ascii.cards.is_empty(), "{:?}", ascii.diagnostics);
+        for query in ["da\u{2019}*", "da\u{02bc}*", "dah*", "da\u{02d2}*"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, ascii.outcome, "{query}");
+            assert_eq!(result.cards, ascii.cards, "{query}");
+        }
+        let word_break = search(
+            dictionary,
+            &[VlackuRequest::valsi("da\u{2018}*".to_owned())],
+            &options,
+        );
+        assert_eq!(word_break.outcome, VlackuOutcome::Invalid);
     }
 
     #[test]

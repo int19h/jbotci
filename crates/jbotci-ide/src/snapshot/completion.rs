@@ -13,7 +13,7 @@ use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{
     Cmavo, MorphologyContextKind, MorphologyError, NodeRef as MorphologyNodeRef, Selmaho,
     TreeNode as MorphologyTreeNode, Word, WordKind, WordLike, WordLikeData, analyze_valsi,
-    canonicalize_text, is_word_forming_character, segment_words_with_modifiers,
+    is_word_forming_character, segment_words_with_modifiers,
     segment_words_with_modifiers_recovered,
 };
 use jbotci_output::render_vlacku_cards_markdown;
@@ -26,7 +26,7 @@ use jbotci_syntax::{
 };
 use jbotci_tree::TreeVisitor;
 
-use super::{DocumentSnapshot, SemanticTokenKind};
+use super::DocumentSnapshot;
 
 mod tree_context;
 
@@ -253,6 +253,24 @@ impl CompletionDocumentWordCollector<'_> {
             {
                 self.current = Some((width, canonical));
             }
+        }
+    }
+}
+
+#[invariant(true)]
+struct DocumentCmevlaCollector {
+    words: BTreeSet<String>,
+}
+
+impl<'tree> TreeVisitor<'tree> for DocumentCmevlaCollector {
+    type Node = MorphologyNodeRef<'tree>;
+    type Atom = jbotci_morphology::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(self.words.len() >= old(self.words.len()))]
+    fn enter_node(&mut self, node: Self::Node) {
+        if let MorphologyNodeRef::WordCmevla(word) = node {
+            self.words.insert(word.canonical_phonemes());
         }
     }
 }
@@ -701,12 +719,13 @@ impl DocumentSnapshot {
     #[requires(true)]
     #[ensures(ret.iter().all(|word| !word.is_empty()))]
     fn document_cmevla(&self) -> BTreeSet<String> {
-        self.semantic_tokens
-            .iter()
-            .filter(|token| token.kind == SemanticTokenKind::Cmevla)
-            .map(|token| canonicalize_text(&self.text[token.span.byte_start..token.span.byte_end]))
-            .filter(|word| !word.is_empty())
-            .collect()
+        let mut collector = DocumentCmevlaCollector {
+            words: BTreeSet::new(),
+        };
+        for word_like in &self.words.words {
+            word_like.visit_in_order(&mut collector);
+        }
+        collector.words
     }
 
     #[requires(!label.is_empty())]
@@ -2110,6 +2129,55 @@ mod tests {
                 .iter()
                 .any(|item| item.label == "barda" && uses_degraded_grammar_fallback(item))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_cmevla_completions_use_canonical_apostrophes() {
+        for source in [
+            "la .dja'ans. cu klama .i la |",
+            "la .dja\u{02bc}ans. cu klama .i la |",
+            "la .dja\u{2019}ans. cu klama .i la |",
+            "la .djahans. cu klama .i la |",
+        ] {
+            let labels = completions_at_marker(source)
+                .into_iter()
+                .filter(|item| item.kind == CompletionKind::Cmevla)
+                .map(|item| (item.label.clone(), item.replacement_text.clone()))
+                .collect::<Vec<_>>();
+            assert!(
+                labels.iter().any(|(label, replacement)| {
+                    label == "dja'ans" && (replacement == "dja'ans" || replacement == " dja'ans")
+                }),
+                "{source}: {labels:?}"
+            );
+            assert!(
+                labels.iter().all(|(label, _)| label == "dja'ans"),
+                "{source}: {labels:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn brivla_completion_keeps_the_best_scored_shared_key() {
+        for source in ["mi gaurki|", "mi gaurki'|", "mi gaurki\u{02bc}|"] {
+            let labels = completions_at_marker(source)
+                .into_iter()
+                .filter(|item| item.kind == CompletionKind::Brivla)
+                .map(|item| item.label.clone())
+                .collect::<Vec<_>>();
+            assert!(
+                labels.iter().any(|label| label == "gaurki'u"),
+                "{source}: {labels:?}"
+            );
+            assert!(
+                labels.iter().all(|label| label != "gaurkihu"),
+                "{source}: {labels:?}"
+            );
+        }
     }
 
     #[requires(true)]

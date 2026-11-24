@@ -527,15 +527,16 @@ fn candidate_list_for_input(
 ) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
     match input {
         JvozbaInput::FixedRafsi(rafsi_text) => {
+            let rafsi_text = canonicalize_text(rafsi_text);
             if rafsi_text.is_empty() {
                 return Err(JvozbaError::FixedRafsiEmpty);
             }
-            if !is_last_input && is_fixed_universal_long_gismu_rafsi(dictionary, rafsi_text) {
+            if !is_last_input && is_fixed_universal_long_gismu_rafsi(dictionary, &rafsi_text) {
                 return Err(JvozbaError::NonFinalUniversalLongRafsi {
-                    offending: rafsi_text.clone(),
+                    offending: rafsi_text,
                 });
             }
-            Ok(vec![new!(LujvoBuildPart::Rafsi(rafsi_text.clone()))])
+            Ok(vec![new!(LujvoBuildPart::Rafsi(rafsi_text))])
         }
         JvozbaInput::Word(word_text) => {
             candidate_list_for_word(mode, dictionary, is_last_input, word_text, cancellation)
@@ -807,23 +808,7 @@ fn is_universal_gismu_long_rafsi(rafsi_text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn normalize_lujvo_like_input(raw_word: &str) -> String {
-    let apostrophe_normalized = raw_word
-        .trim()
-        .trim_matches('.')
-        .chars()
-        .map(normalize_apostrophe)
-        .collect::<String>();
-    canonicalize_text(&apostrophe_normalized)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_apostrophe(value: char) -> char {
-    match value {
-        '\'' | 'h' | 'H' | '’' | '\u{a78b}' | '\u{a78c}' | '\u{2bb}' | '\u{2bf}' | '\u{2b0}'
-        | '\u{2d2}' => '\'',
-        other => other,
-    }
+    canonicalize_text(raw_word.trim().trim_matches('.'))
 }
 
 #[requires(true)]
@@ -967,6 +952,7 @@ mod tests {
 
     use super::*;
     use jbotci_interrupt::assert_exit_check;
+    use jbotci_morphology::normalize_latin_apostrophe;
 
     /// The figures the Discord service uses, so the boundaries these tests
     /// pin are the ones a caller with a deadline actually applies.
@@ -1650,6 +1636,170 @@ mod tests {
         assert_eq!(alone, pair);
     }
 
+    /// Issue #1119. U+02BC is an apostrophe here, the same as U+2019.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modifier_letter_apostrophe_matches_the_quotation_apostrophe() {
+        assert_eq!(
+            normalize_lujvo_like_input("co\u{02bc}a\u{02bc}a"),
+            normalize_lujvo_like_input("co'a'a")
+        );
+        assert_eq!(
+            normalize_lujvo_like_input("co\u{02bc}a\u{02bc}a"),
+            normalize_lujvo_like_input("co\u{2019}a\u{2019}a")
+        );
+        assert_eq!(
+            normalize_lujvo_like_input("co\u{2018}a"),
+            canonicalize_text("co\u{2018}a")
+        );
+    }
+
+    /// Issue #1120. Every Latin apostrophe spelling builds the same word.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn latin_apostrophe_spellings_build_the_same_jvozba() {
+        let dictionary = jbotci_dictionary_data::english();
+        let cancellation = &jbotci_interrupt::CancellationToken::never();
+        let rafsi_spellings = ["ta'a", "ta\u{2019}a", "ta\u{02bc}a", "ta\u{02d2}a"];
+        let ascii_rafsi = &rafsi_spellings[0];
+        for mode in [JvozbaMode::Lujvo, JvozbaMode::Cmevla] {
+            for klama_first in [false, true] {
+                let ascii = build_apostrophe_jvozba(
+                    mode,
+                    dictionary,
+                    klama_first,
+                    &JvozbaInput::FixedRafsi((*ascii_rafsi).to_owned()),
+                    cancellation,
+                );
+                for spelling in &rafsi_spellings[1..] {
+                    let actual = build_apostrophe_jvozba(
+                        mode,
+                        dictionary,
+                        klama_first,
+                        &JvozbaInput::FixedRafsi((*spelling).to_owned()),
+                        cancellation,
+                    );
+                    assert_eq!(
+                        actual, ascii,
+                        "{mode:?} klama_first={klama_first} {spelling}"
+                    );
+                }
+                assert!(
+                    ascii.as_ref().is_ok_and(|result| {
+                        !result
+                            .word
+                            .chars()
+                            .any(|value| value != '\'' && normalize_latin_apostrophe(value) == '\'')
+                            && result.segments.iter().all(|segment| {
+                                !segment.text.chars().any(|value| {
+                                    value != '\'' && normalize_latin_apostrophe(value) == '\''
+                                })
+                            })
+                    }),
+                    "{mode:?} klama_first={klama_first} {ascii:?}"
+                );
+            }
+        }
+        assert_eq!(
+            build_apostrophe_jvozba(
+                JvozbaMode::Lujvo,
+                dictionary,
+                false,
+                &JvozbaInput::FixedRafsi("ta'a".to_owned()),
+                cancellation,
+            )
+            .expect("lujvo")
+            .word,
+            "ta'akla"
+        );
+        assert_eq!(
+            build_apostrophe_jvozba(
+                JvozbaMode::Lujvo,
+                dictionary,
+                true,
+                &JvozbaInput::FixedRafsi("ta'a".to_owned()),
+                cancellation,
+            )
+            .expect("lujvo")
+            .word,
+            "klata'a"
+        );
+        let cmevla_first = build_apostrophe_jvozba(
+            JvozbaMode::Cmevla,
+            dictionary,
+            false,
+            &JvozbaInput::FixedRafsi("ta'a".to_owned()),
+            cancellation,
+        )
+        .expect("cmevla");
+        assert_eq!(cmevla_first.word, "ta'arklam");
+        assert_segment_texts(&cmevla_first, &["ta'a", "r", "klam"]);
+        let cmevla_second = build_apostrophe_jvozba(
+            JvozbaMode::Cmevla,
+            dictionary,
+            true,
+            &JvozbaInput::FixedRafsi("ta'a".to_owned()),
+            cancellation,
+        )
+        .expect("cmevla");
+        assert_eq!(cmevla_second.word, "klata'as");
+        assert_segment_texts(&cmevla_second, &["kla", "ta'a", "s"]);
+
+        let fuivla_spellings = [
+            "ba'alto",
+            "ba\u{2019}alto",
+            "ba\u{02bc}alto",
+            "bahalto",
+            "ba\u{a78b}alto",
+        ];
+        for spelling in fuivla_spellings {
+            assert_eq!(
+                word_can_enter_jvozba_pane(dictionary, spelling, cancellation),
+                Ok(true),
+                "{spelling}"
+            );
+            for klama_first in [false, true] {
+                let actual = build_apostrophe_jvozba(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    klama_first,
+                    &JvozbaInput::Word(spelling.to_owned()),
+                    cancellation,
+                );
+                let ascii = build_apostrophe_jvozba(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    klama_first,
+                    &JvozbaInput::Word("ba'alto".to_owned()),
+                    cancellation,
+                );
+                assert_eq!(actual, ascii, "klama_first={klama_first} {spelling}");
+            }
+        }
+        let forward = build_apostrophe_jvozba(
+            JvozbaMode::Lujvo,
+            dictionary,
+            true,
+            &JvozbaInput::Word("ba'alto".to_owned()),
+            cancellation,
+        )
+        .expect("fu'ivla lujvo");
+        assert_eq!(forward.word, "klamyba'alto");
+        assert_segment_texts(&forward, &["klam", "y", "ba'alto"]);
+        let reverse = build_apostrophe_jvozba(
+            JvozbaMode::Lujvo,
+            dictionary,
+            false,
+            &JvozbaInput::Word("ba'alto".to_owned()),
+            cancellation,
+        )
+        .expect("fu'ivla lujvo");
+        assert_eq!(reverse.word, "ba'alto'ykla");
+        assert_segment_texts(&reverse, &["ba'alto", "'y", "kla"]);
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1668,6 +1818,24 @@ mod tests {
             .is_none(),
             "a segment with no source word must not yield a decomposition"
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn build_apostrophe_jvozba(
+        mode: JvozbaMode,
+        dictionary: &jbotci_dictionary::Dictionary<'_>,
+        klama_first: bool,
+        other: &JvozbaInput,
+        cancellation: &jbotci_interrupt::CancellationToken,
+    ) -> Result<JvozbaBuildResult, JvozbaError> {
+        let klama = JvozbaInput::Word("klama".to_owned());
+        let inputs = if klama_first {
+            vec![klama, other.clone()]
+        } else {
+            vec![other.clone(), klama]
+        };
+        build_best_jvozba_detailed(mode, dictionary, &inputs, cancellation)
     }
 
     #[requires(true)]

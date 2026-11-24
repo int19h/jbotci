@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, new, requires};
-use jbotci_morphology::normalize_lojban_input_text;
+use jbotci_morphology::{normalize_latin_apostrophe, normalize_lojban_input_text};
 use serde::{Deserialize, Serialize};
 
 use crate::visitor::{CllBlockVisitor, walk_block, walk_inline};
@@ -413,10 +413,8 @@ pub fn collect_tagged_words(text: &str) -> BTreeSet<String> {
     let mut words = BTreeSet::new();
     let mut current = String::new();
     for character in text.chars() {
-        let normalized = character.to_ascii_lowercase();
-        if normalized == 'h' {
-            current.push('\'');
-        } else if normalized == '.' {
+        let normalized = normalize_latin_apostrophe(character).to_ascii_lowercase();
+        if normalized == '.' {
             continue;
         } else if normalized.is_ascii_lowercase() || normalized == '\'' {
             current.push(normalized);
