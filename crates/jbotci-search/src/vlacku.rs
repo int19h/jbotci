@@ -1019,7 +1019,7 @@ fn cards_for_valsi(
     } else {
         None
     };
-    let Some(query) = normalize_exact_lojban_query(query) else {
+    let Some(query) = exact_lookup_key(query) else {
         return Ok(invalid_lojban_word_output(query));
     };
     let query = query.as_str();
@@ -1064,7 +1064,7 @@ fn cards_for_rafsi(
         return cards_for_rafsi_pattern(dictionary, query.trim(), options);
     }
 
-    let Some(query) = normalize_exact_lojban_query(query) else {
+    let Some(query) = exact_lookup_key(query) else {
         return invalid_lojban_word_output(query);
     };
     let mut seen = HashSet::new();
@@ -1083,7 +1083,7 @@ fn cards_for_lujvo(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
-    let Some(query) = normalize_exact_lojban_query(query) else {
+    let Some(query) = exact_lookup_key(query) else {
         return Ok(invalid_lojban_word_output(query));
     };
     let query = query.as_str();
@@ -1605,6 +1605,18 @@ fn normalize_exact_lojban_query(query: &str) -> Option<String> {
     } else {
         Some(normalized)
     }
+}
+
+/// The dictionary key an exact vlacku lookup searches for.
+///
+/// `None` means that lookup rejects `text`. This is the only function that
+/// reads `normalize_exact_lojban_query`. A caller uses this `Option` and does
+/// not read the normalizer's own return type. The glob compiler uses the same
+/// function for one literal run.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|key| !key.is_empty() || text.trim().is_empty()))]
+fn exact_lookup_key(text: &str) -> Option<String> {
+    normalize_exact_lojban_query(text)
 }
 
 #[requires(true)]
@@ -2374,9 +2386,12 @@ fn regex_pattern_body(pattern: &str) -> Option<&str> {
 #[ensures(true)]
 #[ensures(ret.as_ref().is_ok_and(|pattern| !pattern.tokens.is_empty()) || ret.is_err())]
 fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
+    // The dictionary key rule applies to the whole pattern. A later split
+    // must not trim a space that sits against a wildcard.
+    let collapsed = collapse_glob_whitespace(pattern);
     let mut tokens = Vec::new();
     let mut literal = String::new();
-    for raw in pattern.chars() {
+    for raw in collapsed.chars() {
         let wildcard = match raw {
             '$' => Some(GlobToken::Consonant),
             '@' => Some(GlobToken::Vowel),
@@ -2402,12 +2417,44 @@ fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
     }
 }
 
+/// Copy `pattern` with the dictionary key rule for whitespace.
+///
+/// A run of whitespace becomes one space. That space stays when it touches a
+/// wildcard, so the matched key has to contain it. Spaces at the two ends of
+/// the pattern go away, as they do in a dictionary key.
+#[requires(true)]
+#[ensures(ret.chars().all(|value| value == ' ' || !value.is_whitespace()))]
+#[ensures(!ret.starts_with(' ') && !ret.ends_with(' '))]
+#[ensures(!ret.contains("  "))]
+fn collapse_glob_whitespace(pattern: &str) -> String {
+    let mut collapsed = String::new();
+    let mut pending_space = false;
+    let mut started = false;
+    for value in pattern.chars() {
+        if value.is_whitespace() {
+            if started {
+                pending_space = true;
+            }
+            continue;
+        }
+        if pending_space {
+            collapsed.push(' ');
+            pending_space = false;
+        }
+        collapsed.push(value);
+        started = true;
+    }
+    collapsed
+}
+
 /// Append the lookup-key spelling of one literal run.
 ///
-/// The run uses `normalize_exact_lojban_query`. That is the exact vlacku
-/// lookup, and the lookup uses `normalize_lookup_query`, the dictionary key.
-/// The key keeps one space between the parts of a phrase. A run that the
-/// exact lookup rejects is an error. The wildcard tokens stay in place.
+/// The run uses `exact_lookup_key`. A space at either end of the run is a
+/// space in the matched key, including a run that is only a space. The
+/// dictionary filter would delete that space, so the glob keeps it here.
+/// `None` from the lookup is an error. A run whose key drops a letter from a
+/// script the converter can read is also an error. The wildcard tokens stay
+/// in place.
 #[requires(true)]
 #[ensures(true)]
 fn push_glob_literal_run(
@@ -2418,16 +2465,67 @@ fn push_glob_literal_run(
     if run.is_empty() {
         return Ok(());
     }
-    let Some(key) = normalize_exact_lojban_query(run) else {
-        let value = run.chars().next().expect("a rejected run has a character");
-        return Err(format!(
-            "Invalid glob pattern `{pattern}`: unsupported character `{value}`."
-        ));
-    };
-    for normalized in key.chars() {
-        tokens.push(GlobToken::Literal(normalized));
+    let mut rest = run;
+    while let Some(stripped) = rest.strip_prefix(' ') {
+        tokens.push(GlobToken::Literal(' '));
+        rest = stripped;
+    }
+    let core = rest.trim_end_matches(' ');
+    if !core.is_empty() {
+        let Some(key) = exact_lookup_key(core) else {
+            let value = core.chars().next().expect("a rejected run has a character");
+            return Err(format!(
+                "Invalid glob pattern `{pattern}`: unsupported character `{value}`."
+            ));
+        };
+        if glob_run_drops_handled_script_letter(core, &key) {
+            return Err(format!(
+                "Invalid glob pattern `{pattern}`: `{core}` drops a letter from a script the lookup can read."
+            ));
+        }
+        for normalized in key.chars() {
+            tokens.push(GlobToken::Literal(normalized));
+        }
+    }
+    for _ in 0..rest.len() - core.len() {
+        tokens.push(GlobToken::Literal(' '));
     }
     Ok(())
+}
+
+/// Whether exact normalization of `run` deleted a letter the script converter can read.
+///
+/// The exact lookup falls back to the raw run when conversion fails, and the
+/// dictionary filter then deletes those letters. This check stays at the glob
+/// boundary. It does not change that fallback.
+#[requires(true)]
+#[ensures(true)]
+fn glob_run_drops_handled_script_letter(run: &str, key: &str) -> bool {
+    if normalize_lojban_input_text(run).is_some() {
+        return false;
+    }
+    run.chars()
+        .any(|value| !key.contains(value) && converter_handles_letter(value))
+}
+
+/// Whether `value` is a letter of a script the Lojban converter reads.
+///
+/// The probe is one character. A letter maps to an alphabetic lookup
+/// character. A mark, a pause, or an unknown character does not.
+#[requires(true)]
+#[ensures(true)]
+fn converter_handles_letter(value: char) -> bool {
+    if value.is_ascii() || value.is_whitespace() {
+        return false;
+    }
+    let mut bytes = [0; 4];
+    let text = value.encode_utf8(&mut bytes);
+    let Some(normalized) = normalize_lojban_input_text(text) else {
+        return false;
+    };
+    normalize_lookup_query(&normalized)
+        .chars()
+        .any(|letter| letter.is_ascii_alphabetic())
 }
 
 #[requires(true)]
@@ -3515,6 +3613,261 @@ mod tests {
         );
         assert_eq!(anchored_word.outcome, VlackuOutcome::Found);
         assert!(anchored_word.cards.iter().any(|card| card.word == "klama"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_keeps_a_space_beside_a_wildcard() {
+        let space_between_stars = compile_glob_pattern("* *").expect("space between stars");
+        assert_eq!(
+            space_between_stars.tokens,
+            vec![
+                GlobToken::AnyMany,
+                GlobToken::Literal(' '),
+                GlobToken::AnyMany,
+            ]
+        );
+        assert!(space_between_stars.matches("ca ma"));
+        assert!(!space_between_stars.matches("a"));
+        assert!(!space_between_stars.matches("klama"));
+        for query in ["*  *", "*\t*", "*\n*", "  *   *  "] {
+            assert_eq!(
+                compile_glob_pattern(query)
+                    .expect("repeated space collapses")
+                    .tokens,
+                space_between_stars.tokens,
+                "{query:?}"
+            );
+        }
+
+        let before_question = compile_glob_pattern("ca ?ma").expect("space before ?");
+        assert_eq!(
+            before_question.tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::AnyOne,
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert!(!before_question.matches("ca ma"));
+        assert!(before_question.matches("ca xma"));
+        assert_eq!(
+            compile_glob_pattern("ca   ?ma")
+                .expect("repeated space before ?")
+                .tokens,
+            before_question.tokens
+        );
+        assert_eq!(
+            compile_glob_pattern("ca\t?ma")
+                .expect("tab before ?")
+                .tokens,
+            before_question.tokens
+        );
+
+        let after_star = compile_glob_pattern("* ca ma").expect("space after *");
+        assert_eq!(
+            after_star.tokens,
+            vec![
+                GlobToken::AnyMany,
+                GlobToken::Literal(' '),
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert!(!after_star.matches("ca ma"));
+        assert!(after_star.matches("x ca ma"));
+        assert!(!after_star.matches("xca ma"));
+
+        let after_consonant = compile_glob_pattern("ca$ ma").expect("space after $");
+        assert_eq!(
+            after_consonant.tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Consonant,
+                GlobToken::Literal(' '),
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert!(after_consonant.matches("cab ma"));
+        assert!(!after_consonant.matches("cabma"));
+
+        let before_vowel = compile_glob_pattern("ca @ma").expect("space before @");
+        assert_eq!(
+            before_vowel.tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::Vowel,
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert!(before_vowel.matches("ca ama"));
+        assert!(!before_vowel.matches("caama"));
+
+        // A space at either end of the whole pattern is not part of a key.
+        assert_eq!(
+            compile_glob_pattern(" *ma").expect("leading space").tokens,
+            compile_glob_pattern("*ma")
+                .expect("no leading space")
+                .tokens
+        );
+        assert_eq!(
+            compile_glob_pattern("ma* ").expect("trailing space").tokens,
+            compile_glob_pattern("ma*")
+                .expect("no trailing space")
+                .tokens
+        );
+        let space_before_final_star = compile_glob_pattern("ma *").expect("space before final *");
+        assert_eq!(
+            space_before_final_star.tokens,
+            vec![
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::AnyMany,
+            ]
+        );
+        assert!(space_before_final_star.matches("ma x"));
+        assert!(!space_before_final_star.matches("max"));
+
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let match_all = search(
+            dictionary,
+            &[VlackuRequest::valsi("*".to_owned())],
+            &options,
+        );
+        let spaced = search(
+            dictionary,
+            &[VlackuRequest::valsi("* *".to_owned())],
+            &options,
+        );
+        assert_eq!(
+            spaced.outcome,
+            VlackuOutcome::Found,
+            "{:?}",
+            spaced.diagnostics
+        );
+        assert_ne!(spaced.cards, match_all.cards);
+        assert!(spaced.cards.iter().all(|card| card.word.contains(' ')));
+        let star_then_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("* ca ma".to_owned())],
+            &options,
+        );
+        assert!(
+            star_then_space
+                .cards
+                .iter()
+                .all(|card| card.word != "ca ma")
+        );
+        let star_without_that_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("*ca ma".to_owned())],
+            &options,
+        );
+        assert!(
+            star_without_that_space
+                .cards
+                .iter()
+                .any(|card| card.word == "ca ma")
+        );
+
+        let question_with_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca ?ma".to_owned())],
+            &options,
+        );
+        assert!(
+            question_with_space
+                .cards
+                .iter()
+                .all(|card| card.word != "ca ma"),
+            "{:?}",
+            question_with_space
+                .cards
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>()
+        );
+        let question_without_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca?ma".to_owned())],
+            &options,
+        );
+        assert!(
+            question_without_space
+                .cards
+                .iter()
+                .any(|card| card.word == "ca ma")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_rejects_a_run_that_drops_a_handled_script_letter() {
+        // The exact lookup still falls back to the raw run. The glob does not.
+        assert_eq!(exact_lookup_key("клама#da").as_deref(), Some("da"));
+        assert_eq!(exact_lookup_key("клама").as_deref(), Some("klama"));
+
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let latin = search(
+            dictionary,
+            &[VlackuRequest::valsi("da*".to_owned())],
+            &options,
+        );
+        assert_eq!(
+            latin.outcome,
+            VlackuOutcome::Found,
+            "{:?}",
+            latin.diagnostics
+        );
+        let zbalermorna_noisy = format!("{zbalermorna_k}#da*", zbalermorna_k = '\u{ed82}');
+        for query in [
+            "клама#da*",
+            "*клама#da",
+            "da#клама*",
+            zbalermorna_noisy.as_str(),
+        ] {
+            let error = compile_glob_pattern(query).expect_err("handled letter was dropped");
+            assert!(error.contains("drops a letter"), "{query}: {error}");
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Invalid, "{query}");
+            assert!(result.cards.is_empty(), "{query}");
+            assert_ne!(result.cards, latin.cards, "{query}");
+            assert!(
+                result
+                    .diagnostics
+                    .first()
+                    .is_some_and(|message| message.contains("drops a letter")),
+                "{query}: {:?}",
+                result.diagnostics
+            );
+            let rafsi = search(
+                dictionary,
+                &[VlackuRequest::rafsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(rafsi.outcome, VlackuOutcome::Invalid, "rafsi {query}");
+            assert!(rafsi.cards.is_empty(), "rafsi {query}");
+        }
     }
 
     #[test]
