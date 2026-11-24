@@ -2,11 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#![deny(unused_parens)]
+
 use bityzba::*;
 #[contract_trait]
 trait ExpensiveMapper {
     #[expensive_requires(value > 0, "expensive trait precondition")]
-    #[expensive_ensures(ret > 0, "expensive trait postcondition")]
+    #[expensive_ensures(value > 0 -> ret > 0, "expensive trait postcondition")]
     fn map(&self, value: i32) -> i32;
 }
 

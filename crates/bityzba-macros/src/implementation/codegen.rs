@@ -192,8 +192,13 @@ fn expensive_old_binding(old: &OldExpr, previous_expensive_olds: &[OldExpr]) -> 
     }
 }
 
-fn expensive_typecheck(exec_expr: &Expr, old_exprs: &[OldExpr]) -> TokenStream {
+fn expensive_typecheck(mut exec_expr: &Expr, old_exprs: &[OldExpr]) -> TokenStream {
     let span = exec_expr.span();
+    // Implications need grouping inside a larger expression. The generated
+    // assignment already delimits the whole expression.
+    while let Expr::Paren(paren) = exec_expr {
+        exec_expr = &paren.expr;
+    }
 
     let old_value_fn = if old_exprs.is_empty() {
         TokenStream::new()
