@@ -1527,6 +1527,47 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn colored_multiline_quotes_reset_bracket_and_plain_lines() {
+        let options = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        for source in [
+            "zoi gy hello\nworld gy",
+            "zoi gy hello\n\nworld gy",
+            "zoi gy hello\r\nworld gy",
+            "la'o gy hello\nworld gy",
+        ] {
+            let tree = parse_generated_syntax(source);
+            let bracketed = crate::pretty_generated_model_brackets_with_limit(
+                &tree,
+                source,
+                options,
+                crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("colored multiline quote brackets");
+            let plain = plain_with_options(source, options);
+            for rendered in [&bracketed, &plain] {
+                assert!(
+                    rendered
+                        .lines()
+                        .all(|line| line.is_empty() || line.ends_with("\x1b[0m")),
+                    "{source:?}: {rendered:?}"
+                );
+                assert!(rendered.contains("hello\x1b[0m"), "{source:?}");
+                assert!(rendered.contains("world"), "{source:?}");
+            }
+            if source == "zoi gy hello\n\nworld gy" {
+                assert_eq!(plain.lines().nth(1), Some(""), "{plain:?}");
+                assert_eq!(bracketed.lines().nth(1), Some(""), "{bracketed:?}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn recovered_plain_keeps_recovery_error_markers_without_structural_brackets() {
         let source = "mi viska le";
         let recovered = parse_recovered_syntax(source);

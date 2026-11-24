@@ -227,18 +227,23 @@ fn render_wrapped_segment(
     let mut whitespace = None;
     for (index, character) in text.char_indices() {
         if character == '\n' {
-            if start != index {
+            let content_end = if index > start && text.as_bytes()[index - 1] == b'\r' {
+                index - 1
+            } else {
+                index
+            };
+            if start != content_end {
                 push_soft_run(
                     rendered,
                     line_width,
                     line_text,
                     segment.role,
-                    &text[start..index],
+                    &text[start..content_end],
                     color,
                     wrap_width,
                 )?;
             }
-            push_hard_break(rendered, line_width, line_text)?;
+            push_hard_break(rendered, line_width, line_text, &text[content_end..=index])?;
             start = index + 1;
             whitespace = None;
         } else {
@@ -362,14 +367,15 @@ fn push_visible_run(
     Ok(())
 }
 
-#[requires(true)]
+#[requires(line_ending == "\n" || line_ending == "\r\n")]
 #[ensures(*line_width == 0 && line_text.is_empty() || ret.is_err())]
 fn push_hard_break(
     rendered: &mut BudgetedWriter,
     line_width: &mut usize,
     line_text: &mut String,
+    line_ending: &str,
 ) -> std::io::Result<()> {
-    rendered.write_all(b"\n")?;
+    rendered.write_all(line_ending.as_bytes())?;
     *line_width = 0;
     line_text.clear();
     Ok(())
@@ -785,6 +791,37 @@ mod tests {
         assert!(rendered.contains("{lo}"));
         assert!(rendered.contains("BRIVLA"));
         assert!(!rendered.contains("\x1b["));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn styled_notes_reset_before_crlf_and_keep_blank_lines_bare() {
+        let note = DiagnosticStyledNote::new(
+            DiagnosticNoteMode::Summary,
+            vec![DiagnosticTextSegment::new(
+                DiagnosticTextRole::Construct,
+                "hello\r\n\r\nworld".to_owned(),
+            )],
+        );
+        let rendered = render_styled_note(
+            &note,
+            new!(DiagnosticRenderOptions {
+                color: true,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
+                terminal_width: 80,
+            }),
+        );
+
+        assert!(
+            rendered
+                .lines()
+                .all(|line| line.is_empty() || line.ends_with("\x1b[39m")),
+            "{rendered:?}"
+        );
+        assert_eq!(rendered.lines().nth(1), Some(""), "{rendered:?}");
+        assert!(!rendered.contains("\r\x1b"), "{rendered:?}");
     }
 
     #[test]
