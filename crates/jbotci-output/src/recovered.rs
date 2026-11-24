@@ -11,6 +11,7 @@ use serde_json::{Map, Value};
 
 use crate::budget::ByteLimit;
 use crate::json;
+use crate::styled::{self, StyledText};
 use crate::tree::{self, RecoveryTreeError, TreeValue};
 use crate::{
     BracketRenderOptions, BracketSourceConstruct, BracketSourceRange, Indentation,
@@ -779,26 +780,6 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
 /// structure inside a region, whole regions, or trailing output.
 const ERROR_REGION_ELISION: &str = "…";
 
-/// Cut a rendering at a character budget, ending it with the elision marker.
-/// This is the last-resort backstop of the error-region renderer; the
-/// structural selection and pruning it backstops keep brackets balanced, a
-/// cut string may not.
-#[requires(max_chars > 0)]
-#[ensures(ret.chars().count() <= max_chars)]
-#[ensures(text.chars().count() <= max_chars -> ret == text)]
-fn truncate_to_char_budget(text: &str, max_chars: usize) -> String {
-    if text.chars().count() <= max_chars {
-        return text.to_owned();
-    }
-    let cut = text
-        .char_indices()
-        .nth(max_chars - 1)
-        .map_or(text.len(), |(index, _)| index);
-    let mut truncated = text[..cut].to_owned();
-    truncated.push('…');
-    truncated
-}
-
 /// Prune a bracket expression to the paths leading to recovery error leaves.
 ///
 /// Kept nodes render their brackets around the error-containing children, the
@@ -856,9 +837,9 @@ fn prune_to_error_path(expr: &sexpr::SExpr) -> sexpr::SExpr {
 ///   (including the discarded neighbor regions) is marked by a leading or
 ///   trailing `…` line, and whole regions that no longer fit are reported by
 ///   a trailing `… (N more error regions not shown)` line.
-/// - The output never exceeds `max_chars` characters; the only way it can
-///   contain an unbalanced bracket is the documented last-resort string cut
-///   of a single pruned region that alone exceeds the budget.
+/// - The output never exceeds `max_chars` characters. The only cut that can
+///   leave a bracket unmatched walks the styled text of one pruned region,
+///   so it does not slice an escape.
 ///
 /// A valid parse has no error regions; its full brackets rendering is
 /// returned, cut at the budget with a trailing `…` when needed.
@@ -873,8 +854,14 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        let full = crate::pretty_generated_model_brackets_with_options(&valid, source, options)?;
-        return Ok(truncate_to_char_budget(&full, max_chars));
+        let sexpr = brackets::generated_model_bracket_sexpr(
+            &valid,
+            source,
+            options,
+            &jbotci_interrupt::CancellationToken::never(),
+        )?;
+        let document = sexpr::bracket_document(&sexpr::flatten(sexpr), options);
+        return Ok(document.within_char_budget(max_chars, options.color));
     }
     let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
@@ -883,16 +870,16 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
     );
     let value = sexpr::flatten(visitor.finish()?);
     let sexpr::SExpr::Node { children, .. } = &value else {
-        let full = sexpr::render_bracketed_with_options(&value, options);
-        return Ok(truncate_to_char_budget(&full, max_chars));
+        let document = sexpr::bracket_document(&value, options);
+        return Ok(document.within_char_budget(max_chars, options.color));
     };
     let has_error = children
         .iter()
         .map(sexpr::contains_error_leaf)
         .collect::<Vec<_>>();
     if !has_error.iter().any(|flag| *flag) {
-        let full = sexpr::render_bracketed_with_options(&value, options);
-        return Ok(truncate_to_char_budget(&full, max_chars));
+        let document = sexpr::bracket_document(&value, options);
+        return Ok(document.within_char_budget(max_chars, options.color));
     }
     // Selection with immediate-neighbor context: the region an error attached
     // to is often the previous sibling of the error region, and dropping it
@@ -905,9 +892,9 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
         })
         .collect::<Vec<_>>();
     let candidate = if selected.iter().all(|flag| *flag) {
-        sexpr::render_bracketed_with_options(&value, options)
+        sexpr::bracket_document(&value, options)
     } else {
-        let mut lines = Vec::new();
+        let mut parts = Vec::new();
         let first = selected
             .iter()
             .position(|flag| *flag)
@@ -917,20 +904,21 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
             .rposition(|flag| *flag)
             .expect("errors exist");
         if first > 0 {
-            lines.push(ERROR_REGION_ELISION.to_owned());
+            parts.push(styled::plain_line(ERROR_REGION_ELISION));
         }
         for (index, child) in children.iter().enumerate() {
             if selected[index] {
-                lines.push(sexpr::render_bracketed_at_depth(1, child, options));
+                parts.push(sexpr::bracket_document_at_depth(1, child, options));
             }
         }
         if last + 1 < children.len() {
-            lines.push(ERROR_REGION_ELISION.to_owned());
+            parts.push(styled::plain_line(ERROR_REGION_ELISION));
         }
-        lines.join("\n")
+        styled::join_with_lf(&parts)
     };
-    if candidate.chars().count() <= max_chars {
-        return Ok(candidate);
+    let candidate_text = candidate.serialize(options.color);
+    if candidate_text.chars().count() <= max_chars {
+        return Ok(candidate_text);
     }
     // Over budget: drop the neighbor context and prune every error region to
     // its error paths. Dropped leading/trailing context is still marked by a
@@ -941,15 +929,15 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
         .collect::<Vec<_>>();
     let leading_marker = error_indices[0] > 0;
     let trailing_marker = error_indices[error_indices.len() - 1] + 1 < children.len();
-    let mut items: Vec<(String, bool)> = Vec::new();
+    let mut items: Vec<(StyledText, bool)> = Vec::new();
     let mut previous_error_index = None;
     for index in error_indices.iter().copied() {
         if previous_error_index.is_some_and(|previous| index > previous + 1) {
-            items.push((ERROR_REGION_ELISION.to_owned(), false));
+            items.push((styled::plain_line(ERROR_REGION_ELISION), false));
         }
         previous_error_index = Some(index);
         let pruned = prune_to_error_path(&children[index]);
-        items.push((sexpr::render_bracketed_at_depth(1, &pruned, options), true));
+        items.push((sexpr::bracket_document_at_depth(1, &pruned, options), true));
     }
     let total_regions = items.iter().filter(|(_, is_region)| *is_region).count();
     let omission_note = |omitted: usize| match omitted {
@@ -975,15 +963,17 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
     // note's presence (and width) depends on the omission count, which the
     // accumulation itself determines, so iterate until stable; the count is
     // non-decreasing and bounded, so this terminates.
-    let mut kept: Vec<(String, bool)> = Vec::new();
+    let serialized_chars =
+        |document: &StyledText| document.serialize(options.color).chars().count();
+    let mut kept: Vec<(StyledText, bool)> = Vec::new();
     let mut omitted_regions = 0usize;
     loop {
         kept.clear();
         let mut content_chars = 0usize;
-        for (text, is_region) in &items {
-            let grown = content_chars + text.chars().count();
+        for (document, is_region) in &items {
+            let grown = content_chars + serialized_chars(document);
             if assembly_len(grown, kept.len() + 1, omitted_regions) <= max_chars {
-                kept.push((text.clone(), *is_region));
+                kept.push((document.clone(), *is_region));
                 content_chars = grown;
             }
         }
@@ -999,33 +989,33 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
         // markers and the note); cut the leading marker, the first region,
         // and a trailing marker composed together at the budget as a last
         // resort, so both sides of the omission stay marked.
-        let first = &items
+        let first = items
             .iter()
             .find(|(_, is_region)| *is_region)
             .expect("errors exist")
-            .0;
-        let mut text = String::new();
+            .0
+            .clone();
+        let mut parts = Vec::new();
         if leading_marker {
-            text.push_str(ERROR_REGION_ELISION);
-            text.push('\n');
+            parts.push(styled::plain_line(ERROR_REGION_ELISION));
         }
-        text.push_str(first);
-        text.push('\n');
-        text.push_str(ERROR_REGION_ELISION);
-        return Ok(truncate_to_char_budget(&text, max_chars));
+        parts.push(first);
+        parts.push(styled::plain_line(ERROR_REGION_ELISION));
+        return Ok(styled::join_with_lf(&parts).within_char_budget(max_chars, options.color));
     }
-    let mut lines: Vec<String> = Vec::new();
+    let mut parts = Vec::new();
     if leading_marker {
-        lines.push(ERROR_REGION_ELISION.to_owned());
+        parts.push(styled::plain_line(ERROR_REGION_ELISION));
     }
-    lines.extend(kept.into_iter().map(|(text, _)| text));
+    parts.extend(kept.into_iter().map(|(document, _)| document));
     if trailing_marker {
-        lines.push(ERROR_REGION_ELISION.to_owned());
+        parts.push(styled::plain_line(ERROR_REGION_ELISION));
     }
     if omitted_regions > 0 {
-        lines.push(omission_note(omitted_regions));
+        let note = omission_note(omitted_regions);
+        parts.push(styled::plain_line(&note));
     }
-    Ok(lines.join("\n"))
+    Ok(styled::join_with_lf(&parts).serialize(options.color))
 }
 
 #[requires(true)]
@@ -1599,6 +1589,197 @@ mod tests {
                 "{rendered:?}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colored_quotes_keep_whitespace_and_cr_lines_unstyled() {
+        let color = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let cases = [
+            ("zoi gy hello\n   \nworld gy", "hello\n   \nworld"),
+            ("zoi gy hello\n\r\r\nworld gy", "hello\n\r\r\nworld"),
+            ("zoi gy hello\rworld gy", "hello\rworld"),
+            ("la'o gy hello\n\t\nworld gy", "hello\n\t\nworld"),
+        ];
+        for (source, payload) in cases {
+            let tree = parse_generated_syntax(source);
+            let bracketed = crate::pretty_generated_model_brackets_with_limit(
+                &tree,
+                source,
+                color,
+                crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("colored quote brackets");
+            let plain = plain_with_options(source, color);
+            let plain_brackets = crate::pretty_generated_model_brackets_with_limit(
+                &tree,
+                source,
+                BracketRenderOptions::default(),
+                crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("plain quote brackets");
+            let plain_text = plain_with_options(source, BracketRenderOptions::default());
+            for rendered in [&bracketed, &plain] {
+                assert_colored_break_lines(rendered);
+                assert!(rendered.contains("hello"), "{source:?}: {rendered:?}");
+                assert!(rendered.contains("world"), "{source:?}: {rendered:?}");
+            }
+            for rendered in [&plain_brackets, &plain_text] {
+                assert!(rendered.contains(payload), "{source:?}: {rendered:?}");
+                assert!(!rendered.contains('\u{1b}'), "{source:?}: {rendered:?}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colored_recovered_error_keeps_the_whitespace_line_unstyled() {
+        let source = "mi ku\n   \nku .i do";
+        let recovered = parse_recovered_syntax(source);
+        assert!(!recovered.errors.is_empty());
+        let color = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let bracketed = pretty_recovered_syntax_brackets_with_options(&recovered, source, color)
+            .expect("colored error brackets");
+        let plain = pretty_recovered_syntax_plain_with_limit(
+            &recovered,
+            source,
+            color,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("colored error plain");
+        let plain_brackets = pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("plain error brackets");
+        for rendered in [&bracketed, &plain] {
+            assert_colored_break_lines(rendered);
+            assert!(rendered.contains("\x1b[9m"), "{rendered:?}");
+            assert!(rendered.contains('‼'), "{rendered:?}");
+        }
+        assert!(plain_brackets.contains("\n   \n"), "{plain_brackets:?}");
+        assert!(!plain_brackets.contains('\u{1b}'), "{plain_brackets:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colored_error_region_resets_each_line_and_keeps_escapes_whole() {
+        let source = format!("mi {} i do ku", "broda ".repeat(300));
+        let recovered = parse_recovered_syntax(&source);
+        let color = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered, &source, 1_000, color,
+        )
+        .expect("colored error regions");
+        assert!(regions.starts_with("…\n"), "{regions:?}");
+        assert_colored_break_lines(&regions);
+        assert_ansi_sequences_are_complete(&regions);
+        assert!(regions.chars().count() <= 1_000);
+
+        let valid = parse_recovered_syntax("mi klama");
+        let cut = pretty_recovered_syntax_error_region_brackets_with_options(
+            &valid, "mi klama", 5, color,
+        )
+        .expect("colored budget cut");
+        assert!(cut.chars().count() <= 5, "{cut:?}");
+        assert_ansi_sequences_are_complete(&cut);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_colored_break_lines(rendered: &str) {
+        for line in split_all_breaks(rendered) {
+            let visible = strip_ansi(line);
+            if visible.chars().all(char::is_whitespace) {
+                assert!(!line.contains('\u{1b}'), "{line:?} in {rendered:?}");
+            } else if line.contains('\u{1b}') {
+                assert!(line.ends_with("\x1b[0m"), "{line:?} in {rendered:?}");
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_ansi_sequences_are_complete(text: &str) {
+        let bytes = text.as_bytes();
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] != 0x1b {
+                index += 1;
+                continue;
+            }
+            assert_eq!(bytes.get(index + 1), Some(&b'['), "{text:?}");
+            index += 2;
+            let start = index;
+            while index < bytes.len() && (bytes[index].is_ascii_digit() || bytes[index] == b';') {
+                index += 1;
+            }
+            assert!(index > start, "{text:?}");
+            assert!(
+                index < bytes.len() && bytes[index].is_ascii_alphabetic(),
+                "{text:?}"
+            );
+            index += 1;
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn split_all_breaks(text: &str) -> Vec<&str> {
+        let mut lines = Vec::new();
+        let bytes = text.as_bytes();
+        let mut start = 0;
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] == b'\n' || bytes[index] == b'\r' {
+                lines.push(&text[start..index]);
+                if bytes[index] == b'\r' && bytes.get(index + 1) == Some(&b'\n') {
+                    index += 2;
+                } else {
+                    index += 1;
+                }
+                start = index;
+            } else {
+                index += 1;
+            }
+        }
+        lines.push(&text[start..]);
+        lines
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn strip_ansi(text: &str) -> String {
+        let mut visible = String::new();
+        let mut chars = text.chars();
+        while let Some(character) = chars.next() {
+            if character == '\u{1b}' {
+                for next in chars.by_ref() {
+                    if next == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                visible.push(character);
+            }
+        }
+        visible
     }
 
     #[test]

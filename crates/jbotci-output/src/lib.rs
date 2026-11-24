@@ -21,6 +21,7 @@ mod places;
 mod recovered;
 mod references;
 mod sexpr;
+mod styled;
 mod surface;
 mod trace;
 mod tree;

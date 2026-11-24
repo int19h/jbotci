@@ -1360,11 +1360,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private S-expression flatten traversal frame; stack sequencing controls pending and flattened child flow",
     ),
     (
-        "crates/jbotci-output/src/sexpr.rs:LineStyleBoundary",
-        "line analysis records independent visibility and styling facts; every combination is a valid projection",
+        "crates/jbotci-output/src/styled.rs:StyledBuilder",
+        "private accumulator for styled lines; StyledText checks the finished line and segment invariants",
     ),
     (
-        "crates/jbotci-output/src/sexpr.rs:TextStyle",
+        "crates/jbotci-output/src/styled.rs:TextStyle",
         "color, italic, and strikethrough are independent attributes; every combination has a defined ANSI rendering",
     ),
     (

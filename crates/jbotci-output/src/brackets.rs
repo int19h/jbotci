@@ -167,7 +167,7 @@ pub(crate) fn generated_text_is_empty(tree: &GeneratedTextSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_model_bracket_sexpr(
+pub(crate) fn generated_model_bracket_sexpr(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: BracketRenderOptions,

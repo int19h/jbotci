@@ -1,4 +1,5 @@
 use crate::budget::{ByteLimit, OutputBudget};
+use crate::styled::{self, StyledBuilder, StyledText, TextStyle};
 use bityzba::{invariant, new, requires};
 use std::io::Write;
 
@@ -223,98 +224,10 @@ pub(crate) fn contains_error_leaf(expr: &SExpr) -> bool {
     }
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct LineStyleBoundary {
-    visible_text: bool,
-    styled_before_word: bool,
-    styled_before_reset: TextStyle,
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn colored_lines_have_style_boundaries(text: &str) -> bool {
-    let mut previous_style = TextStyle::default();
-    for line in text.split('\n') {
-        let line = line.strip_suffix('\r').unwrap_or(line);
-        if line.is_empty() {
-            continue;
-        }
-        if !line.ends_with("\x1b[0m") {
-            return false;
-        }
-        let Some(boundary) = line_style_boundary(line) else {
-            return false;
-        };
-        if !boundary.visible_text {
-            return false;
-        }
-        if previous_style.is_styled() && !boundary.styled_before_word {
-            return false;
-        }
-        previous_style = boundary.styled_before_reset;
-    }
-    true
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn line_style_boundary(line: &str) -> Option<LineStyleBoundary> {
-    let bytes = line.as_bytes();
-    let mut index = 0;
-    let mut style = TextStyle::default();
-    let mut styled_before_reset = TextStyle::default();
-    let mut styled_before_word = false;
-    let mut saw_word = false;
-    let mut visible_text = false;
-    while index < bytes.len() {
-        if bytes[index] == 0x1b {
-            if bytes.get(index + 1) != Some(&b'[') {
-                return None;
-            }
-            let parameters_start = index + 2;
-            let end = bytes[parameters_start..]
-                .iter()
-                .position(|byte| *byte == b'm')
-                .map(|offset| parameters_start + offset)?;
-            let parameters = std::str::from_utf8(&bytes[parameters_start..end]).ok()?;
-            for parameter in parameters.split(';') {
-                match parameter.parse::<u32>().ok()? {
-                    0 => {
-                        styled_before_reset = style;
-                        style = TextStyle::default();
-                    }
-                    3 => style.italic = true,
-                    23 => style.italic = false,
-                    9 => style.strikethrough = true,
-                    29 => style.strikethrough = false,
-                    30..=37 | 90..=97 => style.color = Some(""),
-                    39 => style.color = None,
-                    _ => {}
-                }
-            }
-            index = end + 1;
-            continue;
-        }
-        let character = line[index..].chars().next().expect("character boundary");
-        visible_text = true;
-        if !saw_word && !character.is_whitespace() {
-            styled_before_word = style.is_styled();
-            saw_word = true;
-        }
-        index += character.len_utf8();
-    }
-    Some(LineStyleBoundary {
-        visible_text,
-        styled_before_word,
-        styled_before_reset,
-    })
-}
-
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
 #[expensive_ensures(ret.as_ref().is_ok_and(|text| {
-    !options.color || colored_lines_have_style_boundaries(text)
+    text == &bracket_document(expr, options).serialize(options.color)
 }) || ret.is_err())]
 pub(crate) fn render_bracketed_with_limit(
     expr: &SExpr,
@@ -325,29 +238,20 @@ pub(crate) fn render_bracketed_with_limit(
     cancellation
         .check()
         .map_err(|_| crate::OutputError::Interrupted)?;
-    let mut output = OutputBudget::new(limit).writer();
-    write_bracketed(
-        &mut output,
-        0,
-        TextStyle::default(),
-        expr,
-        options,
-        cancellation,
-    )
-    .map_err(|error| {
+    let document = build_bracket_document(expr, options, cancellation).map_err(|error| {
         if error.kind() == std::io::ErrorKind::Interrupted {
             crate::OutputError::Interrupted
         } else {
             crate::OutputError::from_render_io(error, limit)
         }
     })?;
-    Ok(output.into_string().expect("bracket output is UTF-8"))
+    write_serialized(document.serialize(options.color), limit)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
 #[expensive_ensures(ret.as_ref().is_ok_and(|text| {
-    !options.color || colored_lines_have_style_boundaries(text)
+    text == &plain_document(expr, options).serialize(options.color)
 }) || ret.is_err())]
 pub(crate) fn render_plain_with_limit(
     expr: &SExpr,
@@ -358,15 +262,24 @@ pub(crate) fn render_plain_with_limit(
     cancellation
         .check()
         .map_err(|_| crate::OutputError::Interrupted)?;
-    let mut output = OutputBudget::new(limit).writer();
-    write_plain(&mut output, 0, expr, options, cancellation).map_err(|error| {
+    let document = build_plain_document(expr, options, cancellation).map_err(|error| {
         if error.kind() == std::io::ErrorKind::Interrupted {
             crate::OutputError::Interrupted
         } else {
             crate::OutputError::from_render_io(error, limit)
         }
     })?;
-    Ok(output.into_string().expect("plain output is UTF-8"))
+    write_serialized(document.serialize(options.color), limit)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+fn write_serialized(text: String, limit: ByteLimit) -> Result<String, crate::OutputError> {
+    let mut output = OutputBudget::new(limit).writer();
+    output
+        .write_all(text.as_bytes())
+        .map_err(|error| crate::OutputError::from_render_io(error, limit))?;
+    Ok(output.into_string().expect("styled output is UTF-8"))
 }
 
 #[requires(true)]
@@ -386,7 +299,7 @@ fn starts_with_line_break(expr: &SExpr) -> bool {
             role: LeafRole::Error,
             ..
         } => false,
-        SExpr::Leaf { text, .. } => text.starts_with('\n') || text.starts_with("\r\n"),
+        SExpr::Leaf { text, .. } => text.starts_with('\n') || text.starts_with('\r'),
         SExpr::Node { children, .. } => children
             .iter()
             .find(|child| has_text(child))
@@ -402,7 +315,7 @@ fn ends_with_line_break(expr: &SExpr) -> bool {
             role: LeafRole::Error,
             ..
         } => false,
-        SExpr::Leaf { text, .. } => text.ends_with('\n'),
+        SExpr::Leaf { text, .. } => text.ends_with('\n') || text.ends_with('\r'),
         SExpr::Node { children, .. } => children
             .iter()
             .rev()
@@ -411,167 +324,139 @@ fn ends_with_line_break(expr: &SExpr) -> bool {
     }
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-struct TextStyle {
-    color: Option<&'static str>,
-    italic: bool,
-    strikethrough: bool,
-}
-
-impl TextStyle {
-    #[requires(true)]
-    #[ensures(ret.color.is_some())]
-    fn for_depth(depth: usize) -> Self {
-        Self {
-            color: Some(ansi_color_for_depth(depth)),
-            italic: false,
-            strikethrough: false,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(ret.italic == (role == LeafRole::Elided))]
-    #[ensures(ret.strikethrough == (role == LeafRole::Error))]
-    fn for_leaf(depth: usize, role: LeafRole) -> Self {
-        Self {
-            color: Some(if role == LeafRole::Error {
-                "\x1b[91m"
-            } else {
-                ansi_color_for_depth(depth)
-            }),
-            italic: role == LeafRole::Elided,
-            strikethrough: role == LeafRole::Error,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(ret.color == Some("\x1b[91m") && !ret.italic && !ret.strikethrough)]
-    fn error_marker() -> Self {
-        Self {
-            color: Some("\x1b[91m"),
-            italic: false,
-            strikethrough: false,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(ret == (self.color.is_some() || self.italic || self.strikethrough))]
-    fn is_styled(self) -> bool {
-        self.color.is_some() || self.italic || self.strikethrough
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn write_open_from(
-        self,
-        previous: Self,
-        output: &mut crate::budget::BudgetedWriter,
-    ) -> std::io::Result<()> {
-        if self.color != previous.color
-            && let Some(color) = self.color
-        {
-            output.write_all(color.as_bytes())?;
-        }
-        if self.italic && !previous.italic {
-            output.write_all(b"\x1b[3m")?;
-        }
-        if self.strikethrough && !previous.strikethrough {
-            output.write_all(b"\x1b[9m")?;
-        }
-        Ok(())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn write_close_attributes(
-        self,
-        output: &mut crate::budget::BudgetedWriter,
-    ) -> std::io::Result<()> {
-        if self.italic {
-            output.write_all(b"\x1b[23m")?;
-        }
-        if self.strikethrough {
-            output.write_all(b"\x1b[29m")?;
-        }
-        Ok(())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn write_open_or_reset(
-        self,
-        output: &mut crate::budget::BudgetedWriter,
-    ) -> std::io::Result<()> {
-        if self.is_styled() {
-            self.write_open_from(Self::default(), output)
+#[requires(true)]
+#[ensures(ret.italic == (role == LeafRole::Elided))]
+#[ensures(ret.strikethrough == (role == LeafRole::Error))]
+fn leaf_style(depth: usize, role: LeafRole) -> TextStyle {
+    TextStyle {
+        color: Some(if role == LeafRole::Error {
+            "\x1b[91m"
         } else {
-            output.write_all(b"\x1b[0m")
-        }
+            styled::ansi_color_for_depth(depth)
+        }),
+        italic: role == LeafRole::Elided,
+        strikethrough: role == LeafRole::Error,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn write_bracketed(
-    output: &mut crate::budget::BudgetedWriter,
+fn check_cancellation(cancellation: &jbotci_interrupt::CancellationToken) -> std::io::Result<()> {
+    if cancellation.is_cancelled() {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            jbotci_interrupt::Interrupted,
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn bracket_document(expr: &SExpr, options: BracketRenderOptions) -> StyledText {
+    build_bracket_document(expr, options, &jbotci_interrupt::CancellationToken::never())
+        .expect("bracket document build does not cancel")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn plain_document(expr: &SExpr, options: BracketRenderOptions) -> StyledText {
+    build_plain_document(expr, options, &jbotci_interrupt::CancellationToken::never())
+        .expect("plain document build does not cancel")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_bracket_document(
+    expr: &SExpr,
+    options: BracketRenderOptions,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> std::io::Result<StyledText> {
+    let mut builder = StyledBuilder::new();
+    append_bracketed(&mut builder, 0, expr, options, cancellation)?;
+    Ok(builder.finish())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_plain_document(
+    expr: &SExpr,
+    options: BracketRenderOptions,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> std::io::Result<StyledText> {
+    let mut builder = StyledBuilder::new();
+    append_plain(&mut builder, 0, expr, options, cancellation)?;
+    Ok(builder.finish())
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn bracket_document_at_depth(
     depth: usize,
-    parent_style: TextStyle,
+    expr: &SExpr,
+    options: BracketRenderOptions,
+) -> StyledText {
+    let mut builder = StyledBuilder::new();
+    append_bracketed(
+        &mut builder,
+        depth,
+        expr,
+        options,
+        &jbotci_interrupt::CancellationToken::never(),
+    )
+    .expect("bracket document build does not cancel");
+    builder.finish()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_bracketed(
+    builder: &mut StyledBuilder,
+    depth: usize,
     expr: &SExpr,
     options: BracketRenderOptions,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> std::io::Result<()> {
-    // Stop before writing another node. The bytes already written are discarded
-    // by the caller when this returns Interrupted.
-    if cancellation.is_cancelled() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Interrupted,
-            jbotci_interrupt::Interrupted,
-        ));
-    }
+    check_cancellation(cancellation)?;
     match expr {
         SExpr::Leaf { text, role, .. } => {
             if text.is_empty() && *role != LeafRole::Error {
                 return Ok(());
             }
-            write_leaf_text(output, depth, parent_style, text, *role, options, false)
+            append_leaf(builder, depth, text, *role);
+            Ok(())
         }
         SExpr::Node { children, .. } => {
-            let mut children = children.iter().filter(|child| has_text(child)).peekable();
-            let Some(first) = children.next() else {
+            let children = children
+                .iter()
+                .filter(|child| has_text(child))
+                .collect::<Vec<_>>();
+            let Some(first) = children.first() else {
                 return Ok(());
             };
-            if children.peek().is_none() {
-                return write_bracketed(
-                    output,
-                    depth + 1,
-                    parent_style,
-                    first,
-                    options,
-                    cancellation,
-                );
+            if children.len() == 1 {
+                return append_bracketed(builder, depth + 1, first, options, cancellation);
             }
             let node_style = TextStyle::for_depth(depth);
-            if options.color {
-                node_style.write_open_from(parent_style, output)?;
-            }
             let (open, close) = bracket_pair(depth);
-            write!(output, "{open}")?;
+            let mut open_token = String::from(open);
             if options.insert_hair_space {
-                output.write_all("\u{200a}".as_bytes())?;
+                open_token.push('\u{200a}');
             }
-            write_bracketed(output, depth + 1, node_style, first, options, cancellation)?;
-            for child in children {
-                output.write_all(b" ")?;
-                write_bracketed(output, depth + 1, node_style, child, options, cancellation)?;
+            builder.push_text(&open_token, node_style);
+            for (index, child) in children.iter().enumerate() {
+                if index > 0 {
+                    builder.push_separator(starts_with_line_break(child));
+                }
+                append_bracketed(builder, depth + 1, child, options, cancellation)?;
             }
+            let mut close_token = String::new();
             if options.insert_hair_space {
-                output.write_all("\u{200a}".as_bytes())?;
+                close_token.push('\u{200a}');
             }
-            write!(output, "{close}")?;
-            if options.color {
-                parent_style.write_open_or_reset(output)?;
-            }
+            close_token.push_str(close);
+            builder.push_text(&close_token, node_style);
             Ok(())
         }
     }
@@ -579,50 +464,32 @@ fn write_bracketed(
 
 #[requires(true)]
 #[ensures(true)]
-fn write_plain(
-    output: &mut crate::budget::BudgetedWriter,
+fn append_plain(
+    builder: &mut StyledBuilder,
     depth: usize,
     expr: &SExpr,
     options: BracketRenderOptions,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> std::io::Result<()> {
-    if cancellation.is_cancelled() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Interrupted,
-            jbotci_interrupt::Interrupted,
-        ));
-    }
+    check_cancellation(cancellation)?;
     match expr {
         SExpr::Leaf { text, role, .. } => {
             if text.is_empty() && *role != LeafRole::Error {
                 return Ok(());
             }
-            write_leaf_text(
-                output,
-                depth,
-                TextStyle::default(),
-                text,
-                *role,
-                options,
-                true,
-            )
+            append_leaf(builder, depth, text, *role);
+            Ok(())
         }
         SExpr::Node { children, .. } => {
-            let mut children = children.iter().filter(|child| has_text(child)).peekable();
-            let Some(first) = children.next() else {
-                return Ok(());
-            };
-            if children.peek().is_none() {
-                return write_plain(output, depth + 1, first, options, cancellation);
-            }
-            write_plain(output, depth + 1, first, options, cancellation)?;
-            let mut previous = first;
-            for child in children {
-                if !ends_with_line_break(previous) && !starts_with_line_break(child) {
-                    output.write_all(b" ")?;
+            let children = children
+                .iter()
+                .filter(|child| has_text(child))
+                .collect::<Vec<_>>();
+            for (index, child) in children.iter().enumerate() {
+                if index > 0 {
+                    builder.push_separator(starts_with_line_break(child));
                 }
-                write_plain(output, depth + 1, child, options, cancellation)?;
-                previous = child;
+                append_plain(builder, depth + 1, child, options, cancellation)?;
             }
             Ok(())
         }
@@ -631,91 +498,16 @@ fn write_plain(
 
 #[requires(true)]
 #[ensures(true)]
-fn write_leaf_text(
-    output: &mut crate::budget::BudgetedWriter,
-    depth: usize,
-    parent_style: TextStyle,
-    text: &str,
-    role: LeafRole,
-    options: BracketRenderOptions,
-    plain: bool,
-) -> std::io::Result<()> {
-    if !options.color {
-        if role == LeafRole::Error {
-            output.write_all("‼".as_bytes())?;
-        }
-        output.write_all(text.as_bytes())?;
-        if role == LeafRole::Error {
-            output.write_all("‼".as_bytes())?;
-        }
-        return Ok(());
-    }
-
-    let style = TextStyle::for_leaf(depth, role);
-    let mut current_style = parent_style;
-    let mut leaf_open = false;
+fn append_leaf(builder: &mut StyledBuilder, depth: usize, text: &str, role: LeafRole) {
+    let style = leaf_style(depth, role);
     if role == LeafRole::Error {
-        let marker_style = TextStyle::error_marker();
-        marker_style.write_open_from(current_style, output)?;
-        output.write_all("‼".as_bytes())?;
-        style.write_open_from(marker_style, output)?;
-        current_style = style;
-        leaf_open = true;
-    } else if parent_style.is_styled() {
-        style.write_open_from(parent_style, output)?;
-        current_style = style;
-        leaf_open = true;
+        let marker = TextStyle::error_marker();
+        builder.push_text("‼", marker);
+        builder.push_text(text, style);
+        builder.push_text("‼", marker);
+    } else {
+        builder.push_text(text, style);
     }
-
-    let mut start = 0;
-    for (index, character) in text.char_indices() {
-        if character != '\n' {
-            continue;
-        }
-        let content_end = if index > start && text.as_bytes()[index - 1] == b'\r' {
-            index - 1
-        } else {
-            index
-        };
-        if content_end > start {
-            if !leaf_open {
-                style.write_open_from(current_style, output)?;
-                current_style = style;
-                leaf_open = true;
-            }
-            output.write_all(text[start..content_end].as_bytes())?;
-        }
-        if current_style.is_styled() {
-            output.write_all(b"\x1b[0m")?;
-            current_style = TextStyle::default();
-            leaf_open = false;
-        }
-        output.write_all(text[content_end..=index].as_bytes())?;
-        start = index + 1;
-    }
-    if start < text.len() {
-        if !leaf_open {
-            style.write_open_from(current_style, output)?;
-            current_style = style;
-            leaf_open = true;
-        }
-        output.write_all(text[start..].as_bytes())?;
-    }
-
-    if role == LeafRole::Error {
-        if !leaf_open {
-            style.write_open_from(current_style, output)?;
-        }
-        style.write_close_attributes(output)?;
-        output.write_all("‼".as_bytes())?;
-        parent_style.write_open_or_reset(output)?;
-    } else if leaf_open {
-        style.write_close_attributes(output)?;
-        parent_style.write_open_or_reset(output)?;
-    } else if !plain && current_style != parent_style {
-        parent_style.write_open_or_reset(output)?;
-    }
-    Ok(())
 }
 
 #[requires(true)]
@@ -746,23 +538,7 @@ pub(crate) fn render_bracketed_at_depth(
     expr: &SExpr,
     options: BracketRenderOptions,
 ) -> String {
-    let mut output =
-        OutputBudget::new(ByteLimit::new(usize::MAX).expect("positive limit")).writer();
-    let parent_style = if depth == 0 {
-        TextStyle::default()
-    } else {
-        TextStyle::for_depth(depth - 1)
-    };
-    write_bracketed(
-        &mut output,
-        depth,
-        parent_style,
-        expr,
-        options,
-        &jbotci_interrupt::CancellationToken::never(),
-    )
-    .expect("unrestricted bracket rendering");
-    output.into_string().expect("bracket output is UTF-8")
+    bracket_document_at_depth(depth, expr, options).serialize(options.color)
 }
 
 #[requires(true)]
@@ -952,8 +728,8 @@ fn bracket_pair(depth: usize) -> (&'static str, &'static str) {
 #[requires(true)]
 #[ensures(!options.color && role != LeafRole::Error -> ret == old(text.clone()))]
 #[ensures(!options.color && role == LeafRole::Error -> ret.starts_with('‼') && ret.ends_with('‼'))]
-#[ensures(options.color && role != LeafRole::Error && !old(text.is_empty()) -> ret.starts_with(ansi_color_for_depth(depth)))]
-#[ensures(options.color && role == LeafRole::Error -> ret.starts_with("\x1b[91m‼"))]
+#[ensures(options.color && role != LeafRole::Error && old(!text.is_empty()) && old(text.chars().any(|character| !character.is_whitespace())) && old(!text.starts_with('\n') && !text.starts_with('\r')) -> ret.starts_with(styled::ansi_color_for_depth(depth)))]
+#[ensures(options.color && role == LeafRole::Error && old(!text.starts_with('\n') && !text.starts_with('\r')) -> ret.starts_with("\x1b[91m‼"))]
 fn style_at_depth(
     depth: usize,
     text: String,
@@ -969,19 +745,6 @@ fn style_at_depth(
         },
         options,
     )
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn ansi_color_for_depth(depth: usize) -> &'static str {
-    match depth % 6 {
-        0 => "\x1b[35m",
-        1 => "\x1b[94m",
-        2 => "\x1b[32m",
-        3 => "\x1b[31m",
-        4 => "\x1b[33m",
-        _ => "\x1b[96m",
-    }
 }
 
 #[cfg(test)]
@@ -1026,8 +789,8 @@ mod tests {
         ];
 
         for (depth, color) in expected.iter().enumerate() {
-            assert_eq!(ansi_color_for_depth(depth), *color);
-            assert_eq!(ansi_color_for_depth(depth + expected.len()), *color);
+            assert_eq!(styled::ansi_color_for_depth(depth), *color);
+            assert_eq!(styled::ansi_color_for_depth(depth + expected.len()), *color);
         }
     }
 
@@ -1137,7 +900,7 @@ mod tests {
         .expect("colored leading plain");
         assert_eq!(
             bracketed,
-            "\x1b[35m(\x1b[94ma\x1b[35m \x1b[94m\x1b[0m\n\x1b[94mb\x1b[35m)\x1b[0m"
+            "\x1b[35m(\x1b[94ma\x1b[0m\n\x1b[94mb\x1b[35m)\x1b[0m"
         );
         assert_eq!(plain, "\x1b[94ma\x1b[0m\n\x1b[94mb\x1b[0m");
     }
@@ -1192,23 +955,246 @@ mod tests {
         );
         assert_eq!(
             style_at_depth(2, String::from("foo"), options, LeafRole::Normal),
-            "\x1b[32mfoo\x1b[94m"
+            "\x1b[32mfoo\x1b[0m"
         );
         assert_eq!(
             style_at_depth(6, String::from("foo"), options, LeafRole::Normal),
-            "\x1b[35mfoo\x1b[96m"
+            "\x1b[35mfoo\x1b[0m"
         );
         assert_eq!(
             style_at_depth(1, String::from("foo"), options, LeafRole::Elided),
-            "\x1b[94m\x1b[3mfoo\x1b[23m\x1b[35m"
+            "\x1b[94m\x1b[3mfoo\x1b[0m"
         );
         assert_eq!(
             style_at_depth(2, String::from("ku"), options, LeafRole::Error),
-            "\x1b[91m‼\x1b[9mku\x1b[29m‼\x1b[94m"
+            "\x1b[91m‼\x1b[9mku\x1b[29m‼\x1b[0m"
         );
         assert_eq!(
             style_at_depth(2, String::new(), options, LeafRole::Error),
-            "\x1b[91m‼\x1b[9m\x1b[29m‼\x1b[94m"
+            "\x1b[91m‼‼\x1b[0m"
         );
+
+        let grouped = node(vec![
+            SExpr::Leaf {
+                text: String::from("foo"),
+                range: None,
+                role: LeafRole::Elided,
+            },
+            leaf(String::from("bar")),
+        ]);
+        assert_eq!(
+            render_bracketed_at_depth(0, &grouped, options),
+            "\x1b[35m(\x1b[94m\x1b[3mfoo\x1b[0m \x1b[94mbar\x1b[35m)\x1b[0m"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colored_whitespace_lines_breaks_and_separators_stay_unstyled() {
+        let options = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let cases = [
+            (
+                "hello\n   \nworld",
+                "\x1b[35mhello\x1b[0m\n   \n\x1b[35mworld\x1b[0m",
+            ),
+            (
+                "hello\n\t\nworld",
+                "\x1b[35mhello\x1b[0m\n\t\n\x1b[35mworld\x1b[0m",
+            ),
+            ("hello\rworld", "\x1b[35mhello\x1b[0m\r\x1b[35mworld\x1b[0m"),
+            (
+                "hello\n\r\r\nworld",
+                "\x1b[35mhello\x1b[0m\n\r\r\n\x1b[35mworld\x1b[0m",
+            ),
+        ];
+        for (text, expected) in cases {
+            let expr = SExpr::Leaf {
+                text: text.to_owned(),
+                range: None,
+                role: LeafRole::Normal,
+            };
+            assert_eq!(
+                super::render_colored(&expr, options, false),
+                expected,
+                "{text:?}"
+            );
+            assert_eq!(
+                super::render_colored(&expr, options, true),
+                expected,
+                "{text:?}"
+            );
+            super::assert_blank_lines_have_no_escapes(&expr, options);
+        }
+
+        let broken = node(vec![leaf("a\n".to_owned()), leaf("\nb".to_owned())]);
+        assert_eq!(
+            super::render_colored(&broken, options, false),
+            "\x1b[35m(\x1b[94ma\x1b[0m\n\n\x1b[94mb\x1b[35m)\x1b[0m"
+        );
+        assert_eq!(
+            super::render_colored(&broken, options, true),
+            "\x1b[94ma\x1b[0m\n\n\x1b[94mb\x1b[0m"
+        );
+        super::assert_blank_lines_have_no_escapes(&broken, options);
+
+        let error = SExpr::Leaf {
+            text: "ku\n".to_owned(),
+            range: None,
+            role: LeafRole::Error,
+        };
+        let error_expected = "\x1b[91m‼\x1b[9mku\x1b[0m\n\x1b[91m‼\x1b[0m";
+        assert_eq!(
+            super::render_colored(&error, options, false),
+            error_expected
+        );
+        assert_eq!(super::render_colored(&error, options, true), error_expected);
+        assert!(!error_expected.contains("\x1b[9m\x1b[29m"));
+
+        let spaced_error = SExpr::Leaf {
+            text: "ku\n   \nku".to_owned(),
+            range: None,
+            role: LeafRole::Error,
+        };
+        let spaced_expected = "\x1b[91m‼\x1b[9mku\x1b[0m\n   \n\x1b[91m\x1b[9mku\x1b[29m‼\x1b[0m";
+        assert_eq!(
+            super::render_colored(&spaced_error, options, false),
+            spaced_expected
+        );
+        assert_eq!(
+            super::render_colored(&spaced_error, options, true),
+            spaced_expected
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colored_leaf_text_matches_the_styled_document_for_every_style() {
+        let atoms = ["a", " ", "\t", "\n", "\r\n", "\r", "  ", "\t "];
+        let mut texts = Vec::new();
+        for first in atoms {
+            texts.push(first.to_owned());
+            for second in atoms {
+                texts.push(format!("{first}{second}"));
+                for third in atoms {
+                    texts.push(format!("{first}{second}{third}"));
+                }
+            }
+        }
+        let options = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let roles = [LeafRole::Normal, LeafRole::Elided, LeafRole::Error];
+        for text in &texts {
+            for role in roles {
+                for depth in 0..6 {
+                    let expr = SExpr::Leaf {
+                        text: text.clone(),
+                        range: None,
+                        role,
+                    };
+                    super::assert_document_round_trip(&expr, depth, options);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn render_colored(expr: &SExpr, options: BracketRenderOptions, plain: bool) -> String {
+    let limit = ByteLimit::new(usize::MAX).expect("positive limit");
+    let cancellation = jbotci_interrupt::CancellationToken::never();
+    if plain {
+        render_plain_with_limit(expr, options, limit, &cancellation).expect("colored plain")
+    } else {
+        render_bracketed_with_limit(expr, options, limit, &cancellation).expect("colored brackets")
+    }
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn assert_blank_lines_have_no_escapes(expr: &SExpr, options: BracketRenderOptions) {
+    for plain in [false, true] {
+        let rendered = render_colored(expr, options, plain);
+        let document = if plain {
+            plain_document(expr, options)
+        } else {
+            bracket_document(expr, options)
+        };
+        assert_eq!(rendered, document.serialize(true));
+        let mut rest = rendered.as_str();
+        for line in &document.lines {
+            let piece = if let Some(ending) = line.ending {
+                let marker = match ending {
+                    styled::LineBreak::Lf => "\n",
+                    styled::LineBreak::CrLf => "\r\n",
+                    styled::LineBreak::Cr => "\r",
+                };
+                let index = rest.find(marker).expect("line break");
+                let piece = &rest[..index];
+                rest = &rest[index + marker.len()..];
+                piece
+            } else {
+                let piece = rest;
+                rest = "";
+                piece
+            };
+            let unstyled = line
+                .segments
+                .iter()
+                .all(|segment| !segment.style.is_styled());
+            if unstyled {
+                assert!(!piece.contains('\u{1b}'), "{piece:?} in {rendered:?}");
+            }
+            if line
+                .segments
+                .last()
+                .is_some_and(|segment| segment.style.is_styled())
+            {
+                assert!(piece.ends_with("\x1b[0m"), "{piece:?}");
+            }
+        }
+        assert!(rest.is_empty(), "{rest:?}");
+    }
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn assert_document_round_trip(expr: &SExpr, depth: usize, options: BracketRenderOptions) {
+    let bracketed = render_bracketed_at_depth(depth, expr, options);
+    let document = bracket_document_at_depth(depth, expr, options);
+    assert_eq!(bracketed, document.serialize(true));
+    let plain_options = options;
+    let plain = render_colored(expr, plain_options, true);
+    let plain_document = plain_document(expr, plain_options);
+    assert_eq!(plain, plain_document.serialize(true));
+    assert_eq!(
+        document.serialize(false).contains('\u{1b}'),
+        false,
+        "{expr:?}"
+    );
+    for line in document.lines.iter().chain(plain_document.lines.iter()) {
+        let blank = line.segments.is_empty()
+            || line
+                .segments
+                .iter()
+                .all(|segment| segment.text.chars().all(char::is_whitespace));
+        if blank {
+            assert!(
+                line.segments
+                    .iter()
+                    .all(|segment| !segment.style.is_styled()),
+                "{line:?}"
+            );
+        }
     }
 }
