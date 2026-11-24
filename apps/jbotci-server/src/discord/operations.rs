@@ -2251,8 +2251,8 @@ mod tests {
             .filter(|constituent| !constituent.is_hyphen)
             .collect::<Vec<_>>();
         assert_eq!(rafsi.len(), 2);
-        assert_eq!(rafsi[0].source.as_deref(), Some("klama"));
-        assert_eq!(rafsi[1].source.as_deref(), Some("bajra"));
+        assert_eq!(rafsi[0].sources, ["klama"]);
+        assert_eq!(rafsi[1].sources, ["bajra"]);
 
         // A literal rafsi keeps the place it was written in, before the word
         // that follows it.
