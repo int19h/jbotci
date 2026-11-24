@@ -52,7 +52,7 @@ mod cancellation_tests;
 
 use std::{cell::OnceCell, fmt, num::NonZeroUsize, sync::Arc};
 
-use bityzba::{contract_trait, data, invariant, new, requires, try_new};
+use bityzba::{contract_trait, data, expensive_invariant, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
     DiagnosticSpanError, DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment,
@@ -2975,7 +2975,7 @@ pub fn segment_words_with_modifiers_with_options_and_source_id(
         .result
 }
 
-#[invariant(faho_terminator.as_ref().is_none_or(|span| source_spans.contains(span)))]
+#[expensive_invariant(faho_terminator.as_ref().is_none_or(|span| source_spans.contains(span)))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModifierSegmentation {
     pub words: Vec<WordLike>,
@@ -3561,7 +3561,7 @@ fn append_normalized_lojban_input_chunk_unchecked(
     chunk: &str,
     options: &MorphologyOptions,
 ) {
-    let normalized = segment::normalize_word_with_options(chunk, options);
+    let normalized = segment::normalize_word_for_lookup_with_options(chunk, options);
     if normalized.is_empty() || normalized.chars().all(|value| value == ',') {
         return;
     }

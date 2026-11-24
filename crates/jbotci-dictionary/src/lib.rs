@@ -450,6 +450,14 @@ impl<'a> Dictionary<'a> {
             .map(|entry| entry.targets)
             .unwrap_or(&[])
             .to_vec();
+        if normalized.is_empty() {
+            targets.retain(|target| {
+                self.entry_at(target.entry_index)
+                    .rafsi
+                    .iter()
+                    .any(|rafsi| rafsi.form == query)
+            });
+        }
         rank_rafsi_targets_by_entry_score(self, &mut targets);
         targets.into_iter().map(|target| RafsiMatch {
             entry_index: target.entry_index,
