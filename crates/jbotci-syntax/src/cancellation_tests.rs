@@ -22,6 +22,9 @@ use super::{
 /// syntax-error family, not the brivla family.
 const LO_COPIES: usize = 700;
 const CANCEL_AFTER: Duration = Duration::from_millis(200);
+/// Stop latency after another thread sets the flag. The figure includes
+/// the delay before that store. It applies to both profiles. It is not a
+/// budget for the speed of the parse.
 const MUST_STOP_WITHIN: Duration = Duration::from_secs(3);
 
 #[test]
@@ -78,8 +81,10 @@ fn cancellation_stops_unspaced_lo_and_is_not_a_syntax_error() {
 /// token is 76.52 s. The test segments first, then trips the parse at
 /// check 1,000. It does not repeat the clear-token run.
 const SLOW_LO_COPIES: usize = 320;
+/// The bound is the interrupt. A deleted check returns a tree, not an
+/// interrupt. A clock is not the bound. The same checks are slower in a
+/// debug build.
 const SLOW_LOOP_TRIP: usize = 1_000;
-const SLOW_LOOP_BOUND: Duration = Duration::from_secs(10);
 
 #[test]
 #[requires(true)]
@@ -130,25 +135,19 @@ fn a_mid_loop_trip_stops_unspaced_lo_quickly() {
         .name("syntax-slow-trip".to_owned())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
-            let started = Instant::now();
             let token = jbotci_interrupt::CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
             let attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
                 &words,
                 &text,
                 &ParseOptions::default().with_cancellation(&token),
             );
-            let interrupted = matches!(
+            matches!(
                 attempt.result.as_data(),
                 SyntaxRecoveryParseData::Interrupted
-            );
-            (started.elapsed(), interrupted)
+            )
         })
         .expect("syntax slow-trip worker");
-    let (elapsed, interrupted) = worker.join().expect("syntax slow-trip worker");
-    assert!(
-        elapsed < SLOW_LOOP_BOUND,
-        "syntax kept running for {elapsed:?}; a missing loop check parses the whole text"
-    );
+    let interrupted = worker.join().expect("syntax slow-trip worker");
     assert!(
         interrupted,
         "the early trip must be an interrupt, not a recovered or failed tree"

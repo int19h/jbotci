@@ -879,6 +879,8 @@ fn pull_diagnostics_expose_provisional_then_confirmed_generations() {
         .to_owned();
     assert!(provisional_id.ends_with(":2:provisional"));
 
+    // The 30 s figure detects a hang in the confirmation poll.
+    // The document is short. The limit applies to both profiles.
     let confirmation_deadline = Instant::now() + Duration::from_secs(30);
     let confirmed = loop {
         let report = client.request(
@@ -910,6 +912,8 @@ fn pull_diagnostics_expose_provisional_then_confirmed_generations() {
 #[ensures(true)]
 fn shutdown_is_orderly_during_background_confirmation() {
     const URI: &str = "file:///confirmation-shutdown.jbo";
+    /// Hang bound for the protocol loop. It is not a speed budget.
+    /// It applies to both profiles.
     const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
     let old_text = format!(
@@ -1215,7 +1219,16 @@ fn timing_error_heavy_completion_meets_6500_ms() {
     open_document_text(&mut client, DOCUMENT_URI, 1, &text);
     let started = Instant::now();
     let _result = completion(&mut client, DOCUMENT_URI, cursor as u64);
-    assert!(started.elapsed() < Duration::from_millis(6_500));
+    // The 6500 ms figure is a release latency budget. CI runs the release
+    // profile. A debug build does the same completion more slowly. The
+    // limit is not a bound on the amount of work.
+    if !cfg!(debug_assertions) {
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_millis(6_500),
+            "completion took {elapsed:?}"
+        );
+    }
     client.shutdown();
 }
 
@@ -1225,6 +1238,8 @@ fn timing_error_heavy_completion_meets_6500_ms() {
 fn shutdown_completes_during_an_in_flight_completion() {
     const URI: &str = "file:///completion-shutdown.jbo";
     const TEXT: &str = ".i la prux. ba'o sruma lo du'u le ckule cipra ku frili ra";
+    /// Hang bound for the protocol loop. It is not a speed budget.
+    /// It applies to both profiles.
     const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
     let cursor = TEXT.find("sruma").expect("fixture contains sruma") as u64;

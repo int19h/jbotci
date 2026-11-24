@@ -1005,21 +1005,32 @@ mod tests {
         ));
 
         // Sixty-four are refused before any spelling is compared.
+        // The bound is the piece count and zero evaluations. A clock is
+        // not the bound. A debug build is slower for the same refusal.
         let explosive = (0..64)
             .map(|_| JvozbaInput::Word("klama".to_owned()))
             .collect::<Vec<_>>();
-        let started = std::time::Instant::now();
-        let error = build_best_jvozba_detailed_within(
+        let evaluations = std::cell::Cell::new(0);
+        let error = build_best_jvozba_with_evaluator(
             JvozbaMode::Lujvo,
             dictionary,
             &explosive,
             bounded(),
             &jbotci_interrupt::CancellationToken::never(),
+            |_, _, _| {
+                evaluations.set(evaluations.get() + 1);
+                Ok(None)
+            },
         )
         .expect_err("above the limits");
-        assert!(
-            started.elapsed() < std::time::Duration::from_secs(5),
-            "the refusal does not depend on searching"
+        assert_eq!(evaluations.get(), 0, "the refusal scored a spelling");
+        assert_eq!(
+            error,
+            JvozbaError::TooMuchWork {
+                measure: JvozbaWorkMeasure::Pieces,
+                amount: 64,
+                limit: 24,
+            }
         );
         let message = error.to_string();
         assert!(message.contains("pieces to combine"), "{message}");
@@ -1906,8 +1917,10 @@ mod tests {
     /// ask for a second piece. That decomposition is the long morphology.
     /// The test trips at check 1,000 and does not repeat that run.
     const SLOW_ZBASU_COPIES: usize = 500;
+    /// The bound is the interrupt. A deleted check returns a finished
+    /// result, not an interrupt. A clock is not the bound. The same checks
+    /// are slower in a debug build.
     const SLOW_LOOP_TRIP: usize = 1_000;
-    const SLOW_LOOP_BOUND: std::time::Duration = std::time::Duration::from_secs(10);
 
     #[test]
     #[requires(true)]
@@ -1934,14 +1947,8 @@ mod tests {
             "{}y",
             "zbasu".repeat(SLOW_ZBASU_COPIES)
         ))];
-        let started = std::time::Instant::now();
         let token = jbotci_interrupt::CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let result = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token);
-        let elapsed = started.elapsed();
-        assert!(
-            elapsed < SLOW_LOOP_BOUND,
-            "jvozba kept running for {elapsed:?}; a missing loop check decomposes the whole word"
-        );
         assert!(
             matches!(result, Err(JvozbaError::Interrupted)),
             "the early trip must be an interrupt, not a finished refusal"

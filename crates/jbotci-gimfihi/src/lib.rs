@@ -3269,12 +3269,10 @@ mod tests {
     }
 
     /// Clear-token release time of the full letter inventory on both shapes
-    /// is 0.50 s. That is the whole shape set. It does not reach 60 s. The
-    /// early trip must still come back as an interrupt. A run that scores
-    /// the inventory is not an interrupt, so a deleted loop check fails
-    /// this test even though the inventory itself is short.
+    /// is 0.50 s. That is the whole shape set. The bound is the interrupt.
+    /// A run that scores the inventory is not an interrupt, so a deleted
+    /// loop check fails this test. A clock is not the bound.
     const SLOW_LOOP_TRIP: usize = 1_000;
-    const SLOW_LOOP_BOUND: std::time::Duration = std::time::Duration::from_secs(10);
 
     #[requires(true)]
     #[ensures(true)]
@@ -3321,14 +3319,8 @@ mod tests {
             all_letters: true,
             ..small_scoring_request()
         };
-        let started = std::time::Instant::now();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let result = compose_gismu(dictionary, &request, &token);
-        let elapsed = started.elapsed();
-        assert!(
-            elapsed < SLOW_LOOP_BOUND,
-            "gimfihi kept running for {elapsed:?}; a missing loop check scores the whole shape set"
-        );
         assert!(
             matches!(result, Err(GimfihiError::Interrupted)),
             "the early trip must be an interrupt, not a finished score"

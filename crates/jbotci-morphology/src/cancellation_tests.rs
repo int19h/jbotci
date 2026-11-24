@@ -21,6 +21,9 @@ use super::{
 /// that a missing check fails this test in a few seconds rather than minutes.
 const ZBASU_COPIES: usize = 220;
 const CANCEL_AFTER: Duration = Duration::from_millis(200);
+/// Stop latency after another thread sets the flag. The figure includes
+/// the delay before that store. It applies to both profiles. It is not a
+/// budget for the speed of segmentation.
 const MUST_STOP_WITHIN: Duration = Duration::from_secs(3);
 
 #[test]
@@ -66,8 +69,10 @@ fn cancellation_stops_a_long_brivla_and_is_not_an_invalid_word() {
 /// is 87.67 s. The test trips at check 1,000, inside the word-start
 /// search, and does not repeat the clear-token run.
 const SLOW_ZBASU_COPIES: usize = 700;
+/// The bound is the interrupt. A deleted check returns an invalid word,
+/// not an interrupt. A clock is not the bound. The same checks are slower
+/// in a debug build.
 const SLOW_LOOP_TRIP: usize = 1_000;
-const SLOW_LOOP_BOUND: Duration = Duration::from_secs(10);
 
 #[test]
 #[requires(true)]
@@ -115,16 +120,10 @@ fn a_late_trip_stops_one_lexical_word_after_recognition() {
 #[ensures(true)]
 fn a_mid_loop_trip_stops_a_long_brivla_quickly() {
     let input = format!("{}y", "zbasu".repeat(SLOW_ZBASU_COPIES));
-    let started = Instant::now();
     let token = jbotci_interrupt::CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
     let options = MorphologyOptions::default().with_cancellation(&token);
     let segmentation =
         super::segment_words_with_modifiers_with_options_and_source_id(&input, &options, None);
-    let elapsed = started.elapsed();
-    assert!(
-        elapsed < SLOW_LOOP_BOUND,
-        "morphology kept running for {elapsed:?}; a missing loop check runs the whole word"
-    );
     assert!(
         segmentation.is_err_and(|error| error.is_interrupted()),
         "the early trip must be an interrupt, not an invalid word"

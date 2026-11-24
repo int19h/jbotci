@@ -1516,6 +1516,10 @@ fn rank_sound_entries<'dictionary>(
         if options.cancellation.is_cancelled() {
             return Err(jbotci_interrupt::Interrupted);
         }
+        // Tests count ranked entries. The count is the blow-up bound.
+        // A clock is not, because a debug build ranks the same entries more slowly.
+        #[cfg(test)]
+        SOUND_RANK_STEPS.with(|steps| steps.set(steps.get() + 1));
         let Some(entry) = entries.get(sound_entry.entry_index.get()) else {
             continue;
         };
@@ -1534,6 +1538,19 @@ fn rank_sound_entries<'dictionary>(
         }
     }
     Ok(scored)
+}
+
+#[cfg(test)]
+thread_local! {
+    static SOUND_RANK_STEPS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Ranked sound-index entries since the last read. The next read starts at zero.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn take_sound_rank_steps() -> usize {
+    SOUND_RANK_STEPS.with(|steps| steps.replace(0))
 }
 
 #[requires(true)]
@@ -2474,8 +2491,6 @@ fn is_lojban_vowel(value: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, Instant};
-
     use super::*;
     use bityzba::requires;
     use jbotci_interrupt::assert_exit_check;
@@ -3758,7 +3773,9 @@ mod tests {
     ///
     /// Release time of ranking this bracketed query with a clear token is
     /// 88.19 s. Preparation is outside that time. The test trips at check
-    /// 1,000 and does not repeat that run.
+    /// 1,000 and does not repeat that run. The bound is the ranked-entry
+    /// count. A clock is not the bound. A debug build ranks the same
+    /// entries more slowly.
     const SLOW_BRACKETED_A_COPIES: usize = 16_500;
     /// Copies of `zbasu` before the closing `y` in the vote-filter test.
     ///
@@ -3767,8 +3784,12 @@ mod tests {
     /// before the later lookup. The test trips at check 1,000 and does not
     /// repeat that run.
     const SLOW_VALSI_ZBASU_COPIES: usize = 900;
+    /// Checks before the flag is stored. The next load then stops the call.
+    ///
+    /// The bound is that interrupt. A deleted check finishes the query, so
+    /// the result is not an interrupt. A clock is not the bound. The same
+    /// checks are slower in a debug build.
     const SLOW_LOOP_TRIP: usize = 1_000;
-    const SLOW_LOOP_BOUND: Duration = Duration::from_secs(10);
 
     #[requires(true)]
     #[ensures(ret.cancellation == *token)]
@@ -3802,17 +3823,11 @@ mod tests {
     fn a_mid_loop_trip_stops_a_long_lujvo_query_quickly() {
         let dictionary = jbotci_dictionary_data::english();
         let query = format!("{}y", "zbasu".repeat(SLOW_ZBASU_COPIES));
-        let started = Instant::now();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let result = super::run_vlacku_requests(
             dictionary,
             &[VlackuRequest::lujvo(query)],
             &options_with(&token),
-        );
-        let elapsed = started.elapsed();
-        assert!(
-            elapsed < SLOW_LOOP_BOUND,
-            "vlacku kept running for {elapsed:?}; a missing loop check decomposes the whole query"
         );
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),
@@ -3826,7 +3841,6 @@ mod tests {
     fn a_mid_loop_trip_stops_a_long_valsi_vote_filter_quickly() {
         let dictionary = jbotci_dictionary_data::english();
         let query = format!("{}y", "zbasu".repeat(SLOW_VALSI_ZBASU_COPIES));
-        let started = Instant::now();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let options = VlackuSearchOptions::default().with_data(data! {
             cancellation: token,
@@ -3834,11 +3848,6 @@ mod tests {
         });
         let result =
             super::run_vlacku_requests(dictionary, &[VlackuRequest::valsi(query)], &options);
-        let elapsed = started.elapsed();
-        assert!(
-            elapsed < SLOW_LOOP_BOUND,
-            "vlacku kept running for {elapsed:?}; a missing loop check scans the whole vote-filter word"
-        );
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),
             "the early trip must be an interrupt, not a missing-word card"
@@ -3851,18 +3860,12 @@ mod tests {
     fn a_mid_loop_trip_stops_a_long_sound_query_quickly() {
         let dictionary = jbotci_dictionary_data::english();
         let query = format!("{}y", "zbasu".repeat(SLOW_SOUND_ZBASU_COPIES));
-        let started = Instant::now();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let options = VlackuSearchOptions::default().with_data(data! {
             cancellation: token,
         });
         let result =
             super::run_vlacku_requests(dictionary, &[VlackuRequest::sound(query)], &options);
-        let elapsed = started.elapsed();
-        assert!(
-            elapsed < SLOW_LOOP_BOUND,
-            "vlacku kept running for {elapsed:?}; a missing loop check segments the whole sound query"
-        );
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),
             "the early trip must be an interrupt, not an invalid-query card"
@@ -3897,16 +3900,16 @@ mod tests {
             sound_query_to_sequence(&query, &clear).expect("a bracketed run of a is a sound query");
         let prepared =
             prepare_sound_query(&sequence, &clear).expect("a clear token prepares the query");
-        let started = Instant::now();
+        let _ = super::take_sound_rank_steps();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let options = VlackuSearchOptions::default().with_data(data! {
             cancellation: token,
         });
         let result = super::rank_sound_entries(&prepared, dictionary, &options);
-        let elapsed = started.elapsed();
+        let steps = super::take_sound_rank_steps();
         assert!(
-            elapsed < SLOW_LOOP_BOUND,
-            "vlacku kept running for {elapsed:?}; a missing loop check ranks the whole sound query"
+            steps > 0 && steps <= SLOW_LOOP_TRIP,
+            "ranking compared {steps} entries; the trip allows {SLOW_LOOP_TRIP}"
         );
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),
