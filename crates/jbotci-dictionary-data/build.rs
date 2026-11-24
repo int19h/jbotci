@@ -14,16 +14,16 @@ use jbotci_dictionary::import::{
 };
 use jbotci_dictionary::{
     CmavoSequenceIndexEntry, Dictionary, DictionaryEntry, DictionaryLujvoEntry,
-    DictionaryLujvoSegment, DictionaryLujvoSegmentKind, DictionaryPatternEntry,
-    DictionarySoundEntry, DictionaryUser, EntryIndex, Keyword, OwnedCmavoSequenceIndexEntry,
-    OwnedDictionaryIndexes, OwnedPatternIndexEntry, OwnedRafsiIndexEntry, OwnedWordIndexEntry,
-    Rafsi, RafsiClaimKind, RafsiIndexEntry, RafsiIndexTarget, RafsiSource, RawSelmaho,
-    WordIndexEntry, WordType, build_owned_indexes, normalize_lookup_query,
-    universal_gismu_rafsi_forms,
+    DictionaryLujvoSegment, DictionaryLujvoSegmentKind, DictionaryLujvoSource,
+    DictionaryPatternEntry, DictionarySoundEntry, DictionaryUser, EntryIndex, Keyword,
+    OwnedCmavoSequenceIndexEntry, OwnedDictionaryIndexes, OwnedPatternIndexEntry,
+    OwnedRafsiIndexEntry, OwnedWordIndexEntry, Rafsi, RafsiClaimKind, RafsiIndexEntry,
+    RafsiIndexTarget, RafsiSource, RawSelmaho, WordIndexEntry, WordType, build_owned_indexes,
+    normalize_lookup_query, universal_gismu_rafsi_forms,
 };
 use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::decompose_lujvo_like;
-use jbotci_morphology::{LujvoPart, possible_short_rafsi_forms};
+use jbotci_morphology::possible_short_rafsi_forms;
 use jbotci_phonetic::{
     IpaSegmentId, IpaTokenSequenceView, PronunciationTargetId, PronunciationTargetSequenceView,
     lojban_text_to_pronunciation_targets, lojban_text_to_tokenized_ipa,
@@ -217,7 +217,7 @@ struct GeneratedLujvoEntry {
 struct GeneratedLujvoSegment {
     kind: DictionaryLujvoSegmentKind,
     surface: String,
-    source_word: Option<String>,
+    sources: Vec<DictionaryLujvoSource<'static>>,
 }
 
 #[requires(true)]
@@ -553,7 +553,11 @@ fn build_lujvo_index(dictionary: &Dictionary<'static>) -> Vec<GeneratedLujvoEntr
                 segments: decomposition
                     .segments
                     .into_iter()
-                    .map(|segment| generated_lujvo_segment(&segment.segment, segment.source))
+                    .map(|segment| GeneratedLujvoSegment {
+                        kind: segment.kind,
+                        surface: segment.segment.phonemes().as_str().to_owned(),
+                        sources: segment.into_data().sources,
+                    })
                     .collect(),
                 source_words: decomposition
                     .source_words
@@ -566,26 +570,6 @@ fn build_lujvo_index(dictionary: &Dictionary<'static>) -> Vec<GeneratedLujvoEntr
         .into_iter()
         .flatten()
         .collect()
-}
-
-#[requires(true)]
-#[ensures(!ret.surface.is_empty())]
-fn generated_lujvo_segment(
-    segment: &LujvoPart,
-    source_word: Option<&str>,
-) -> GeneratedLujvoSegment {
-    match segment {
-        LujvoPart::Rafsi(phonemes) => GeneratedLujvoSegment {
-            kind: DictionaryLujvoSegmentKind::Rafsi,
-            surface: phonemes.as_str().to_owned(),
-            source_word: source_word.map(str::to_owned),
-        },
-        LujvoPart::Hyphen(phonemes) => GeneratedLujvoSegment {
-            kind: DictionaryLujvoSegmentKind::Hyphen,
-            surface: phonemes.as_str().to_owned(),
-            source_word: None,
-        },
-    }
 }
 
 #[requires(true)]
@@ -617,7 +601,7 @@ fn leak_lujvo_segments(
         .map(|segment| DictionaryLujvoSegment {
             kind: segment.kind,
             surface: leak_str(&segment.surface),
-            source_word: segment.source_word.as_deref().map(leak_str),
+            sources: segment.sources.clone().leak(),
         })
         .collect::<Vec<_>>()
         .leak()
@@ -1124,12 +1108,16 @@ fn render_lujvo_index_entry(entry: &GeneratedLujvoEntry) -> TokenStream {
 fn render_lujvo_segment(segment: &GeneratedLujvoSegment) -> TokenStream {
     let kind = render_lujvo_segment_kind(segment.kind);
     let surface = string_literal(&segment.surface);
-    let source_word = render_optional_str(segment.source_word.as_deref());
+    let sources = segment.sources.iter().map(|source| {
+        let entry_index = render_entry_index(&source.entry_index);
+        let word = string_literal(source.word);
+        quote! { jbotci_dictionary::DictionaryLujvoSource { entry_index: #entry_index, word: #word } }
+    });
     quote! {
         jbotci_dictionary::DictionaryLujvoSegment {
             kind: #kind,
             surface: #surface,
-            source_word: #source_word,
+            sources: &[#(#sources,)*],
         }
     }
 }
@@ -1140,6 +1128,9 @@ fn render_lujvo_segment_kind(kind: DictionaryLujvoSegmentKind) -> TokenStream {
     match kind {
         DictionaryLujvoSegmentKind::Rafsi => {
             quote! { jbotci_dictionary::DictionaryLujvoSegmentKind::Rafsi }
+        }
+        DictionaryLujvoSegmentKind::FuivlaRafsi => {
+            quote! { jbotci_dictionary::DictionaryLujvoSegmentKind::FuivlaRafsi }
         }
         DictionaryLujvoSegmentKind::Hyphen => {
             quote! { jbotci_dictionary::DictionaryLujvoSegmentKind::Hyphen }
@@ -1225,6 +1216,7 @@ fn render_rafsi_source(source: RafsiSource) -> TokenStream {
         }
         RafsiSource::UniversalShort => quote! { jbotci_dictionary::RafsiSource::UniversalShort },
         RafsiSource::UniversalLong => quote! { jbotci_dictionary::RafsiSource::UniversalLong },
+        RafsiSource::FuivlaStem => quote! { jbotci_dictionary::RafsiSource::FuivlaStem },
     }
 }
 

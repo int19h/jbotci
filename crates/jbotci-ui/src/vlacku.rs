@@ -1092,51 +1092,7 @@ pub(super) fn render_dictionary_tooltip_card(
                     span { class: "tooltip-label", "decomposition" }
                     span { class: "tooltip-decomposition-pieces",
                         for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
-                            {
-                                let display_surface = display_lujvo_fragment(
-                                    script,
-                                    &piece.display_surface,
-                                    LujvoFragmentKind::Rafsi,
-                                );
-                                if let Some(source) = &piece.source {
-                                    let display_source = display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
-                                    if show_link {
-                                        let href = piece.source_href.as_deref().unwrap_or(&card.href);
-                                        if let Some(route) = jbotci_route_from_href(base_path, href) {
-                                            rsx! {
-                                                Link {
-                                                    class: "tooltip-rafsi-piece",
-                                                    to: route,
-                                                    span { class: "tooltip-rafsi-surface", "{display_surface}" }
-                                                    span { class: "tooltip-rafsi-source", "{display_source}" }
-                                                }
-                                            }
-                                        } else {
-                                            rsx! {
-                                                a {
-                                                    class: "tooltip-rafsi-piece",
-                                                    href: "{href}",
-                                                    span { class: "tooltip-rafsi-surface", "{display_surface}" }
-                                                    span { class: "tooltip-rafsi-source", "{display_source}" }
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        rsx! {
-                                            span { class: "tooltip-rafsi-piece",
-                                                span { class: "tooltip-rafsi-surface", "{display_surface}" }
-                                                span { class: "tooltip-rafsi-source", "{display_source}" }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    rsx! {
-                                        span { class: "tooltip-rafsi-piece",
-                                            span { class: "tooltip-rafsi-surface", "{display_surface}" }
-                                        }
-                                    }
-                                }
-                            }
+                            { render_tooltip_composition_piece(piece, base_path, show_link, script) }
                         }
                     }
                 }
@@ -1236,28 +1192,7 @@ pub(super) fn render_reference_dictionary_card(
                     span { class: "tooltip-label", "decomposition" }
                     span { class: "tooltip-decomposition-pieces",
                         for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
-                            {
-                                let display_surface = display_lujvo_fragment(
-                                    script,
-                                    &piece.display_surface,
-                                    LujvoFragmentKind::Rafsi,
-                                );
-                                if let Some(source) = &piece.source {
-                                    let display_source = display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
-                                    rsx! {
-                                        span { class: "tooltip-rafsi-piece",
-                                            span { class: "tooltip-rafsi-surface", "{display_surface}" }
-                                            span { class: "tooltip-rafsi-source", "{display_source}" }
-                                        }
-                                    }
-                                } else {
-                                    rsx! {
-                                        span { class: "tooltip-rafsi-piece",
-                                            span { class: "tooltip-rafsi-surface", "{display_surface}" }
-                                        }
-                                    }
-                                }
-                            }
+                            { render_tooltip_composition_piece(piece, base_path, false, script) }
                         }
                     }
                 }
@@ -1843,6 +1778,62 @@ pub(super) fn render_vote_display(
 
 #[requires(true)]
 #[ensures(true)]
+fn render_tooltip_composition_piece(
+    piece: &VlackuCompositionPiece,
+    base_path: &str,
+    show_link: bool,
+    script: GentufaScript,
+) -> Element {
+    let display_surface =
+        display_lujvo_fragment(script, &piece.display_surface, LujvoFragmentKind::Rafsi);
+    let is_fuivla = piece.kind == VlackuCompositionPieceKind::FuivlaRafsi;
+    if !is_fuivla
+        && show_link
+        && let [source] = piece.sources.as_slice()
+    {
+        let display_source = display_lojban_text(script, &source.word);
+        return if let Some(route) = jbotci_route_from_href(base_path, &source.href) {
+            rsx! {
+                Link { class: "tooltip-rafsi-piece", to: route,
+                    span { class: "tooltip-rafsi-surface", "{display_surface}" }
+                    span { class: "tooltip-rafsi-source", "{display_source}" }
+                }
+            }
+        } else {
+            rsx! {
+                a { class: "tooltip-rafsi-piece", href: "{source.href}",
+                    span { class: "tooltip-rafsi-surface", "{display_surface}" }
+                    span { class: "tooltip-rafsi-source", "{display_source}" }
+                }
+            }
+        };
+    }
+    rsx! {
+        span { class: "tooltip-rafsi-piece",
+            span { class: "tooltip-rafsi-surface", "{display_surface}" }
+            if is_fuivla {
+                small { "fu'ivla rafsi" }
+            }
+            for source in &piece.sources {
+                {
+                    let display_source = display_lojban_text(script, &source.word);
+                    if show_link {
+                        if let Some(route) = jbotci_route_from_href(base_path, &source.href) {
+                            rsx! { Link { class: "tooltip-rafsi-source", to: route, "{display_source}" } }
+                        } else {
+                            rsx! { a { class: "tooltip-rafsi-source", href: "{source.href}", "{display_source}" } }
+                        }
+                    } else {
+                        rsx! { span { class: "tooltip-rafsi-source", "{display_source}" } }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(super) fn render_composition_piece(
     piece: &VlackuCompositionPiece,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
@@ -1864,12 +1855,46 @@ pub(super) fn render_composition_piece(
                 }
             }
         }
+        VlackuCompositionPieceKind::FuivlaRafsi => {
+            let display_surface =
+                display_lujvo_fragment(script, &piece.display_surface, LujvoFragmentKind::Rafsi);
+            rsx! {
+                span { class: "rafsi-split-pill",
+                    span { class: "rafsi-split-left",
+                        { render_page_find_text(page_find, &display_surface) }
+                        small { { render_page_find_text(page_find, "fu'ivla rafsi") } }
+                    }
+                    for source in &piece.sources {
+                        span { class: "rafsi-split-right",
+                            { render_vlacku_word_action(
+                                jvozba_pane,
+                                jvozba_available,
+                                true,
+                                &source.word,
+                                &display_lojban_text(script, &source.word),
+                                &vlacku_web_url(base_path, &VlackuWebState {
+                                    min_votes: Default::default(),
+                                    mode: VlackuWebMode::Word,
+                                    query: source.word.clone(),
+                                    count: VLACKU_WEB_DEFAULT_COUNT,
+                                    word_types: Vec::new(),
+                                }),
+                                "dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
+                                base_path,
+                                script,
+                                page_find,
+                            ) }
+                        }
+                    }
+                }
+            }
+        }
         VlackuCompositionPieceKind::Rafsi => {
             let display_surface =
                 display_lujvo_fragment(script, &piece.display_surface, LujvoFragmentKind::Rafsi);
-            if let Some(source) = &piece.source {
-                let display_source =
-                    display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
+            if let Some(source) = piece.sources.first() {
+                let source = &source.word;
+                let display_source = display_lojban_text(script, source);
                 let href = vlacku_web_url(
                     base_path,
                     &VlackuWebState {
@@ -1880,7 +1905,7 @@ pub(super) fn render_composition_piece(
                         word_types: Vec::new(),
                     },
                 );
-                if piece.source_is_surface {
+                if jbotci_morphology::canonical_text_eq(&piece.surface, source) {
                     rsx! {
                         { render_vlacku_word_action(
                             jvozba_pane,

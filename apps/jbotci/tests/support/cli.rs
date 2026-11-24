@@ -4483,12 +4483,12 @@ fn vlacku_unknown_lujvo_renders_note_and_keeps_decomposition() {
                     VlackuCompositionPiece {
                         kind: VlackuCompositionKind::Rafsi,
                         surface: "brod".to_owned(),
-                        source: Some("broda".to_owned()),
+                        sources: vec!["broda".to_owned()],
                     },
                     VlackuCompositionPiece {
                         kind: VlackuCompositionKind::Rafsi,
                         surface: "dau".to_owned(),
-                        source: Some("darlu".to_owned()),
+                        sources: vec!["darlu".to_owned()],
                     },
                 ],
             })],

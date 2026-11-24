@@ -781,6 +781,7 @@ define_string_enum_metadata! {
         Long => ("LONG", "long"),
         Gismu => ("GISMU", "gismu"),
         Fuhivla => ("FUIVLA", "fuhivla"),
+        FuhivlaStem => ("FUIVLASTEM", "fuhivla-stem"),
         Cultural => ("CULTURAL", "cultural"),
         Extended => ("EXTENDED", "extended"),
         Unknown => ("UNKNOWN", "unknown"),
@@ -1183,6 +1184,14 @@ impl Word {
 }
 
 impl LujvoPart {
+    /// Return whether this part is a fu'ivla stem followed by its y-hyphen.
+    #[requires(true)]
+    #[ensures(ret -> matches!(self, Self::Rafsi(_)))]
+    pub fn is_fuhivla_rafsi_before(&self, next: Option<&Self>) -> bool {
+        matches!(next, Some(Self::Hyphen(hyphen)) if matches!(hyphen.as_str(), "y" | "y'"))
+            && matches!(self, Self::Rafsi(stem) if is_fuhivla_rafsi_stem(&canonicalize_text(stem.as_str())))
+    }
+
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|part| matches!(part, LujvoPart::Rafsi(_))) || ret.is_err())]
     pub fn parse_bare_rafsi(text: &str) -> Result<Self, LujvoFragmentError> {
@@ -2868,12 +2877,15 @@ fn plain_word_classification(word: &Word) -> PlainWordClassification {
             stage: None,
         }),
         WordKind::Lujvo => {
-            let parts = word
+            let parsed = word
                 .lujvo_parts()
-                .expect("lujvo words carry parsed lujvo parts")
-                .iter()
-                .map(valsi_lujvo_part)
-                .collect::<Vec<_>>();
+                .expect("lujvo words carry parsed lujvo parts");
+            let mut remaining = parsed.iter().peekable();
+            let parts = std::iter::from_fn(|| {
+                let part = remaining.next()?;
+                Some(valsi_lujvo_part(part, remaining.peek().copied()))
+            })
+            .collect::<Vec<_>>();
             let split = parts
                 .iter()
                 .map(|part| part.text.as_str())
@@ -2909,13 +2921,17 @@ fn plain_word_classification(word: &Word) -> PlainWordClassification {
 
 #[requires(true)]
 #[ensures(!ret.text.is_empty())]
-fn valsi_lujvo_part(part: &LujvoPart) -> ValsiLujvoPart {
+fn valsi_lujvo_part(part: &LujvoPart, next: Option<&LujvoPart>) -> ValsiLujvoPart {
     match part {
         LujvoPart::Rafsi(phonemes) => {
             let text = phonemes.as_str().to_owned();
             new!(ValsiLujvoPart {
                 kind: ValsiLujvoPartKind::Rafsi,
-                rafsi_kind: Some(segment::classify_lujvo_rafsi(&text)),
+                rafsi_kind: Some(if part.is_fuhivla_rafsi_before(next) {
+                    ValsiLujvoRafsiKind::FuhivlaStem
+                } else {
+                    segment::classify_lujvo_rafsi(&text)
+                }),
                 text: text,
             })
         }
@@ -3386,6 +3402,13 @@ fn canonical_text_chars(text: &str) -> impl Iterator<Item = char> + '_ {
         .map(normalize_latin_apostrophe)
 }
 
+/// Return whether a canonical stem satisfies the fu'ivla rafsi rule before `y`.
+#[requires(true)]
+#[ensures(ret -> !stem.is_empty())]
+pub fn is_fuhivla_rafsi_stem(stem: &str) -> bool {
+    segment::is_fuhivla_rafsi_stem(stem)
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
 pub fn parse_lujvo_word_parts(word: &str) -> Option<Vec<LujvoPart>> {
@@ -3820,6 +3843,28 @@ mod tests {
 
         assert_eq!(base_phoneme_texts(&words), vec!["tci'ilykemcantútra"]);
         assert_eq!(base_word(&words[0]).map(Word::kind), Some(WordKind::Lujvo));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valsi_analysis_names_fuivla_stem_rafsi() {
+        for (lujvo, stem) in [("ierxydatsi'o", "ierx"), ("tci'ilykemcantutra", "tci'il")] {
+            assert!(is_fuhivla_rafsi_stem(stem));
+            let analysis = analyze_valsi(lujvo);
+            let word = analysis
+                .result
+                .classification
+                .as_ref()
+                .and_then(ValsiClassification::word)
+                .expect("plain word classification");
+            assert_eq!(canonicalize_text(&word.parts[0].text), stem);
+            assert_eq!(
+                word.parts[0].rafsi_kind,
+                Some(ValsiLujvoRafsiKind::FuhivlaStem)
+            );
+        }
+        assert!(!is_fuhivla_rafsi_stem("spaget"));
     }
 
     #[test]

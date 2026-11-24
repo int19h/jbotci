@@ -415,28 +415,36 @@ fn lujvo_hover_markdown(word: &Word) -> String {
         .cloned()
         .map(|card| with_decomposition(card, decomposition.clone()))
         .collect::<Vec<_>>();
-    let cards = if !own_cards.is_empty() {
+    let has_own_cards = !own_cards.is_empty();
+    let mut cards = if has_own_cards {
         own_cards
     } else {
-        let mut cards = vec![
+        vec![
             output
                 .cards
                 .iter()
                 .find(|card| same_lookup_key(&card.word, &lookup_text))
                 .cloned()
-                .map(|card| with_decomposition(card, decomposition))
+                .map(|card| with_decomposition(card, decomposition.clone()))
                 .expect("a morphology-valid lujvo search has a classification card"),
-        ];
-        cards.extend(
-            output
-                .cards
-                .iter()
-                .filter(|card| card.author.is_some() && !same_lookup_key(&card.word, &lookup_text))
-                .cloned()
-                .map(without_decomposition),
-        );
-        cards
+        ]
     };
+    cards.extend(
+        output
+            .cards
+            .iter()
+            .filter(|card| {
+                card.author.is_some()
+                    && !same_lookup_key(&card.word, &lookup_text)
+                    && (!has_own_cards
+                        || decomposition
+                            .iter()
+                            .filter(|piece| piece.kind == VlackuCompositionKind::FuivlaRafsi)
+                            .any(|piece| piece.sources.contains(&card.word)))
+            })
+            .cloned()
+            .map(without_decomposition),
+    );
     render_vlacku_cards_markdown(&cards)
 }
 
@@ -466,24 +474,30 @@ fn morphology_lujvo_decomposition(
     let annotated = cards
         .iter()
         .find(|card| same_lookup_key(&card.word, &lookup_text) && !card.decomposition.is_empty());
-    word.lujvo_parts()
-        .expect("lujvo words carry parsed parts")
+    let parts = word.lujvo_parts().expect("lujvo words carry parsed parts");
+    parts
         .iter()
         .enumerate()
         .map(|(index, part)| {
             let kind = match part {
+                LujvoPart::Rafsi(_)
+                    if part.is_fuhivla_rafsi_before(parts.as_slice().get(index + 1)) =>
+                {
+                    VlackuCompositionKind::FuivlaRafsi
+                }
                 LujvoPart::Rafsi(_) => VlackuCompositionKind::Rafsi,
                 LujvoPart::Hyphen(_) => VlackuCompositionKind::Hyphen,
             };
             let surface = canonicalize_text(part.phonemes().as_str());
-            let source = annotated
+            let sources = annotated
                 .and_then(|card| card.decomposition.get(index))
                 .filter(|piece| piece.kind == kind && same_lookup_key(&piece.surface, &surface))
-                .and_then(|piece| piece.source.clone());
+                .map(|piece| piece.sources.clone())
+                .unwrap_or_default();
             VlackuCompositionPiece {
                 kind,
                 surface,
-                source,
+                sources,
             }
         })
         .collect()
@@ -583,6 +597,19 @@ mod tests {
             );
             assert!(markdown.contains("nu'empcr zei klama"), "{source}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_hover_shows_fuivla_stem_source() {
+        let markdown = DocumentSnapshot::new("ierxydatsi'o".to_owned(), 1)
+            .hover(0)
+            .expect("lujvo hover")
+            .markdown
+            .clone();
+        assert!(markdown.contains("`ierx` (fu'ivla rafsi)"), "{markdown}");
+        assert!(markdown.contains("hierarchy"), "{markdown}");
     }
 
     #[test]

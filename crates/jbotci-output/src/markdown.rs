@@ -142,22 +142,27 @@ pub fn render_vlacku_decomposition_markdown(pieces: &[VlackuCompositionPiece]) -
             output.push('·');
         }
         output.push_str(&inline_code(&piece.surface));
+        if piece.kind == VlackuCompositionKind::FuivlaRafsi {
+            output.push_str(" (fu'ivla rafsi)");
+        }
     }
 
     let mut source_count = 0usize;
     for piece in pieces {
-        if piece.kind != VlackuCompositionKind::Rafsi {
+        if piece.sources.is_empty() {
             continue;
         }
-        let Some(source) = piece.source.as_deref() else {
-            continue;
-        };
         if source_count == 0 {
             output.push_str(" → ");
         } else {
             output.push_str(" + ");
         }
-        output.push_str(&inline_code(source));
+        for (index, source) in piece.sources.iter().enumerate() {
+            if index > 0 {
+                output.push_str(" / ");
+            }
+            output.push_str(&inline_code(source));
+        }
         source_count += 1;
     }
     output

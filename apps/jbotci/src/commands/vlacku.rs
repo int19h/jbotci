@@ -769,6 +769,20 @@ fn render_vlacku_decomposition_piece(
         .unwrap_or_else(|_| piece.surface.clone());
     match piece.kind {
         VlackuCompositionKind::Rafsi => red_in_scope(&surface, color, &scope),
+        VlackuCompositionKind::FuivlaRafsi => {
+            let label = if piece.sources.is_empty() {
+                scope.copy("fu'ivla rafsi")
+            } else {
+                scope.format(format_args!(
+                    "fu'ivla rafsi of {}",
+                    scope.join(piece.sources.iter(), " / ")
+                ))
+            };
+            scope.format(format_args!(
+                "{} ({label})",
+                red_in_scope(&surface, color, scope)
+            ))
+        }
         VlackuCompositionKind::Hyphen => dark_in_scope(&surface, color, &scope),
     }
 }

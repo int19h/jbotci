@@ -176,10 +176,13 @@ pub struct ShortRafsiForm {
 
 #[invariant(true)]
 #[invariant(::Rafsi(text) => !text.is_empty())]
+#[invariant(::FuhivlaStem(text) => !text.is_empty())]
+#[bityzba::expensive_invariant(::FuhivlaStem(text) => crate::is_fuhivla_rafsi_stem(text))]
 #[invariant(::BrivlaCore(text) => !text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LujvoBuildPart {
     Rafsi(String),
+    FuhivlaStem(String),
     BrivlaCore(String),
 }
 
@@ -188,7 +191,9 @@ impl LujvoBuildPart {
     #[ensures(!ret.is_empty())]
     pub fn as_text(&self) -> &str {
         match self.as_data() {
-            data!(LujvoBuildPart::Rafsi(text)) | data!(LujvoBuildPart::BrivlaCore(text)) => text,
+            data!(LujvoBuildPart::Rafsi(text))
+            | data!(LujvoBuildPart::FuhivlaStem(text))
+            | data!(LujvoBuildPart::BrivlaCore(text)) => text,
         }
     }
 
@@ -677,7 +682,13 @@ fn hyphen_for_build_part_pair(
     previous: &LujvoBuildPart,
     next: &LujvoBuildPart,
 ) -> Option<&'static str> {
-    if previous.is_brivla_core() && previous.as_text().chars().last().is_some_and(is_vowel) {
+    if matches!(previous.as_data(), data!(LujvoBuildPart::FuhivlaStem(_))) {
+        if starts_with_vowel_nucleus_after_y(next.as_text()) {
+            Some("y'")
+        } else {
+            Some("y")
+        }
+    } else if previous.is_brivla_core() && previous.as_text().chars().last().is_some_and(is_vowel) {
         Some("'y")
     } else {
         y_hyphen_for_pair(previous.as_text(), next.as_text())

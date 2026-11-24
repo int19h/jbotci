@@ -15,7 +15,8 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    ShortRafsiShape, fold_lojban_diacritic, normalize_latin_apostrophe, possible_short_rafsi_forms,
+    ShortRafsiShape, canonicalize_text, ends_with_vowel, fold_lojban_diacritic,
+    is_fuhivla_rafsi_stem, normalize_latin_apostrophe, possible_short_rafsi_forms,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -156,7 +157,7 @@ impl<'a> Dictionary<'a> {
 
     /// Return a dictionary entry by generated entry index.
     #[requires(true)]
-    #[ensures(ret.is_none_or(|entry| self.entry_index_for_entry(entry) == Some(index)))]
+    #[ensures(ret.is_some() == (index.0 < self.entries.len()))]
     pub fn entry_for_index(&self, index: EntryIndex) -> Option<&'a DictionaryEntry<'a>> {
         self.entries.get(index.0)
     }
@@ -200,22 +201,26 @@ impl<'a> Dictionary<'a> {
         }
     })]
     pub fn lookup_word(&self, query: &str) -> Option<&DictionaryEntry<'a>> {
+        self.lookup_word_index(query)
+            .map(|index| self.entry_at(index))
+    }
+
+    /// Return the index of the highest-scored entry for a word.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|index| index.0 < self.entries.len()))]
+    pub fn lookup_word_index(&self, query: &str) -> Option<EntryIndex> {
         let normalized = normalize_lookup_query(query);
         let targets = self
             .word_index_entry(&normalized)
             .map(|entry| entry.targets)
             .unwrap_or(&[]);
-        targets
-            .iter()
-            .copied()
-            .min_by(|left, right| {
-                self.entry_at(*right)
-                    .score
-                    .get()
-                    .total_cmp(&self.entry_at(*left).score.get())
-                    .then(left.cmp(right))
-            })
-            .map(|index| self.entry_at(index))
+        targets.iter().copied().min_by(|left, right| {
+            self.entry_at(*right)
+                .score
+                .get()
+                .total_cmp(&self.entry_at(*left).score.get())
+                .then(left.cmp(right))
+        })
     }
 
     /// Return every entry for a normalized lookup query.
@@ -415,6 +420,7 @@ impl<'a> Dictionary<'a> {
             .to_vec();
         rank_rafsi_targets_by_entry_score(self, &mut targets);
         targets.into_iter().map(|target| RafsiMatch {
+            entry_index: target.entry_index,
             entry: self.entry_at(target.entry_index),
             source: target.source,
         })
@@ -455,9 +461,9 @@ impl<'a> Dictionary<'a> {
     /// match the claimant's word type: an official cmavo can hold an
     /// experimental rafsi.
     ///
-    /// Only [`RafsiSource::Listed`] matches count. The other sources are the
-    /// universal forms synthesized for every gismu-like entry, and for
-    /// well-formed gismu those cannot spell a short rafsi: a short rafsi is
+    /// Only [`RafsiSource::Listed`] matches count. Derived fu'ivla stems
+    /// carry no assignment. Universal forms of well-formed gismu cannot
+    /// spell a short rafsi: a short rafsi is
     /// three letters, or four with an apostrophe third (CVV, `sa'i`), whereas
     /// the universal forms of a CVCCV or CCVCV gismu are its apostrophe-free
     /// four- and five-letter prefixes. Nothing forces a gismu-typed entry to
@@ -591,17 +597,35 @@ pub struct DictionaryLujvoEntry<'a> {
 pub struct DictionaryLujvoSegment<'a> {
     pub kind: DictionaryLujvoSegmentKind,
     pub surface: &'a str,
-    pub source_word: Option<&'a str>,
+    pub sources: &'a [DictionaryLujvoSource<'a>],
+}
+
+/// A ranked dictionary entry behind a rafsi.
+#[invariant(true, "Dictionary::validate checks the source against the entry table")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DictionaryLujvoSource<'a> {
+    pub entry_index: EntryIndex,
+    pub word: &'a str,
 }
 
 /// Segment kind in a precomputed lujvo decomposition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 #[invariant(::Rafsi => true)]
 #[invariant(::Hyphen => true)]
 pub enum DictionaryLujvoSegmentKind {
     Rafsi,
+    FuivlaRafsi,
     Hyphen,
+}
+
+impl DictionaryLujvoSegmentKind {
+    #[requires(true)]
+    #[ensures(ret == (self != Self::Hyphen))]
+    pub fn is_rafsi(self) -> bool {
+        self != Self::Hyphen
+    }
 }
 
 /// Lensisku dictionary word type.
@@ -652,6 +676,12 @@ impl WordType {
     #[ensures(true)]
     pub const fn is_gismu_like(self) -> bool {
         matches!(self, Self::Gismu | Self::ExperimentalGismu)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Fuivla | Self::ObsoleteFuivla))]
+    pub const fn is_fuivla_like(self) -> bool {
+        matches!(self, Self::Fuivla | Self::ObsoleteFuivla)
     }
 
     /// Return the highest standing a rafsi assignment on a word of this type
@@ -872,16 +902,17 @@ pub enum RafsiSource {
     Listed { standing: RafsiClaimKind },
     UniversalShort,
     UniversalLong,
+    FuivlaStem,
 }
 
 impl RafsiSource {
-    /// The standing of a listed rafsi, or `None` for a universal form.
+    /// The standing of a listed rafsi, or `None` for a derived form.
     #[requires(true)]
     #[ensures(ret.is_some() == matches!(self, Self::Listed { .. }))]
     pub const fn listed_standing(self) -> Option<RafsiClaimKind> {
         match self {
             Self::Listed { standing } => Some(standing),
-            Self::UniversalShort | Self::UniversalLong => None,
+            Self::UniversalShort | Self::UniversalLong | Self::FuivlaStem => None,
         }
     }
 }
@@ -890,6 +921,7 @@ impl RafsiSource {
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[invariant(true)]
 pub struct RafsiMatch<'entry, 'dict> {
+    pub entry_index: EntryIndex,
     pub entry: &'entry DictionaryEntry<'dict>,
     pub source: RafsiSource,
 }
@@ -1081,6 +1113,16 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
             }
         }
 
+        if entry.word_type.is_fuivla_like()
+            && let Some(stem) = fuivla_stem_rafsi(entry.word)
+        {
+            pattern_rafsi_keys.push(stem.clone());
+            rafsi_map.entry(stem).or_default().push(RafsiIndexTarget {
+                entry_index,
+                source: RafsiSource::FuivlaStem,
+            });
+        }
+
         pattern_index.push(OwnedPatternIndexEntry {
             entry_index,
             word_key: normalize_lookup_query(entry.word),
@@ -1185,6 +1227,26 @@ pub fn normalize_lookup_query(raw: &str) -> String {
         .filter(|token| !token.is_empty())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Remove the final vowel of a fu'ivla when the remainder can take a y-hyphen.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
+#[bityzba::expensive_ensures({
+    let canonical = canonicalize_text(word.trim_matches(['.', ',']));
+    let accepted = canonical.split_at_checked(canonical.len().saturating_sub(1))
+        .filter(|(_, vowel)| ends_with_vowel(vowel))
+        .map(|(stem, _)| stem)
+        .filter(|stem| is_fuhivla_rafsi_stem(stem));
+    ret.as_deref() == accepted
+})]
+pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
+    let mut stem = canonicalize_text(word.trim_matches(['.', ',']));
+    if !ends_with_vowel(&stem) {
+        return None;
+    }
+    stem.pop();
+    is_fuhivla_rafsi_stem(&stem).then_some(stem)
 }
 
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
@@ -1444,7 +1506,7 @@ fn validate_lujvo_index(
         let rafsi_count = lujvo_entry
             .segments
             .iter()
-            .filter(|segment| segment.kind == DictionaryLujvoSegmentKind::Rafsi)
+            .filter(|segment| segment.kind.is_rafsi())
             .count();
         if rafsi_count < 2 {
             return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
@@ -1462,12 +1524,29 @@ fn validate_lujvo_index(
                 reason: "decomposition segment surface is empty",
             });
         }
-        if lujvo_entry.segments.iter().any(|segment| {
-            segment.kind == DictionaryLujvoSegmentKind::Hyphen && segment.source_word.is_some()
-        }) {
+        if lujvo_entry
+            .segments
+            .iter()
+            .any(|segment| !segment.kind.is_rafsi() && !segment.sources.is_empty())
+        {
             return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
                 index,
                 reason: "hyphen segment has a source word",
+            });
+        }
+        if lujvo_entry
+            .segments
+            .iter()
+            .flat_map(|segment| segment.sources)
+            .any(|source| {
+                entries
+                    .get(source.entry_index.0)
+                    .is_none_or(|entry| entry.word != source.word)
+            })
+        {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "decomposition source does not match its dictionary entry",
             });
         }
         if lujvo_entry
@@ -1538,6 +1617,37 @@ mod tests {
             universal_gismu_rafsi_forms("broda"),
             vec![("broda".to_owned(), RafsiSource::UniversalLong)]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn derived_fuivla_stems_pass_morphology_and_do_not_claim_rafsi() {
+        let entries = &[
+            test_entry("ierxi", WordType::Fuivla, &[], None),
+            test_entry("tci'ile", WordType::ObsoleteFuivla, &[], None),
+            test_entry("spageti", WordType::Fuivla, &[], None),
+        ];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+        dictionary.validate().expect("consistent indexes");
+        for (stem, word) in [("ierx", "ierxi"), ("tci'il", "tci'ile")] {
+            let matched = dictionary.lookup_rafsi(stem).next().expect(stem);
+            assert_eq!(matched.source, RafsiSource::FuivlaStem);
+            assert_eq!(matched.entry.word, word);
+            assert!(dictionary.rafsi_availability(stem).is_free());
+        }
+        assert!(dictionary.lookup_rafsi("spaget").next().is_none());
+        assert!(dictionary.rafsi_availability("spaget").is_free());
     }
 
     #[test]

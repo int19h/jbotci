@@ -59,16 +59,23 @@ pub(crate) fn render_in_scope(
                             inline_code_in_scope(&constituent.text, text_scope)
                         ))
                     } else {
-                        match &constituent.source {
-                            Some(source) => text_scope.format(format_args!(
-                                "{} — rafsi of {}",
-                                inline_code_in_scope(&constituent.text, text_scope),
-                                inline_code_in_scope(source, text_scope)
-                            )),
-                            None => text_scope.format(format_args!(
-                                "{} — rafsi",
-                                inline_code_in_scope(&constituent.text, text_scope)
-                            )),
+                        let kind = if constituent.is_fuivla_rafsi {
+                            "fu'ivla rafsi"
+                        } else {
+                            "rafsi"
+                        };
+                        let text = inline_code_in_scope(&constituent.text, text_scope);
+                        if constituent.sources.is_empty() {
+                            text_scope.format(format_args!("{text} — {kind}"))
+                        } else {
+                            let sources = text_scope.join(
+                                constituent
+                                    .sources
+                                    .iter()
+                                    .map(|source| inline_code_in_scope(source, text_scope)),
+                                " / ",
+                            );
+                            text_scope.format(format_args!("{text} — {kind} of {sources}"))
                         }
                     }
                 })
@@ -156,12 +163,14 @@ mod tests {
                     new!(JvozbaConstituent {
                         text: "kla".to_owned(),
                         is_hyphen: false,
-                        source: Some("klama".to_owned())
+                        sources: vec!["klama".to_owned()],
+                        is_fuivla_rafsi: false
                     }),
                     new!(JvozbaConstituent {
                         text: "bar".to_owned(),
                         is_hyphen: false,
-                        source: None
+                        sources: Vec::new(),
+                        is_fuivla_rafsi: false
                     }),
                 ],
             })),

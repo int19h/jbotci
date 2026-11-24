@@ -1161,18 +1161,20 @@ fn collect_vlacku_composition_piece_page_find_entries(
     piece: &VlackuCompositionPiece,
     script: GentufaScript,
 ) {
-    if piece.kind != VlackuCompositionPieceKind::Rafsi {
+    if !piece.kind.is_rafsi() {
         return;
     }
     push_page_find_entry(
         entries,
         display_lujvo_fragment(script, &piece.display_surface, LujvoFragmentKind::Rafsi),
     );
-    if let Some(source) = &piece.source
-        && !piece.source_is_surface
-    {
-        let source_label = piece.display_source.as_deref().unwrap_or(source);
-        push_page_find_entry(entries, display_lojban_text(script, source_label));
+    if piece.kind == VlackuCompositionPieceKind::FuivlaRafsi {
+        push_page_find_entry(entries, "fu'ivla rafsi".to_owned());
+    }
+    for source in &piece.sources {
+        if !jbotci_morphology::canonical_text_eq(&piece.surface, &source.word) {
+            push_page_find_entry(entries, display_lojban_text(script, &source.word));
+        }
     }
 }
 

@@ -64,7 +64,7 @@ use jbotci_jvozba::{
 };
 use jbotci_morphology::{
     MorphologyOptions, PhonemeRenderOptions, RecoveredMorphologySegmentation, WordLike,
-    canonical_text_eq, normalize_lojban_input_text,
+    normalize_lojban_input_text,
     segment_words_with_modifiers_recovered_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
@@ -82,8 +82,8 @@ use jbotci_search::compounds::{
     CompoundBarrier, ParsedCompoundKind, ParsedCompoundMatch, compound_cards, recognize_compounds,
 };
 use jbotci_search::vlacku::{
-    DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
-    VlackuRequest, VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
+    DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuRequest,
+    VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
     dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
     dictionary_matches_for_word_likes, format_vote_display, grouped_word_type_filter_key,
     is_brivla_like, normalize_word_type_filter, run_vlacku_requests, vlacku_exact_query_is_pattern,
@@ -2730,21 +2730,18 @@ pub struct VlackuCompositionPiece {
     pub kind: VlackuCompositionPieceKind,
     pub surface: String,
     pub display_surface: String,
-    pub source: Option<String>,
-    pub display_source: Option<String>,
-    pub source_href: Option<String>,
-    pub source_is_surface: bool,
+    pub sources: Vec<VlackuCompositionSource>,
 }
 
-#[invariant(true)]
-#[invariant(::Rafsi => true)]
-#[invariant(::Hyphen => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(!word.is_empty() && !href.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum VlackuCompositionPieceKind {
-    Rafsi,
-    Hyphen,
+pub struct VlackuCompositionSource {
+    pub word: String,
+    pub href: String,
 }
+
+pub use jbotci_search::vlacku::VlackuCompositionKind as VlackuCompositionPieceKind;
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -6219,23 +6216,51 @@ fn dictionary_tooltip_card_from_search_card(
     base_path: &str,
     card: VlackuCard,
 ) -> DictionaryTooltipCard {
-    let components = if !card.known && normalize_word_type_filter(&card.word_type) == "lujvo" {
-        card.decomposition
-            .iter()
-            .filter(|piece| piece.kind == VlackuCompositionKind::Rafsi)
-            .filter_map(|piece| piece.source.as_deref())
-            .filter_map(dictionary_tooltip_search_card_for_word)
-            .map(|card| {
-                new!(DictionaryTooltipComponentCard {
-                    card: dictionary_tooltip_card_without_components(base_path, card),
-                })
+    let missing_lujvo = !card.known && normalize_word_type_filter(&card.word_type) == "lujvo";
+    let components = card
+        .decomposition
+        .iter()
+        .filter(|piece| missing_lujvo || piece.kind == VlackuCompositionPieceKind::FuivlaRafsi)
+        .flat_map(|piece| piece.sources.iter().map(String::as_str))
+        .filter_map(dictionary_tooltip_search_card_for_word)
+        .map(|card| {
+            new!(DictionaryTooltipComponentCard {
+                card: dictionary_tooltip_card_without_components(base_path, card),
             })
-            .collect()
-    } else {
-        Vec::new()
-    };
+        })
+        .collect();
     dictionary_tooltip_card_without_components(base_path, card)
         .with_data(data! { components: components })
+}
+
+#[requires(true)]
+#[ensures(ret.sources.len() == old(piece.sources.len()))]
+fn web_composition_piece(
+    base_path: &str,
+    piece: jbotci_search::vlacku::VlackuCompositionPiece,
+) -> VlackuCompositionPiece {
+    VlackuCompositionPiece {
+        kind: piece.kind,
+        display_surface: piece.surface.clone(),
+        surface: piece.surface,
+        sources: piece
+            .sources
+            .into_iter()
+            .map(|word| {
+                let href = vlacku_web_url(
+                    base_path,
+                    &VlackuWebState {
+                        min_votes: Default::default(),
+                        mode: VlackuWebMode::Word,
+                        query: word.clone(),
+                        count: VLACKU_WEB_DEFAULT_COUNT,
+                        word_types: Vec::new(),
+                    },
+                );
+                new!(VlackuCompositionSource { word, href })
+            })
+            .collect(),
+    }
 }
 
 #[requires(true)]
@@ -6278,36 +6303,7 @@ fn dictionary_tooltip_card_without_components(
         decomposition: card
             .decomposition
             .into_iter()
-            .map(|piece| {
-                let source_href = piece.source.as_ref().map(|source| {
-                    vlacku_web_url(
-                        base_path,
-                        &VlackuWebState {
-                            min_votes: Default::default(),
-                            mode: VlackuWebMode::Word,
-                            query: source.clone(),
-                            count: VLACKU_WEB_DEFAULT_COUNT,
-                            word_types: Vec::new(),
-                        },
-                    )
-                });
-                let source_is_surface = piece
-                    .source
-                    .as_ref()
-                    .is_some_and(|source| canonical_text_eq(&piece.surface, source));
-                VlackuCompositionPiece {
-                    kind: match piece.kind {
-                        VlackuCompositionKind::Rafsi => VlackuCompositionPieceKind::Rafsi,
-                        VlackuCompositionKind::Hyphen => VlackuCompositionPieceKind::Hyphen,
-                    },
-                    display_surface: piece.surface.clone(),
-                    surface: piece.surface,
-                    display_source: piece.source.clone(),
-                    source: piece.source,
-                    source_href,
-                    source_is_surface,
-                }
-            })
+            .map(|piece| web_composition_piece(base_path, piece))
             .collect(),
         can_add_to_jvozba: dictionary_word_allows_jvozba(
             jbotci_dictionary_data::english(),
@@ -6679,36 +6675,7 @@ fn web_card_from_search_card(
         decomposition: card
             .decomposition
             .into_iter()
-            .map(|piece| {
-                let source_href = piece.source.as_ref().map(|source| {
-                    vlacku_web_url(
-                        "",
-                        &VlackuWebState {
-                            min_votes: Default::default(),
-                            mode: VlackuWebMode::Word,
-                            query: source.clone(),
-                            count: VLACKU_WEB_DEFAULT_COUNT,
-                            word_types: Vec::new(),
-                        },
-                    )
-                });
-                let source_is_surface = piece
-                    .source
-                    .as_ref()
-                    .is_some_and(|source| canonical_text_eq(&piece.surface, source));
-                VlackuCompositionPiece {
-                    kind: match piece.kind {
-                        VlackuCompositionKind::Rafsi => VlackuCompositionPieceKind::Rafsi,
-                        VlackuCompositionKind::Hyphen => VlackuCompositionPieceKind::Hyphen,
-                    },
-                    display_surface: piece.surface.clone(),
-                    surface: piece.surface,
-                    display_source: piece.source.clone(),
-                    source: piece.source,
-                    source_href,
-                    source_is_surface,
-                }
-            })
+            .map(|piece| web_composition_piece("", piece))
             .collect(),
         can_add_to_jvozba: dictionary_word_allows_jvozba(
             jbotci_dictionary_data::english(),
@@ -9116,6 +9083,23 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn lujvo_tooltip_shows_fuivla_stem_source() {
+        let tooltip = dictionary_tooltip_for_word("/tools", "ierxydatsi'o").expect("lujvo tooltip");
+        let piece = &tooltip.decomposition[0];
+        assert_eq!(piece.kind, VlackuCompositionPieceKind::FuivlaRafsi);
+        assert_eq!(piece.sources[0].word, "ierxi");
+        assert_eq!(piece.sources[0].href, "/tools/vlacku/ierxi");
+        assert!(
+            tooltip
+                .components
+                .iter()
+                .any(|component| component.card.word == "ierxi")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gentufa_and_reference_tooltips_keep_missing_lujvo_components() {
         let GentufaWebResult::Success(success) = parse_gentufa_for_web(&GentufaWebRequest {
             text: "mi klabajra".to_owned(),
@@ -10892,16 +10876,28 @@ mod tests {
             .iter()
             .find(|piece| piece.surface == "jenjigu")
             .expect("jenjigu component");
-        assert_eq!(jenjigu_piece.source.as_deref(), Some("jenjigu"));
-        assert!(jenjigu_piece.source_href.is_some());
-        assert!(jenjigu_piece.source_is_surface);
+        assert_eq!(
+            jenjigu_piece
+                .sources
+                .first()
+                .map(|source| source.word.as_str()),
+            Some("jenjigu")
+        );
+        assert!(!jenjigu_piece.sources[0].href.is_empty());
+        assert!(jbotci_morphology::canonical_text_eq(
+            &jenjigu_piece.surface,
+            &jenjigu_piece.sources[0].word
+        ));
 
         let dirce_piece = headword
             .decomposition
             .iter()
-            .find(|piece| piece.source.as_deref() == Some("dirce"))
+            .find(|piece| piece.sources.first().map(|source| source.word.as_str()) == Some("dirce"))
             .expect("dirce component");
-        assert!(!dirce_piece.source_is_surface);
+        assert!(!jbotci_morphology::canonical_text_eq(
+            &dirce_piece.surface,
+            &dirce_piece.sources[0].word
+        ));
     }
 
     #[test]

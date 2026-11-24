@@ -2,7 +2,10 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, expensive_invariant, invariant, new, requires};
-use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
+use jbotci_dictionary::{
+    Dictionary, DictionaryLujvoSegmentKind, DictionaryLujvoSource, RafsiSource, WordType,
+    fuivla_stem_rafsi,
+};
 use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{
     LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, MorphologyOptions, Phonemes,
@@ -76,6 +79,7 @@ pub enum JvozbaSegmentKind {
 #[invariant(::FinalConsonant { .. } => true)]
 #[invariant(::NoRafsiAvailable { .. } => true)]
 #[invariant(::NoDictionaryEntry { .. } => true)]
+#[invariant(::AmbiguousFuivlaRafsi { .. } => true)]
 #[invariant(::TooMuchWork { .. } => true)]
 #[invariant(::CouldNotBuildLujvo => true)]
 #[invariant(::CouldNotBuildCompound => true)]
@@ -95,6 +99,8 @@ pub enum JvozbaError {
     },
     #[error("No rafsi available for `{offending}`.")]
     NoRafsiAvailable { offending: String },
+    #[error("More than one fu'ivla entry has the rafsi `{stem}`. Enter the full source word.")]
+    AmbiguousFuivlaRafsi { stem: String },
     #[error("No dictionary entry for `{offending}`.")]
     NoDictionaryEntry { offending: String },
     #[error(
@@ -430,11 +436,14 @@ pub struct LujvoDecomposition<'a> {
     pub source_words: Vec<&'a str>,
 }
 
-#[invariant(!matches!(segment, LujvoPart::Hyphen(_)) || source.is_none())]
+#[invariant(matches!(segment, LujvoPart::Rafsi(_)) == kind.is_rafsi())]
+#[invariant(kind.is_rafsi() || sources.is_empty())]
+#[invariant(kind == &DictionaryLujvoSegmentKind::FuivlaRafsi || sources.len() <= 1)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LujvoSegmentInfo<'a> {
     pub segment: LujvoPart,
-    pub source: Option<&'a str>,
+    pub kind: DictionaryLujvoSegmentKind,
+    pub sources: Vec<DictionaryLujvoSource<'a>>,
 }
 
 /// A borrowed input or its parsed decomposition, before expanded strings are allocated.
@@ -486,6 +495,15 @@ fn plan_expansion<'input, 'dictionary>(
     if let JvozbaInput::Word(text) = input
         && let Some(decomposition) = decompose_lujvo_like(dictionary, text, cancellation)?
     {
+        if let Some(segment) = decomposition
+            .segments
+            .iter()
+            .find(|segment| segment.sources.len() > 1)
+        {
+            return Err(JvozbaError::AmbiguousFuivlaRafsi {
+                stem: canonicalize_text(segment.segment.phonemes().as_str()),
+            });
+        }
         Ok(ExpansionPlan::Decomposed { decomposition })
     } else {
         Ok(ExpansionPlan::Plain { input })
@@ -567,10 +585,16 @@ fn candidate_list_for_word(
             }),
         };
     };
+    let stem = if mode == JvozbaMode::Lujvo && !is_last_input && entry.word_type.is_fuivla_like() {
+        fuivla_stem_rafsi(entry.word)
+    } else {
+        None
+    };
     let listed_rafsi = entry
         .rafsi
         .iter()
         .map(|rafsi| canonicalize_text(rafsi.form))
+        .filter(|rafsi| stem.as_deref() != Some(rafsi))
         .collect::<Vec<_>>();
     let gismu_extras = if entry.word_type.is_gismu_like() {
         jbotci_dictionary::universal_gismu_rafsi_forms(&canonical_word)
@@ -593,12 +617,21 @@ fn candidate_list_for_word(
     {
         all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
     }
-    if mode == JvozbaMode::Lujvo
-        && !is_last_input
-        && all_candidates.is_empty()
-        && word_type_allows_nonfinal_brivla_core(entry.word_type)
-    {
-        all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
+    if mode == JvozbaMode::Lujvo && !is_last_input && entry.word_type.is_fuivla_like() {
+        // The full word is also needed when the stem cannot join to its neighbor.
+        if all_candidates.is_empty() {
+            all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
+        }
+        if let Some(stem) = stem
+            && dictionary
+                .lookup_rafsi(&stem)
+                .filter(|matched| matched.source == RafsiSource::FuivlaStem)
+                .take(2)
+                .count()
+                == 1
+        {
+            all_candidates.push(new!(LujvoBuildPart::FuhivlaStem(stem)));
+        }
     }
     let all_candidates = unique_preserving_order(all_candidates);
     let candidates = match (mode, is_last_input) {
@@ -711,12 +744,6 @@ fn word_type_is_direct_brivla(word_type: WordType) -> bool {
 #[ensures(ret -> word_type_is_direct_brivla(word_type))]
 fn word_type_allows_final_brivla_core(word_type: WordType) -> bool {
     word_type_is_direct_brivla(word_type)
-}
-
-#[requires(true)]
-#[ensures(ret -> word_type_is_direct_brivla(word_type))]
-fn word_type_allows_nonfinal_brivla_core(word_type: WordType) -> bool {
-    matches!(word_type, WordType::Fuivla | WordType::ObsoleteFuivla)
 }
 
 #[requires(true)]
@@ -839,10 +866,12 @@ fn decomposition_from_parts<'a>(
     dictionary: &Dictionary<'a>,
     parts: Vec<LujvoPart>,
 ) -> Option<LujvoDecomposition<'a>> {
-    let segments = parts
-        .into_iter()
-        .map(|segment| segment_with_source(dictionary, segment))
-        .collect::<Vec<_>>();
+    let mut remaining = parts.into_iter().peekable();
+    let segments = std::iter::from_fn(|| {
+        let part = remaining.next()?;
+        Some(segment_with_sources(dictionary, part, remaining.peek()))
+    })
+    .collect::<Vec<_>>();
     let rafsi_count = segments
         .iter()
         .filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_)))
@@ -851,7 +880,12 @@ fn decomposition_from_parts<'a>(
         return None;
     }
 
-    let source_words = unique_preserving_order(sourced_rafsi_words(&segments).collect::<Vec<_>>());
+    let source_words = unique_preserving_order(
+        segments
+            .iter()
+            .flat_map(|segment| segment.sources.iter().map(|source| source.word))
+            .collect::<Vec<_>>(),
+    );
     Some(new!(LujvoDecomposition {
         segments: segments,
         source_words: source_words,
@@ -869,10 +903,7 @@ fn decomposition_from_parts<'a>(
 fn sourced_rafsi_words<'a>(segments: &[LujvoSegmentInfo<'a>]) -> impl Iterator<Item = &'a str> {
     segments
         .iter()
-        .filter_map(|segment| match &segment.segment {
-            LujvoPart::Rafsi(_) => segment.source,
-            LujvoPart::Hyphen(_) => None,
-        })
+        .filter_map(|segment| segment.sources.first().map(|source| source.word))
 }
 
 #[requires(true)]
@@ -882,7 +913,7 @@ fn all_rafsi_segments_have_sources(decomposition: &LujvoDecomposition<'_>) -> bo
         .segments
         .iter()
         .filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_)))
-        .all(|segment| segment.source.is_some())
+        .all(|segment| !segment.sources.is_empty())
 }
 
 #[requires(true)]
@@ -902,41 +933,61 @@ fn is_cmevla_word(normalized: &str, cancellation: &CancellationToken) -> Result<
 
 #[requires(true)]
 #[ensures(true)]
-fn segment_with_source<'a>(
+fn segment_with_sources<'a>(
     dictionary: &Dictionary<'a>,
     segment: LujvoPart,
+    next: Option<&LujvoPart>,
 ) -> LujvoSegmentInfo<'a> {
-    let source = match &segment {
-        LujvoPart::Rafsi(phonemes) => source_word_for_rafsi_segment(dictionary, phonemes),
-        LujvoPart::Hyphen(_) => None,
+    let (kind, sources) = match &segment {
+        LujvoPart::Hyphen(_) => (DictionaryLujvoSegmentKind::Hyphen, Vec::new()),
+        LujvoPart::Rafsi(phonemes) if segment.is_fuhivla_rafsi_before(next) => {
+            let sources = dictionary
+                .lookup_rafsi(phonemes.as_str())
+                .filter(|matched| matched.source == RafsiSource::FuivlaStem)
+                .map(|matched| DictionaryLujvoSource {
+                    entry_index: matched.entry_index,
+                    word: matched.entry.word,
+                })
+                .collect();
+            (DictionaryLujvoSegmentKind::FuivlaRafsi, sources)
+        }
+        LujvoPart::Rafsi(phonemes) => (
+            DictionaryLujvoSegmentKind::Rafsi,
+            primary_rafsi_source(dictionary, phonemes)
+                .into_iter()
+                .collect(),
+        ),
     };
     new!(LujvoSegmentInfo {
-        segment: segment,
-        source: source,
+        segment,
+        kind,
+        sources
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn source_word_for_rafsi_segment<'a>(
+fn primary_rafsi_source<'a>(
     dictionary: &Dictionary<'a>,
     phonemes: &Phonemes,
-) -> Option<&'a str> {
-    dictionary
-        .lookup_rafsi(phonemes.as_str())
-        .next()
-        .map(|matched| matched.entry.word)
-        .or_else(|| exact_brivla_source_word(dictionary, phonemes.as_str()))
-}
-
-#[requires(true)]
-#[ensures(ret.is_none_or(|word| !word.is_empty()))]
-fn exact_brivla_source_word<'a>(dictionary: &Dictionary<'a>, surface: &str) -> Option<&'a str> {
-    let canonical_surface = canonicalize_text(surface);
-    dictionary
-        .lookup_word(&canonical_surface)
-        .filter(|entry| word_type_is_direct_brivla(entry.word_type))
-        .map(|entry| entry.word)
+) -> Option<DictionaryLujvoSource<'a>> {
+    let surface = phonemes.as_str();
+    let entry_index = dictionary
+        .lookup_rafsi(surface)
+        .find(|matched| matched.source != RafsiSource::FuivlaStem)
+        .and_then(|matched| dictionary.lookup_word_index(matched.entry.word))
+        .or_else(|| {
+            dictionary.lookup_word_index(surface).filter(|index| {
+                dictionary
+                    .entry_for_index(*index)
+                    .is_some_and(|entry| word_type_is_direct_brivla(entry.word_type))
+            })
+        })?;
+    let entry = dictionary.entry_for_index(entry_index)?;
+    Some(DictionaryLujvoSource {
+        entry_index,
+        word: entry.word,
+    })
 }
 
 #[requires(true)]
@@ -1408,7 +1459,7 @@ mod tests {
                 .segments
                 .iter()
                 .any(|segment| segment.segment.phonemes().as_str() == "bolxáda"
-                    && segment.source == Some("bolxada"))
+                    && segment.sources.first().map(|source| source.word) == Some("bolxada"))
         );
     }
 
@@ -1431,7 +1482,7 @@ mod tests {
         let sources = decomposition
             .segments
             .iter()
-            .map(|segment| segment.source)
+            .map(|segment| segment.sources.first().map(|source| source.word))
             .collect::<Vec<_>>();
 
         assert_eq!(surfaces, ["jenjigu", "'y", "dí'e"]);
@@ -1458,7 +1509,7 @@ mod tests {
         let sources = decomposition
             .segments
             .iter()
-            .map(|segment| segment.source)
+            .map(|segment| segment.sources.first().map(|source| source.word))
             .collect::<Vec<_>>();
 
         assert_eq!(surfaces, ["ci'á", "r", "taĭ"]);
@@ -1485,7 +1536,7 @@ mod tests {
         let sources = decomposition
             .segments
             .iter()
-            .map(|segment| segment.source)
+            .map(|segment| segment.sources.first().map(|source| source.word))
             .collect::<Vec<_>>();
 
         assert_eq!(surfaces, ["jet", "rok"]);
@@ -1515,7 +1566,7 @@ mod tests {
         let sources = decomposition
             .segments
             .iter()
-            .map(|segment| segment.source)
+            .map(|segment| segment.sources.first().map(|source| source.word))
             .collect::<Vec<_>>();
 
         assert_eq!(surfaces, ["bau", "n", "rok"]);
@@ -1544,7 +1595,7 @@ mod tests {
         let sources = decomposition
             .segments
             .iter()
-            .map(|segment| segment.source)
+            .map(|segment| segment.sources.first().map(|source| source.word))
             .collect::<Vec<_>>();
 
         assert_eq!(surfaces, ["fek", "lat"]);
@@ -1572,7 +1623,7 @@ mod tests {
         let sources = decomposition
             .segments
             .iter()
-            .map(|segment| segment.source)
+            .map(|segment| segment.sources.first().map(|source| source.word))
             .collect::<Vec<_>>();
 
         assert_eq!(surfaces, ["lat", "lat"]);

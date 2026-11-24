@@ -1708,6 +1708,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw-brackets profile validity is delegated to typed options where every depth and construct-filter combination is valid",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::AmbiguousFuivlaRafsi",
+        "the error reports the stem from a decomposition with multiple source entries",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::CouldNotBuildCompound",
         "jvozba error variant carries no payload beyond the discriminant",
     ),
@@ -2118,14 +2122,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-search/src/vlacku.rs:GlobToken::Vowel",
         "glob token variant is a closed matcher tag with no payload invariants",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Hyphen",
-        "composition kind is a closed display tag; surface/source fields carry data validity",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
-        "composition kind is a closed display tag; surface/source fields carry data validity",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:NextPlace::Numbered",
@@ -2822,14 +2818,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Success",
         "web API result delegates payload constraints to GentufaSuccess and construction path",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPieceKind::Hyphen",
-        "composition piece kind is a closed presentation selector with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPieceKind::Rafsi",
-        "composition piece kind is a closed presentation selector with no payload to constrain",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaItemKind::FixedRafsi",

@@ -430,6 +430,7 @@ fn vlatai_rafsi_kind(kind: ValsiLujvoRafsiKind) -> &'static str {
         ValsiLujvoRafsiKind::Long => "long-rafsi",
         ValsiLujvoRafsiKind::Gismu => "gismu",
         ValsiLujvoRafsiKind::Fuhivla => "fu'ivla",
+        ValsiLujvoRafsiKind::FuhivlaStem => "fu'ivla-rafsi",
         ValsiLujvoRafsiKind::Cultural => "cultural-rafsi",
         ValsiLujvoRafsiKind::Extended => "extended-rafsi",
         ValsiLujvoRafsiKind::Unknown => "unknown-rafsi",

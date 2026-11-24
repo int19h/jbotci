@@ -979,7 +979,9 @@ pub(crate) fn classify_lujvo_rafsi(text: &str) -> crate::ValsiLujvoRafsiKind {
 #[requires(true)]
 #[ensures(!ret || !text.is_empty())]
 pub(crate) fn is_lujvo_rafsi_fragment(text: &str) -> bool {
-    if classify_lujvo_rafsi(text) != crate::ValsiLujvoRafsiKind::Unknown {
+    if classify_lujvo_rafsi(text) != crate::ValsiLujvoRafsiKind::Unknown
+        || is_fuhivla_rafsi_stem(&crate::canonicalize_text(text.trim_matches(',')))
+    {
         return true;
     }
 
@@ -4252,6 +4254,14 @@ fn fuhivla_rafsi_base_ends_until_with_cache(
     }
     cache.record_fuhivla_rafsi_base_ends(index, lookahead_end, &ends);
     ends
+}
+
+#[requires(true)]
+#[ensures(ret -> !stem.is_empty())]
+pub(crate) fn is_fuhivla_rafsi_stem(stem: &str) -> bool {
+    let chars = stem.chars().chain(std::iter::once('y')).collect::<Vec<_>>();
+    let mut cache = MorphologyRecognitionCache::new(chars.len());
+    fuhivla_rafsi_base_slice_with_cache(&chars, 0, chars.len() - 1, chars.len(), &mut cache)
 }
 
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]

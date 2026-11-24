@@ -538,7 +538,8 @@ pub(crate) enum CuktaOutcome {
 pub(crate) struct JvozbaConstituent {
     pub(crate) text: String,
     pub(crate) is_hyphen: bool,
-    pub(crate) source: Option<String>,
+    pub(crate) sources: Vec<String>,
+    pub(crate) is_fuivla_rafsi: bool,
 }
 
 #[invariant(!word.is_empty())]
@@ -1488,7 +1489,13 @@ fn constituents_for(
                 new!(JvozbaConstituent {
                     text,
                     is_hyphen,
-                    source: segment.source.map(str::to_owned),
+                    sources: segment
+                        .sources
+                        .iter()
+                        .map(|source| source.word.to_owned())
+                        .collect(),
+                    is_fuivla_rafsi: segment.kind
+                        == jbotci_dictionary::DictionaryLujvoSegmentKind::FuivlaRafsi,
                 })
             })
             .collect());
@@ -1500,7 +1507,8 @@ fn constituents_for(
                 new!(JvozbaConstituent {
                     text: segment.text.clone(),
                     is_hyphen: segment.kind == jbotci_jvozba::JvozbaSegmentKind::Hyphen,
-                    source: None,
+                    sources: Vec::new(),
+                    is_fuivla_rafsi: false,
                 })
             })
             .collect())
