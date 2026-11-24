@@ -838,8 +838,7 @@ impl Default for PhonemeRenderOptions {
 }
 
 #[invariant(!text.is_empty(), "phoneme text must not be empty")]
-#[invariant(text.chars().any(|value| value != ','), "phoneme text must contain a character other than a comma")]
-#[invariant(text.chars().all(is_valid_phoneme), "phonemes must use canonical Lojban phoneme characters")]
+#[invariant(canonical_phoneme_text(&text), "phoneme text must contain a character other than a comma and use canonical Lojban phoneme characters")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Phonemes {
@@ -872,8 +871,11 @@ impl Phonemes {
         if text.is_empty() {
             return Err("phoneme text must not be empty".to_owned());
         }
-        if !text.chars().all(is_valid_phoneme) {
-            return Err("phonemes must use canonical Lojban phoneme characters".to_owned());
+        if !canonical_phoneme_text(text) {
+            return Err(
+                "phoneme text must contain a character other than a comma and use canonical Lojban phoneme characters"
+                    .to_owned(),
+            );
         }
         for ch in text.chars() {
             output
@@ -3335,6 +3337,24 @@ fn single_constructor(
     Ok(object.into_iter().next().expect("object has one item"))
 }
 
+/// Return whether phoneme text is legal and not only commas.
+///
+/// One pass reads both rules. A constructor uses this function in every build.
+#[requires(true)]
+#[ensures(true)]
+fn canonical_phoneme_text(text: &str) -> bool {
+    let mut saw_other = false;
+    for value in text.chars() {
+        if !is_valid_phoneme(value) {
+            return false;
+        }
+        if value != ',' {
+            saw_other = true;
+        }
+    }
+    saw_other
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub fn is_valid_phoneme(value: char) -> bool {
@@ -3408,9 +3428,11 @@ pub fn is_word_forming_character(value: char) -> bool {
 /// return an empty string.
 #[requires(true)]
 #[ensures(!ret.is_empty() || canonical_text_chars(text).next().is_none())]
-#[ensures(!ret.contains(','))]
-#[ensures(!ret.chars().any(|value| matches!(value, '\u{0301}' | '\u{0300}' | '\u{0306}')))]
-#[bityzba::expensive_ensures(ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value)))]
+#[bityzba::expensive_ensures(
+    !ret.contains(',')
+        && !ret.chars().any(|value| matches!(value, '\u{0301}' | '\u{0300}' | '\u{0306}'))
+        && ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value))
+)]
 pub fn canonicalize_text(text: &str) -> String {
     canonical_text_chars(text).collect()
 }

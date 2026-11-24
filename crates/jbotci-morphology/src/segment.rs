@@ -550,8 +550,10 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
 }
 
 #[requires(true)]
-#[ensures(!ret.contains(','))]
-#[ensures(ret.is_empty() == normalized_word.chars().all(|value| value == ','))]
+#[ensures(normalized_word.is_empty() -> ret.is_empty())]
+#[bityzba::expensive_ensures(
+    !ret.contains(',') && ret.is_empty() == normalized_word.chars().all(|value| value == ',')
+)]
 fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     mark_predictable_stress(
         &canonicalize_word_phonemes(normalized_word)
