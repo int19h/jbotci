@@ -1360,6 +1360,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private S-expression flatten traversal frame; stack sequencing controls pending and flattened child flow",
     ),
     (
+        "crates/jbotci-output/src/sexpr.rs:LineStyleBoundary",
+        "line analysis records independent visibility and styling facts; every combination is a valid projection",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:TextStyle",
+        "color, italic, and strikethrough are independent attributes; every combination has a defined ANSI rendering",
+    ),
+    (
         "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
         "trace rendering now only carries a color flag, so all values are valid",
     ),
