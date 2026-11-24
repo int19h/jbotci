@@ -788,6 +788,10 @@ where
                 match input.parse(&parser) {
                     Ok(output) => {
                         let end_location = ParserInput::cursor_location(input.cursor().inner());
+                        // This helper runs the plain field body. A zero-width
+                        // success is an empty repetition. Recovery synthesis
+                        // uses the recovered helper, which counts a recovery
+                        // state change as progress.
                         if end_location == start_location {
                             debug_assert!(
                                 false,
@@ -1887,7 +1891,14 @@ where
             match input.parse(&parser) {
                 Ok(output) => {
                     let end_location = ParserInput::cursor_location(input.cursor().inner());
-                    if end_location == start_location {
+                    let end_checkpoint = input.save();
+                    // A recovered required field can build an item and consume no token.
+                    // The other recovered repetition helpers count a recovery-state
+                    // change as progress. No input progress and no recovery progress
+                    // is still an empty accept.
+                    if end_location == start_location
+                        && !end_checkpoint.recovery_state_changed_since(&checkpoint)
+                    {
                         debug_assert!(false, "generated repetition parser accepted empty input");
                         input.rewind(checkpoint);
                         break;
