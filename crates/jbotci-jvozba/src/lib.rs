@@ -1356,6 +1356,49 @@ mod tests {
     use jbotci_interrupt::assert_exit_check;
     use jbotci_morphology::normalize_latin_apostrophe;
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_fixed_rafsi_that_canonicalizes_to_nothing_is_empty() {
+        let dictionary = jbotci_dictionary_data::english();
+        for rafsi in [",", ",,", "\u{0301}"] {
+            let error = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::FixedRafsi(rafsi.to_owned()),
+                    JvozbaInput::Word("klama".to_owned()),
+                ],
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect_err("a rafsi with no letters");
+            assert_eq!(error, JvozbaError::FixedRafsiEmpty, "{rafsi:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_that_canonicalizes_to_nothing_has_no_dictionary_entry() {
+        let dictionary = jbotci_dictionary_data::english();
+        let error = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word(",".to_owned()),
+                JvozbaInput::Word("klama".to_owned()),
+            ],
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect_err("a comma is not a dictionary word");
+        assert_eq!(
+            error,
+            JvozbaError::NoDictionaryEntry {
+                offending: String::new()
+            }
+        );
+    }
+
     /// The figures the Discord service uses, so the boundaries these tests
     /// pin are the ones a caller with a deadline actually applies.
     #[requires(true)]

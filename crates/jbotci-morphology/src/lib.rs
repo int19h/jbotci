@@ -838,6 +838,7 @@ impl Default for PhonemeRenderOptions {
 }
 
 #[invariant(!text.is_empty(), "phoneme text must not be empty")]
+#[invariant(text.chars().any(|value| value != ','), "phoneme text must contain a character other than a comma")]
 #[invariant(text.chars().all(is_valid_phoneme), "phonemes must use canonical Lojban phoneme characters")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -3400,10 +3401,15 @@ pub fn is_word_forming_character(value: char) -> bool {
 
 /// Return the canonical spelling of Lojban text.
 ///
-/// Letters are lowercase. Commas are removed. Stress marks and glide marks
-/// become plain vowels. Each Latin apostrophe spelling becomes `'`.
+/// The function writes letters in lowercase. It removes each comma. A stress
+/// mark or a glide mark becomes the plain vowel. Each Latin apostrophe
+/// spelling becomes `'`. A combining acute, grave, or breve disappears. When
+/// every character disappears, the result is empty. A non-empty input can
+/// return an empty string.
 #[requires(true)]
 #[ensures(!ret.is_empty() || canonical_text_chars(text).next().is_none())]
+#[ensures(!ret.contains(','))]
+#[ensures(!ret.chars().any(|value| matches!(value, '\u{0301}' | '\u{0300}' | '\u{0306}')))]
 #[bityzba::expensive_ensures(ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value)))]
 pub fn canonicalize_text(text: &str) -> String {
     canonical_text_chars(text).collect()
@@ -3490,6 +3496,8 @@ pub fn normalize_lojban_input_text_with_options(
         }
     }
     append_normalized_lojban_input_chunk(&mut output, &chunk, options)?;
+    // Commas survive morphology normalization and then disappear here.
+    // A non-empty input with an empty result is not a successful normalization.
     (!output.is_empty() || input.is_empty()).then_some(output)
 }
 
@@ -5827,6 +5835,28 @@ mod tests {
         .expect_err("empty phoneme text must be rejected");
 
         assert!(error.to_string().contains("phoneme text must not be empty"));
+
+        let commas = serde_json::from_str::<Word>(
+            r#"{
+                "Cmavo": {
+                    "phonemes": ",",
+                    "span": {
+                        "source_id": null,
+                        "byte_start": 0,
+                        "byte_end": 1,
+                        "char_start": 0,
+                        "char_end": 1,
+                        "start": null,
+                        "end": null
+                    }
+                }
+            }"#,
+        )
+        .expect_err("comma-only phoneme text must be rejected");
+        assert!(
+            commas.to_string().contains("character other than a comma"),
+            "{commas}"
+        );
     }
 
     #[test]
@@ -5944,6 +5974,21 @@ mod tests {
         assert_eq!(canonicalize_text("nA\u{2019}e"), "na'e");
         assert_eq!(canonicalize_text("TA'Á,kla"), "ta'akla");
         assert_eq!(canonicalize_text("co\u{2018}a"), "co\u{2018}a");
+        assert_eq!(canonicalize_text(""), "");
+        assert_eq!(canonicalize_text(","), "");
+        assert_eq!(canonicalize_text(",,"), "");
+        assert_eq!(canonicalize_text("\u{0301}"), "");
+        assert_eq!(canonicalize_text("\u{0300}"), "");
+        assert_eq!(canonicalize_text("\u{0306}"), "");
+        assert_eq!(canonicalize_text(",,\u{0301}"), "");
+        assert_eq!(normalize_lojban_input_text(","), None);
+        assert_eq!(normalize_lojban_input_text(",,"), None);
+        assert_eq!(normalize_lojban_input_text("\u{0301}"), None);
+        assert_eq!(normalize_lojban_input_text("da,").as_deref(), Some("da"));
+        assert!(Phonemes::from_canonical(",".to_owned()).is_err());
+        assert!(Phonemes::from_canonical(",,".to_owned()).is_err());
+        let comma_word = test_word(WordKind::Cmevla, "d,an", 0);
+        assert_eq!(comma_word.canonical_phonemes(), "dan");
         assert!(canonical_text_eq("nahe", "na'e"));
         assert!(canonical_text_eq("nuhempcr", "nu'empcr"));
         assert!(!canonical_text_eq("jo\u{2018}a", "jo'a"));

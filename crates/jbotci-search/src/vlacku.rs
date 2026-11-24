@@ -2386,12 +2386,10 @@ fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
                 }
             }
             value => {
-                if let Some(normalized) = normalize_glob_literal(value) {
+                // A literal uses the same spelling as a dictionary lookup key.
+                // A character that the key omits adds no token.
+                for normalized in normalize_glob_literal(value).chars() {
                     tokens.push(GlobToken::Literal(normalized));
-                } else {
-                    return Err(format!(
-                        "Invalid glob pattern `{pattern}`: unsupported character `{value}`."
-                    ));
                 }
             }
         }
@@ -2403,21 +2401,15 @@ fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
     }
 }
 
+/// Return the lookup-key spelling of one glob literal.
+///
+/// The result uses `normalize_lookup_query`, the same function that builds a
+/// dictionary key. An empty result means that the character is not part of a key.
 #[requires(true)]
-#[ensures(true)]
-fn normalize_glob_literal(value: char) -> Option<char> {
+#[ensures(ret.chars().all(|value| value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\''))]
+fn normalize_glob_literal(value: char) -> String {
     let text = value.to_string();
-    let normalized = canonicalize_text(&text);
-    let mut chars = normalized.chars();
-    let value = chars.next()?;
-    if chars.next().is_some() {
-        return None;
-    }
-    if value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' {
-        Some(value)
-    } else {
-        None
-    }
+    normalize_lookup_query(&text)
 }
 
 #[requires(true)]
@@ -3136,12 +3128,19 @@ mod tests {
             assert_eq!(result.outcome, ascii.outcome, "{query}");
             assert_eq!(result.cards, ascii.cards, "{query}");
         }
+        // U+2018 is a word break. A lookup key omits it, so the glob does too.
         let word_break = search(
             dictionary,
             &[VlackuRequest::valsi("da\u{2018}*".to_owned())],
             &options,
         );
-        assert_eq!(word_break.outcome, VlackuOutcome::Invalid);
+        let without_mark = search(
+            dictionary,
+            &[VlackuRequest::valsi("da*".to_owned())],
+            &options,
+        );
+        assert_eq!(word_break.outcome, without_mark.outcome);
+        assert_eq!(word_break.cards, without_mark.cards);
     }
 
     #[test]
@@ -3188,21 +3187,103 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn exact_valsi_glob_reports_invalid_characters() {
-        let result = search(
-            jbotci_dictionary_data::english(),
-            &[VlackuRequest::valsi("kl!m*".to_owned())],
-            &VlackuSearchOptions::default(),
+    fn exact_valsi_glob_drops_characters_that_a_lookup_key_omits() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let star = search(
+            dictionary,
+            &[VlackuRequest::valsi("da*".to_owned())],
+            &options,
         );
+        assert_eq!(star.outcome, VlackuOutcome::Found, "{:?}", star.diagnostics);
+        for query in ["da,*", "d,a*", "da\u{0301}*", "da.*"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, star.outcome, "{query}");
+            assert_eq!(result.cards, star.cards, "{query}");
+            assert_eq!(
+                compile_glob_pattern(query)
+                    .expect("pattern keeps a searchable character")
+                    .tokens,
+                compile_glob_pattern("da*").expect("da* compiles").tokens,
+                "{query}"
+            );
+        }
 
-        assert_eq!(result.outcome, VlackuOutcome::Invalid);
-        assert!(result.cards.is_empty());
-        assert!(
-            result
-                .diagnostics
-                .first()
-                .is_some_and(|message| message.contains("Invalid glob pattern"))
+        let with_bang = search(
+            dictionary,
+            &[VlackuRequest::valsi("kl!m*".to_owned())],
+            &options,
         );
+        let without_bang = search(
+            dictionary,
+            &[VlackuRequest::valsi("klm*".to_owned())],
+            &options,
+        );
+        assert_eq!(with_bang.outcome, without_bang.outcome);
+        assert_eq!(with_bang.cards, without_bang.cards);
+
+        let dotted_i = compile_glob_pattern("\u{0130}").expect("dotted capital i");
+        assert_eq!(dotted_i.tokens, vec![GlobToken::Literal('i')]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_rejects_a_pattern_with_no_lookup_character() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        // These strings have no wildcard, so vlacku reads them as exact words.
+        // The glob compiler still rejects them when every character is absent
+        // from a lookup key.
+        for query in [",", ",,,", "\u{0301}", "\u{0300}", "\u{0306}", "!", " "] {
+            let error = compile_glob_pattern(query).expect_err("no lookup character");
+            assert!(
+                error.contains("at least one searchable character"),
+                "{query}: {error}"
+            );
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Invalid, "{query}");
+            assert!(result.cards.is_empty(), "{query}");
+            assert!(
+                result
+                    .diagnostics
+                    .first()
+                    .is_some_and(|message| message.contains("Invalid Lojban word")),
+                "{query}: {:?}",
+                result.diagnostics
+            );
+        }
+
+        // A glob whose literals all disappear keeps the wildcard.
+        let match_all = search(
+            dictionary,
+            &[VlackuRequest::valsi("*".to_owned())],
+            &options,
+        );
+        for query in [",*", "\u{0301}*", "!*"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, match_all.outcome, "{query}");
+            assert_eq!(result.cards, match_all.cards, "{query}");
+            assert_eq!(
+                compile_glob_pattern(query)
+                    .expect("wildcard remains")
+                    .tokens,
+                vec![GlobToken::AnyMany],
+                "{query}"
+            );
+        }
     }
 
     #[test]

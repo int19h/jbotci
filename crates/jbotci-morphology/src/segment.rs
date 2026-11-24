@@ -550,7 +550,8 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty() || normalized_word.is_empty())]
+#[ensures(!ret.contains(','))]
+#[ensures(ret.is_empty() == normalized_word.chars().all(|value| value == ','))]
 fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     mark_predictable_stress(
         &canonicalize_word_phonemes(normalized_word)
@@ -6540,6 +6541,18 @@ pub(crate) fn digit_to_cmavo(value: char) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn brivla_phonemes_drop_commas() {
+        assert_eq!(canonicalize_brivla_phonemes(""), "");
+        assert_eq!(canonicalize_brivla_phonemes(","), "");
+        assert_eq!(canonicalize_brivla_phonemes(",,"), "");
+        let kept = canonicalize_brivla_phonemes("kl,ama");
+        assert!(!kept.is_empty());
+        assert!(!kept.contains(','));
+    }
 
     #[test]
     #[requires(true)]
