@@ -3505,6 +3505,33 @@ pub fn normalize_lojban_input_text_with_options(
     (!output.is_empty() || input.is_empty()).then_some(output)
 }
 
+/// Normalize every separator-delimited chunk without requiring it to be a word.
+/// Invalid chunks contribute only the characters that normalization keeps.
+#[requires(true)]
+#[ensures(true)]
+pub fn normalize_lojban_input_text_unchecked_with_options(
+    input: &str,
+    options: &MorphologyOptions,
+) -> String {
+    let mut output = String::new();
+    let mut chunk = String::new();
+    for value in input.chars() {
+        if segment::is_separator(value) {
+            output.push_str(&canonicalize_text(
+                &segment::normalize_word_lossy_with_options(&chunk, options),
+            ));
+            chunk.clear();
+            output.push(normalized_lojban_input_separator(value));
+        } else {
+            chunk.push(value);
+        }
+    }
+    output.push_str(&canonicalize_text(
+        &segment::normalize_word_lossy_with_options(&chunk, options),
+    ));
+    output
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn append_normalized_lojban_input_chunk(

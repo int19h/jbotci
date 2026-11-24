@@ -6399,11 +6399,12 @@ fn dictionary_tooltip_card_without_components(
             .into_iter()
             .map(|piece| web_composition_piece(base_path, piece))
             .collect(),
-        can_add_to_jvozba: dictionary_card_allows_jvozba(
-            jbotci_dictionary_data::english(),
-            card.entry_index,
-            &card.word,
-        ),
+        can_add_to_jvozba: !card.invalid_lojban_word
+            && dictionary_card_allows_jvozba(
+                jbotci_dictionary_data::english(),
+                card.entry_index,
+                &card.word,
+            ),
         components: Vec::new(),
     })
 }
@@ -6774,11 +6775,12 @@ fn web_card_from_search_card(
             .into_iter()
             .map(|piece| web_composition_piece("", piece))
             .collect(),
-        can_add_to_jvozba: dictionary_card_allows_jvozba(
-            jbotci_dictionary_data::english(),
-            card.entry_index,
-            &card.word,
-        ),
+        can_add_to_jvozba: !card.invalid_lojban_word
+            && dictionary_card_allows_jvozba(
+                jbotci_dictionary_data::english(),
+                card.entry_index,
+                &card.word,
+            ),
     })
 }
 
@@ -11152,6 +11154,70 @@ mod tests {
             assert!(card.decomposition.is_empty(), "{word}");
             assert!(!card.can_add_to_jvozba, "{word}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_key_cards_keep_entry_specific_morphology() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: new!(VlackuVoteFilter::Any),
+            mode: VlackuWebMode::Word,
+            query: "prulamdei#".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+        let card = result
+            .cards
+            .iter()
+            .find(|card| card.word == "prulamdei")
+            .expect("valid prulamdei card");
+        assert!(!card.invalid_lojban_word);
+        assert!(!card.decomposition.is_empty());
+        assert!(card.can_add_to_jvozba);
+        let tooltip = dictionary_tooltip_for_word("", "prulamdei#").expect("valid tooltip");
+        assert!(!tooltip.invalid_lojban_word);
+        assert!(!tooltip.decomposition.is_empty());
+        assert!(tooltip.can_add_to_jvozba);
+
+        let klama = build_vlacku_web_result(&VlackuWebState {
+            min_votes: new!(VlackuVoteFilter::Any),
+            mode: VlackuWebMode::Word,
+            query: "klama#".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+        let klama_card = klama
+            .cards
+            .iter()
+            .find(|card| card.word == "klama")
+            .expect("valid klama card");
+        assert!(!klama_card.invalid_lojban_word);
+        assert!(klama_card.can_add_to_jvozba);
+        let klama_tooltip = dictionary_tooltip_for_word("", "klama#").expect("klama tooltip");
+        assert!(!klama_tooltip.invalid_lojban_word);
+        assert!(klama_tooltip.can_add_to_jvozba);
+
+        for (query, invalid_word) in [("xa", "xa!"), ("mau", "ma;u")] {
+            let result = build_vlacku_web_result(&VlackuWebState {
+                min_votes: new!(VlackuVoteFilter::Any),
+                mode: VlackuWebMode::Word,
+                query: query.to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            });
+            let invalid = result
+                .cards
+                .iter()
+                .find(|card| card.word == invalid_word)
+                .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
+            assert!(invalid.invalid_lojban_word, "{query}");
+            assert!(!invalid.can_add_to_jvozba, "{query}");
+        }
+        let invalid_text =
+            dictionary_tooltip_for_word("", "zo si si zei fa'o").expect("invalid text tooltip");
+        assert!(invalid_text.invalid_lojban_word);
+        assert!(!invalid_text.can_add_to_jvozba);
     }
 
     #[test]

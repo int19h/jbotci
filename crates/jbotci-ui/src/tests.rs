@@ -1281,6 +1281,19 @@ fn page_find_collects_vlacku_card_text_without_controls() {
     ] {
         assert!(texts.contains(&expected.to_owned()), "missing {expected}");
     }
+    let vote_index = texts
+        .iter()
+        .rposition(|text| text == "+7")
+        .expect("vote index");
+    let warning_index = texts
+        .iter()
+        .position(|text| text == jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE)
+        .expect("warning index");
+    let definition_index = texts
+        .iter()
+        .rposition(|text| text == "definition body ")
+        .expect("definition index");
+    assert!(vote_index < warning_index && warning_index < definition_index);
     assert!(!texts.contains(&"Dictionary query".to_owned()));
     assert!(!texts.contains(&"jvozba".to_owned()));
 }
