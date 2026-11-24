@@ -1568,6 +1568,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_multiline_error_restores_strikethrough_in_brackets_and_plain() {
+        let source = "mi ku\nku .i do";
+        let recovered = parse_recovered_syntax(source);
+        assert!(!recovered.errors.is_empty());
+        let options = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let bracketed = pretty_recovered_syntax_brackets_with_options(&recovered, source, options)
+            .expect("multiline error brackets");
+        let plain = pretty_recovered_syntax_plain_with_limit(
+            &recovered,
+            source,
+            options,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("multiline error plain");
+        for rendered in [&bracketed, &plain] {
+            assert!(
+                rendered.contains("\n\x1b[91m\x1b[9mku\x1b[29m"),
+                "{rendered:?}"
+            );
+            assert_eq!(rendered.matches('‼').count(), 2, "{rendered:?}");
+            assert!(
+                rendered
+                    .lines()
+                    .all(|line| line.is_empty() || line.ends_with("\x1b[0m")),
+                "{rendered:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn recovered_plain_keeps_recovery_error_markers_without_structural_brackets() {
         let source = "mi viska le";
         let recovered = parse_recovered_syntax(source);
