@@ -20,6 +20,7 @@ use jbotci_morphology::{
     normalize_lojban_input_text, possible_short_rafsi_forms,
     segment_words_with_modifiers_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id_attempt, strip_lojban_diacritic,
+    transcribe_lookup_chars,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -1366,6 +1367,102 @@ fn short_form_of_phonemes(phonemes: &str) -> Option<String> {
     (!stem.is_empty()).then_some(stem)
 }
 
+/// One piece of a lookup pattern, before keying.
+///
+/// A literal is source text. A wildcard stands for one pattern token.
+#[invariant(true)]
+#[invariant(::Literal(_) => true)]
+#[invariant(::Wildcard(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LookupPatternPart<'a, T> {
+    Literal(&'a str),
+    Wildcard(T),
+}
+
+/// One piece of a lookup pattern after keying.
+///
+/// `Text` is non-empty key text. A wildcard is the same token the caller
+/// supplied.
+#[invariant(::Text(text) => !text.is_empty())]
+#[invariant(::Wildcard(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LookupKeyPart<T> {
+    Text(String),
+    Wildcard(T),
+}
+
+impl<T> LookupKeyPart<T> {
+    /// The key text of this part, when the part is text.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(LookupKeyPart::Text(_))))]
+    pub fn text(&self) -> Option<&str> {
+        match self.as_data() {
+            data!(LookupKeyPart::Text(text)) => Some(text.as_str()),
+            data!(LookupKeyPart::Wildcard(_)) => None,
+        }
+    }
+
+    /// The wildcard token of this part, when the part is a wildcard.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(LookupKeyPart::Wildcard(_))))]
+    pub fn wildcard(&self) -> Option<&T> {
+        match self.as_data() {
+            data!(LookupKeyPart::Wildcard(token)) => Some(token),
+            data!(LookupKeyPart::Text(_)) => None,
+        }
+    }
+}
+
+/// A literal run that an exact lookup rejects.
+///
+/// `character` is the first character in that run that is not whitespace.
+#[invariant(!character.is_whitespace())]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LookupPatternError {
+    pub character: char,
+}
+
+/// Key one whole lookup pattern.
+///
+/// `parts` is literal text and wildcard tokens in pattern order. The
+/// function converts each literal, then folds, filters, and collapses
+/// whitespace with the same character rule as an exact key. A wildcard
+/// counts as a part that stays. A space stays when a surviving part is on
+/// both sides. A character that the filter removes does not hide a space.
+/// A literal run that keeps no lookup character is an error. A pattern with
+/// no wildcard has the same key as that text alone.
+#[requires(true)]
+#[ensures(match &ret {
+    Ok(_) => true,
+    Err(error) => !error.character.is_whitespace(),
+})]
+#[bityzba::expensive_ensures({
+    if parts
+        .iter()
+        .any(|part| matches!(part, LookupPatternPart::Wildcard(_)))
+    {
+        true
+    } else {
+        let mut joined = String::new();
+        for part in parts {
+            if let LookupPatternPart::Literal(text) = part {
+                joined.push_str(text);
+            }
+        }
+        let whole = build_lookup_key::<T>(&[LookupPatternPart::Literal(joined.as_str())]);
+        match (ret.as_ref(), whole.as_ref()) {
+            (Ok(actual), Ok(expected)) => key_text_of(actual) == key_text_of(expected),
+            (Err(actual), Err(expected)) => actual.character == expected.character,
+            _ => false,
+        }
+    }
+})]
+pub fn normalize_lookup_pattern<T: Clone>(
+    parts: &[LookupPatternPart<'_, T>],
+) -> Result<Vec<LookupKeyPart<T>>, LookupPatternError> {
+    build_lookup_key(parts)
+}
+
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
 #[requires(true)]
 #[ensures(true)]
@@ -1393,12 +1490,137 @@ pub fn universal_gismu_rafsi_forms(word: &str) -> Vec<(String, RafsiSource)> {
 #[requires(true)]
 #[ensures(true)]
 fn normalize_lookup_token(raw: &str) -> String {
-    raw.chars()
-        .filter_map(fold_lojban_diacritic)
-        .flat_map(char::to_lowercase)
-        .map(normalize_latin_apostrophe)
-        .filter(|value| is_lookup_char(*value))
-        .collect()
+    let mut token = String::new();
+    for value in raw.chars() {
+        append_lookup_chars(value, &mut token);
+    }
+    token
+}
+
+#[requires(true)]
+#[ensures(output.len() >= old(output.len()))]
+#[ensures(ret == (output.len() > old(output.len())))]
+fn append_lookup_chars(value: char, output: &mut String) -> bool {
+    let start = output.len();
+    if let Some(folded) = fold_lojban_diacritic(value) {
+        for lower in folded.to_lowercase() {
+            let mapped = normalize_latin_apostrophe(lower);
+            if is_lookup_char(mapped) {
+                output.push(mapped);
+            }
+        }
+    }
+    output.len() > start
+}
+
+#[requires(true)]
+#[ensures(value.is_whitespace() -> current.len() == old(current.len()))]
+#[ensures(old(*segment_kept) -> *segment_kept)]
+fn note_lookup_transcript_char(
+    value: char,
+    current: &mut String,
+    pending_space: &mut bool,
+    started: &mut bool,
+    segment_kept: &mut bool,
+) {
+    if value.is_whitespace() {
+        if *started {
+            *pending_space = true;
+        }
+        return;
+    }
+    let mark = current.len();
+    if *pending_space {
+        current.push(' ');
+    }
+    if append_lookup_chars(value, current) {
+        *pending_space = false;
+        *started = true;
+        *segment_kept = true;
+    } else {
+        current.truncate(mark);
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_err() == (!segment_kept && segment_error.is_some()))]
+#[ensures(ret.as_ref().is_err_and(|error| !error.character.is_whitespace()) || ret.is_ok())]
+fn rejected_lookup_segment(
+    segment_kept: bool,
+    segment_error: Option<char>,
+) -> Result<(), LookupPatternError> {
+    if segment_kept {
+        return Ok(());
+    }
+    match segment_error {
+        Some(character) => Err(new!(LookupPatternError { character })),
+        None => Ok(()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn key_text_of<T>(parts: &[LookupKeyPart<T>]) -> String {
+    let mut text = String::new();
+    for part in parts {
+        if let data!(LookupKeyPart::Text(value)) = part.as_data() {
+            text.push_str(value);
+        }
+    }
+    text
+}
+
+#[requires(true)]
+#[ensures(match &ret {
+    Ok(_) => true,
+    Err(error) => !error.character.is_whitespace(),
+})]
+fn build_lookup_key<T: Clone>(
+    parts: &[LookupPatternPart<'_, T>],
+) -> Result<Vec<LookupKeyPart<T>>, LookupPatternError> {
+    let mut keyed = Vec::new();
+    let mut current = String::new();
+    let mut pending_space = false;
+    let mut started = false;
+    let mut segment_kept = false;
+    let mut segment_error = None;
+    for part in parts {
+        match part {
+            LookupPatternPart::Literal(text) => {
+                let first = transcribe_lookup_chars(text, |value| {
+                    note_lookup_transcript_char(
+                        value,
+                        &mut current,
+                        &mut pending_space,
+                        &mut started,
+                        &mut segment_kept,
+                    );
+                });
+                if segment_error.is_none() {
+                    segment_error = first;
+                }
+            }
+            LookupPatternPart::Wildcard(token) => {
+                rejected_lookup_segment(segment_kept, segment_error)?;
+                segment_kept = false;
+                segment_error = None;
+                if pending_space {
+                    current.push(' ');
+                    pending_space = false;
+                }
+                if !current.is_empty() {
+                    keyed.push(new!(LookupKeyPart::Text(std::mem::take(&mut current))));
+                }
+                keyed.push(new!(LookupKeyPart::Wildcard(token.clone())));
+                started = true;
+            }
+        }
+    }
+    rejected_lookup_segment(segment_kept, segment_error)?;
+    if !current.is_empty() {
+        keyed.push(new!(LookupKeyPart::Text(current)));
+    }
+    Ok(keyed)
 }
 
 #[requires(true)]
@@ -1725,6 +1947,86 @@ mod tests {
         assert_eq!(normalize_lookup_query("da\u{2019}oi"), "da'oi");
         assert_eq!(normalize_lookup_query("dahoi"), "da'oi");
         assert_eq!(normalize_lookup_query("da\u{02d2}oi"), "da'oi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_pattern_uses_the_exact_key_rules() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn whole(text: &str) -> Result<Vec<LookupKeyPart<char>>, LookupPatternError> {
+            normalize_lookup_pattern(&[LookupPatternPart::Literal(text)])
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn text_of(text: &str) -> String {
+            key_text_of(&whole(text).expect("the sample keeps a lookup character"))
+        }
+
+        assert_eq!(text_of(" .Án,iis. "), normalize_lookup_query(" .Án,iis. "));
+        assert_eq!(text_of("lo  brodá"), "lo broda");
+        assert_eq!(text_of("клама#da"), "klamada");
+        assert_eq!(text_of("клама"), "klama");
+        assert_eq!(text_of("coһi#"), "co'i");
+        assert_eq!(text_of("qá"), "qa");
+        assert_eq!(text_of("Áq"), "aq");
+        assert_eq!(text_of("\u{ed8b}\u{eda2}"), "i'");
+        assert_eq!(text_of("\u{ed8b}\u{eda2}#"), "i'");
+        assert_eq!(whole(",").expect_err("comma").character, ',');
+        assert_eq!(whole("\u{0306}").expect_err("breve").character, '\u{0306}');
+        assert_eq!(
+            whole(",\u{0306}").expect_err("comma and breve").character,
+            ','
+        );
+        assert_eq!(whole("🙂").expect_err("emoji").character, '🙂');
+        assert!(whole(" ").expect("blank").is_empty());
+
+        let split = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ca"),
+            LookupPatternPart::Literal(","),
+        ]);
+        assert_eq!(split, whole("ca,"));
+        assert_eq!(text_of("ca,"), "ca");
+
+        let comma_before_star = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ca ,"),
+            LookupPatternPart::Wildcard('*'),
+        ])
+        .expect("space stays before the star");
+        assert_eq!(key_text_of(&comma_before_star), "ca ");
+        assert_eq!(
+            comma_before_star,
+            vec![
+                new!(LookupKeyPart::Text("ca ".to_owned())),
+                new!(LookupKeyPart::Wildcard('*'))
+            ]
+        );
+
+        let bang_before_star = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ca !"),
+            LookupPatternPart::Wildcard('*'),
+        ])
+        .expect("a bang does not hide the space");
+        assert_eq!(key_text_of(&bang_before_star), "ca ");
+
+        let comma_between = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ca ,"),
+            LookupPatternPart::Wildcard('?'),
+            LookupPatternPart::Literal("ma"),
+        ])
+        .expect("comma does not hide the space");
+        assert_eq!(key_text_of(&comma_between), "ca ma");
+
+        let stars = normalize_lookup_pattern(&[
+            LookupPatternPart::Wildcard('*'),
+            LookupPatternPart::Literal(" "),
+            LookupPatternPart::Wildcard('*'),
+        ])
+        .expect("space between stars");
+        assert_eq!(key_text_of(&stars), " ");
+        assert_eq!(stars.len(), 3);
     }
 
     #[test]

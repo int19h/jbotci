@@ -84,6 +84,112 @@ pub(crate) fn normalize_word_checked_with_options(
     )
 }
 
+/// Walk `input` once. Send each lookup transcript character to `on_char`.
+///
+/// The walk converts every character it can convert. It passes every other
+/// character through. A failed character does not discard an earlier
+/// conversion. A stress mark produces no character. The key filter maps a
+/// stressed vowel and a plain vowel to the same letter. The return value is
+/// the first source character that is not whitespace.
+#[requires(true)]
+#[ensures(ret.is_none_or(|value| !value.is_whitespace()))]
+pub(crate) fn transcribe_lookup_chars(input: &str, mut on_char: impl FnMut(char)) -> Option<char> {
+    let options = MorphologyOptions::default();
+    let mut chars = input.chars().peekable();
+    let mut first_non_whitespace = None;
+    let mut previous_implicit_apostrophe_vowel = false;
+    while let Some(value) = chars.next() {
+        if first_non_whitespace.is_none() && !value.is_whitespace() {
+            first_non_whitespace = Some(value);
+        }
+        if is_separator(value) {
+            let emitted = if crate::is_period_character(value) {
+                '.'
+            } else {
+                value
+            };
+            on_char(emitted);
+            previous_implicit_apostrophe_vowel = false;
+            continue;
+        }
+        if options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value) {
+            if let Some(payload_value) = chars.peek().copied()
+                && let Some(payload) = normalize_zbalermorna_shorthand_payload(payload_value)
+            {
+                chars.next();
+                for normalized_value in payload.chars() {
+                    emit_lookup_transcript_char(
+                        normalized_value,
+                        false,
+                        &mut previous_implicit_apostrophe_vowel,
+                        &mut on_char,
+                    );
+                }
+                emit_lookup_transcript_char(
+                    '\'',
+                    false,
+                    &mut previous_implicit_apostrophe_vowel,
+                    &mut on_char,
+                );
+                continue;
+            }
+            on_char(value);
+            previous_implicit_apostrophe_vowel = false;
+            continue;
+        }
+        match normalize_char_event(value, &options) {
+            Some(event) => match event.as_data() {
+                data!(NormalizedCharEvent::Emit {
+                    value: normalized_value,
+                    implicit_apostrophe_vowel,
+                }) => {
+                    emit_lookup_transcript_char(
+                        *normalized_value,
+                        *implicit_apostrophe_vowel,
+                        &mut previous_implicit_apostrophe_vowel,
+                        &mut on_char,
+                    );
+                }
+                data!(NormalizedCharEvent::EmitText { text }) => {
+                    for normalized_value in text.chars() {
+                        emit_lookup_transcript_char(
+                            normalized_value,
+                            false,
+                            &mut previous_implicit_apostrophe_vowel,
+                            &mut on_char,
+                        );
+                    }
+                }
+                data!(NormalizedCharEvent::StressPrevious)
+                | data!(NormalizedCharEvent::StressPreviousVowel) => {}
+                data!(NormalizedCharEvent::Ignore) => {
+                    previous_implicit_apostrophe_vowel = false;
+                }
+            },
+            None => {
+                on_char(value);
+                previous_implicit_apostrophe_vowel = false;
+            }
+        }
+    }
+    first_non_whitespace
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn emit_lookup_transcript_char<F: FnMut(char)>(
+    value: char,
+    implicit_apostrophe_vowel: bool,
+    previous_implicit_apostrophe_vowel: &mut bool,
+    on_char: &mut F,
+) {
+    if *previous_implicit_apostrophe_vowel && implicit_apostrophe_vowel {
+        on_char('\'');
+    }
+    on_char(value);
+    *previous_implicit_apostrophe_vowel = implicit_apostrophe_vowel;
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn first_unnormalizable_word_char(

@@ -3523,6 +3523,19 @@ pub fn normalize_lojban_input_text_with_options(
     (!output.is_empty() || input.is_empty()).then_some(output)
 }
 
+/// Walk `input` once. Send each lookup transcript character to `on_char`.
+///
+/// The walk converts every character it can convert. It passes every other
+/// character through. A failed character does not discard an earlier
+/// conversion. The return value is the first source character that is not
+/// whitespace. An empty return means that `input` is empty or whitespace.
+#[requires(true)]
+#[ensures(ret.is_none_or(|value| !value.is_whitespace()))]
+#[bityzba::expensive_ensures(ret == input.chars().find(|value| !value.is_whitespace()))]
+pub fn transcribe_lookup_chars(input: &str, on_char: impl FnMut(char)) -> Option<char> {
+    segment::transcribe_lookup_chars(input, on_char)
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn append_normalized_lojban_input_chunk(
@@ -4985,6 +4998,37 @@ mod tests {
             )
             .as_deref(),
             Some(".finyks.")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn transcribe_lookup_chars_keeps_a_partial_conversion() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn transcript(input: &str) -> String {
+            let mut text = String::new();
+            let _ = transcribe_lookup_chars(input, |value| text.push(value));
+            text
+        }
+
+        let shorthand = transcript("\u{ed8b}\u{eda2}");
+        assert_eq!(shorthand, "i'");
+        assert!(!shorthand.contains('\u{ed8b}'));
+        assert_eq!(transcript("\u{ed8b}\u{eda2}#"), "i'#");
+        assert_eq!(transcript("клама#da"), "klama#da");
+        assert_eq!(transcript("coһi#"), "co'i#");
+        assert_eq!(transcript("шои"), "co'i");
+        assert_eq!(transcript("\u{0306}"), "\u{0306}");
+        assert_eq!(transcript("\u{0301}"), "");
+        assert_eq!(
+            transcribe_lookup_chars("\u{0306}", |_| {}),
+            Some('\u{0306}')
+        );
+        assert_eq!(
+            transcribe_lookup_chars("\u{0301}", |_| {}),
+            Some('\u{0301}')
         );
     }
 
