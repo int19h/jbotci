@@ -241,8 +241,11 @@ struct Segmenter<'a> {
     ignored_character_flags: Vec<bool>,
     /// New ignored positions in a speculative replacement quote read.
     ignored_probe: Option<Vec<usize>>,
-    /// Disabled only while probing for a ZOI closing delimiter, whose payload
-    /// boundaries must stay independent of the permissive tier.
+    /// Disabled only while probing for a ZOI closing delimiter. The closer
+    /// search and the closing word stay independent of the permissive tier, so
+    /// permissive mode keeps every closer of strict mode. Only the opening
+    /// edge of a quote can eat a permissive boundary: the one that ended the
+    /// opening delimiter word.
     permissive_boundaries_enabled: bool,
     trace: TraceRecorder,
     /// One recognition region for the current unspaced span.
@@ -1968,8 +1971,24 @@ impl<'a> Segmenter<'a> {
         }
     }
 
+    /// Read one `zoi` or `la'o` quote.
+    ///
+    /// `find_zoi_close` finds the closing delimiter first. That search is the
+    /// same as before the quote-edge rule of #1132. Then the edge rule below
+    /// finds the quote text between the two delimiter words.
+    ///
+    /// One word break ends the delimiter word in the current mode.
+    /// The delimiter eats that one break on the side that faces the quote.
+    /// Whitespace on the quote side of the break stays outside the quote.
+    /// When the delimiters share one break, the quote is empty.
+    /// When only whitespace stands between the delimiters, the quote is empty.
+    /// A permissive boundary is a word break only in permissive mode.
+    /// When no word break stands on the quote side of the word, nothing is eaten.
+    /// The payload then meets the word. A comma is not a word break.
+    /// When a comma has no word break beyond it, the comma stays in the payload.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().map_or(true, |words| zoi_quote_span_is_ordered(&self.chars, words)))]
+    #[bityzba::expensive_ensures(ret.as_ref().map_or(true, |words| zoi_quote_span_matches_edge(&self.chars, words, self.permissive_boundaries_enabled)))]
     fn zoi_quote(
         &mut self,
         zoi_word_with_modifiers: WordLike,
@@ -2033,26 +2052,60 @@ impl<'a> Segmenter<'a> {
                 })),
             ));
         }
-        let consumed_open_separator = self.consume_zoi_open_separators();
-        let quoted_start = self.index;
-        let Some((quoted_end, closing_delimiter, close_start)) =
-            self.find_zoi_close(&opening_delimiter, consumed_open_separator)?
+        let after_open = opening_delimiter.span().char_end;
+        let open_edge = zoi_quote_edge(
+            &self.chars,
+            after_open,
+            true,
+            self.permissive_boundaries_enabled,
+        );
+        let quoted_start = open_edge.quote_bound;
+        let Some(closing_preview) = self
+            .find_zoi_close(&opening_delimiter, after_open)
+            .into_data()
+            .closer
         else {
+            // A cancelled trial reads no word. The quote can still have a closer.
+            if self.options.cancellation.is_cancelled() {
+                return Err(MorphologyError::Interrupted);
+            }
             return Err(MorphologyError::UnterminatedZoiQuote {
                 char_offset: quoted_start,
                 delimiter: opening_delimiter.phonemes().into_string(),
                 context: self.context(
                     MorphologyContextKind::DelimitedNonLojbanQuote,
                     after_marker,
-                    self.index,
+                    quoted_start,
                 ),
             });
         };
+        // The closer starts after the opening edge, because the opening edge
+        // holds only commas, one word break and whitespace, and a closer trial
+        // skips or rejects those characters. When the delimiters share one
+        // break, the closing edge reaches back past `quoted_start`.
+        let close_start = closing_preview.span().char_start;
+        let close_edge = zoi_quote_edge(
+            &self.chars,
+            close_start,
+            false,
+            self.permissive_boundaries_enabled,
+        );
+        let quoted_end = close_edge.quote_bound.max(quoted_start);
+        // An eaten permissive boundary is skipped text, so the advice counts
+        // it, as `skip_separators` does. The closing edge always meets a
+        // separator, because every candidate follows one, so in practice only
+        // the opening edge can add a position here.
+        for separator in [open_edge.separator, close_edge.separator]
+            .into_iter()
+            .flatten()
+        {
+            self.mark_permissive_ignorable(separator);
+        }
         self.index = close_start;
         let closing = self.next_plain_word()?;
         let zoi =
             into_bare_word(zoi_word_with_modifiers).expect("ZOI marker was checked as a bare word");
-        let closing_delimiter = into_bare_word(closing).unwrap_or(closing_delimiter);
+        let closing_delimiter = into_bare_word(closing).unwrap_or(closing_preview);
         Ok(vec![WordLike::zoi_quote(
             zoi,
             opening_delimiter,
@@ -2425,44 +2478,100 @@ impl<'a> Segmenter<'a> {
         Ok(())
     }
 
-    #[requires(true)]
-    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
-    fn find_zoi_close(
-        &mut self,
-        opening_delimiter: &Word,
-        consumed_open_separator: bool,
-    ) -> Result<Option<(usize, Word, usize)>, MorphologyError> {
+    /// Find the closing delimiter word of a `zoi` or `la'o` quote.
+    ///
+    /// This search selects the same closers as main, in strict and in
+    /// permissive mode. The quote edges are found after the closer.
+    ///
+    /// A candidate is the first character after a run of
+    /// `segment::is_separator` characters. The search tries the candidates in
+    /// order. The first candidate that reads as the delimiter word closes the
+    /// quote. A permissive boundary is not a break for this search, and the
+    /// closing word is read in strict mode, so permissive mode keeps every
+    /// closer of strict mode (#1132). `zoi gy a #gy b gy` and
+    /// `zoi gy a gy# b gy` both quote everything up to the last `gy`.
+    ///
+    /// A trial depends only on where its strict word starts, so each word start
+    /// is tried at most once. `ZoiCloseLookahead` holds the shared lookahead.
+    ///
+    /// `examined` counts three scans: the skip walk to each word start, the
+    /// walk of each strict word run, and the window of each trial, which the
+    /// word reader walks to find the end of its candidate. The count is linear
+    /// in the length of the text after the opening word. It does not count the
+    /// other work inside the strict word reader. For example, the reader looks
+    /// for a pause after each candidate word end, and that scan can walk the
+    /// same commas again for each end. Issue #1143 tracks that scan, which main
+    /// has too.
+    #[requires(after_open <= self.chars.len())]
+    #[ensures(ret.examined <= 3 * (self.chars.len() - after_open))]
+    #[ensures(ret.closer.as_ref().is_none_or(|word| after_open < word.span().char_start && word.span().char_end <= self.chars.len()))]
+    fn find_zoi_close(&mut self, opening_delimiter: &Word, after_open: usize) -> ZoiCloseSearch {
         let opening_delimiter_canonical = canonicalize_text(opening_delimiter.phonemes().as_str());
-        let mut cursor = self.index;
-        if consumed_open_separator
-            && let Some(closing_word) =
-                self.zoi_closing_word_at(&opening_delimiter_canonical, cursor)
-        {
-            return Ok(Some((cursor, closing_word, cursor)));
-        }
+        let mut lookahead = None;
+        let mut cursor = after_open;
         while cursor < self.chars.len() {
-            let pause_start = cursor;
-            let mut saw_separator = false;
+            let mut saw_break = false;
             while cursor < self.chars.len() && self.is_strict_word_separator_at(cursor) {
-                saw_separator = true;
+                saw_break = true;
                 cursor += 1;
             }
-            if saw_separator && cursor < self.chars.len() {
-                if let Some(closing_word) =
-                    self.zoi_closing_word_at(&opening_delimiter_canonical, cursor)
-                {
-                    return Ok(Some((
-                        trim_trailing_separator_indices(&self.chars, self.index, pause_start),
-                        closing_word,
-                        cursor,
-                    )));
-                }
-                cursor += 1;
-            } else {
-                cursor += 1;
+            if saw_break
+                && cursor < self.chars.len()
+                && let Some(closer) =
+                    self.zoi_close_trial(&opening_delimiter_canonical, cursor, &mut lookahead)
+            {
+                return zoi_close_search(Some(closer), lookahead);
             }
+            cursor += 1;
         }
-        Ok(None)
+        zoi_close_search(None, lookahead)
+    }
+
+    /// Try the closer candidate at `candidate`.
+    ///
+    /// The strict word read skips commas and separators first. So the trial at
+    /// `candidate` is the trial at the first character after them, the word
+    /// start. When that word start was tried before, that trial failed, and it
+    /// is not repeated.
+    ///
+    /// `lookahead` is replaced by the lookahead for this candidate. Each skip
+    /// walk starts after the last one, and each strict word run is walked by
+    /// at most one trial, because a candidate follows a separator.
+    #[requires(candidate <= self.chars.len())]
+    #[requires(lookahead.is_none_or(|previous| previous.skip_from <= candidate))]
+    #[ensures(lookahead.is_some_and(|next| next.skip_from <= candidate && candidate <= next.word_start))]
+    #[ensures(lookahead.is_some_and(|next| next.examined >= old(lookahead.map_or(0, |previous| previous.examined))))]
+    #[ensures(ret.as_ref().is_none_or(|word| lookahead.is_some_and(|next| word.span().char_start == next.word_start)))]
+    fn zoi_close_trial(
+        &mut self,
+        opening_delimiter_canonical: &str,
+        candidate: usize,
+        lookahead: &mut Option<ZoiCloseLookahead>,
+    ) -> Option<Word> {
+        let previous = *lookahead;
+        if let Some(previous) = previous
+            && candidate <= previous.word_start
+        {
+            // The read skips every character in `skip_from..word_start`, so this
+            // candidate has the same word start. That trial already ran and failed.
+            return None;
+        }
+        let mut examined = previous.map_or(0, |previous| previous.examined);
+        let word_start = zoi_close_word_start(&self.chars, candidate);
+        examined += word_start - candidate;
+        let run_end = zoi_close_run_end(&self.chars, word_start);
+        // One walk here, and one walk by the reader to the same end.
+        examined += 2 * (run_end - word_start);
+        *lookahead = Some(new!(ZoiCloseLookahead {
+            skip_from: candidate,
+            word_start,
+            examined,
+        }));
+        if word_start < self.chars.len() {
+            self.zoi_closing_word_at(opening_delimiter_canonical, word_start)
+        } else {
+            None
+        }
     }
 
     #[requires(cursor <= self.chars.len())]
@@ -2564,15 +2673,23 @@ impl<'a> Segmenter<'a> {
     #[ensures(self.index <= self.chars.len())]
     fn skip_separators(&mut self) {
         while self.index < self.chars.len() && self.is_magic_noise_at(self.index) {
-            if self.is_new_permissive_ignorable_at(self.index) {
-                if !self.ignored_character_flags[self.index] {
-                    if let Some(positions) = &mut self.ignored_probe {
-                        positions.push(self.index);
-                    }
-                    self.ignored_character_flags[self.index] = true;
-                }
-            }
+            self.mark_permissive_ignorable(self.index);
             self.index += 1;
+        }
+    }
+
+    /// Count a skipped permissive boundary for the ignored-characters advice.
+    ///
+    /// A speculative read journals the position in `ignored_probe`, so a
+    /// failed read can undo the flag.
+    #[requires(index < self.chars.len())]
+    #[ensures(!self.is_new_permissive_ignorable_at(index) || self.ignored_character_flags[index])]
+    fn mark_permissive_ignorable(&mut self, index: usize) {
+        if self.is_new_permissive_ignorable_at(index) && !self.ignored_character_flags[index] {
+            if let Some(positions) = &mut self.ignored_probe {
+                positions.push(index);
+            }
+            self.ignored_character_flags[index] = true;
         }
     }
 
@@ -3031,25 +3148,6 @@ impl<'a> Segmenter<'a> {
                     || source_char.value == '.'
                     || source_char.value == ','
             })
-    }
-
-    #[requires(true)]
-    #[ensures(self.index <= self.chars.len())]
-    fn consume_zoi_open_separators(&mut self) -> bool {
-        let start = self.index;
-        if self.peek_char().is_some_and(|value| value == '.') {
-            while self.peek_char().is_some_and(|value| value == '.') {
-                self.index += 1;
-            }
-            while self.peek_char().is_some_and(char::is_whitespace) {
-                self.index += 1;
-            }
-        } else {
-            while self.peek_char().is_some_and(char::is_whitespace) {
-                self.index += 1;
-            }
-        }
-        self.index != start
     }
 
     #[requires(start <= end && end <= self.chars.len())]
@@ -3525,18 +3623,352 @@ fn is_y_word(word: &WordLike) -> bool {
     word.bare_word().is_some_and(Word::is_hesitation)
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[ensures(ret >= start && ret <= end)]
-fn trim_trailing_separator_indices(chars: &[SourceChar], start: usize, end: usize) -> usize {
-    let mut trimmed_end = end;
-    while start < trimmed_end
-        && chars
-            .get(trimmed_end - 1)
-            .is_some_and(|source_char| crate::segment::is_separator(source_char.value))
-    {
-        trimmed_end -= 1;
+/// The result of one closer search.
+///
+/// `closer` is the closing delimiter word, when the search found one.
+/// `examined` counts the characters that the lookahead and the trials walked,
+/// as `Segmenter::find_zoi_close` describes. Work inside the word reader is
+/// not counted (#1143).
+/// A closer comes only from a trial, and a trial walks at least the first
+/// character of its word, so a found closer means a nonzero count.
+#[invariant(closer.is_none() || *examined > 0)]
+#[derive(Debug)]
+struct ZoiCloseSearch {
+    closer: Option<Word>,
+    examined: usize,
+}
+
+/// The lookahead that the closer trials of one quote share.
+///
+/// `word_start` is where the last trial read its strict word. Every character
+/// in `skip_from..word_start` is a comma or a `segment::is_separator`
+/// character, so a later candidate in that range has the same word start.
+/// `examined` counts the characters that the search walked so far.
+#[invariant(*skip_from <= *word_start)]
+#[derive(Debug, Clone, Copy)]
+struct ZoiCloseLookahead {
+    skip_from: usize,
+    word_start: usize,
+    examined: usize,
+}
+
+#[requires(closer.is_none() || lookahead.is_some_and(|lookahead| lookahead.examined > 0))]
+#[ensures(ret.closer.is_some() == old(closer.is_some()))]
+#[ensures(ret.examined == lookahead.map_or(0, |lookahead| lookahead.examined))]
+fn zoi_close_search(closer: Option<Word>, lookahead: Option<ZoiCloseLookahead>) -> ZoiCloseSearch {
+    new!(ZoiCloseSearch {
+        closer,
+        examined: lookahead.map_or(0, |lookahead| lookahead.examined),
+    })
+}
+
+/// Where a closer trial at `from` starts its strict word.
+///
+/// The strict read skips commas and `segment::is_separator` characters first.
+#[requires(from <= chars.len())]
+#[ensures(from <= ret && ret <= chars.len())]
+#[ensures(chars.get(ret).is_none_or(|source_char| source_char.value != ',' && !crate::segment::is_separator(source_char.value)))]
+#[bityzba::expensive_ensures(chars[from..ret].iter().all(|source_char| source_char.value == ',' || crate::segment::is_separator(source_char.value)))]
+fn zoi_close_word_start(chars: &[SourceChar], from: usize) -> usize {
+    let mut index = from;
+    while chars.get(index).is_some_and(|source_char| {
+        source_char.value == ',' || crate::segment::is_separator(source_char.value)
+    }) {
+        index += 1;
     }
-    trimmed_end
+    index
+}
+
+/// The end of the strict word run that starts at `start`.
+///
+/// A closer trial reads a strict word, and that read stops at the next
+/// `segment::is_separator` character.
+#[requires(start <= chars.len())]
+#[ensures(start <= ret && ret <= chars.len())]
+#[ensures(chars.get(ret).is_none_or(|source_char| crate::segment::is_separator(source_char.value)))]
+#[bityzba::expensive_ensures(chars[start..ret].iter().all(|source_char| !crate::segment::is_separator(source_char.value)))]
+fn zoi_close_run_end(chars: &[SourceChar], start: usize) -> usize {
+    let mut end = start;
+    while chars
+        .get(end)
+        .is_some_and(|source_char| !crate::segment::is_separator(source_char.value))
+    {
+        end += 1;
+    }
+    end
+}
+
+/// One side of a delimited quote.
+///
+/// `forward` is the opening side. `separator` is the one word break that
+/// this side eats. `separator` is absent when the word has no break character.
+/// `quote_bound` is the quote edge. On the opening side the quote starts at
+/// `quote_bound`. On the closing side the quote ends at `quote_bound`.
+#[invariant(separator.as_ref().is_none_or(|separator| (!*forward || *separator < *quote_bound) && (*forward || *quote_bound <= *separator)))]
+#[derive(Debug)]
+struct ZoiQuoteEdge {
+    forward: bool,
+    separator: Option<usize>,
+    quote_bound: usize,
+}
+
+/// The quote boundary on one side of a `zoi` or `la'o` quote.
+///
+/// The delimiter eats one word break on the side that faces the quote.
+/// A word break is the character that ended the delimiter word in this mode.
+/// `segment::is_separator` is a word break in every mode. The set holds
+/// whitespace, period characters, and silent separators such as `;` and `!`.
+/// In permissive mode a permissive boundary such as `@` is a word break too.
+/// A comma is not a word break. Commas between the word and a word break stay
+/// with the delimiter. Whitespace on the quote side of that break stays
+/// outside the quote.
+///
+/// When the morphology ends the word and no word break stands there, nothing
+/// is eaten. `separator` is absent and `quote_bound` stays at `origin`.
+/// A comma with no word break beyond it stays in the payload. The opening side
+/// and the closing side both use this walk. `forward` chooses the direction.
+///
+/// `origin` is the first character after the opening delimiter word, or the
+/// first character of the closing delimiter word. `forward` is true on the
+/// opening side.
+#[requires(origin <= chars.len())]
+#[ensures(ret.forward == forward
+    && ret.quote_bound <= chars.len()
+    && ((forward && origin <= ret.quote_bound) || (!forward && ret.quote_bound <= origin))
+    && (ret.separator.is_some() || ret.quote_bound == origin)
+    && ret.separator.is_none_or(|separator| separator < chars.len()
+        && ((forward && origin <= separator && separator < ret.quote_bound)
+            || (!forward && ret.quote_bound <= separator && separator < origin))))]
+#[bityzba::expensive_ensures(zoi_quote_edge_follows_rule(chars, origin, forward, permissive, &ret))]
+fn zoi_quote_edge(
+    chars: &[SourceChar],
+    origin: usize,
+    forward: bool,
+    permissive: bool,
+) -> ZoiQuoteEdge {
+    let mut cursor = origin;
+    loop {
+        let Some(value) = quote_edge_char(chars, cursor, forward) else {
+            return adjacent_zoi_quote_edge(forward, origin);
+        };
+        if value == ',' {
+            cursor = step_quote_edge(cursor, forward);
+            continue;
+        }
+        if !is_quote_word_break(value, permissive) {
+            return adjacent_zoi_quote_edge(forward, origin);
+        }
+        let separator = if forward { cursor } else { cursor - 1 };
+        cursor = step_quote_edge(cursor, forward);
+        while quote_edge_char(chars, cursor, forward).is_some_and(char::is_whitespace) {
+            cursor = step_quote_edge(cursor, forward);
+        }
+        return new!(ZoiQuoteEdge {
+            forward,
+            separator: Some(separator),
+            quote_bound: cursor,
+        });
+    }
+}
+
+/// True when `value` ends a delimiter word in this mode.
+#[requires(true)]
+#[ensures(!permissive -> ret == crate::segment::is_separator(value))]
+#[ensures(crate::segment::is_separator(value) -> ret)]
+#[ensures(value == ',' -> !ret, "a comma is never a word break")]
+fn is_quote_word_break(value: char, permissive: bool) -> bool {
+    crate::segment::is_separator(value)
+        || (permissive && crate::is_permissive_ignorable_character(value))
+}
+
+/// The character the edge walk inspects at `cursor`.
+#[requires(cursor <= chars.len())]
+#[ensures(ret.is_none() || ((forward && cursor < chars.len()) || (!forward && cursor > 0)))]
+fn quote_edge_char(chars: &[SourceChar], cursor: usize, forward: bool) -> Option<char> {
+    if forward {
+        chars.get(cursor).map(|source_char| source_char.value)
+    } else if cursor == 0 {
+        None
+    } else {
+        chars.get(cursor - 1).map(|source_char| source_char.value)
+    }
+}
+
+/// Move one character away from the delimiter word.
+#[requires(forward || cursor > 0)]
+#[requires(!forward || cursor < usize::MAX)]
+#[ensures((forward && ret == cursor + 1) || (!forward && ret + 1 == cursor))]
+fn step_quote_edge(cursor: usize, forward: bool) -> usize {
+    if forward { cursor + 1 } else { cursor - 1 }
+}
+
+/// An edge that eats no word break. The payload bound stays on the word.
+#[requires(true)]
+#[ensures(ret.separator.is_none() && ret.quote_bound == origin && ret.forward == forward)]
+fn adjacent_zoi_quote_edge(forward: bool, origin: usize) -> ZoiQuoteEdge {
+    new!(ZoiQuoteEdge {
+        forward,
+        separator: None,
+        quote_bound: origin,
+    })
+}
+
+/// True when `edge` is the one word break, or the explicit no-break case.
+#[requires(origin <= chars.len())]
+#[ensures(true)]
+fn zoi_quote_edge_follows_rule(
+    chars: &[SourceChar],
+    origin: usize,
+    forward: bool,
+    permissive: bool,
+    edge: &ZoiQuoteEdge,
+) -> bool {
+    if edge.forward != forward || edge.quote_bound > chars.len() {
+        return false;
+    }
+    let Some(separator) = edge.separator else {
+        return edge.quote_bound == origin
+            && !quote_break_follows_commas(chars, origin, forward, permissive);
+    };
+    if separator >= chars.len() || !is_quote_word_break(chars[separator].value, permissive) {
+        return false;
+    }
+    if forward {
+        return separator >= origin
+            && chars[origin..separator]
+                .iter()
+                .all(|source_char| source_char.value == ',')
+            && chars[separator + 1..edge.quote_bound]
+                .iter()
+                .all(|source_char| source_char.value.is_whitespace())
+            && (edge.quote_bound == chars.len() || !chars[edge.quote_bound].value.is_whitespace());
+    }
+    separator < origin
+        && edge.quote_bound <= separator
+        && chars[separator + 1..origin]
+            .iter()
+            .all(|source_char| source_char.value == ',')
+        && chars[edge.quote_bound..separator]
+            .iter()
+            .all(|source_char| source_char.value.is_whitespace())
+        && (edge.quote_bound == 0 || !chars[edge.quote_bound - 1].value.is_whitespace())
+}
+
+/// True when a word break stands after the commas on this side.
+#[requires(origin <= chars.len())]
+#[ensures(true)]
+fn quote_break_follows_commas(
+    chars: &[SourceChar],
+    origin: usize,
+    forward: bool,
+    permissive: bool,
+) -> bool {
+    let mut cursor = origin;
+    loop {
+        let Some(value) = quote_edge_char(chars, cursor, forward) else {
+            return false;
+        };
+        if value == ',' {
+            cursor = step_quote_edge(cursor, forward);
+            continue;
+        }
+        return is_quote_word_break(value, permissive);
+    }
+}
+
+/// True when the quote spans sit in order and do not keep edge whitespace.
+#[requires(true)]
+#[ensures(true)]
+fn zoi_quote_span_is_ordered(chars: &[SourceChar], words: &[WordLike]) -> bool {
+    let Some((open_end, quote_start, quote_end, close_start)) =
+        zoi_quote_span_indexes(chars, words)
+    else {
+        return false;
+    };
+    open_end <= quote_start
+        && quote_start <= quote_end
+        && quote_end <= close_start
+        && close_start <= chars.len()
+        && (quote_start == quote_end
+            || (!chars[quote_start].value.is_whitespace()
+                && !chars[quote_end - 1].value.is_whitespace()))
+}
+
+/// True when the stored span is the two edge results, including no word break.
+///
+/// When the opening edge eats no word break, the payload starts at the word.
+/// When the closing edge eats no word break, the payload ends at the word.
+/// A shared break leaves an empty span. The comparison does not substitute a
+/// missing edge.
+#[requires(true)]
+#[ensures(true)]
+fn zoi_quote_span_matches_edge(chars: &[SourceChar], words: &[WordLike], permissive: bool) -> bool {
+    if !zoi_quote_span_is_ordered(chars, words) {
+        return false;
+    }
+    let Some((open_end, quote_start, quote_end, close_start)) =
+        zoi_quote_span_indexes(chars, words)
+    else {
+        return false;
+    };
+    // With no word break, the edge stays on the word.
+    let opening = zoi_quote_edge(chars, open_end, true, permissive);
+    if quote_start != opening.quote_bound
+        || (opening.separator.is_none() && opening.quote_bound != open_end)
+    {
+        return false;
+    }
+    if close_start <= quote_start {
+        return quote_end == quote_start;
+    }
+    let closing = zoi_quote_edge(chars, close_start, false, permissive);
+    let closing_bound = if closing.separator.is_none() {
+        if closing.quote_bound != close_start {
+            return false;
+        }
+        close_start
+    } else {
+        closing.quote_bound
+    };
+    quote_end == closing_bound.max(quote_start).min(close_start)
+}
+
+/// The stored quote indexes, or nothing when `words` is not one delimited quote.
+#[requires(true)]
+#[ensures(ret.is_none_or(|(open_end, quote_start, quote_end, close_start)| {
+    open_end <= chars.len()
+        && quote_start <= chars.len()
+        && quote_end <= chars.len()
+        && close_start <= chars.len()
+}))]
+fn zoi_quote_span_indexes(
+    chars: &[SourceChar],
+    words: &[WordLike],
+) -> Option<(usize, usize, usize, usize)> {
+    let [word] = words else {
+        return None;
+    };
+    let data!(WordLike::DelimitedNonLojbanQuote {
+        opening_delimiter,
+        quoted_text,
+        closing_delimiter,
+        ..
+    }) = word.as_data()
+    else {
+        return None;
+    };
+    let open_end = opening_delimiter.span().char_end;
+    let quote_start = quoted_text.span.char_start;
+    let quote_end = quoted_text.span.char_end;
+    let close_start = closing_delimiter.span().char_start;
+    if open_end > chars.len()
+        || quote_start > chars.len()
+        || quote_end > chars.len()
+        || close_start > chars.len()
+    {
+        return None;
+    }
+    Some((open_end, quote_start, quote_end, close_start))
 }
 
 #[requires(true)]
@@ -4978,6 +5410,410 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn zoi_quote_takes_one_separator_on_each_side() {
+        let cases = [
+            ("zoi gy. hello .gy", "hello"),
+            ("zoi gy;hello .gy", "hello"),
+            ("zoi gy ;hello .gy", ";hello"),
+            ("zoi gy hello; gy", "hello;"),
+            ("zoi gy hello ;gy", "hello"),
+            ("zoi gy hello   gy", "hello"),
+            ("zoi gy John is a man. gy", "John is a man."),
+            ("zoi gy John is a man.gy", "John is a man"),
+            ("zoi gy gy", ""),
+            ("zoi ly.ly", ""),
+            ("zoi gy   gy", ""),
+            ("zoi gy\r\n\tgy", ""),
+            ("zoi gy\r\nhello\r\ngy", "hello"),
+            ("zoi gy\thello\tgy", "hello"),
+            ("zoi gy \r\n\thello\t \r\ngy", "hello"),
+            ("la'o gy;hello .gy", "hello"),
+            ("la'o gy hello; gy", "hello;"),
+            ("la'o gy. hello .gy", "hello"),
+            ("zoi gy . gy", "."),
+            ("zoi gy !!! gy", "!!!"),
+            ("zoi gy..hello.gy", ".hello"),
+            ("zoi gy hello!! gy", "hello!!"),
+            ("zoi gy , gy", ","),
+            ("zoi gy, hello gy", "hello"),
+            ("zoi gy hello, gy", "hello,"),
+            ("zoi gy hello ,gy", "hello"),
+        ];
+        let permissive = MorphologyOptions {
+            permissive_lexer: true,
+            ..MorphologyOptions::default()
+        };
+        for (source, expected) in cases {
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                    source, options, None,
+                )
+                .unwrap_or_else(|error| panic!("quote parse failed for {source}: {error}"));
+                assert_eq!(words.len(), 1, "{source}");
+                let data!(WordLike::DelimitedNonLojbanQuote {
+                    quoted_text,
+                    opening_delimiter,
+                    closing_delimiter,
+                    ..
+                }) = words[0].as_data()
+                else {
+                    panic!("expected a delimited quote for {source}");
+                };
+                assert_eq!(quoted_text.text, expected, "{source}");
+                assert_eq!(
+                    quoted_text.span.byte_start, quoted_text.span.char_start,
+                    "{source}"
+                );
+                assert_eq!(
+                    &source[quoted_text.span.byte_start..quoted_text.span.byte_end],
+                    expected,
+                    "{source}"
+                );
+                assert!(
+                    opening_delimiter.span().byte_end <= quoted_text.span.byte_start,
+                    "{source}"
+                );
+                assert!(
+                    quoted_text.span.byte_end <= closing_delimiter.span().byte_start,
+                    "{source}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_quote_keeps_unspaced_text_and_a_comma_with_no_break() {
+        let permissive = MorphologyOptions {
+            permissive_lexer: true,
+            ..MorphologyOptions::default()
+        };
+        let adjacent = [
+            ("zoi gymi hello gy", "mi hello", true),
+            ("la'o gymi hello gy", "mi hello", true),
+            ("zoi gy,mi hello gy", ",mi hello", true),
+            ("la'o gy,mi hello gy", ",mi hello", true),
+            ("zoi gy,,mi hello gy", ",,mi hello", true),
+            ("la'o gy,,mi hello gy", ",,mi hello", true),
+            ("zoi gy,gy gy", ",gy", true),
+            ("la'o gy,gy gy", ",gy", true),
+        ];
+        for (source, expected, opening_side) in adjacent {
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let (open_end, quote_start, _, _) =
+                    assert_delimited_quote(source, options, expected, &[]);
+                assert_eq!(open_end == quote_start, opening_side, "{source}");
+            }
+        }
+        let followed = [
+            ("zoi gy hello gymi", "hello", &["mi"][..]),
+            ("la'o gy hello gymi", "hello", &["mi"][..]),
+            ("zoi gy hello gymi .gy", "hello", &["mi", "gy"][..]),
+            ("la'o gy hello gymi .gy", "hello", &["mi", "gy"][..]),
+        ];
+        for (source, expected, following) in followed {
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let (_, _, quote_end, close_start) =
+                    assert_delimited_quote(source, options, expected, following);
+                assert!(quote_end < close_start, "{source}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_close_needs_a_word_break_before_the_closer() {
+        // A comma is not a word break, so the delimiter letters after an
+        // interior comma do not close the quote. The search selects the same
+        // closers as before #1132 (issue #1132, review of PR #1135).
+        let permissive = MorphologyOptions {
+            permissive_lexer: true,
+            ..MorphologyOptions::default()
+        };
+        let closed = [
+            ("zoi gy hello,gy .gy", "hello,gy"),
+            ("la'o gy hello,gy .gy", "hello,gy"),
+            ("zoi gy hello,,gy gy", "hello,,gy"),
+            ("la'o gy hello,,gy gy", "hello,,gy"),
+            ("zoi gy hel,gy lo gy", "hel,gy lo"),
+            ("la'o gy hel,gy lo gy", "hel,gy lo"),
+            ("zoi gy hello ,gy", "hello"),
+            ("la'o gy hello ,gy", "hello"),
+            ("zoi gy hello, ,gy", "hello,"),
+            ("la'o gy hello, ,gy", "hello,"),
+        ];
+        for (source, expected) in closed {
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let (_, _, _, close_start) = assert_delimited_quote(source, options, expected, &[]);
+                assert_eq!(close_start + 2, source.chars().count(), "{source}");
+            }
+        }
+        for source in [
+            "zoi gy,gy",
+            "la'o gy,gy",
+            "zoi gy,,gy",
+            "la'o gy,,gy",
+            "zoi gy hello,gy",
+            "la'o gy hello,gy",
+            "zoi gy hello,,gy",
+            "la'o gy hello,,gy",
+            "zoi gy hel,gy",
+            "la'o gy hel,gy",
+        ] {
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                    source, options, None,
+                )
+                .expect_err("a comma must not start a closer");
+                let MorphologyError::UnterminatedZoiQuote { delimiter, .. } = error else {
+                    panic!("expected an unterminated quote for {source}, got {error}");
+                };
+                assert_eq!(delimiter, "gy", "{source}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_close_search_work_is_linear() {
+        // Each source once made the search walk the same suffix again for
+        // every repeat. The strict source did so through a comma branch, the
+        // permissive source through the permissive boundaries, and the comma
+        // source through the skip of commas and spaces in each trial.
+        let permissive = MorphologyOptions {
+            permissive_lexer: true,
+            ..MorphologyOptions::default()
+        };
+        let repeats = 4096;
+        let cases = [
+            (
+                format!("zoi gy {}@ gy", "@,".repeat(repeats)),
+                MorphologyOptions::default(),
+                format!("{}@", "@,".repeat(repeats)),
+            ),
+            (
+                format!("zoi gy {}b gy", "b@".repeat(repeats)),
+                permissive.clone(),
+                format!("{}b", "b@".repeat(repeats)),
+            ),
+            (
+                format!("zoi gy{} gy", " ,".repeat(repeats)),
+                MorphologyOptions::default(),
+                ", ".repeat(repeats).trim_end().to_owned(),
+            ),
+            (
+                format!("zoi gy{} gy", " ,".repeat(repeats)),
+                permissive.clone(),
+                ", ".repeat(repeats).trim_end().to_owned(),
+            ),
+            // The lookahead walks this run once and the trial charges it once.
+            // The word reader inside that trial still scans the commas again
+            // for each candidate end. The count does not see that scan, which
+            // main has too (#1143), so this case bounds only the lookahead.
+            (
+                format!("zoi gy a{} gy", ",".repeat(repeats)),
+                MorphologyOptions::default(),
+                format!("a{}", ",".repeat(repeats)),
+            ),
+            (
+                format!("zoi gy a{} gy", ",".repeat(repeats)),
+                permissive,
+                format!("a{}", ",".repeat(repeats)),
+            ),
+        ];
+        for (source, options, expected) in &cases {
+            let words = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source, options, None,
+            )
+            .unwrap_or_else(|error| panic!("quote parse failed: {error}"));
+            let [word] = words.as_slice() else {
+                panic!("expected one quote");
+            };
+            let data!(WordLike::DelimitedNonLojbanQuote {
+                opening_delimiter,
+                quoted_text,
+                closing_delimiter,
+                ..
+            }) = word.as_data()
+            else {
+                panic!("expected a delimited quote");
+            };
+            assert_eq!(&quoted_text.text, expected);
+            let mut segmenter = Segmenter::new(source, options, None);
+            let after_open = opening_delimiter.span().char_end;
+            let search = segmenter.find_zoi_close(opening_delimiter, after_open);
+            assert_eq!(
+                search
+                    .closer
+                    .as_ref()
+                    .map(|closer| closer.span().char_start),
+                Some(closing_delimiter.span().char_start)
+            );
+            // The repeated lookahead walks visited about `repeats * repeats`
+            // characters. The count covers the scans that
+            // `Segmenter::find_zoi_close` lists, not the word reader.
+            let remaining = source.chars().count() - after_open;
+            assert!(
+                search.examined <= 2 * remaining + 4,
+                "the search walked {} characters after a {remaining}-character opening",
+                search.examined
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_quote_eats_the_permissive_boundary_that_ends_the_opening_word() {
+        let permissive = MorphologyOptions {
+            permissive_lexer: true,
+            ..MorphologyOptions::default()
+        };
+        // In permissive mode the boundary ends the opening word, so the
+        // opening delimiter eats it. The skipped boundary counts for the
+        // ignored-characters advice.
+        let cases = [
+            ("zoi gy@hello gy", "hello"),
+            ("la'o gy@hello gy", "hello"),
+            ("zoi gy@  hello gy", "hello"),
+            ("la'o gy@  hello gy", "hello"),
+            ("zoi gy@@hello gy", "@hello"),
+            ("la'o gy@@hello gy", "@hello"),
+            ("zoi gy@ gy", ""),
+            ("la'o gy@ gy", ""),
+            ("zoi gy#hello gy", "hello"),
+            ("la'o gy#hello gy", "hello"),
+            ("zoi gy🙂hello gy", "hello"),
+            ("la'o gy🙂hello gy", "hello"),
+        ];
+        for (source, expected) in cases {
+            assert_delimited_quote(source, &permissive, expected, &[]);
+            let attempt = crate::segment_words_with_modifiers_with_options_and_source_id_attempt(
+                source,
+                &permissive,
+                None,
+            )
+            .into_data();
+            let advice = attempt
+                .warnings
+                .iter()
+                .find(|warning| warning.kind == MorphologyWarningKind::IgnoredCharacters)
+                .unwrap_or_else(|| panic!("the eaten boundary must be reported: {source}"));
+            assert_eq!(
+                advice.char_start,
+                6 + usize::from(source.starts_with("la'o")),
+                "{source}"
+            );
+        }
+        // The closer search does not treat a permissive boundary as a break,
+        // so these stay unterminated, as on main.
+        for source in [
+            "zoi gy hello@gy",
+            "la'o gy hello@gy",
+            "zoi gy hello  @gy",
+            "zoi gy hello@@gy",
+            "zoi gy@gy",
+            "la'o gy@gy",
+            "zoi gy @gy",
+            "zoi gy#hello#gy",
+            "la'o gy🙂hello🙂gy",
+        ] {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &permissive,
+                None,
+            )
+            .expect_err("a permissive boundary must not start a closer");
+            let MorphologyError::UnterminatedZoiQuote { delimiter, .. } = error else {
+                panic!("expected an unterminated quote for {source}, got {error}");
+            };
+            assert_eq!(delimiter, "gy", "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_zoi_quote_does_not_treat_a_permissive_boundary_as_a_break() {
+        for source in [
+            "zoi gy@hello gy",
+            "la'o gy@hello gy",
+            "zoi gy#hello gy",
+            "la'o gy#hello gy",
+            "zoi gy🙂hello gy",
+            "la'o gy🙂hello gy",
+        ] {
+            let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .expect_err("a permissive boundary must not end the opening word");
+            let at = source
+                .chars()
+                .position(|value| matches!(value, '@' | '#' | '🙂'))
+                .expect("boundary");
+            assert_invalid_error(
+                &error,
+                MorphologyErrorKind::InvalidCharacter,
+                at,
+                at + 1,
+                Some(MorphologyContextKind::DelimitedNonLojbanQuote),
+            );
+        }
+        for source in [
+            "zoi gy hello@gy",
+            "la'o gy hello@gy",
+            "zoi gy hello#gy",
+            "la'o gy hello#gy",
+            "zoi gy hello🙂gy",
+            "la'o gy hello🙂gy",
+        ] {
+            assert_unterminated_zoi_quote(source, "gy");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_close_search_does_not_split_an_unbroken_letter_run() {
+        let permissive = MorphologyOptions {
+            permissive_lexer: true,
+            ..MorphologyOptions::default()
+        };
+        let closed = [
+            ("zoi gy energy gy", "energy"),
+            ("la'o gy energy gy", "energy"),
+            ("zoi gy the energy crisis gy", "the energy crisis"),
+            ("la'o gy the energy crisis gy", "the energy crisis"),
+            ("zoi gy hello,energy gy", "hello,energy"),
+            ("la'o gy hello,energy gy", "hello,energy"),
+        ];
+        for (source, expected) in closed {
+            for options in [&MorphologyOptions::default(), &permissive] {
+                assert_delimited_quote(source, options, expected, &[]);
+            }
+        }
+        for source in ["zoi gy energy", "la'o gy energy", "zoi gygy", "la'o gygy"] {
+            for options in [&MorphologyOptions::default(), &permissive] {
+                let error = crate::segment_words_with_modifiers_with_options_and_source_id(
+                    source, options, None,
+                )
+                .expect_err("an unbroken letter run must stay open");
+                let MorphologyError::UnterminatedZoiQuote { delimiter, .. } = error else {
+                    panic!("expected an unterminated quote for {source}, got {error}");
+                };
+                assert_eq!(delimiter, "gy", "{source}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn reports_unclosed_zoi_quote() {
         let error = crate::segment_words_with_modifiers_with_options_and_source_id(
             "zoi gy broda",
@@ -6015,6 +6851,66 @@ mod tests {
             context.as_ref().map(|context| context.kind),
             expected_context
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_delimited_quote(
+        source: &str,
+        options: &MorphologyOptions,
+        expected_payload: &str,
+        following: &[&str],
+    ) -> (usize, usize, usize, usize) {
+        let words =
+            crate::segment_words_with_modifiers_with_options_and_source_id(source, options, None)
+                .unwrap_or_else(|error| panic!("quote parse failed for {source}: {error}"));
+        assert_eq!(words.len(), 1 + following.len(), "{source}");
+        let data!(WordLike::DelimitedNonLojbanQuote {
+            quoted_text,
+            opening_delimiter,
+            closing_delimiter,
+            ..
+        }) = words[0].as_data()
+        else {
+            panic!("expected a delimited quote for {source}");
+        };
+        assert_eq!(quoted_text.text, expected_payload, "{source}");
+        assert_eq!(
+            &source[quoted_text.span.byte_start..quoted_text.span.byte_end],
+            expected_payload,
+            "{source}"
+        );
+        assert_eq!(
+            &source[opening_delimiter.span().byte_start..opening_delimiter.span().byte_end],
+            "gy",
+            "{source}"
+        );
+        assert_eq!(
+            &source[closing_delimiter.span().byte_start..closing_delimiter.span().byte_end],
+            "gy",
+            "{source}"
+        );
+        assert!(
+            opening_delimiter.span().char_end <= quoted_text.span.char_start,
+            "{source}"
+        );
+        assert!(
+            quoted_text.span.char_end <= closing_delimiter.span().char_start,
+            "{source}"
+        );
+        for (word, expected) in words[1..].iter().zip(following) {
+            assert_eq!(
+                bare_word(word).expect("following word").phonemes().as_str(),
+                *expected,
+                "{source}"
+            );
+        }
+        (
+            opening_delimiter.span().char_end,
+            quoted_text.span.char_start,
+            quoted_text.span.char_end,
+            closing_delimiter.span().char_start,
+        )
     }
 
     #[requires(true)]

@@ -41,6 +41,11 @@ ZOI reads an opening delimiter and a raw body through the matching closing delim
 The body can contain non-Lojban text.
 Words inside the body execute no operation.
 
+The closing delimiter is a whole word after a separator such as a space or a period.
+Each delimiter then eats one word break on the side that faces the body, and the whitespace next to that break.
+A comma is not a word break.
+The body keeps every other character, so `zoi gy John is a man. gy` quotes `John is a man.`.
+
 The quote, both delimiters, and its body form one unit.
 The opener supplies its matching class for SA.
 For example, `mi zoi gy. si sa su .gy. si broda` leaves `mi broda`.
