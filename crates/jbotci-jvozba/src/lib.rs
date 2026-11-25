@@ -689,15 +689,22 @@ fn candidate_list_for_entry(
         .filter(|candidate| !candidate.is_empty())
         .map(|candidate| new!(LujvoBuildPart::Rafsi(candidate)))
         .collect::<Vec<_>>();
+    // A stored headword can normalize to nothing, for example a lone `.`.
+    // Such a word has no full form, so it adds no full-word candidate. Its
+    // listed rafsi stay usable.
+    let has_full_word = !canonical_word.is_empty();
     if mode == JvozbaMode::Lujvo
         && is_last_input
+        && has_full_word
         && word_type_allows_final_brivla_core(entry.word_type)
     {
         all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
     }
     if mode == JvozbaMode::Lujvo && !is_last_input && entry.word_type.is_fuivla_like() {
         // The full word stays in the candidate list. A shorter valid rafsi has the better score and wins.
-        all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
+        if has_full_word {
+            all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
+        }
         if let Some(stem) = stem
             && unique_fuivla_source(dictionary, &stem) == Some(entry_index)
         {
@@ -722,15 +729,15 @@ fn candidate_list_for_entry(
         _ => all_candidates,
     };
     if candidates.is_empty() {
+        // The error names the stored spelling when normalization leaves nothing.
+        let offending = offending_spelling(entry.word, &canonical_word);
         if mode == JvozbaMode::Lujvo && is_last_input {
             Err(JvozbaError::FinalConsonant {
-                offending: canonical_word,
+                offending,
                 is_fixed_rafsi: false,
             })
         } else {
-            Err(JvozbaError::NoRafsiAvailable {
-                offending: canonical_word,
-            })
+            Err(JvozbaError::NoRafsiAvailable { offending })
         }
     } else {
         Ok(candidates)
@@ -1737,21 +1744,127 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn a_nonfinal_fuivla_keeps_the_full_word_after_a_mismatched_listed_rafsi() {
-        let result = build_best_jvozba_detailed(
-            JvozbaMode::Lujvo,
-            jbotci_dictionary_data::english(),
-            &[
-                JvozbaInput::Word("spageti".to_owned()),
-                JvozbaInput::Word("kukte".to_owned()),
-            ],
-            &jbotci_interrupt::CancellationToken::never(),
-        )
-        .expect("the full fu'ivla remains a candidate");
-        assert!(
-            result.word.starts_with("spageti"),
-            "the listed rafsi must not replace the source word: {}",
-            result.word
-        );
+        use jbotci_dictionary::{DictionaryEntry, Rafsi, RafsiClaimKind, Score};
+
+        // `spageti` lists `spa`, but a higher-ranked `spati` claims the same
+        // form, so `spa` would name `spati` after parsing. The build must
+        // keep `spageti` through its full form.
+        let english = jbotci_dictionary_data::english();
+        let listed = [Rafsi {
+            form: "spa",
+            standing: RafsiClaimKind::Experimental,
+        }];
+        let spageti = DictionaryEntry {
+            rafsi: &listed,
+            score: Score(1.0),
+            ..*english.lookup_word("spageti").unwrap()
+        };
+        let spati = DictionaryEntry {
+            rafsi: &listed,
+            score: Score(2.0),
+            ..*english.lookup_word("spati").unwrap()
+        };
+        let kukte = *english.lookup_word("kukte").unwrap();
+        let token = CancellationToken::never();
+        with_source_dictionary(&[spati, spageti, kukte], |dictionary| {
+            let decomposition = decompose_lujvo_like(dictionary, "spakukte", &token)
+                .unwrap()
+                .unwrap();
+            assert_eq!(decomposition.segments[0].sources[0].word, "spati");
+            let result = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::DictionaryWord {
+                        entry_index: EntryIndex(1),
+                        word: "spageti".to_owned(),
+                    },
+                    JvozbaInput::Word("kukte".to_owned()),
+                ],
+                &token,
+            )
+            .expect("the full fu'ivla remains a candidate");
+            assert!(
+                result.word.starts_with("spageti"),
+                "the listed rafsi must not replace the source word: {}",
+                result.word
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_fuivla_whose_headword_normalizes_to_nothing_keeps_its_listed_rafsi() {
+        use jbotci_dictionary::{DictionaryEntry, Rafsi, RafsiClaimKind};
+
+        // A stored headword of `.` normalizes to an empty spelling. It has no
+        // full form, so jvozba must not build an empty full-word candidate.
+        // Its listed rafsi stays usable, and an error names the stored `.`.
+        let english = jbotci_dictionary_data::english();
+        let listed = [Rafsi {
+            form: "spa",
+            standing: RafsiClaimKind::Experimental,
+        }];
+        let period = DictionaryEntry {
+            word: ".",
+            rafsi: &listed,
+            ..*english.lookup_word("spageti").unwrap()
+        };
+        let unlisted = DictionaryEntry {
+            word: ".",
+            rafsi: &[],
+            ..period
+        };
+        let token = CancellationToken::never();
+        let input = JvozbaInput::DictionaryWord {
+            entry_index: EntryIndex(0),
+            word: ".".to_owned(),
+        };
+        with_source_dictionary(&[period], |dictionary| {
+            let result = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[input.clone(), JvozbaInput::FixedRafsi("klama".to_owned())],
+                &token,
+            )
+            .expect("the listed rafsi builds the lujvo");
+            assert_eq!(result.word, "spaklama");
+            // In the final slot, the listed CCV rafsi is the only candidate.
+            let final_slot = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[JvozbaInput::FixedRafsi("spa".to_owned()), input.clone()],
+                &token,
+            )
+            .expect("the listed rafsi ends the lujvo");
+            assert_eq!(final_slot.word, "spaspa");
+        });
+        with_source_dictionary(&[unlisted], |dictionary| {
+            assert_eq!(
+                build_best_jvozba_detailed(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    &[input.clone(), JvozbaInput::FixedRafsi("klama".to_owned())],
+                    &token,
+                ),
+                Err(JvozbaError::NoRafsiAvailable {
+                    offending: ".".to_owned(),
+                }),
+            );
+            assert_eq!(
+                build_best_jvozba_detailed(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    &[JvozbaInput::FixedRafsi("spa".to_owned()), input.clone()],
+                    &token,
+                ),
+                Err(JvozbaError::FinalConsonant {
+                    offending: ".".to_owned(),
+                    is_fixed_rafsi: false,
+                }),
+            );
+        });
     }
 
     #[test]
