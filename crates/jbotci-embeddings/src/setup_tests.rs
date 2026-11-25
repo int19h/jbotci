@@ -37,25 +37,45 @@ const PACK_HANG_LIMIT: std::time::Duration = std::time::Duration::from_secs(60);
 /// That text is not empty.
 /// `End` means the client closed the socket before the next byte.
 /// `Stopped` means the stop flag is true.
-/// `Broken` means the socket failed for a reason other than a stall.
+/// `Broken` carries the socket error text.
+/// That text is not empty.
 #[invariant(true)]
 #[invariant(::Line(text) => !text.is_empty())]
+#[invariant(::Broken(message) => !message.is_empty())]
 enum PackRead {
     Line(String),
     End,
     Stopped,
-    Broken,
+    Broken(String),
 }
 
 /// One write to the pack server socket.
 /// `Done` means every byte was written.
 /// `Stopped` means the stop flag is true.
-/// `Broken` means the socket failed for a reason other than a stall.
+/// `Broken` carries the socket error text.
+/// That text is not empty.
 #[invariant(true)]
+#[invariant(::Broken(message) => !message.is_empty())]
 enum PackWrite {
     Done,
     Stopped,
-    Broken,
+    Broken(String),
+}
+
+/// The text of a socket error.
+/// The text is not empty.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn socket_error_text(error: &std::io::Error) -> String {
+    let message = error.to_string();
+    if !message.is_empty() {
+        return message;
+    }
+    let kind = format!("{:?}", error.kind());
+    if !kind.is_empty() {
+        return kind;
+    }
+    "socket error".to_owned()
 }
 
 #[requires(true)]
@@ -65,14 +85,14 @@ fn pack_io_is_a_stall(error: &std::io::Error) -> bool {
 }
 
 /// Read one request line.
-/// The socket timeout is 100 milliseconds.
+/// An interrupted read is tried again.
 /// A stall is tried again while the stop flag is false.
 /// A stall of 60 seconds with a false stop flag fails the hang limit.
 /// The failure text says that this limit only stops a hang.
 /// A true stop flag ends the read.
 #[requires(true)]
 #[ensures(true)]
-fn read_pack_line(stream: &mut std::net::TcpStream, stop: &AtomicBool) -> PackRead {
+fn read_pack_line(stream: &mut impl std::io::Read, stop: &AtomicBool) -> PackRead {
     let mut line = Vec::new();
     let mut byte = [0_u8; 1];
     let mut progressed = std::time::Instant::now();
@@ -98,7 +118,7 @@ fn read_pack_line(stream: &mut std::net::TcpStream, stop: &AtomicBool) -> PackRe
                 }
             }
             Err(error) if pack_io_is_a_stall(&error) => continue,
-            Err(_) => return new!(PackRead::Broken),
+            Err(error) => return new!(PackRead::Broken(socket_error_text(&error))),
         }
     }
 }
@@ -123,13 +143,17 @@ fn write_pack_bytes(
     let mut progressed = std::time::Instant::now();
     while offset < bytes.len() {
         if stop.load(AtomicOrdering::Acquire) {
-            return PackWrite::Stopped;
+            return new!(PackWrite::Stopped);
         }
         if progressed.elapsed() >= PACK_HANG_LIMIT {
             panic!("this limit only stops a hang");
         }
         match retry_interrupted(|| std::io::Write::write(stream, &bytes[offset..])) {
-            Ok(0) => return PackWrite::Broken,
+            Ok(0) => {
+                return new!(PackWrite::Broken(
+                    "the pack server write returned no bytes".to_owned(),
+                ));
+            }
             Ok(count) => {
                 offset += count;
                 progressed = std::time::Instant::now();
@@ -140,10 +164,10 @@ fn write_pack_bytes(
                 }
                 continue;
             }
-            Err(_) => return PackWrite::Broken,
+            Err(error) => return new!(PackWrite::Broken(socket_error_text(&error))),
         }
     }
-    PackWrite::Done
+    new!(PackWrite::Done)
 }
 
 /// Record that a write stalled before the stop flag.
@@ -204,6 +228,119 @@ fn read_pack_response_header(stream: &mut std::net::TcpStream) -> String {
     }
 }
 
+/// A reader that returns Interrupted before each byte.
+/// The index is never past the end of the byte slice.
+#[invariant(self.index <= self.bytes.len())]
+#[derive(Clone)]
+struct InterruptBeforeEachByte {
+    bytes: &'static [u8],
+    index: usize,
+    interrupt: bool,
+}
+
+impl std::io::Read for InterruptBeforeEachByte {
+    #[requires(true)]
+    #[ensures(
+        ret.as_ref()
+            .map(|count| *count <= 1)
+            .unwrap_or_else(|error| error.kind() == std::io::ErrorKind::Interrupted)
+    )]
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        if self.interrupt {
+            *self = self.clone().with_data(data! { interrupt: false });
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "injected interrupt",
+            ));
+        }
+        if self.index >= self.bytes.len() {
+            return Ok(0);
+        }
+        let byte = self.bytes[self.index];
+        let index = self.index + 1;
+        *self = self.clone().with_data(data! {
+            index: index,
+            interrupt: true,
+        });
+        buf[0] = byte;
+        Ok(1)
+    }
+}
+
+/// A reader that fails once with a reset.
+#[invariant(true)]
+struct ResetOnce {
+    calls: usize,
+}
+
+impl std::io::Read for ResetOnce {
+    #[requires(true)]
+    #[ensures(ret.is_err())]
+    fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+        self.calls += 1;
+        Err(std::io::Error::new(
+            std::io::ErrorKind::ConnectionReset,
+            "injected reset",
+        ))
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn retry_interrupted_retries_until_success() {
+    let mut calls = 0;
+    let result = retry_interrupted(|| {
+        calls += 1;
+        if calls < 3 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "injected interrupt",
+            ));
+        }
+        Ok(7)
+    });
+    assert_eq!(result.expect("the helper returns the value"), 7);
+    assert_eq!(calls, 3);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_line_retries_an_interrupted_read() {
+    // One interrupt comes before each byte.
+    // A read path that stops on Interrupted fails this test.
+    let head = b"GET /pack HTTP/1.1\r\n";
+    let mut reader = new!(InterruptBeforeEachByte {
+        bytes: head,
+        index: 0,
+        interrupt: true,
+    });
+    let stop = AtomicBool::new(false);
+    match read_pack_line(&mut reader, &stop).into_data() {
+        data!(PackRead::Line(text)) => assert_eq!(text, "GET /pack HTTP/1.1\r\n"),
+        _ => panic!("the pack line is complete"),
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_line_reports_one_reset() {
+    // The reset is not an interrupt.
+    // The helper must not call the reader again.
+    let mut reader = ResetOnce { calls: 0 };
+    let stop = AtomicBool::new(false);
+    match read_pack_line(&mut reader, &stop).into_data() {
+        data!(PackRead::Broken(message)) => assert!(message.contains("injected reset")),
+        _ => panic!("the pack line reports the reset"),
+    }
+    assert_eq!(reader.calls, 1);
+}
+
 #[invariant(true)]
 struct PackServer {
     address: std::net::SocketAddr,
@@ -216,7 +353,7 @@ struct PackServer {
     write_stalled: Arc<Mutex<bool>>,
     write_stall_wake: Arc<Condvar>,
     stop: Arc<AtomicBool>,
-    worker: Option<JoinHandle<()>>,
+    worker: Option<JoinHandle<Result<(), String>>>,
 }
 
 impl PackServer {
@@ -224,11 +361,15 @@ impl PackServer {
     #[ensures(ret.worker.is_some())]
     fn start(root: PathBuf) -> Self {
         let listener = (18800..18900)
-            .find_map(|port| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).ok())
+            .find_map(|port| {
+                retry_interrupted(|| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))).ok()
+            })
             .expect("a test server port in 18800..18900");
         retry_interrupted(|| listener.set_nonblocking(true))
             .expect("the pack server socket accepts nonblocking mode");
-        let address = listener.local_addr().unwrap();
+        let address = listener
+            .local_addr()
+            .expect("the pack server has a local address");
         let requests = Arc::new(Mutex::new(Vec::new()));
         let request_wake = Arc::new(Condvar::new());
         let accept_ready = Arc::new(Mutex::new(false));
@@ -247,12 +388,13 @@ impl PackServer {
         let worker_stalled = Arc::clone(&write_stalled);
         let worker_stall_wake = Arc::clone(&write_stall_wake);
         let worker_stop = Arc::clone(&stop);
-        let worker = std::thread::spawn(move || {
+        let worker = std::thread::spawn(move || -> Result<(), String> {
             // The listener does not block in accept.
             // The first WouldBlock poll records that the accept loop is running.
             // Each pass reads the stop flag.
             // Shutdown can join without a wakeup connection.
             // An interrupted accept is tried again.
+            // Any other socket error stops the worker and names the error.
             'accept: while !worker_stop.load(AtomicOrdering::Acquire) {
                 let (mut stream, _) = match retry_interrupted(|| listener.accept()) {
                     Ok(connection) => connection,
@@ -269,28 +411,45 @@ impl PackServer {
                         std::thread::sleep(std::time::Duration::from_millis(2));
                         continue;
                     }
-                    Err(error) => panic!("the pack server accept failed: {error}"),
+                    Err(error) => {
+                        return Err(format!("the pack server accept failed: {error}"));
+                    }
                 };
                 // On macOS and BSD, an accepted socket keeps the nonblocking mode of the listener.
                 // A nonblocking read returns WouldBlock.
                 // Set this socket to blocking mode before the read.
-                retry_interrupted(|| stream.set_nonblocking(false))
-                    .expect("the pack server accepted socket accepts blocking mode");
+                retry_interrupted(|| stream.set_nonblocking(false)).map_err(|error| {
+                    format!("the pack server accepted socket did not become blocking: {error}")
+                })?;
                 // The socket timeout is 100 milliseconds.
                 // A stall is tried again until the stop flag is true or the hang limit fires.
-                retry_interrupted(|| stream.set_read_timeout(Some(PACK_SOCKET_POLL)))
-                    .expect("the pack server accepted socket accepts a read timeout");
-                retry_interrupted(|| stream.set_write_timeout(Some(PACK_SOCKET_POLL)))
-                    .expect("the pack server accepted socket accepts a write timeout");
+                retry_interrupted(|| stream.set_read_timeout(Some(PACK_SOCKET_POLL))).map_err(
+                    |error| format!("the pack server accepted socket has no read timeout: {error}"),
+                )?;
+                retry_interrupted(|| stream.set_write_timeout(Some(PACK_SOCKET_POLL))).map_err(
+                    |error| {
+                        format!("the pack server accepted socket has no write timeout: {error}")
+                    },
+                )?;
                 let line = match read_pack_line(&mut stream, &worker_stop).into_data() {
                     data!(PackRead::Line(line)) => line,
                     data!(PackRead::Stopped) => break,
                     data!(PackRead::End) => continue,
-                    data!(PackRead::Broken) => continue,
+                    data!(PackRead::Broken(message)) => {
+                        return Err(format!("the pack server read failed: {message}"));
+                    }
                 };
                 let mut parts = line.split_whitespace();
-                assert_eq!(parts.next(), Some("GET"));
-                let relative = parts.next().unwrap().trim_start_matches('/').to_owned();
+                let method = parts.next().unwrap_or("");
+                if method != "GET" {
+                    return Err(format!(
+                        "the pack server saw a request that is not GET: {line}"
+                    ));
+                }
+                let Some(relative) = parts.next() else {
+                    return Err(format!("the pack server request has no path: {line}"));
+                };
+                let relative = relative.trim_start_matches('/').to_owned();
                 // Record the request, then wake a test that waits for it.
                 // The wake uses the same mutex as the request list.
                 {
@@ -301,17 +460,25 @@ impl PackServer {
                 loop {
                     match read_pack_line(&mut stream, &worker_stop).into_data() {
                         data!(PackRead::Stopped) => break 'accept,
-                        data!(PackRead::Broken) => continue 'accept,
+                        data!(PackRead::Broken(message)) => {
+                            return Err(format!("the pack server read failed: {message}"));
+                        }
                         data!(PackRead::End) => break,
                         data!(PackRead::Line(header)) if header == "\r\n" => break,
                         data!(PackRead::Line(_)) => {}
                     }
                 }
-                let path = root.join(safe_pack_relative_path(&relative).unwrap());
+                let path = root.join(
+                    safe_pack_relative_path(&relative)
+                        .map_err(|error| format!("the pack server path is not safe: {error}"))?,
+                );
                 if let Ok(mut file) = File::open(path) {
+                    let length = file
+                        .metadata()
+                        .map_err(|error| format!("the pack server file length failed: {error}"))?;
                     let header = format!(
                         "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                        file.metadata().unwrap().len()
+                        length.len()
                     );
                     // io::copy uses sendfile for a file and a socket.
                     // sendfile ignores the write timeout.
@@ -324,17 +491,23 @@ impl PackServer {
                         &worker_stop,
                         &worker_stalled,
                         &worker_stall_wake,
-                    ) {
-                        PackWrite::Done => {}
-                        PackWrite::Stopped => break,
-                        PackWrite::Broken => continue,
+                    )
+                    .into_data()
+                    {
+                        data!(PackWrite::Done) => {}
+                        data!(PackWrite::Stopped) => break,
+                        data!(PackWrite::Broken(message)) => {
+                            return Err(format!("the pack server write failed: {message}"));
+                        }
                     }
                     let mut buf = [0_u8; 64 * 1024];
                     loop {
                         let count = match retry_interrupted(|| file.read(&mut buf)) {
                             Ok(0) => break,
                             Ok(count) => count,
-                            Err(_) => break,
+                            Err(error) => {
+                                return Err(format!("the pack server file read failed: {error}"));
+                            }
                         };
                         match write_pack_bytes(
                             &mut stream,
@@ -342,10 +515,14 @@ impl PackServer {
                             &worker_stop,
                             &worker_stalled,
                             &worker_stall_wake,
-                        ) {
-                            PackWrite::Done => {}
-                            PackWrite::Stopped => break 'accept,
-                            PackWrite::Broken => break,
+                        )
+                        .into_data()
+                        {
+                            data!(PackWrite::Done) => {}
+                            data!(PackWrite::Stopped) => break 'accept,
+                            data!(PackWrite::Broken(message)) => {
+                                return Err(format!("the pack server write failed: {message}"));
+                            }
                         }
                     }
                 } else {
@@ -355,12 +532,18 @@ impl PackServer {
                         &worker_stop,
                         &worker_stalled,
                         &worker_stall_wake,
-                    ) {
-                        PackWrite::Stopped => break,
-                        PackWrite::Done | PackWrite::Broken => {}
+                    )
+                    .into_data()
+                    {
+                        data!(PackWrite::Stopped) => break,
+                        data!(PackWrite::Done) => {}
+                        data!(PackWrite::Broken(message)) => {
+                            return Err(format!("the pack server write failed: {message}"));
+                        }
                     }
                 }
             }
+            Ok(())
         });
         Self {
             address,
@@ -394,7 +577,8 @@ impl PackServer {
         let (result_tx, result_rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let result = match worker.join() {
-                Ok(()) => Ok(()),
+                Ok(Ok(())) => Ok(()),
+                Ok(Err(error)) => Err(error),
                 Err(payload) => Err(pack_server_panic_message(payload)),
             };
             let _ = result_tx.send(result);
@@ -543,7 +727,8 @@ fn pack_server_shutdown_returns_during_a_blocked_write() {
     big.set_len(256 * 1024 * 1024).unwrap();
     drop(big);
     let mut server = PackServer::start(root.path().to_owned());
-    let mut client = std::net::TcpStream::connect(server.address).unwrap();
+    let mut client = retry_interrupted(|| std::net::TcpStream::connect(server.address))
+        .expect("the pack client connects");
     client.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
     wait_for_pack_request(&server);
     wait_until_pack_response_starts(&server);

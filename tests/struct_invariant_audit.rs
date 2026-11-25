@@ -28,6 +28,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The fixture owns socket and thread resources. A missing worker is a valid stopped state, and cleanup accepts it.",
     ),
     (
+        "crates/jbotci-embeddings/src/setup_tests.rs:ResetOnce",
+        "The reader returns a connection reset on every read. The call count accepts any usize and has no second field.",
+    ),
+    (
         "apps/jbotci-server/src/discord/components.rs:AttachmentText",
         "The serializer borrows any list of already validated attachments.",
     ),
