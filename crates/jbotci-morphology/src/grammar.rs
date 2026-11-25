@@ -2484,8 +2484,14 @@ impl<'a> Segmenter<'a> {
     ///
     /// A trial depends only on where its strict word starts, so each word start
     /// is tried at most once. `ZoiCloseLookahead` holds the shared lookahead.
-    /// `examined` counts the characters that the lookahead and the trials walk.
-    /// The count is linear in the length of the text after the opening word.
+    ///
+    /// `examined` counts three scans: the skip walk to each word start, the
+    /// walk of each strict word run, and the window of each trial, which is
+    /// charged once as the length of its run. The count is linear in the
+    /// length of the text after the opening word. It does not count the work
+    /// inside the strict word reader. For example, the reader looks for a pause
+    /// after each candidate word end, and that scan can walk the same commas
+    /// again for each end. Issue #1143 tracks that scan, which main has too.
     #[requires(after_open <= self.chars.len())]
     #[ensures(ret.examined <= 3 * (self.chars.len() - after_open))]
     #[ensures(ret.closer.as_ref().is_none_or(|word| after_open < word.span().char_start && word.span().char_end <= self.chars.len()))]
@@ -3628,7 +3634,9 @@ fn is_y_word(word: &WordLike) -> bool {
 /// The result of one closer search.
 ///
 /// `closer` is the closing delimiter word, when the search found one.
-/// `examined` counts the characters that the lookahead and the trials walked.
+/// `examined` counts the characters that the lookahead and the trials walked,
+/// as `Segmenter::find_zoi_close` describes. Work inside the word reader is
+/// not counted (#1143).
 /// A closer comes only from a trial, and a trial walks at least the first
 /// character of its word, so a found closer means a nonzero count.
 #[invariant(closer.is_none() || *examined > 0)]
@@ -5682,8 +5690,22 @@ mod tests {
             ),
             (
                 format!("zoi gy{} gy", " ,".repeat(repeats)),
-                permissive,
+                permissive.clone(),
                 ", ".repeat(repeats).trim_end().to_owned(),
+            ),
+            // The lookahead walks this run once and the trial charges it once.
+            // The word reader inside that trial still scans the commas again
+            // for each candidate end. The count does not see that scan, which
+            // main has too (#1143), so this case bounds only the lookahead.
+            (
+                format!("zoi gy a{} gy", ",".repeat(repeats)),
+                MorphologyOptions::default(),
+                format!("a{}", ",".repeat(repeats)),
+            ),
+            (
+                format!("zoi gy a{} gy", ",".repeat(repeats)),
+                permissive,
+                format!("a{}", ",".repeat(repeats)),
             ),
         ];
         for (source, options, expected) in &cases {
@@ -5714,7 +5736,9 @@ mod tests {
                     .map(|closer| closer.span().char_start),
                 Some(closing_delimiter.span().char_start)
             );
-            // The repeated walks visited about `repeats * repeats` characters.
+            // The repeated lookahead walks visited about `repeats * repeats`
+            // characters. The count covers the scans that
+            // `Segmenter::find_zoi_close` lists, not the word reader.
             let remaining = source.chars().count() - after_open;
             assert!(
                 search.examined <= 2 * remaining + 4,
