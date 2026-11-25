@@ -2057,7 +2057,10 @@ impl<'a> Segmenter<'a> {
             self.permissive_boundaries_enabled,
         )
         .quote_bound;
-        let Some(closing_preview) = self.find_zoi_close(&opening_delimiter, after_open).closer
+        let Some(closing_preview) = self
+            .find_zoi_close(&opening_delimiter, after_open)
+            .into_data()
+            .closer
         else {
             // A cancelled trial reads no word. The quote can still have a closer.
             if self.options.cancellation.is_cancelled() {
@@ -3626,7 +3629,9 @@ fn is_y_word(word: &WordLike) -> bool {
 ///
 /// `closer` is the closing delimiter word, when the search found one.
 /// `examined` counts the characters that the lookahead and the trials walked.
-#[invariant(true)]
+/// A closer comes only from a trial, and a trial walks at least the first
+/// character of its word, so a found closer means a nonzero count.
+#[invariant(closer.is_none() || *examined > 0)]
 #[derive(Debug)]
 struct ZoiCloseSearch {
     closer: Option<Word>,
@@ -3667,14 +3672,14 @@ struct ZoiCloseRun {
     last_break: Option<usize>,
 }
 
-#[requires(true)]
+#[requires(closer.is_none() || lookahead.is_some_and(|lookahead| lookahead.examined > 0))]
 #[ensures(ret.closer.is_some() == old(closer.is_some()))]
 #[ensures(ret.examined == lookahead.map_or(0, |lookahead| lookahead.examined))]
 fn zoi_close_search(closer: Option<Word>, lookahead: Option<ZoiCloseLookahead>) -> ZoiCloseSearch {
-    ZoiCloseSearch {
+    new!(ZoiCloseSearch {
         closer,
         examined: lookahead.map_or(0, |lookahead| lookahead.examined),
-    }
+    })
 }
 
 /// Where the closer search starts after the opening delimiter word.
