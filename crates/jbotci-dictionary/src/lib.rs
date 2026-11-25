@@ -445,25 +445,40 @@ impl<'a> Dictionary<'a> {
         &'lookup self,
         query: &LookupKey,
     ) -> impl Iterator<Item = RafsiMatch<'lookup, 'a>> + 'lookup {
+        if query.is_empty() {
+            let mut matches = self
+                .entries
+                .iter()
+                .flat_map(|entry| {
+                    entry.rafsi.iter().filter_map(move |rafsi| {
+                        (rafsi.form == query.source_spelling()).then_some(RafsiMatch {
+                            entry,
+                            source: RafsiSource::Listed {
+                                standing: rafsi.standing,
+                            },
+                        })
+                    })
+                })
+                .collect::<Vec<_>>();
+            matches
+                .sort_by(|left, right| right.entry.score.get().total_cmp(&left.entry.score.get()));
+            return matches.into_iter();
+        }
         let mut targets = self
             .rafsi_index_entry(query.as_str())
             .map(|entry| entry.targets)
             .unwrap_or(&[])
             .to_vec();
-        if normalized.is_empty() {
-            targets.retain(|target| {
-                self.entry_at(target.entry_index)
-                    .rafsi
-                    .iter()
-                    .any(|rafsi| rafsi.form == query)
-            });
-        }
         rank_rafsi_targets_by_entry_score(self, &mut targets);
-        targets.into_iter().map(|target| RafsiMatch {
-            entry_index: target.entry_index,
-            entry: self.entry_at(target.entry_index),
-            source: target.source,
-        })
+        targets
+            .into_iter()
+            .map(|target| RafsiMatch {
+                entry_index: target.entry_index,
+                entry: self.entry_at(target.entry_index),
+                source: target.source,
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     /// Return every short rafsi `gismu` could claim, with its availability.

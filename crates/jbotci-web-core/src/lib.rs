@@ -2928,6 +2928,15 @@ pub enum VlackuJvozbaSegmentTone {
 #[requires(true)]
 #[ensures(true)]
 pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
+    build_vlacku_web_result_with_dictionary(state, jbotci_dictionary_data::english())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_vlacku_web_result_with_dictionary(
+    state: &VlackuWebState,
+    dictionary: &jbotci_dictionary::Dictionary<'_>,
+) -> VlackuWebResult {
     let normalized_state = normalize_vlacku_state(state);
     let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
     if normalized_state.query.trim().is_empty() {
@@ -2966,7 +2975,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         .saturating_add(1)
         .min(VLACKU_WEB_MAX_COUNT);
     let output = run_vlacku_requests(
-        jbotci_dictionary_data::english(),
+        dictionary,
         std::slice::from_ref(&request),
         &VlackuSearchOptions::default().with_data(data! {
             count: fetch_count,
@@ -2980,7 +2989,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         && output.outcome != jbotci_search::vlacku::VlackuOutcome::Invalid
         && normalized_state.min_votes.as_search_min_votes().is_some()
         && !run_vlacku_requests(
-            jbotci_dictionary_data::english(),
+            dictionary,
             std::slice::from_ref(&request),
             &VlackuSearchOptions::default().with_data(data! {
                 count: 1,
@@ -5378,7 +5387,7 @@ fn normalize_vlacku_search_query(mode: VlackuWebMode, query: &str) -> String {
         // Word identity depends on the written boundaries and stress. The
         // search retains lexical evidence before it creates a lookup key.
         VlackuWebMode::Word => query.trim().to_owned(),
-        VlackuWebMode::Rafsi => normalize_lojban_exact_query(query),
+        VlackuWebMode::Rafsi => query.to_owned(),
         VlackuWebMode::Sound | VlackuWebMode::Meaning => query.trim().to_owned(),
     }
 }
@@ -7505,9 +7514,116 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+    use jbotci_dictionary::{
+        CmavoSequenceIndexEntry, DefinitionId, Dictionary, DictionaryEntry, DictionaryPatternEntry,
+        DictionaryUser, Rafsi, RafsiClaimKind, RafsiIndexEntry, Score, WordIndexEntry, WordType,
+        build_owned_indexes,
+    };
     use jbotci_morphology::{GlideMark, StressMark};
     use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
     use std::collections::BTreeSet;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn leak<T>(value: Vec<T>) -> &'static [T] {
+        Box::leak(value.into_boxed_slice())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn leak_text(value: String) -> &'static str {
+        Box::leak(value.into_boxed_str())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.entries().len() == 1)]
+    fn dictionary_with_forms(forms: &'static [Rafsi<'static>]) -> &'static Dictionary<'static> {
+        let entries = leak(vec![DictionaryEntry {
+            word: "klama",
+            word_type: WordType::Gismu,
+            definition: "test definition",
+            definition_id: DefinitionId(1),
+            notes: "",
+            score: Score(1.0),
+            gloss_keywords: &[],
+            place_keywords: &[],
+            rafsi: forms,
+            selmaho: None,
+            etymology: None,
+            jargon: None,
+            user: DictionaryUser {
+                username: "synthetic",
+                realname: None,
+            },
+        }]);
+        let indexes = build_owned_indexes(entries).into_data();
+        let word_index = leak(
+            indexes
+                .word_index
+                .into_iter()
+                .map(|entry| WordIndexEntry {
+                    key: leak_text(entry.key),
+                    targets: leak(entry.targets),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let rafsi_index = leak(
+            indexes
+                .rafsi_index
+                .into_iter()
+                .map(|entry| RafsiIndexEntry {
+                    key: leak_text(entry.key),
+                    targets: leak(entry.targets),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let pattern_index = leak(
+            indexes
+                .pattern_index
+                .into_iter()
+                .map(|entry| DictionaryPatternEntry {
+                    entry_index: entry.entry_index,
+                    word_key: leak_text(entry.word_key),
+                    rafsi_keys: leak(
+                        entry
+                            .rafsi_keys
+                            .into_iter()
+                            .map(leak_text)
+                            .collect::<Vec<_>>(),
+                    ),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let cmavo_sequence_index = leak(
+            indexes
+                .cmavo_sequence_index
+                .into_iter()
+                .map(|entry| {
+                    let entry = entry.into_data();
+                    CmavoSequenceIndexEntry::from_static_parts(
+                        leak(
+                            entry
+                                .components
+                                .into_iter()
+                                .map(leak_text)
+                                .collect::<Vec<_>>(),
+                        ),
+                        leak(entry.targets),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
+        Box::leak(Box::new(Dictionary::from_static_slices(
+            entries,
+            word_index,
+            rafsi_index,
+            pattern_index,
+            &[],
+            &[],
+            cmavo_sequence_index,
+            indexes.max_cmavo_sequence_len,
+        )))
+    }
 
     #[test]
     #[requires(true)]
@@ -11124,6 +11240,57 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn rafsi_web_adapter_preserves_original_spelling() {
+        let dictionary = dictionary_with_forms(leak(vec![
+            Rafsi {
+                form: ",",
+                standing: RafsiClaimKind::Experimental,
+            },
+            Rafsi {
+                form: "\u{ed89}",
+                standing: RafsiClaimKind::Experimental,
+            },
+        ]));
+        for query in [",", "\u{ed89}"] {
+            assert_eq!(
+                normalize_vlacku_search_query(VlackuWebMode::Rafsi, query),
+                query
+            );
+            let result = build_vlacku_web_result_with_dictionary(
+                &VlackuWebState {
+                    min_votes: Default::default(),
+                    mode: VlackuWebMode::Rafsi,
+                    query: query.to_owned(),
+                    count: 20,
+                    word_types: Vec::new(),
+                },
+                dictionary,
+            );
+            assert_eq!(result.cards.len(), 1, "{query:?}");
+            assert_eq!(result.cards[0].word, "klama");
+            assert!(result.errors.is_empty(), "{query:?}");
+        }
+        let missing = build_vlacku_web_result_with_dictionary(
+            &VlackuWebState {
+                min_votes: Default::default(),
+                mode: VlackuWebMode::Rafsi,
+                query: "!".to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            },
+            dictionary,
+        );
+        assert!(missing.cards.is_empty());
+        assert!(missing.message.is_none());
+        assert_eq!(
+            missing.errors,
+            [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!")]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_filtered_fallback_keeps_typed_missing_behavior() {
         let low_votes = build_vlacku_web_result(&VlackuWebState {
             query: "fa'onai".to_owned(),
@@ -11395,14 +11562,14 @@ mod tests {
         });
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
-        assert_eq!(result.state.query, "kla");
+        assert_eq!(result.state.query, "кла");
         assert_eq!(
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
         assert_eq!(
             vlacku_web_url("", &result.state),
-            "/vlacku?mode=rafsi&q=kla"
+            "/vlacku?mode=rafsi&q=%D0%BA%D0%BB%D0%B0"
         );
     }
 
@@ -11419,14 +11586,14 @@ mod tests {
         });
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
-        assert_eq!(result.state.query, "kla");
+        assert_eq!(result.state.query, "\u{ed82}\u{ed84}\u{eda0}");
         assert_eq!(
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
         assert_eq!(
             vlacku_web_url("", &result.state),
-            "/vlacku?mode=rafsi&q=kla"
+            "/vlacku?mode=rafsi&q=%EE%B6%82%EE%B6%84%EE%B6%A0"
         );
     }
 

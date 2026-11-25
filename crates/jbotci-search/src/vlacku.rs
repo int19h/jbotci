@@ -4213,11 +4213,17 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn empty_and_mixed_script_keys_find_only_their_stored_spelling() {
-        let mut comma = synthetic_entry(",", WordType::Nalvla);
-        comma.rafsi = leak_slice(vec![Rafsi {
-            form: ",",
-            standing: RafsiClaimKind::Experimental,
-        }]);
+        let mut comma = synthetic_entry(",", WordType::Gismu);
+        comma.rafsi = leak_slice(vec![
+            Rafsi {
+                form: ",",
+                standing: RafsiClaimKind::Experimental,
+            },
+            Rafsi {
+                form: "#",
+                standing: RafsiClaimKind::Official,
+            },
+        ]);
         let entries = leak_slice(vec![
             synthetic_entry("#", WordType::Nalvla),
             comma,
@@ -4239,8 +4245,29 @@ mod tests {
         let definitions = dictionary.exact_definition_indices("#");
         assert_eq!(definitions.len(), 1);
         assert_eq!(dictionary.entries()[definitions[0].0].word, "#");
-        assert_eq!(dictionary.lookup_rafsi(",").count(), 1);
-        for query in ["#", "!", ".", "\u{301}"] {
+        let comma = dictionary.lookup_rafsi(",").collect::<Vec<_>>();
+        assert_eq!(comma.len(), 1);
+        assert_eq!(
+            comma[0].source.listed_standing(),
+            Some(RafsiClaimKind::Experimental)
+        );
+        let official = dictionary.lookup_rafsi("#").collect::<Vec<_>>();
+        assert_eq!(official.len(), 1);
+        assert_eq!(
+            official[0].source.listed_standing(),
+            Some(RafsiClaimKind::Official)
+        );
+        for query in [",", "#"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::rafsi(query.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Found, "{query:?}");
+            assert_eq!(result.cards.len(), 1, "{query:?}");
+            assert_eq!(result.cards[0].word, ",");
+        }
+        for query in ["!", ".", "\u{301}"] {
             assert_eq!(dictionary.lookup_rafsi(query).count(), 0, "{query:?}");
             let result = search(
                 dictionary,
