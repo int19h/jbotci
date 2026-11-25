@@ -1252,6 +1252,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a wildcard carries the caller token unchanged. The text part already requires a non-empty string",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyChar::Invalid",
+        "a unit variant that names a rejected character class. The caller keeps the character",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyChar::Removed",
+        "a unit variant for a character that a lookup key leaves out",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyChar::WordBreak",
+        "a unit variant for a character that a lookup key reads as a space",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyMode::Index",
+        "a unit variant that selects the index key, which cannot fail",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyMode::Lookup",
+        "a unit variant that selects the lookup key, which can fail",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:LookupPatternPart::Literal",
         "a literal accepts any source text. The key function decides which characters stay",
     ),

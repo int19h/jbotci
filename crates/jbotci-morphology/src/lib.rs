@@ -3524,20 +3524,6 @@ pub fn normalize_lojban_input_text_with_options(
     (!output.is_empty() || input.is_empty()).then_some(output)
 }
 
-/// Walk `input` once. Send each lookup transcript character to `on_char`.
-///
-/// The walk converts every character it can convert. It passes every other
-/// character through. A failed character does not discard an earlier
-/// conversion. The return value is the first source character that is not
-/// whitespace. An empty return means that `input` is empty or whitespace.
-/// `LookupTranscript` is this walk for several pieces of one literal run.
-#[requires(true)]
-#[ensures(ret.is_none_or(|value| !value.is_whitespace()))]
-#[bityzba::expensive_ensures(ret == input.chars().find(|value| !value.is_whitespace()))]
-pub fn transcribe_lookup_chars(input: &str, on_char: impl FnMut(char)) -> Option<char> {
-    segment::transcribe_lookup_chars(input, on_char)
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn append_normalized_lojban_input_chunk(
@@ -3564,6 +3550,17 @@ fn normalized_lojban_input_separator(value: char) -> char {
     } else {
         value
     }
+}
+
+/// Return whether the morphology ends a word at `value`.
+///
+/// This is the separator set of the segmenter: whitespace, the period
+/// spellings, and the punctuation that gentufa reads as a word break.
+#[requires(true)]
+#[ensures(value.is_whitespace() -> ret)]
+#[ensures(is_period_character(value) -> ret)]
+pub fn is_word_break(value: char) -> bool {
+    segment::is_separator(value)
 }
 
 #[requires(true)]
@@ -5006,12 +5003,14 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn transcribe_lookup_chars_keeps_a_partial_conversion() {
+    fn lookup_transcript_keeps_a_partial_conversion() {
         #[requires(true)]
         #[ensures(true)]
         fn transcript(input: &str) -> String {
+            let mut transcript = LookupTranscript::new();
             let mut text = String::new();
-            let _ = transcribe_lookup_chars(input, |value| text.push(value));
+            let _ = transcript.push_str(input, |value| text.push(value));
+            transcript.finish(|value| text.push(value));
             text
         }
 
@@ -5024,14 +5023,51 @@ mod tests {
         assert_eq!(transcript("шои"), "co'i");
         assert_eq!(transcript("\u{0306}"), "\u{0306}");
         assert_eq!(transcript("\u{0301}"), "");
+        let mut transcript_state = LookupTranscript::new();
         assert_eq!(
-            transcribe_lookup_chars("\u{0306}", |_| {}),
+            transcript_state.push_str("\u{0306}", |_| {}),
             Some('\u{0306}')
         );
         assert_eq!(
-            transcribe_lookup_chars("\u{0301}", |_| {}),
+            transcript_state.push_str("\u{0301}", |_| {}),
             Some('\u{0301}')
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_transcript_reads_a_decomposed_cyrillic_glide() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn stream(parts: &[&str]) -> String {
+            let mut transcript = LookupTranscript::new();
+            let mut text = String::new();
+            for part in parts {
+                let _ = transcript.push_str(part, |value| text.push(value));
+            }
+            transcript.finish(|value| text.push(value));
+            text
+        }
+
+        // `и` + U+0306 is `й`, and `у` + U+0306 is `ў`. Each pair is one glide,
+        // so the vowel before it gets no apostrophe.
+        for (composed, decomposed) in [
+            ("шой", "шои\u{0306}"),
+            ("ай", "аи\u{0306}"),
+            ("аў", "ау\u{0306}"),
+            ("ШОЙ", "ШОИ\u{0306}"),
+            ("АЎ", "АУ\u{0306}"),
+        ] {
+            assert_eq!(stream(&[decomposed]), stream(&[composed]), "{decomposed}");
+        }
+        assert_eq!(stream(&["шои\u{0306}"]), "coĭ");
+        // The pair can cross a literal piece.
+        assert_eq!(stream(&["шои", "\u{0306}"]), "coĭ");
+        assert_eq!(stream(&["шои", "", "\u{0306}"]), "coĭ");
+        // A base with no breve is a vowel, at the end of a piece too.
+        assert_eq!(stream(&["шои"]), "co'i");
+        assert_eq!(stream(&["шои", "а"]), "co'i'a");
     }
 
     #[test]
@@ -5053,9 +5089,7 @@ mod tests {
         #[requires(true)]
         #[ensures(true)]
         fn whole(input: &str) -> String {
-            let mut text = String::new();
-            let _ = transcribe_lookup_chars(input, |value| text.push(value));
-            text
+            stream(&[input])
         }
 
         assert_eq!(stream(&["шо", "и"]), whole("шои"));

@@ -772,6 +772,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "verbatim Lensisku export row; into_entry checks rafsi standing before it becomes an entry",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyBuilder",
+        "lookup key builder is mutable state of one key build whose rules live in its methods",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:DefinitionId",
         "Lensisku definition ids are opaque upstream identifiers",
     ),

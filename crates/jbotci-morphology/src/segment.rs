@@ -87,25 +87,31 @@ pub(crate) fn normalize_word_checked_with_options(
 /// Converter state for one lookup transcription.
 ///
 /// Call `push_str` for each piece of one literal run. The state keeps the
-/// implicit-apostrophe flag and a shorthand mark that still needs its
-/// payload. Call `finish` at a wildcard and at the end of the pattern.
-/// `finish` emits a shorthand mark that has no payload, then clears the state.
+/// implicit-apostrophe flag and one character that still waits for the next
+/// character: a shorthand mark that needs its payload, or a Cyrillic `и`, `И`,
+/// `у` or `У` that a combining breve can turn into `й`, `Й`, `ў` or `Ў`.
+/// Call `finish` at a wildcard and at the end of the pattern. `finish` emits a
+/// waiting character as itself, then clears the state.
 #[invariant(self.pending_shorthand.is_none_or(|value| value == '\u{ed8b}'))]
+#[invariant(self.pending_breve_base.is_none_or(|value| breve_glide(value).is_some()))]
+#[invariant(self.pending_shorthand.is_none() || self.pending_breve_base.is_none())]
 #[derive(Debug, Clone, Copy)]
 pub struct LookupTranscript {
     previous_implicit_apostrophe_vowel: bool,
     pending_shorthand: Option<char>,
+    pending_breve_base: Option<char>,
 }
 
 impl LookupTranscript {
     /// Start a transcript with a clear state.
     #[requires(true)]
-    #[ensures(ret.pending_shorthand.is_none())]
+    #[ensures(ret.pending_shorthand.is_none() && ret.pending_breve_base.is_none())]
     #[ensures(!ret.previous_implicit_apostrophe_vowel)]
     pub fn new() -> Self {
         new!(LookupTranscript {
             previous_implicit_apostrophe_vowel: false,
             pending_shorthand: None,
+            pending_breve_base: None,
         })
     }
 
@@ -119,18 +125,39 @@ impl LookupTranscript {
         !input.is_empty()
             || (self.previous_implicit_apostrophe_vowel
                 == old(self.previous_implicit_apostrophe_vowel)
-                && self.pending_shorthand == old(self.pending_shorthand))
+                && self.pending_shorthand == old(self.pending_shorthand)
+                && self.pending_breve_base == old(self.pending_breve_base))
     )]
     #[bityzba::expensive_ensures(ret == input.chars().find(|value| !value.is_whitespace()))]
     pub fn push_str(&mut self, input: &str, mut on_char: impl FnMut(char)) -> Option<char> {
         let options = MorphologyOptions::default();
         let mut previous_implicit_apostrophe_vowel = self.previous_implicit_apostrophe_vowel;
         let mut pending_shorthand = self.pending_shorthand;
+        let mut pending_breve_base = self.pending_breve_base;
         let mut chars = input.chars().peekable();
         let mut first_non_whitespace = None;
         while let Some(value) = chars.next() {
             if first_non_whitespace.is_none() && !value.is_whitespace() {
                 first_non_whitespace = Some(value);
+            }
+            if let Some(base) = pending_breve_base.take() {
+                // The base ended the previous piece. This piece can hold its breve.
+                if value == COMBINING_BREVE {
+                    let glide = breve_glide(base).expect("a waiting breve base has a glide");
+                    transcribe_lookup_char(
+                        glide,
+                        &options,
+                        &mut previous_implicit_apostrophe_vowel,
+                        &mut on_char,
+                    );
+                    continue;
+                }
+                transcribe_lookup_char(
+                    base,
+                    &options,
+                    &mut previous_implicit_apostrophe_vowel,
+                    &mut on_char,
+                );
             }
             if pending_shorthand.is_some()
                 && options.accept_zbalermorna
@@ -148,16 +175,6 @@ impl LookupTranscript {
                 pending_shorthand = None;
                 on_char(shorthand);
                 previous_implicit_apostrophe_vowel = false;
-            }
-            if is_separator(value) {
-                let emitted = if crate::is_period_character(value) {
-                    '.'
-                } else {
-                    value
-                };
-                on_char(emitted);
-                previous_implicit_apostrophe_vowel = false;
-                continue;
             }
             if options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value) {
                 if let Some(payload_value) = chars.peek().copied()
@@ -180,80 +197,139 @@ impl LookupTranscript {
                 previous_implicit_apostrophe_vowel = false;
                 continue;
             }
-            match normalize_char_event(value, &options) {
-                Some(event) => match event.as_data() {
-                    data!(NormalizedCharEvent::Emit {
-                        value: normalized_value,
-                        implicit_apostrophe_vowel,
-                    }) => {
-                        emit_lookup_transcript_char(
-                            *normalized_value,
-                            *implicit_apostrophe_vowel,
+            if options.accept_cyrillic
+                && let Some(glide) = breve_glide(value)
+            {
+                // `и` + U+0306 is the same text as `й`. Read the pair as the
+                // glide, so the vowel does not get an implicit apostrophe.
+                match chars.peek().copied() {
+                    Some(COMBINING_BREVE) => {
+                        chars.next();
+                        transcribe_lookup_char(
+                            glide,
+                            &options,
                             &mut previous_implicit_apostrophe_vowel,
                             &mut on_char,
                         );
+                        continue;
                     }
-                    data!(NormalizedCharEvent::EmitText { text }) => {
-                        for normalized_value in text.chars() {
-                            emit_lookup_transcript_char(
-                                normalized_value,
-                                false,
-                                &mut previous_implicit_apostrophe_vowel,
-                                &mut on_char,
-                            );
-                        }
+                    None => {
+                        pending_breve_base = Some(value);
+                        continue;
                     }
-                    data!(NormalizedCharEvent::StressPrevious)
-                    | data!(NormalizedCharEvent::StressPreviousVowel) => {}
-                    data!(NormalizedCharEvent::Ignore) => {
-                        previous_implicit_apostrophe_vowel = false;
-                    }
-                },
-                None => {
-                    on_char(value);
-                    previous_implicit_apostrophe_vowel = false;
+                    Some(_) => {}
                 }
             }
+            transcribe_lookup_char(
+                value,
+                &options,
+                &mut previous_implicit_apostrophe_vowel,
+                &mut on_char,
+            );
         }
         *self = new!(LookupTranscript {
             previous_implicit_apostrophe_vowel,
             pending_shorthand,
+            pending_breve_base,
         });
         first_non_whitespace
     }
 
     /// End the current literal run.
     ///
-    /// A shorthand mark with no payload is emitted as itself. The state is
-    /// clear after this call.
+    /// A waiting character is emitted as itself. The state is clear after
+    /// this call.
     #[requires(true)]
-    #[ensures(self.pending_shorthand.is_none())]
+    #[ensures(self.pending_shorthand.is_none() && self.pending_breve_base.is_none())]
     #[ensures(!self.previous_implicit_apostrophe_vowel)]
     pub fn finish(&mut self, mut on_char: impl FnMut(char)) {
+        let mut previous_implicit_apostrophe_vowel = self.previous_implicit_apostrophe_vowel;
+        if let Some(base) = self.pending_breve_base {
+            transcribe_lookup_char(
+                base,
+                &MorphologyOptions::default(),
+                &mut previous_implicit_apostrophe_vowel,
+                &mut on_char,
+            );
+        }
         if let Some(shorthand) = self.pending_shorthand {
             on_char(shorthand);
         }
-        *self = new!(LookupTranscript {
-            previous_implicit_apostrophe_vowel: false,
-            pending_shorthand: None,
-        });
+        *self = LookupTranscript::new();
     }
 }
 
-/// Walk `input` once. Send each lookup transcript character to `on_char`.
-///
-/// The walk converts every character it can convert. It passes every other
-/// character through. A failed character does not discard an earlier
-/// conversion. A stress mark produces no character. The key filter maps a
-/// stressed vowel and a plain vowel to the same letter. The return value is
-/// the first source character that is not whitespace.
+const COMBINING_BREVE: char = '\u{0306}';
+
+/// The precomposed glide that a Cyrillic vowel and a combining breve spell.
 #[requires(true)]
-#[ensures(ret.is_none_or(|value| !value.is_whitespace()))]
-pub(crate) fn transcribe_lookup_chars(input: &str, mut on_char: impl FnMut(char)) -> Option<char> {
-    let mut transcript = LookupTranscript::new();
-    let first = transcript.push_str(input, &mut on_char);
-    transcript.finish(&mut on_char);
-    first
+#[ensures(ret.is_some() == matches!(value, 'и' | 'И' | 'у' | 'У'))]
+fn breve_glide(value: char) -> Option<char> {
+    match value {
+        'и' => Some('й'),
+        'И' => Some('Й'),
+        'у' => Some('ў'),
+        'У' => Some('Ў'),
+        _ => None,
+    }
+}
+
+/// Transcribe one character that needs no lookahead.
+///
+/// A separator stays, with each period spelling as `.`. A character the
+/// converter reads becomes its Lojban letters. A stress mark produces nothing.
+/// Every other character passes through for the key filter.
+#[requires(true)]
+#[ensures(true)]
+fn transcribe_lookup_char<F: FnMut(char)>(
+    value: char,
+    options: &MorphologyOptions,
+    previous_implicit_apostrophe_vowel: &mut bool,
+    on_char: &mut F,
+) {
+    if is_separator(value) {
+        on_char(if crate::is_period_character(value) {
+            '.'
+        } else {
+            value
+        });
+        *previous_implicit_apostrophe_vowel = false;
+        return;
+    }
+    match normalize_char_event(value, options) {
+        Some(event) => match event.as_data() {
+            data!(NormalizedCharEvent::Emit {
+                value: normalized_value,
+                implicit_apostrophe_vowel,
+            }) => {
+                emit_lookup_transcript_char(
+                    *normalized_value,
+                    *implicit_apostrophe_vowel,
+                    previous_implicit_apostrophe_vowel,
+                    on_char,
+                );
+            }
+            data!(NormalizedCharEvent::EmitText { text }) => {
+                for normalized_value in text.chars() {
+                    emit_lookup_transcript_char(
+                        normalized_value,
+                        false,
+                        previous_implicit_apostrophe_vowel,
+                        on_char,
+                    );
+                }
+            }
+            data!(NormalizedCharEvent::StressPrevious)
+            | data!(NormalizedCharEvent::StressPreviousVowel) => {}
+            data!(NormalizedCharEvent::Ignore) => {
+                *previous_implicit_apostrophe_vowel = false;
+            }
+        },
+        None => {
+            on_char(value);
+            *previous_implicit_apostrophe_vowel = false;
+        }
+    }
 }
 
 #[requires(true)]

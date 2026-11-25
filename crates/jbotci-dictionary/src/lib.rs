@@ -1236,15 +1236,18 @@ fn rafsi_targets_ranked_by_entry_score(
         })
 }
 
-/// Return v0-compatible normalized lookup text.
+/// Return the lookup key of `raw`, as the dictionary index stores it.
+///
+/// This is the key of `normalize_lookup_pattern` for `raw` alone, with one
+/// difference: an index key cannot fail, so a character that a lookup rejects
+/// is left out. See `classify_lookup_char` for the character rules.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(!ret.starts_with(' ') && !ret.ends_with(' '))]
+#[bityzba::expensive_ensures(!ret.contains("  ") && ret.chars().all(|value| value == ' ' || is_lookup_char(value)))]
 pub fn normalize_lookup_query(raw: &str) -> String {
-    raw.split_whitespace()
-        .map(normalize_lookup_token)
-        .filter(|token| !token.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ")
+    let keyed = build_lookup_key::<()>(&[LookupPatternPart::Literal(raw)], LookupKeyMode::Index)
+        .expect("an index key leaves out what a lookup rejects");
+    key_text_of(&keyed)
 }
 
 /// The short rafsi form of a fu'ivla, from CLL 4.16.
@@ -1408,13 +1411,47 @@ impl<T> LookupKeyPart<T> {
     }
 }
 
-/// A literal run that an exact lookup rejects.
+/// A lookup pattern that a lookup rejects.
 ///
-/// `character` is the first character in that run that is not whitespace.
-#[invariant(!character.is_whitespace())]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LookupPatternError {
-    pub character: char,
+/// `InvalidCharacter` names a character that gentufa also rejects, such as
+/// a letter with a non-stress diacritic. `NoLookupCharacter` names a literal
+/// run that has only characters a key leaves out, such as `,` in `*,*`.
+#[invariant(::InvalidCharacter { character } => !character.is_whitespace())]
+#[invariant(::NoLookupCharacter { text } => !text.is_empty() && text.trim() == text)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LookupPatternError {
+    InvalidCharacter { character: char },
+    NoLookupCharacter { text: String },
+}
+
+impl LookupPatternError {
+    /// The rejected character, when the error names one.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|character| !character.is_whitespace()))]
+    pub fn invalid_character(&self) -> Option<char> {
+        match self.as_data() {
+            data!(LookupPatternError::InvalidCharacter { character }) => Some(*character),
+            data!(LookupPatternError::NoLookupCharacter { .. }) => None,
+        }
+    }
+}
+
+impl std::fmt::Display for LookupPatternError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.as_data() {
+            data!(LookupPatternError::InvalidCharacter { character }) => {
+                write!(formatter, "unsupported character `{character}`")
+            }
+            data!(LookupPatternError::NoLookupCharacter { text }) => {
+                write!(
+                    formatter,
+                    "`{text}` has no character that a lookup can search for"
+                )
+            }
+        }
+    }
 }
 
 /// Key one whole lookup pattern.
@@ -1422,16 +1459,19 @@ pub struct LookupPatternError {
 /// `parts` is literal text and wildcard tokens in pattern order. The
 /// function transcribes each run of literals between wildcards as one stream.
 /// It carries the converter state across adjacent literals. A wildcard resets
-/// that state. The function then folds, filters, and collapses whitespace
-/// with the same character rule as an exact key. A wildcard counts as a part
-/// that stays. A space stays when a surviving part is on both sides. A
-/// character that the filter removes does not hide a space. A literal run
-/// that keeps no lookup character is an error. A pattern with no wildcard
-/// has the same key as that text alone.
+/// that state. Each transcript character then follows `classify_lookup_char`:
+/// a letter stays, a word break becomes one space, a comma or a middle dot
+/// disappears, and any other character is an error that names it. A wildcard
+/// counts as a part that stays. A space stays when a surviving part is on
+/// both sides. A literal run that keeps no letter is an error. A pattern with
+/// no wildcard has the same key as that text alone.
 #[requires(true)]
 #[ensures(match &ret {
     Ok(_) => true,
-    Err(error) => !error.character.is_whitespace(),
+    Err(error) => match error.as_data() {
+        data!(LookupPatternError::InvalidCharacter { character }) => !character.is_whitespace(),
+        data!(LookupPatternError::NoLookupCharacter { text }) => !text.is_empty(),
+    },
 })]
 #[bityzba::expensive_ensures({
     if parts
@@ -1446,18 +1486,30 @@ pub struct LookupPatternError {
                 joined.push_str(text);
             }
         }
-        let whole = build_lookup_key::<T>(&[LookupPatternPart::Literal(joined.as_str())]);
-        match (ret.as_ref(), whole.as_ref()) {
-            (Ok(actual), Ok(expected)) => key_text_of(actual) == key_text_of(expected),
-            (Err(actual), Err(expected)) => actual.character == expected.character,
-            _ => false,
-        }
+        let whole = build_lookup_key::<T>(
+            &[LookupPatternPart::Literal(joined.as_str())],
+            LookupKeyMode::Lookup,
+        );
+        // The lookup transcript and the strict converter of the parser are
+        // two walks. When the strict conversion succeeds, both give one key.
+        let agrees_with_parser =
+            match (jbotci_morphology::normalize_lojban_input_text(&joined), ret.as_ref()) {
+                (None, _) => true,
+                (Some(strict), Ok(actual)) => key_text_of(actual) == normalize_lookup_query(&strict),
+                (Some(_), Err(_)) => false,
+            };
+        agrees_with_parser
+            && match (ret.as_ref(), whole.as_ref()) {
+                (Ok(actual), Ok(expected)) => key_text_of(actual) == key_text_of(expected),
+                (Err(actual), Err(expected)) => actual == expected,
+                _ => false,
+            }
     }
 })]
 pub fn normalize_lookup_pattern<T: Clone>(
     parts: &[LookupPatternPart<'_, T>],
 ) -> Result<Vec<LookupKeyPart<T>>, LookupPatternError> {
-    build_lookup_key(parts)
+    build_lookup_key(parts, LookupKeyMode::Lookup)
 }
 
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
@@ -1484,74 +1536,134 @@ pub fn universal_gismu_rafsi_forms(word: &str) -> Vec<(String, RafsiSource)> {
     forms
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn normalize_lookup_token(raw: &str) -> String {
-    let mut token = String::new();
-    for value in raw.chars() {
-        append_lookup_chars(value, &mut token);
-    }
-    token
+/// Whether a key may fail.
+///
+/// A lookup reports a rejected character. An index key leaves it out.
+#[invariant(true)]
+#[invariant(::Lookup => true)]
+#[invariant(::Index => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LookupKeyMode {
+    Lookup,
+    Index,
 }
 
+/// What a lookup key does with one transcript character.
+#[invariant(::Letter(value) => is_lookup_char(*value))]
+#[invariant(::WordBreak => true)]
+#[invariant(::Removed => true)]
+#[invariant(::Invalid => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LookupKeyChar {
+    Letter(char),
+    WordBreak,
+    Removed,
+    Invalid,
+}
+
+/// The key rule for one transcript character.
+///
+/// The rules follow gentufa. A character that the morphology reads as a word
+/// break is a space (`broda-zei-brode` keys as `broda zei brode`). A comma,
+/// the middle dot U+00B7 and the hyphenation point U+2027 are marks inside a
+/// word, so they disappear. A combining acute or grave is a stress mark, so it
+/// disappears too. A letter folds its stress mark and its glide mark, becomes
+/// lowercase, and spells each apostrophe as `'`. Any other character is
+/// invalid, as in gentufa: a letter with another diacritic, a letter that no
+/// converter reads, a combining breve, and other symbols.
 #[requires(true)]
-#[ensures(output.len() >= old(output.len()))]
-#[ensures(ret == (output.len() > old(output.len())))]
-fn append_lookup_chars(value: char, output: &mut String) -> bool {
-    let start = output.len();
-    if let Some(folded) = fold_lojban_diacritic(value) {
-        for lower in folded.to_lowercase() {
-            let mapped = normalize_latin_apostrophe(lower);
+#[ensures((value.is_whitespace() || jbotci_morphology::is_word_break(value)) -> matches!(ret.as_data(), data!(LookupKeyChar::WordBreak)))]
+#[ensures(matches!(value, ',' | '\u{00b7}' | '\u{2027}') -> matches!(ret.as_data(), data!(LookupKeyChar::Removed)))]
+fn classify_lookup_char(value: char) -> LookupKeyChar {
+    if value.is_whitespace() || jbotci_morphology::is_word_break(value) {
+        return new!(LookupKeyChar::WordBreak);
+    }
+    if matches!(
+        value,
+        ',' | '\u{00b7}' | '\u{2027}' | '\u{0301}' | '\u{0300}'
+    ) {
+        return new!(LookupKeyChar::Removed);
+    }
+    let Some(folded) = fold_lojban_diacritic(value) else {
+        return new!(LookupKeyChar::Invalid);
+    };
+    let mut lower = folded.to_lowercase();
+    match (lower.next(), lower.next()) {
+        (Some(single), None) => {
+            let mapped = normalize_latin_apostrophe(single);
             if is_lookup_char(mapped) {
-                output.push(mapped);
+                new!(LookupKeyChar::Letter(mapped))
+            } else {
+                new!(LookupKeyChar::Invalid)
+            }
+        }
+        _ => new!(LookupKeyChar::Invalid),
+    }
+}
+
+/// The state of one key while transcript characters arrive.
+///
+/// `current` is the key text since the last wildcard. A word break sets
+/// `pending_space`, and the space is written only before the next letter or
+/// wildcard. `started` is true once a letter or a wildcard was written.
+/// `segment_kept` is true once the current literal run kept a letter, and
+/// `segment_text` is that run as the user wrote it. `invalid` is the first
+/// rejected character.
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct LookupKeyBuilder {
+    current: String,
+    pending_space: bool,
+    started: bool,
+    segment_kept: bool,
+    segment_text: String,
+    invalid: Option<char>,
+}
+
+impl LookupKeyBuilder {
+    #[requires(true)]
+    #[ensures(old(self.segment_kept) -> self.segment_kept)]
+    fn push(&mut self, value: char) {
+        match classify_lookup_char(value).into_data() {
+            data!(LookupKeyChar::WordBreak) => {
+                if self.started {
+                    self.pending_space = true;
+                }
+            }
+            data!(LookupKeyChar::Removed) => {}
+            data!(LookupKeyChar::Invalid) => {
+                self.invalid.get_or_insert(value);
+            }
+            data!(LookupKeyChar::Letter(letter)) => {
+                if self.pending_space {
+                    self.current.push(' ');
+                    self.pending_space = false;
+                }
+                self.current.push(letter);
+                self.started = true;
+                self.segment_kept = true;
             }
         }
     }
-    output.len() > start
-}
 
-#[requires(true)]
-#[ensures(value.is_whitespace() -> current.len() == old(current.len()))]
-#[ensures(old(*segment_kept) -> *segment_kept)]
-fn note_lookup_transcript_char(
-    value: char,
-    current: &mut String,
-    pending_space: &mut bool,
-    started: &mut bool,
-    segment_kept: &mut bool,
-) {
-    if value.is_whitespace() {
-        if *started {
-            *pending_space = true;
+    /// End a literal run. A run with text but no letter is an error.
+    #[requires(true)]
+    #[ensures(ret.is_ok() -> (!self.segment_kept && self.segment_text.is_empty()))]
+    fn end_segment(&mut self, mode: LookupKeyMode) -> Result<(), LookupPatternError> {
+        let text = std::mem::take(&mut self.segment_text);
+        let kept = std::mem::replace(&mut self.segment_kept, false);
+        if mode == LookupKeyMode::Lookup {
+            if let Some(character) = self.invalid.take() {
+                return Err(new!(LookupPatternError::InvalidCharacter { character }));
+            }
+            let trimmed = text.trim();
+            if !kept && !trimmed.is_empty() {
+                return Err(new!(LookupPatternError::NoLookupCharacter {
+                    text: trimmed.to_owned(),
+                }));
+            }
         }
-        return;
-    }
-    let mark = current.len();
-    if *pending_space {
-        current.push(' ');
-    }
-    if append_lookup_chars(value, current) {
-        *pending_space = false;
-        *started = true;
-        *segment_kept = true;
-    } else {
-        current.truncate(mark);
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.is_err() == (!segment_kept && segment_error.is_some()))]
-#[ensures(ret.as_ref().is_err_and(|error| !error.character.is_whitespace()) || ret.is_ok())]
-fn rejected_lookup_segment(
-    segment_kept: bool,
-    segment_error: Option<char>,
-) -> Result<(), LookupPatternError> {
-    if segment_kept {
-        return Ok(());
-    }
-    match segment_error {
-        Some(character) => Err(new!(LookupPatternError { character })),
-        None => Ok(()),
+        Ok(())
     }
 }
 
@@ -1568,73 +1680,41 @@ fn key_text_of<T>(parts: &[LookupKeyPart<T>]) -> String {
 }
 
 #[requires(true)]
-#[ensures(match &ret {
-    Ok(_) => true,
-    Err(error) => !error.character.is_whitespace(),
-})]
+#[ensures(mode == LookupKeyMode::Index -> ret.is_ok())]
 fn build_lookup_key<T: Clone>(
     parts: &[LookupPatternPart<'_, T>],
+    mode: LookupKeyMode,
 ) -> Result<Vec<LookupKeyPart<T>>, LookupPatternError> {
     let mut keyed = Vec::new();
-    let mut current = String::new();
-    let mut pending_space = false;
-    let mut started = false;
-    let mut segment_kept = false;
-    let mut segment_error = None;
+    let mut builder = LookupKeyBuilder::default();
     let mut transcript = LookupTranscript::new();
     for part in parts {
         match part {
             LookupPatternPart::Literal(text) => {
-                let first = transcript.push_str(text, |value| {
-                    note_lookup_transcript_char(
-                        value,
-                        &mut current,
-                        &mut pending_space,
-                        &mut started,
-                        &mut segment_kept,
-                    );
-                });
-                if segment_error.is_none() {
-                    segment_error = first;
-                }
+                builder.segment_text.push_str(text);
+                let _ = transcript.push_str(text, |value| builder.push(value));
             }
             LookupPatternPart::Wildcard(token) => {
-                transcript.finish(|value| {
-                    note_lookup_transcript_char(
-                        value,
-                        &mut current,
-                        &mut pending_space,
-                        &mut started,
-                        &mut segment_kept,
-                    );
-                });
-                rejected_lookup_segment(segment_kept, segment_error)?;
-                segment_kept = false;
-                segment_error = None;
-                if pending_space {
-                    current.push(' ');
-                    pending_space = false;
+                transcript.finish(|value| builder.push(value));
+                builder.end_segment(mode)?;
+                if builder.pending_space {
+                    builder.current.push(' ');
+                    builder.pending_space = false;
                 }
-                if !current.is_empty() {
-                    keyed.push(new!(LookupKeyPart::Text(std::mem::take(&mut current))));
+                if !builder.current.is_empty() {
+                    keyed.push(new!(LookupKeyPart::Text(std::mem::take(
+                        &mut builder.current
+                    ))));
                 }
                 keyed.push(new!(LookupKeyPart::Wildcard(token.clone())));
-                started = true;
+                builder.started = true;
             }
         }
     }
-    transcript.finish(|value| {
-        note_lookup_transcript_char(
-            value,
-            &mut current,
-            &mut pending_space,
-            &mut started,
-            &mut segment_kept,
-        );
-    });
-    rejected_lookup_segment(segment_kept, segment_error)?;
-    if !current.is_empty() {
-        keyed.push(new!(LookupKeyPart::Text(current)));
+    transcript.finish(|value| builder.push(value));
+    builder.end_segment(mode)?;
+    if !builder.current.is_empty() {
+        keyed.push(new!(LookupKeyPart::Text(builder.current)));
     }
     Ok(keyed)
 }
@@ -1981,22 +2061,50 @@ mod tests {
             key_text_of(&whole(text).expect("the sample keeps a lookup character"))
         }
 
+        #[requires(true)]
+        #[ensures(true)]
+        fn invalid(text: &str) -> Option<char> {
+            whole(text)
+                .expect_err("the sample is rejected")
+                .invalid_character()
+        }
+
         assert_eq!(text_of(" .Án,iis. "), normalize_lookup_query(" .Án,iis. "));
+        assert_eq!(text_of(" .Án,iis. "), "aniis");
         assert_eq!(text_of("lo  brodá"), "lo broda");
-        assert_eq!(text_of("клама#da"), "klamada");
         assert_eq!(text_of("клама"), "klama");
-        assert_eq!(text_of("coһi#"), "co'i");
         assert_eq!(text_of("qá"), "qa");
         assert_eq!(text_of("Áq"), "aq");
         assert_eq!(text_of("\u{ed8b}\u{eda2}"), "i'");
-        assert_eq!(text_of("\u{ed8b}\u{eda2}#"), "i'");
-        assert_eq!(whole(",").expect_err("comma").character, ',');
-        assert_eq!(whole("\u{0306}").expect_err("breve").character, '\u{0306}');
+        // A word break is a space. A comma, U+00B7 and U+2027 disappear.
+        assert_eq!(text_of("broda-zei-brode"), "broda zei brode");
+        assert_eq!(text_of("ma;u"), "ma u");
+        assert_eq!(text_of("xa!"), "xa");
+        assert_eq!(text_of("mi\u{00b7}do"), "mido");
+        assert_eq!(text_of("mi\u{2027}do"), "mido");
+        assert_eq!(text_of("mi,do"), "mido");
+        // Gentufa rejects these characters, so a lookup does too.
+        assert_eq!(invalid("клама#da"), Some('#'));
+        assert_eq!(invalid("coһi#"), Some('#'));
+        assert_eq!(invalid("klâma"), Some('â'));
+        assert_eq!(invalid("klama\u{0302}"), Some('\u{0302}'));
+        assert_eq!(invalid("kläm"), Some('ä'));
+        assert_eq!(invalid("кламя"), Some('я'));
+        assert_eq!(invalid("mi\u{2022}do"), Some('\u{2022}'));
+        assert_eq!(invalid("mi\u{2219}do"), Some('\u{2219}'));
+        assert_eq!(invalid("\u{0306}"), Some('\u{0306}'));
+        assert_eq!(invalid(",\u{0306}"), Some('\u{0306}'));
+        assert_eq!(invalid("🙂"), Some('🙂'));
+        // A run that keeps no letter names its text.
         assert_eq!(
-            whole(",\u{0306}").expect_err("comma and breve").character,
-            ','
+            whole(", ,").expect_err("no letter"),
+            new!(LookupPatternError::NoLookupCharacter {
+                text: ", ,".to_owned()
+            })
         );
-        assert_eq!(whole("🙂").expect_err("emoji").character, '🙂');
+        // The index key leaves a rejected character out.
+        assert_eq!(normalize_lookup_query("klâma"), "klma");
+        assert_eq!(normalize_lookup_query("ma;u"), "ma u");
         assert!(whole(" ").expect("blank").is_empty());
 
         let split = normalize_lookup_pattern(&[
@@ -2096,14 +2204,16 @@ mod tests {
         ]);
         assert_eq!(shorthand_with_empty, whole("\u{ed8b}\u{eda2}"));
 
+        // A shorthand mark with no payload is a character that gentufa
+        // rejects, so the key rejects it.
         let bare_mark = normalize_lookup_pattern(&[
             LookupPatternPart::Literal("\u{ed8b}"),
             LookupPatternPart::Literal("a"),
         ]);
         assert_eq!(bare_mark, whole("\u{ed8b}a"));
         assert_eq!(
-            key_text_of(&bare_mark.expect("a letter after a bare mark stays")),
-            "a"
+            bare_mark.expect_err("a bare mark").invalid_character(),
+            Some('\u{ed8b}')
         );
 
         let across_star = normalize_lookup_pattern(&[
@@ -2127,8 +2237,8 @@ mod tests {
                 LookupPatternPart::Wildcard('*'),
             ])
             .expect_err("a bare shorthand mark keeps no letter")
-            .character,
-            '\u{ed8b}'
+            .invalid_character(),
+            Some('\u{ed8b}')
         );
 
         let mark_before_star = normalize_lookup_pattern(&[
@@ -2136,15 +2246,13 @@ mod tests {
             LookupPatternPart::Literal("\u{ed8b}"),
             LookupPatternPart::Wildcard('*'),
             LookupPatternPart::Literal("\u{eda2}"),
-        ])
-        .expect("a kept letter survives a shorthand mark");
+        ]);
+        // A wildcard ends the run, so the mark has no payload.
         assert_eq!(
-            mark_before_star,
-            vec![
-                new!(LookupKeyPart::Text("a".to_owned())),
-                new!(LookupKeyPart::Wildcard('*')),
-                new!(LookupKeyPart::Text("i".to_owned())),
-            ]
+            mark_before_star
+                .expect_err("a bare mark before a wildcard")
+                .invalid_character(),
+            Some('\u{ed8b}')
         );
     }
 
