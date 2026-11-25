@@ -44,7 +44,7 @@ enum RecoveredMorphologySequenceItem<'tree> {
     },
 }
 
-#[requires(true)]
+#[requires(max_bytes > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn recovery_item_from_span(
     error_index: usize,
@@ -53,7 +53,18 @@ fn recovery_item_from_span(
     expected: Vec<String>,
     span: SourceSpan,
     source: &str,
+    max_bytes: usize,
 ) -> Result<RecoveryRenderItem, OutputError> {
+    // A span longer than the budget returns a limit error before the copy.
+    let span_len = span.byte_end.saturating_sub(span.byte_start);
+    if span_len > max_bytes {
+        let Some(limit) = ByteLimit::new(max_bytes) else {
+            return Err(OutputError::Recovery(
+                "recovery byte budget must be positive".to_owned(),
+            ));
+        };
+        return Err(OutputError::Limit { limit });
+    }
     let text = source
         .get(span.byte_start..span.byte_end)
         .ok_or_else(|| {
@@ -83,13 +94,14 @@ fn recovery_item_from_span(
     }))
 }
 
-#[requires(error_index < errors.len())]
+#[requires(error_index < errors.len() && max_bytes > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn morphology_recovery_item(
     error_index: usize,
     errors: &[MorphologyError],
     span: &SourceSpan,
     source: &str,
+    max_bytes: usize,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let (diagnostic_code, expected) = match &errors[error_index] {
         MorphologyError::Invalid { kind, .. } => (
@@ -117,15 +129,17 @@ fn morphology_recovery_item(
         expected,
         span.clone(),
         source,
+        max_bytes,
     )
 }
 
-#[requires(true)]
+#[requires(max_bytes > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
     item: &E,
     errors: &[SyntaxError],
     source: &str,
+    max_bytes: usize,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let error_index = item.recovery_error_index().ok_or_else(|| {
         OutputError::Recovery("syntax recovery item has no diagnostic index".to_owned())
@@ -161,6 +175,7 @@ pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
         expected,
         span,
         source,
+        max_bytes,
     )
 }
 
@@ -187,11 +202,12 @@ fn recovery_item_span(item: &impl RecoveryItemState) -> Option<SourceSpan> {
     result
 }
 
-#[requires(recovered.errors.len() == recovered.error_regions.len())]
+#[requires(recovered.errors.len() == recovered.error_regions.len() && max_bytes > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn recovered_morphology_sequence<'tree>(
     recovered: &'tree RecoveredMorphologySegmentation,
     source: &str,
+    max_bytes: usize,
 ) -> Result<Vec<RecoveredMorphologySequenceItem<'tree>>, OutputError> {
     let mut words = recovered.words.iter().peekable();
     let mut errors = recovered.error_regions.iter().enumerate().peekable();
@@ -207,7 +223,13 @@ fn recovered_morphology_sequence<'tree>(
         if error_start.is_some() && (word_start.is_none() || error_start < word_start) {
             let (error_index, span) = errors.next().expect("peeked error exists");
             sequence.push(new!(RecoveredMorphologySequenceItem::Error {
-                item: morphology_recovery_item(error_index, &recovered.errors, span, source)?,
+                item: morphology_recovery_item(
+                    error_index,
+                    &recovered.errors,
+                    span,
+                    source,
+                    max_bytes,
+                )?,
             }));
         } else {
             sequence.push(new!(RecoveredMorphologySequenceItem::Valid {
@@ -256,7 +278,7 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
         options,
         max_leaf_bytes: limit.get(),
     };
-    let children = recovered_morphology_sequence(recovered, source)?
+    let children = recovered_morphology_sequence(recovered, source, limit.get())?
         .into_iter()
         .map(|item| match item.into_data() {
             data!(RecoveredMorphologySequenceItem::Valid { word }) => {
@@ -303,7 +325,7 @@ pub fn pretty_recovered_morphology_tree_with_limit(
             cancellation,
         );
     }
-    let values = recovered_morphology_sequence(recovered, source)?
+    let values = recovered_morphology_sequence(recovered, source, limit.get())?
         .into_iter()
         .map(|item| match item.into_data() {
             data!(RecoveredMorphologySequenceItem::Valid { word }) => {
@@ -511,7 +533,7 @@ pub fn pretty_recovered_morphology_raw(
         return Ok(debug_output(&recovered.words, indent));
     }
     Ok(debug_output(
-        &recovered_morphology_sequence(recovered, source)?,
+        &recovered_morphology_sequence(recovered, source, usize::MAX)?,
         indent,
     ))
 }
@@ -721,7 +743,7 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
         if !self.recovery_projection.include(item) {
             return;
         }
-        match syntax_recovery_item(item, self.errors, self.source) {
+        match syntax_recovery_item(item, self.errors, self.source, self.context.max_leaf_bytes) {
             Ok(item) => self.push(recovery_error_sexpr(&item)),
             Err(error) => self.render_error = Some(error),
         }
@@ -1189,8 +1211,95 @@ pub fn compact_recovered_syntax_json_string_with_limits(
         tree_options,
         projection_limit.get(),
     )?;
+    // A projection that cannot store the original leaf returns a limit error.
+    // The result text limit stays separate and is applied by the JSON writer.
+    reject_shortened_recovered_projection(&tree, source, projection_limit)?;
     let value = recovered_tree_json_value(&tree);
     crate::render_compact_json_value_with_limit(&value, options, limit)
+}
+
+#[requires(limit.get() > 0)]
+#[ensures(true)]
+fn reject_shortened_recovered_projection(
+    value: &TreeValue,
+    source: &str,
+    limit: ByteLimit,
+) -> Result<(), OutputError> {
+    let shortened = match value {
+        TreeValue::Node(node) => {
+            for entry in &node.entries {
+                reject_shortened_recovered_projection(&entry.value, source, limit)?;
+            }
+            false
+        }
+        TreeValue::Collection(items) => {
+            for item in items {
+                reject_shortened_recovered_projection(item, source, limit)?;
+            }
+            false
+        }
+        TreeValue::Syntax { value, .. } => {
+            reject_shortened_recovered_projection(value, source, limit)?;
+            false
+        }
+        TreeValue::Verbatim { text, span } => {
+            recovered_leaf_is_shortened(text, *span, source, limit.get(), true)
+        }
+        TreeValue::Error { error } => {
+            recovered_leaf_is_shortened(&error.text, error.span, source, limit.get(), false)
+        }
+        TreeValue::Word { .. } | TreeValue::Text(_) | TreeValue::Span { .. } => false,
+    };
+    if shortened {
+        Err(OutputError::Limit { limit })
+    } else {
+        Ok(())
+    }
+}
+
+#[requires(limit > 0)]
+#[ensures(true)]
+fn recovered_leaf_is_shortened(
+    text: &str,
+    span: Option<(usize, usize)>,
+    source: &str,
+    limit: usize,
+    trim: bool,
+) -> bool {
+    if text.len() > limit {
+        return true;
+    }
+    let Some((start, end)) = span else {
+        return false;
+    };
+    let Some(original) = source_char_slice(source, start, end) else {
+        return false;
+    };
+    let original = if trim { original.trim() } else { original };
+    text.len() < original.len() && original.starts_with(text)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|slice| slice.len() <= source.len()))]
+fn source_char_slice(source: &str, start: usize, end: usize) -> Option<&str> {
+    if start > end {
+        return None;
+    }
+    let mut byte_start = if start == 0 { Some(0) } else { None };
+    let mut seen = 0usize;
+    for (byte, _) in source.char_indices() {
+        if seen == start {
+            byte_start = Some(byte);
+        }
+        if seen == end {
+            return source.get(byte_start?..byte);
+        }
+        seen += 1;
+    }
+    if seen == end {
+        return source.get(byte_start?..source.len());
+    }
+    None
 }
 
 #[requires(true)]
@@ -1799,6 +1908,120 @@ mod tests {
                     "{color}: {result:?}"
                 );
             }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_projection_limit_does_not_shorten_a_quote() {
+        let source = "mi ku .i mi nelci zoi gy.abcdefghijklmnop.gy";
+        let recovered = parse_recovered_syntax(source);
+        let options = JsonRenderOptions::default();
+        let text_limit = ByteLimit::new(8_192).expect("positive text limit");
+        let projection_limit = ByteLimit::new(8_192).expect("positive projection limit");
+        let json = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            source,
+            options,
+            text_limit,
+            projection_limit,
+        )
+        .expect("both limits hold the quote");
+        let value: Value = serde_json::from_str(&json).expect("json");
+        let verbatim = verbatim_fields(&value).expect("verbatim");
+        assert_eq!(verbatim["text"], "abcdefghijklmnop");
+        assert_eq!(verbatim["span"], serde_json::json!([25, 41]));
+        let small_projection = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            source,
+            options,
+            text_limit,
+            ByteLimit::new(4).expect("positive projection limit"),
+        );
+        assert!(
+            matches!(small_projection, Err(OutputError::Limit { .. })),
+            "{small_projection:?}"
+        );
+        let small_text = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            source,
+            options,
+            ByteLimit::new(8).expect("positive text limit"),
+            projection_limit,
+        );
+        assert!(
+            matches!(small_text, Err(OutputError::Limit { .. })),
+            "{small_text:?}"
+        );
+
+        let trimmed = "mi ku .i mi nelci zoi gy.abcd efgh.gy";
+        let trimmed_recovered = parse_recovered_syntax(trimmed);
+        let trimmed_small = compact_recovered_syntax_json_string_with_limits(
+            &trimmed_recovered,
+            trimmed,
+            options,
+            text_limit,
+            ByteLimit::new(4).expect("positive projection limit"),
+        );
+        assert!(
+            matches!(trimmed_small, Err(OutputError::Limit { .. })),
+            "{trimmed_small:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_short_limit_rejects_a_long_recovery_span() {
+        let mut source = String::from("mi ku");
+        source.push_str(&" ".repeat(1_000_000));
+        source.push_str("ku .i do");
+        let recovered = parse_recovered_syntax(&source);
+        assert!(!recovered.errors.is_empty());
+        let limit = ByteLimit::new(32).expect("positive limit");
+        let text_limit = ByteLimit::new(8_192).expect("positive text limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let options = BracketRenderOptions::default();
+        let plain =
+            pretty_recovered_syntax_plain_with_limit(&recovered, &source, options, limit, &cancel);
+        assert!(matches!(plain, Err(OutputError::Limit { .. })), "{plain:?}");
+        let brackets = pretty_recovered_syntax_brackets_with_limit(
+            &recovered, &source, options, limit, &cancel,
+        );
+        assert!(
+            matches!(brackets, Err(OutputError::Limit { .. })),
+            "{brackets:?}"
+        );
+        let tree = pretty_recovered_syntax_tree_with_limit(
+            &recovered,
+            &source,
+            TreeRenderOptions::default(),
+            limit,
+        );
+        assert!(matches!(tree, Err(OutputError::Limit { .. })), "{tree:?}");
+        let json = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            &source,
+            JsonRenderOptions::default(),
+            text_limit,
+            limit,
+        );
+        assert!(matches!(json, Err(OutputError::Limit { .. })), "{json:?}");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn verbatim_fields(value: &Value) -> Option<&Map<String, Value>> {
+        match value {
+            Value::Object(object) => {
+                if let Some(Value::Object(verbatim)) = object.get("Verbatim") {
+                    return Some(verbatim);
+                }
+                object.values().find_map(verbatim_fields)
+            }
+            Value::Array(items) => items.iter().find_map(verbatim_fields),
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => None,
         }
     }
 
@@ -2906,7 +3129,7 @@ pub fn pretty_recovered_morphology_raw_with_limit(
         raw_with_limit(&recovered.words, indent, limit)?
     } else {
         raw_with_limit(
-            &recovered_morphology_sequence(recovered, source)?,
+            &recovered_morphology_sequence(recovered, source, limit.get())?,
             indent,
             limit,
         )?
@@ -2938,7 +3161,7 @@ pub(crate) fn recovered_morphology_sequence_for_json_test(
     source: &str,
 ) -> Value {
     Value::Array(
-        recovered_morphology_sequence(recovered, source)
+        recovered_morphology_sequence(recovered, source, usize::MAX)
             .unwrap()
             .into_iter()
             .map(|item| match item.into_data() {

@@ -67,9 +67,11 @@ pub fn render_diagnostics_with_limit(
     options: DiagnosticRenderOptions,
     limit: ByteLimit,
 ) -> Result<String, OutputError> {
+    if diagnostics.is_empty() {
+        return Ok(String::new());
+    }
     let renderer = diagnostic_renderer(options);
     let mut output = OutputBudget::new(limit).writer();
-    let excerpt = crate::styled::escape_terminal_source(source);
     let source_label = crate::styled::escape_terminal_controls(source_label);
     for diagnostic in diagnostics {
         let remaining =
@@ -86,10 +88,10 @@ pub fn render_diagnostics_with_limit(
             .iter()
             .map(|label| crate::styled::escape_terminal_controls(&label.message))
             .collect::<Vec<_>>();
+        let excerpt = diagnostic_source_excerpt(source, diagnostic);
         let group = diagnostic_group(
             source_label.as_ref(),
-            &excerpt.text,
-            &excerpt.map,
+            &excerpt,
             diagnostic,
             &label_messages,
             message.as_ref(),
@@ -112,12 +114,86 @@ pub fn render_diagnostics_with_limit(
         .expect("diagnostic rendering writes UTF-8"))
 }
 
+#[invariant(*line_start >= 1)]
+struct DiagnosticSourceExcerpt<'source> {
+    escaped: crate::styled::TerminalExcerpt<'source>,
+    origin: usize,
+    line_start: usize,
+}
+
+#[requires(true)]
+#[ensures(ret.line_start >= 1)]
+#[ensures(ret.origin <= source.len())]
+fn diagnostic_source_excerpt<'source>(
+    source: &'source str,
+    diagnostic: &Diagnostic,
+) -> DiagnosticSourceExcerpt<'source> {
+    let (origin, end) = annotated_line_bounds(source, diagnostic);
+    let line_start = 1 + source[..origin]
+        .bytes()
+        .filter(|byte| *byte == b'\n')
+        .count();
+    let slice = source.get(origin..end).unwrap_or("");
+    new!(DiagnosticSourceExcerpt {
+        escaped: crate::styled::escape_terminal_source(slice),
+        origin,
+        line_start,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.0 <= ret.1 && ret.1 <= source.len())]
+fn annotated_line_bounds(source: &str, diagnostic: &Diagnostic) -> (usize, usize) {
+    if diagnostic.labels.is_empty() {
+        return (0, 0);
+    }
+    let mut start = source.len();
+    let mut end = 0usize;
+    for label in &diagnostic.labels {
+        let span = label_span(label);
+        let line_start = line_start_at(source, span.start);
+        let line_end = line_end_at(source, span.end);
+        start = start.min(line_start);
+        end = end.max(line_end);
+    }
+    if start > end { (0, 0) } else { (start, end) }
+}
+
+#[requires(true)]
+#[ensures(ret <= source.len())]
+fn line_start_at(source: &str, index: usize) -> usize {
+    let index = char_boundary_at(source, index);
+    match source[..index].rfind('\n') {
+        Some(newline) => newline + 1,
+        None => 0,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret <= source.len())]
+fn line_end_at(source: &str, index: usize) -> usize {
+    let index = char_boundary_at(source, index);
+    match source[index..].find('\n') {
+        Some(offset) => index + offset,
+        None => source.len(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret <= source.len() && source.is_char_boundary(ret))]
+fn char_boundary_at(source: &str, index: usize) -> usize {
+    let mut index = index.min(source.len());
+    while index > 0 && !source.is_char_boundary(index) {
+        index -= 1;
+    }
+    index
+}
+
 #[requires(!source_label.is_empty())]
 #[ensures(true)]
 fn diagnostic_group<'diagnostic>(
     source_label: &'diagnostic str,
-    source: &'diagnostic str,
-    source_map: &'diagnostic [usize],
+    excerpt: &'diagnostic DiagnosticSourceExcerpt<'diagnostic>,
     diagnostic: &'diagnostic Diagnostic,
     label_messages: &'diagnostic [Cow<'diagnostic, str>],
     message: &'diagnostic str,
@@ -132,12 +208,16 @@ fn diagnostic_group<'diagnostic>(
         .zip(label_messages)
         .map(|(label, label_message)| {
             annotation_kind(label.primary)
-                .span(mapped_label_span(label, source_map))
+                .span(mapped_label_span(
+                    label,
+                    excerpt.origin,
+                    &excerpt.escaped.map,
+                ))
                 .label(label_message.as_ref())
         })
         .collect::<Vec<_>>();
-    let snippet = Snippet::source(source)
-        .line_start(1)
+    let snippet = Snippet::source(excerpt.escaped.text.as_ref())
+        .line_start(excerpt.line_start)
         .path(source_label)
         .annotations(annotations);
     let mut group = Group::with_title(
@@ -183,14 +263,16 @@ fn diagnostic_renderer(options: DiagnosticRenderOptions) -> Renderer {
 
 #[requires(true)]
 #[ensures(true)]
-fn mapped_label_span(label: &DiagnosticLabel, map: &[usize]) -> Range<usize> {
+fn mapped_label_span(label: &DiagnosticLabel, origin: usize, map: &[usize]) -> Range<usize> {
     let span = label_span(label);
+    let start = span.start.saturating_sub(origin);
+    let end = span.end.saturating_sub(origin);
     if map.is_empty() {
-        return span;
+        return start..end.max(start);
     }
     let last = map.len() - 1;
-    let start = map[span.start.min(last)];
-    let end = map[span.end.min(last)];
+    let start = map[start.min(last)];
+    let end = map[end.min(last)];
     start..end.max(start)
 }
 
@@ -689,6 +771,118 @@ mod tests {
         .expect("render diagnostics");
 
         assert_eq!(rendered, "");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_diagnostics_skip_a_long_source() {
+        let source = " ".repeat(1_000_000);
+        let rendered = render_diagnostics(
+            "<input>",
+            &source,
+            &[],
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::default(),
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            }),
+        )
+        .expect("empty diagnostics");
+        assert_eq!(rendered, "");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_short_limit_stops_a_long_unannotated_source() {
+        let mut source = String::from("mi klama\n");
+        source.push_str(&" ".repeat(1_000_000));
+        source.push('\u{85}');
+        let span =
+            source_span_from_byte_offsets(Some(SourceId("<input>".to_owned())), &source, 0, 2)
+                .expect("span on mi");
+        let diagnostic = Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Syntax,
+            "syntax.sample".to_owned(),
+            "sample".to_owned(),
+            vec![DiagnosticLabel::new(span, "here".to_owned(), true)],
+            Vec::new(),
+            None,
+        );
+        let options = new!(DiagnosticRenderOptions {
+            color: false,
+            detail: DiagnosticDetailMode::Summary,
+            glyphs: GlyphStyle::Ascii,
+            terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+        });
+        let rendered = render_diagnostics("<input>", &source, &[diagnostic.clone()], options)
+            .expect("short excerpt");
+        assert!(rendered.len() < 10_000, "{}", rendered.len());
+        assert!(rendered.contains("mi klama"), "{rendered}");
+        assert!(!rendered.contains('\u{85}'), "{rendered}");
+        let limited = render_diagnostics_with_limit(
+            "<input>",
+            &source,
+            &[diagnostic],
+            options,
+            ByteLimit::new(32).expect("positive limit"),
+        );
+        assert!(
+            matches!(limited, Err(OutputError::Limit { .. })),
+            "{limited:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_excerpt_on_a_later_line_keeps_the_caret() {
+        let source = "zz\nab\u{85}cd\u{7f}";
+        let span =
+            source_span_from_byte_offsets(Some(SourceId("<input>".to_owned())), source, 7, 9)
+                .expect("span on cd");
+        let diagnostic = Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Morphology,
+            "morphology.quote".to_owned(),
+            "bad control".to_owned(),
+            vec![DiagnosticLabel::new(span, "here".to_owned(), true)],
+            Vec::new(),
+            None,
+        );
+        let rendered = render_diagnostics(
+            "<input>",
+            source,
+            &[diagnostic],
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::Ascii,
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            }),
+        )
+        .expect("later line excerpt");
+        assert!(!rendered.contains("zz"), "{rendered}");
+        assert!(rendered.contains("ab\\u{85}cd\\u{7f}"), "{rendered}");
+        assert!(!rendered.contains('\u{85}'), "{rendered}");
+        let lines = rendered.lines().collect::<Vec<_>>();
+        let source_line = lines
+            .iter()
+            .find(|line| line.contains("ab\\u{85}cd\\u{7f}"))
+            .expect("excerpt line");
+        let column = source_line
+            .find("ab\\u{85}cd\\u{7f}")
+            .expect("excerpt column");
+        let marked = column + "ab\\u{85}".len();
+        let caret_line = lines
+            .iter()
+            .find(|line| line.contains('^'))
+            .expect("caret line");
+        let caret_at = caret_line.find('^').expect("caret");
+        assert_eq!(caret_at, marked, "{rendered}");
     }
 
     #[test]

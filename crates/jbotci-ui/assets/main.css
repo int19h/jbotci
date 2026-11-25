@@ -473,8 +473,9 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--theme-switch-bg);
   color: var(--dark-surface-link);
   cursor: pointer;
+  overflow: hidden;
   font-family: var(--ui-font);
-  font-size: 0.9rem;
+  font-size: min(0.9rem, 5vw);
   line-height: 1;
   text-decoration: none;
 }
@@ -553,9 +554,10 @@ body::-webkit-scrollbar-thumb:hover,
   justify-content: center;
   border: 0;
   border-radius: 999px;
+  overflow: hidden;
   background: transparent;
   color: var(--theme-btn-fg);
-  font-size: 0.72rem;
+  font-size: min(0.72rem, 4.5vw);
   line-height: 1;
 }
 
@@ -576,13 +578,13 @@ body::-webkit-scrollbar-thumb:hover,
   width: min(1.55rem, 8vw);
   min-width: min(1.55rem, 8vw);
   font-family: var(--ui-font);
-  font-size: 0.82rem;
+  font-size: min(0.82rem, 4.5vw);
   font-weight: 400;
 }
 
 .orthography-btn.is-zbalermorna {
   font-family: var(--lojban-font);
-  font-size: 0.94rem;
+  font-size: min(0.94rem, 5vw);
 }
 
 .orthography-btn.is-zbalermorna .orthography-btn-icon {
@@ -720,10 +722,11 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-page .app-topbar .app-topbar-carousel-link {
   flex: 0 0 var(--topbar-carousel-item-width);
+  min-width: 0;
   margin-left: 0;
   padding: 0.16rem 0.08rem 0.22rem;
   scroll-snap-align: center;
-  overflow: visible;
+  overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.2;
 }
@@ -810,14 +813,17 @@ body::-webkit-scrollbar-thumb:hover,
   font-size: 0.7rem;
 }
 
+/* The input keeps a usable width. A full row puts the actions on the next row. */
 .page-find-control {
   width: min(18rem, max(10rem, 26vw), 34vw);
   min-width: 0;
   max-width: 100%;
-  height: 1.7rem;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 1.7rem;
+  height: auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: center;
   gap: 0.18rem;
   padding: 0.08rem 0.16rem 0.08rem 0.42rem;
   border: 1px solid var(--theme-switch-border);
@@ -830,6 +836,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .page-find-icon {
   display: inline-flex;
+  flex: 0 0 auto;
   width: 0.82rem;
   height: 0.82rem;
   color: var(--topbar-commit);
@@ -846,8 +853,9 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .page-find-input {
-  width: 100%;
-  min-width: 0;
+  flex: 1 1 4ch;
+  width: auto;
+  min-width: 4ch;
   margin: 0;
   padding: 0;
   border: 0;
@@ -869,13 +877,16 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .page-find-actions {
-  height: 100%;
-  min-width: 0;
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 0 auto;
   align-items: center;
   justify-content: flex-end;
   gap: 0;
-  white-space: nowrap;
+  min-width: min(100%, max-content);
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
 }
 
 .page-find-input::placeholder {
@@ -6049,9 +6060,9 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .page-find-control {
-    width: min(10rem, 50vw);
+    width: max(min(10rem, 50vw), min(70vw, 6rem));
     min-width: 0;
-    max-width: min(10rem, 50vw);
+    max-width: max(min(10rem, 50vw), min(70vw, 6rem));
   }
 
   .spa-page .page-container {

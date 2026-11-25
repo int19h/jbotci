@@ -2396,7 +2396,8 @@ where
         if !self.recovery_projection.include(item) {
             return;
         }
-        match crate::recovered::syntax_recovery_item(item, errors, self.source) {
+        match crate::recovered::syntax_recovery_item(item, errors, self.source, self.max_leaf_bytes)
+        {
             Ok(item) => self.push_value(TreeValue::Error {
                 error: new!(RecoveryTreeError {
                     text: item.text.clone(),

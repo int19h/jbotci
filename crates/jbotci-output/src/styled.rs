@@ -548,18 +548,19 @@ pub(crate) fn escape_terminal_controls(text: &str) -> std::borrow::Cow<'_, str> 
 ///
 /// An empty map means the text has no escaped control, so every original
 /// offset is already an offset in `text`. A map starts at byte 0.
+/// A source with no terminal control is borrowed.
 #[invariant(map.is_empty() || map.first().copied() == Some(0))]
-pub(crate) struct TerminalExcerpt {
-    pub(crate) text: String,
+pub(crate) struct TerminalExcerpt<'text> {
+    pub(crate) text: std::borrow::Cow<'text, str>,
     pub(crate) map: Vec<usize>,
 }
 
 #[requires(true)]
 #[ensures(ret.map.is_empty() || ret.map.len() == text.len() + 1)]
-pub(crate) fn escape_terminal_source(text: &str) -> TerminalExcerpt {
+pub(crate) fn escape_terminal_source(text: &str) -> TerminalExcerpt<'_> {
     if !text.chars().any(is_raw_terminal_control) {
         return new!(TerminalExcerpt {
-            text: text.to_owned(),
+            text: std::borrow::Cow::Borrowed(text),
             map: Vec::new(),
         });
     }
@@ -584,7 +585,10 @@ pub(crate) fn escape_terminal_source(text: &str) -> TerminalExcerpt {
         index += len;
     }
     map[text.len()] = escaped_at;
-    new!(TerminalExcerpt { text: output, map })
+    new!(TerminalExcerpt {
+        text: std::borrow::Cow::Owned(output),
+        map,
+    })
 }
 
 #[requires(true)]
@@ -1170,11 +1174,16 @@ mod tests {
         assert!(!serialization_obeys_control_rule("\u{1b}[2J", true));
         assert!(!serialization_obeys_control_rule("\u{1b}[35m", false));
         let excerpt = escape_terminal_source("ab\u{85}c\u{7f}");
-        assert_eq!(excerpt.text, "ab\\u{85}c\\u{7f}");
+        assert_eq!(excerpt.text.as_ref(), "ab\\u{85}c\\u{7f}");
         assert_eq!(excerpt.map[2], 2);
         assert_eq!(excerpt.map[4], 8);
         assert_eq!(excerpt.map[5], 9);
         assert_eq!(excerpt.map[6], excerpt.text.len());
+        let clean = " ".repeat(1_000_000);
+        let borrowed = escape_terminal_source(&clean);
+        assert!(matches!(borrowed.text, std::borrow::Cow::Borrowed(_)));
+        assert!(borrowed.map.is_empty());
+        assert_eq!(borrowed.text.len(), clean.len());
     }
 
     #[test]
