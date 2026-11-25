@@ -2533,6 +2533,49 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn rafsi_wildcards_do_not_match_derived_fuivla_stems() {
+        // The expected lists are main's results. A derived fu'ivla stem is in
+        // the exact rafsi index only, so it does not bury the listed and
+        // universal forms in a wildcard search (#1136).
+        let options = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+        });
+        let dictionary = jbotci_dictionary_data::english();
+        for (pattern, expected) in [
+            (
+                "ban*",
+                &[
+                    "bancu", "bandu", "banfi", "bangu", "banli", "banro", "banxa", "banzu",
+                ][..],
+            ),
+            ("spa*", &["spaji", "spali", "spano", "spati"][..]),
+        ] {
+            let output = run_vlacku_requests(
+                dictionary,
+                &[VlackuRequest::rafsi(pattern.to_owned())],
+                &options,
+            )
+            .expect("rafsi pattern lookup");
+            let words = output
+                .cards
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(words, expected, "{pattern}");
+        }
+        // The exact rafsi lookup still finds the stem.
+        let exact = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::rafsi("ierx".to_owned())],
+            &options,
+        )
+        .expect("exact rafsi lookup");
+        assert!(exact.cards.iter().any(|card| card.word == "ierxi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn apostrophe_spellings_rank_the_higher_scored_entry_first() {
         let options = VlackuSearchOptions::default().with_data(data! {
             count: usize::MAX,

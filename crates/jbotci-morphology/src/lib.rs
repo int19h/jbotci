@@ -2930,7 +2930,9 @@ fn valsi_lujvo_part(part: &LujvoPart, next: Option<&LujvoPart>) -> ValsiLujvoPar
                 rafsi_kind: Some(if part.is_fuhivla_rafsi_before(next) {
                     ValsiLujvoRafsiKind::FuhivlaStem
                 } else {
-                    segment::classify_lujvo_rafsi(&text)
+                    // The class rules read unmarked text, as the stem test
+                    // does. `splurtakní` before `'y` is still a full fu'ivla.
+                    segment::classify_lujvo_rafsi(&canonicalize_text(&text))
                 }),
                 text: text,
             })
@@ -3865,6 +3867,25 @@ mod tests {
             );
         }
         assert!(!is_fuhivla_rafsi_stem("spaget"));
+        // A full fu'ivla before `'y` keeps its class when its last syllable
+        // carries the stress mark.
+        for (lujvo, unstressed) in [
+            ("splurtakni'yxau", "splurtakni'yxamgu"),
+            ("actce'ybau", "actce'ybatci"),
+        ] {
+            let kinds = [lujvo, unstressed].map(|text| {
+                analyze_valsi(text)
+                    .result
+                    .classification
+                    .as_ref()
+                    .and_then(ValsiClassification::word)
+                    .expect("plain word classification")
+                    .parts[0]
+                    .rafsi_kind
+            });
+            assert_ne!(kinds[0], Some(ValsiLujvoRafsiKind::Unknown), "{lujvo}");
+            assert_eq!(kinds[0], kinds[1], "{lujvo}");
+        }
     }
 
     #[test]

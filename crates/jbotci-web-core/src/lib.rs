@@ -11960,6 +11960,49 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_jvozba_builds_every_entry_of_a_shared_lookup_key() {
+        // `onji` and `.onji` share one lookup key. Each entry builds in the
+        // pane, with the same result as the word in the command line.
+        let dictionary = jbotci_dictionary_data::english();
+        let item = |entry_index, value: &str| VlackuJvozbaItem {
+            entry_index,
+            kind: VlackuJvozbaItemKind::Word,
+            value: value.to_owned(),
+            source: None,
+            indent_level: 0,
+        };
+        let entries = dictionary.lookup_words("onji").collect::<Vec<_>>();
+        assert_eq!(entries.len(), 2);
+        let expected = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaSourceInput::Word(".onji".to_owned()),
+                JvozbaSourceInput::Word("klama".to_owned()),
+            ],
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the command line builds from .onji")
+        .word
+        .clone();
+        for entry in entries {
+            let index = dictionary.entry_index_for_entry(entry);
+            assert!(index.is_some());
+            let output = build_vlacku_jvozba_output(
+                VlackuJvozbaMode::Lujvo,
+                &[item(index, entry.word), item(None, "klama")],
+            );
+            assert!(
+                matches!(output, VlackuJvozbaOutput::Success { ref word, .. } if *word == expected),
+                "{}: {output:?}",
+                entry.word
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_jvozba_builds_fuhivla_self_core_in_browser_model() {
         let output = build_vlacku_jvozba_output(
             VlackuJvozbaMode::Lujvo,

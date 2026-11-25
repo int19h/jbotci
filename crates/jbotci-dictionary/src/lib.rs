@@ -15,8 +15,9 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    ShortRafsiShape, ends_with_vowel, fold_lojban_diacritic, is_fuhivla_rafsi_stem,
-    normalize_latin_apostrophe, normalize_lojban_input_text, possible_short_rafsi_forms,
+    MorphologyOptions, ShortRafsiShape, ends_with_vowel, fold_lojban_diacritic,
+    is_fuhivla_rafsi_stem, normalize_latin_apostrophe, normalize_lojban_input_text,
+    possible_short_rafsi_forms, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -1123,8 +1124,10 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
         if entry.word_type.is_fuivla_like()
             && let Some(stem) = fuivla_stem_rafsi(entry.word)
         {
+            // A derived stem is in the exact rafsi index only. Wildcard rafsi
+            // search keeps to listed and universal forms, because nearly every
+            // fu'ivla has a stem, and those stems would bury the rafsi.
             let key = normalize_lookup_query(&stem);
-            pattern_rafsi_keys.push(key.clone());
             rafsi_map.entry(key).or_default().push(RafsiIndexTarget {
                 entry_index,
                 source: RafsiSource::FuivlaStem,
@@ -1238,11 +1241,15 @@ pub fn normalize_lookup_query(raw: &str) -> String {
 }
 
 /// Remove the final vowel of a fu'ivla when the remainder can take a y-hyphen.
+///
+/// The word must be one morphological word. An obsolete headword such as
+/// `aierne` splits into several words, so no lujvo can start with its stem.
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
 #[bityzba::expensive_ensures({
     let canonical = normalize_lojban_input_text(word)
-        .map(|text| text.trim_matches('.').to_owned());
+        .map(|text| text.trim_matches('.').to_owned())
+        .filter(|text| is_single_word(text));
     let accepted = canonical.as_deref().and_then(|text| {
         text.split_at_checked(text.len().saturating_sub(1))
             .filter(|(_, vowel)| ends_with_vowel(vowel))
@@ -1254,11 +1261,23 @@ pub fn normalize_lookup_query(raw: &str) -> String {
 pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
     let normalized = normalize_lojban_input_text(word)?;
     let mut stem = normalized.trim_matches('.').to_owned();
-    if !ends_with_vowel(&stem) {
+    if !ends_with_vowel(&stem) || !is_single_word(&stem) {
         return None;
     }
     stem.pop();
     is_fuhivla_rafsi_stem(&stem).then_some(stem)
+}
+
+/// True when the morphology reads `text` as exactly one plain word.
+#[requires(true)]
+#[ensures(ret -> !text.is_empty())]
+fn is_single_word(text: &str) -> bool {
+    segment_words_with_modifiers_with_options_and_source_id(
+        text,
+        &MorphologyOptions::default(),
+        None,
+    )
+    .is_ok_and(|words| matches!(words.as_slice(), [word] if word.bare_word().is_some()))
 }
 
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
@@ -1650,7 +1669,8 @@ mod tests {
         assert_eq!(stem, "i'erx");
         let key = normalize_lookup_query(&stem);
         assert_eq!(indexes.rafsi_index[0].key, key);
-        assert_eq!(indexes.pattern_index[0].rafsi_keys, [key]);
+        // A derived stem is not a wildcard rafsi key.
+        assert!(indexes.pattern_index[0].rafsi_keys.is_empty());
         assert_eq!(
             indexes.rafsi_index[0].targets[0].source,
             RafsiSource::FuivlaStem
@@ -1685,6 +1705,18 @@ mod tests {
             assert!(dictionary.rafsi_availability(stem).is_free());
         }
         assert!(fuivla_stem_rafsi("\u{0301},").is_none());
+        // These obsolete headwords split into several words, so no lujvo can
+        // start with their stems.
+        for word in [
+            "aierne",
+            "matriocka",
+            "patriarko",
+            "reskuamata",
+            "restuatara",
+        ] {
+            assert!(fuivla_stem_rafsi(word).is_none(), "{word}");
+        }
+        assert_eq!(fuivla_stem_rafsi("ierxi").as_deref(), Some("ierx"));
         assert!(dictionary.lookup_rafsi("spaget").next().is_none());
         assert!(dictionary.rafsi_availability("spaget").is_free());
     }

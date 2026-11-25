@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_interrupt::CancellationToken;
 use serde::{Deserialize, Serialize};
 
@@ -176,8 +176,12 @@ pub struct ShortRafsiForm {
 
 #[invariant(true)]
 #[invariant(::Rafsi(text) => !text.is_empty())]
-#[invariant(::FuhivlaStem(text) => !text.is_empty())]
 #[invariant(::BrivlaCore(text) => !text.is_empty())]
+// `hyphen_for_build_part_pair` adds `y` after a stem with no test, so a stem
+// must be one that the morphology reads as a fu'ivla rafsi before `y`. That
+// check runs the recognizer, so it is expensive. bityzba allows one invariant
+// for each variant, so the cheap non-empty check is part of this one.
+#[expensive_invariant(::FuhivlaStem(text) => !text.is_empty() && crate::is_fuhivla_rafsi_stem(text))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LujvoBuildPart {
     Rafsi(String),

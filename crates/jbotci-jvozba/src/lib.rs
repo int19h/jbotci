@@ -4,14 +4,14 @@
 use bityzba::{ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{
     Dictionary, DictionaryLujvoSegmentKind, DictionaryLujvoSource, EntryIndex, RafsiSource,
-    WordType, fuivla_stem_rafsi,
+    WordType, fuivla_stem_rafsi, normalize_lookup_query,
 };
 use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{
     LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, MorphologyOptions, Phonemes,
     WordKind, WordLike, canonicalize_text, choose_best_lujvo_candidate_from_parts_with_filter,
-    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen, normalize_lojban_input_text,
-    parse_cmevla_lujvo_word_part_candidates,
+    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen, is_fuhivla_rafsi_stem,
+    normalize_lojban_input_text, parse_cmevla_lujvo_word_part_candidates,
     segment_words_with_modifiers_with_options_and_source_id,
 };
 use serde::{Deserialize, Serialize};
@@ -577,11 +577,13 @@ fn plan_expansion<'input, 'dictionary>(
             .next()
             .is_some()
     {
-        if let Some(segment) = decomposition
-            .segments
-            .iter()
-            .find(|segment| segment.sources.len() > 1)
-        {
+        // A derived stem with sources of more than one word is ambiguous.
+        // Sources that share a lookup key are one word.
+        if let Some(segment) = decomposition.segments.iter().find(|segment| {
+            segment.kind == DictionaryLujvoSegmentKind::FuivlaRafsi
+                && !segment.sources.is_empty()
+                && fuivla_stem_word_key(dictionary, segment.segment.phonemes().as_str()).is_none()
+        }) {
             return Err(JvozbaError::AmbiguousFuivlaRafsi {
                 stem: canonicalize_text(segment.segment.phonemes().as_str()),
             });
@@ -636,7 +638,15 @@ fn candidate_list_for_input(
                     offending: rafsi_text,
                 });
             }
-            Ok(vec![new!(LujvoBuildPart::Rafsi(rafsi_text))])
+            // A literal fu'ivla stem takes its `y` hyphen by rule, not by the
+            // consonant pair rule, so `--rafsi tci'il` builds like `tci'ile`.
+            // The literal form stays a candidate too, and the score and the
+            // parse check choose between them.
+            let stem = (!is_last_input && is_fuhivla_rafsi_stem(&rafsi_text))
+                .then(|| new!(LujvoBuildPart::FuhivlaStem(rafsi_text.clone())));
+            Ok(std::iter::once(new!(LujvoBuildPart::Rafsi(rafsi_text)))
+                .chain(stem)
+                .collect())
         }
         ExpandedInput::DictionaryWord(index) => {
             let entry = dictionary
@@ -706,7 +716,7 @@ fn candidate_list_for_entry(
             all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
         }
         if let Some(stem) = stem
-            && unique_fuivla_source(dictionary, &stem) == Some(entry_index)
+            && fuivla_stem_names_entry(dictionary, &stem, entry_index)
         {
             all_candidates.push(new!(LujvoBuildPart::FuhivlaStem(stem)));
         }
@@ -1084,16 +1094,70 @@ fn primary_rafsi_source<'a>(
     })
 }
 
+/// The lookup key of the one word that a derived fu'ivla stem names.
+///
+/// Entries that share a lookup key are one word, for example `onji` and
+/// `.onji`. The stem is ambiguous only when its fu'ivla sources have more than
+/// one key, as for two fu'ivla that differ only in the final vowel. Then the
+/// stem names no word, and the result is nothing.
 #[requires(true)]
-#[ensures(true)]
-fn unique_fuivla_source(dictionary: &Dictionary<'_>, stem: &str) -> Option<EntryIndex> {
-    let mut sources = dictionary
+#[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
+fn fuivla_stem_word_key(dictionary: &Dictionary<'_>, stem: &str) -> Option<String> {
+    let mut keys = dictionary
         .lookup_rafsi(stem)
-        .filter(|matched| matched.source == RafsiSource::FuivlaStem);
-    let first = sources.next()?;
-    sources.next().is_none().then_some(first.entry_index)
+        .filter(|matched| matched.source == RafsiSource::FuivlaStem)
+        .map(|matched| normalize_lookup_query(matched.entry.word));
+    let first = keys.next().filter(|key| !key.is_empty())?;
+    keys.all(|key| key == first).then_some(first)
 }
 
+/// True when the derived fu'ivla stem names the entry at `expected`.
+#[requires(true)]
+#[ensures(ret -> dictionary.lookup_rafsi(stem).any(|matched| matched.source == RafsiSource::FuivlaStem && matched.entry_index == expected))]
+fn fuivla_stem_names_entry(dictionary: &Dictionary<'_>, stem: &str, expected: EntryIndex) -> bool {
+    let Some(key) = fuivla_stem_word_key(dictionary, stem) else {
+        return false;
+    };
+    dictionary.lookup_rafsi(stem).any(|matched| {
+        matched.source == RafsiSource::FuivlaStem
+            && matched.entry_index == expected
+            && normalize_lookup_query(matched.entry.word) == key
+    })
+}
+
+/// True when the sources of an ordinary rafsi part include the entry at
+/// `expected`.
+///
+/// The sources are the entries that list or derive the form as a rafsi. When
+/// no entry does, the part is a full word, and its sources are the direct
+/// brivla entries with that lookup key. The part does not have to rank the
+/// entry first: `lengu` and `lenga` share the form `leng`, so `lengykla` is a
+/// valid build from `lengu`.
+#[requires(true)]
+#[ensures(true)]
+fn rafsi_part_names_entry(
+    dictionary: &Dictionary<'_>,
+    phonemes: &Phonemes,
+    expected: EntryIndex,
+) -> bool {
+    let surface = phonemes.as_str();
+    let mut rafsi_sources = dictionary
+        .lookup_rafsi(surface)
+        .filter(|matched| matched.source != RafsiSource::FuivlaStem)
+        .peekable();
+    if rafsi_sources.peek().is_some() {
+        return rafsi_sources.any(|matched| matched.entry_index == expected);
+    }
+    dictionary.entry_for_index(expected).is_some_and(|entry| {
+        word_type_is_direct_brivla(entry.word_type)
+            && normalize_lookup_query(entry.word) == normalize_lookup_query(surface)
+    })
+}
+
+/// True when every rafsi part of `parsed` names its input.
+///
+/// A parsed part names a dictionary input when its sources include that
+/// entry (see `rafsi_part_names_entry` and `fuivla_stem_names_entry`).
 #[requires(true)]
 #[ensures(true)]
 fn sources_match(
@@ -1108,12 +1172,12 @@ fn sources_match(
         };
         match inputs.next() {
             Some(ExpandedInput::DictionaryWord(expected)) => {
-                let source = if part.is_fuhivla_rafsi_before(parsed.get(index + 1)) {
-                    unique_fuivla_source(dictionary, phonemes.as_str())
+                let names_input = if part.is_fuhivla_rafsi_before(parsed.get(index + 1)) {
+                    fuivla_stem_names_entry(dictionary, phonemes.as_str(), *expected)
                 } else {
-                    primary_rafsi_source(dictionary, phonemes).map(|source| source.entry_index)
+                    rafsi_part_names_entry(dictionary, phonemes, *expected)
                 };
-                if source != Some(*expected) {
+                if !names_input {
                     return false;
                 }
             }
@@ -1482,9 +1546,11 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn a_shared_universal_rafsi_must_still_name_its_ranked_source() {
+    fn a_shared_universal_rafsi_names_every_word_that_shares_it() {
         use jbotci_dictionary::{DictionaryEntry, Score};
 
+        // `klam` is a universal form of both words. Its sources include the
+        // lower-ranked `klami`, so `klamybajra` is a valid build from it.
         let english = jbotci_dictionary_data::english();
         let klama = DictionaryEntry {
             rafsi: &[],
@@ -1498,25 +1564,116 @@ mod tests {
         };
         let token = CancellationToken::never();
         with_source_dictionary(&[klami, klama], |dictionary| {
-            let final_piece = JvozbaInput::FixedRafsi("bajra".to_owned());
-            assert_eq!(
+            for word in ["klami", "klama"] {
+                let result = build_best_jvozba_detailed(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    &[
+                        JvozbaInput::Word(word.to_owned()),
+                        JvozbaInput::FixedRafsi("bajra".to_owned()),
+                    ],
+                    &token,
+                )
+                .unwrap();
+                assert_eq!(result.word, "klamybajra", "{word}");
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_lower_ranked_gismu_builds_through_a_shared_four_letter_form() {
+        // `lenga` and `lengu` share `leng`, and `lenga` ranks higher. Main
+        // built `lengykla` from `lengu`, and so does this rule.
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("lengu".to_owned()),
+                JvozbaInput::Word("klama".to_owned()),
+            ],
+            &CancellationToken::never(),
+        )
+        .unwrap();
+        assert_eq!(result.word, "lengykla");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn entries_that_share_a_lookup_key_are_one_fuivla() {
+        use jbotci_dictionary::DictionaryEntry;
+
+        // `onji` and `.onji` are two entries for one word. Their shared stem
+        // `onj` names that word, so it is not ambiguous, and either entry can
+        // enter a build. The word input and both entry indexes give the same
+        // result.
+        let english = jbotci_dictionary_data::english();
+        let onji = *english.lookup_word("onji").unwrap();
+        let dotted = DictionaryEntry {
+            word: ".onji",
+            ..onji
+        };
+        let klama = *english.lookup_word("klama").unwrap();
+        let token = CancellationToken::never();
+        with_source_dictionary(&[onji, dotted, klama], |dictionary| {
+            let decomposition = decompose_lujvo_like(dictionary, "onjykla", &token)
+                .unwrap()
+                .unwrap();
+            assert_eq!(decomposition.segments[0].sources.len(), 2);
+            let build = |first: JvozbaInput| {
                 build_best_jvozba_detailed(
                     JvozbaMode::Lujvo,
                     dictionary,
-                    &[JvozbaInput::Word("klami".to_owned()), final_piece.clone()],
-                    &token
-                ),
-                Err(JvozbaError::CouldNotBuildLujvo),
-            );
-            let top = build_best_jvozba_detailed(
+                    &[first, JvozbaInput::Word("klama".to_owned())],
+                    &token,
+                )
+                .map(|result| result.word.clone())
+            };
+            let from_word = build(JvozbaInput::Word("onji".to_owned()));
+            assert_eq!(from_word.as_deref(), Ok("onjykla"));
+            // The compound itself expands to `onji` and `klama` again.
+            let expanded = build_best_jvozba_detailed(
                 JvozbaMode::Lujvo,
                 dictionary,
-                &[JvozbaInput::Word("klama".to_owned()), final_piece],
+                &[JvozbaInput::Word("onjykla".to_owned())],
                 &token,
             )
-            .unwrap();
-            assert_eq!(top.word, "klamybajra");
+            .map(|result| result.word.clone());
+            assert_eq!(expanded, from_word);
+            for (index, word) in [(0, "onji"), (1, ".onji")] {
+                assert_eq!(
+                    build(JvozbaInput::DictionaryWord {
+                        entry_index: EntryIndex(index),
+                        word: word.to_owned(),
+                    }),
+                    from_word,
+                    "{word}"
+                );
+            }
         });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_literal_fuivla_stem_takes_its_hyphen_by_rule() {
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        for (stem, expected) in [("tci'il", "tci'ilykla"), ("ierx", "ierxykla")] {
+            let result = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::FixedRafsi(stem.to_owned()),
+                    JvozbaInput::Word("klama".to_owned()),
+                ],
+                &token,
+            )
+            .unwrap_or_else(|error| panic!("{stem}: {error}"));
+            assert_eq!(result.word, expected);
+        }
     }
 
     #[test]
@@ -1744,33 +1901,24 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn a_nonfinal_fuivla_keeps_the_full_word_after_a_mismatched_listed_rafsi() {
-        use jbotci_dictionary::{DictionaryEntry, Rafsi, RafsiClaimKind, Score};
+        use jbotci_dictionary::{DictionaryEntry, Rafsi, RafsiClaimKind};
 
-        // `spageti` lists `spa`, but a higher-ranked `spati` claims the same
-        // form, so `spa` would name `spati` after parsing. The build must
-        // keep `spageti` through its full form.
+        // `spageti` lists `ierx`, but before `y` that form parses as the
+        // derived stem of `ierxi`, so its sources do not include `spageti`.
+        // The build must keep `spageti` through its full form.
         let english = jbotci_dictionary_data::english();
         let listed = [Rafsi {
-            form: "spa",
+            form: "ierx",
             standing: RafsiClaimKind::Experimental,
         }];
+        let ierxi = *english.lookup_word("ierxi").unwrap();
         let spageti = DictionaryEntry {
             rafsi: &listed,
-            score: Score(1.0),
             ..*english.lookup_word("spageti").unwrap()
-        };
-        let spati = DictionaryEntry {
-            rafsi: &listed,
-            score: Score(2.0),
-            ..*english.lookup_word("spati").unwrap()
         };
         let kukte = *english.lookup_word("kukte").unwrap();
         let token = CancellationToken::never();
-        with_source_dictionary(&[spati, spageti, kukte], |dictionary| {
-            let decomposition = decompose_lujvo_like(dictionary, "spakukte", &token)
-                .unwrap()
-                .unwrap();
-            assert_eq!(decomposition.segments[0].sources[0].word, "spati");
+        with_source_dictionary(&[ierxi, spageti, kukte], |dictionary| {
             let result = build_best_jvozba_detailed(
                 JvozbaMode::Lujvo,
                 dictionary,
