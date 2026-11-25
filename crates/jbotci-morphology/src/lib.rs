@@ -3453,7 +3453,7 @@ pub fn normalize_lojban_input_text_with_options(
         }
     }
     append_normalized_lojban_input_chunk(&mut output, &chunk, options)?;
-    Some(output)
+    (!output.is_empty() || input.is_empty()).then_some(output)
 }
 
 #[requires(true)]
@@ -4796,6 +4796,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn normalizes_lojban_input_text_for_exact_lookups() {
+        assert_eq!(normalize_lojban_input_text("").as_deref(), Some(""));
+        assert_eq!(normalize_lojban_input_text(","), None);
+        assert_eq!(normalize_lojban_input_text("\u{0301},"), None);
         assert_eq!(
             normalize_lojban_input_text("ми клама").as_deref(),
             Some("mi klama")
