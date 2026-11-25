@@ -1,4 +1,12 @@
-"""Check that workflow Rust images use explicit YAML pins."""
+"""Check that workflow Rust images use explicit YAML pins.
+
+Split the executable shell text of each step into words. If a word names
+`docker`, reject every Rust image word in that step. This includes `rust`,
+tagged or digested references, and registry paths that end in a Rust image.
+Step names and shell comments do not enter the word scan. A Docker container
+named `rust` also fails. The existing linked Render resolver keeps its
+exception.
+"""
 from __future__ import annotations
 
 import re
@@ -10,10 +18,9 @@ from tools.workflow_pins import PinError, YamlMapping, _direct, _jobs, load_work
 _IMAGE_REF = re.compile(r"[A-Za-z0-9\[][A-Za-z0-9_.:/@\[\]-]*")
 _RUST_TAG = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+)(?:-[A-Za-z0-9_.-]+)?")
 _RUST_LITERAL = re.compile(r"(?<![\w.:-])rust(?=:(?!:)[^\s]|@)")
-_UNTAGGED_DOCKER_IMAGE = re.compile(
-    r"(?<![\w.-])docker[ \t]+(?:(?:image|container)[ \t]+)?(?:pull|run|create)[ \t]+"
-    r"(?:-[\w-]+[ \t]+)*(?:[\w.:-]+/)*rust(?=$|[\s;|&)])"
-)
+_RUST_IMAGE_WORD = re.compile(r"(?:[A-Za-z0-9_.:\[\]-]+/)*rust(?:[:@]\S*)?")
+_QUOTED_SUBSTITUTION = re.compile(r"\$\(([^()]*)\)|`([^`]*)`")
+_SHELL_QUOTING = str.maketrans("", "", "'\"\\")
 _NEEDS_IMAGE = re.compile(r"\$\{\{\s*needs\.([\w-]+)\.outputs\.([\w-]+)\s*\}\}")
 _STEP_IMAGE = re.compile(r"\$\{\{\s*steps\.([\w-]+)\.outputs\.image\s*\}\}")
 _RESOLVER = "python3 -m tools.cargo_cache_identity resolve-image "
@@ -69,10 +76,37 @@ def require_yaml_pin(value: object) -> None:
         for child in value:
             require_yaml_pin(child)
     elif isinstance(value, str):
-        # Join adjacent quoted literals and line continuations for this text rule.
-        spelling = value.replace("\\\r\n", "").replace("\\\n", "").translate(str.maketrans("", "", "'\"\\"))
-        if has_rust_image(spelling) or _UNTAGGED_DOCKER_IMAGE.search(spelling):
+        if has_rust_image(value):
             raise PinError(_EXPLICIT_PIN)
+
+
+def shell_words(text: str) -> list[str]:
+    lexer = shlex.shlex(text, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    return list(lexer)
+
+
+def require_shell_pin(command: str) -> None:
+    """Apply the step-wide literal image rule without reading Docker options."""
+    if "docker" not in command.translate(_SHELL_QUOTING).replace("\n", ""):
+        return
+    try:
+        words = shell_words(command)
+        # shlex keeps a command substitution inside a quoted word together.
+        substitutions = [
+            match[1] if match[1] is not None else match[2]
+            for word in words for match in _QUOTED_SUBSTITUTION.finditer(word)
+        ]
+        for substitution in substitutions:
+            words.extend(shell_words(substitution))
+    except ValueError as error:
+        raise PinError("Cannot split words in a Docker step. " + _EXPLICIT_PIN) from error
+    # shlex retains the newline from an escaped line break inside a word.
+    words = [word.replace("\n", "") for word in words]
+    if any(word.rsplit("/", 1)[-1] == "docker" for word in words) and any(
+        _RUST_IMAGE_WORD.fullmatch(word) for word in words
+    ):
+        raise PinError(_EXPLICIT_PIN)
 
 
 def container_image(job: YamlMapping) -> str | None:
@@ -171,19 +205,21 @@ def workflow_image_versions(text: str, *, unchanged_render_resolver: bool = Fals
             versions.append(version)
 
     for key, value in root.pairs:
-        if key not in ("jobs", "env"):
+        if key not in ("jobs", "env", "name", "run-name"):
             require_yaml_pin(value)
     for name, job in jobs.items():
         for key, value in job.pairs:
-            if key not in ("container", "steps", "env"):
+            if key not in ("container", "steps", "env", "name"):
                 require_yaml_pin(value)
         for index, step in enumerate(steps[name]):
-            if (name, index) in legacy_steps:
-                for key, child in step.pairs:
-                    if key != "run":
-                        require_yaml_pin(child)
-            else:
-                require_yaml_pin(step)
+            if not isinstance(step, YamlMapping):
+                raise PinError("A workflow step must be a mapping.")
+            command = one_value(step, "run")
+            if isinstance(command, str) and (name, index) not in legacy_steps:
+                require_shell_pin(command)
+            for key, child in step.pairs:
+                if key not in ("name", "run"):
+                    require_yaml_pin(child)
     return versions
 
 

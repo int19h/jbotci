@@ -430,6 +430,13 @@ class CiWorkflowSplitTests(unittest.TestCase):
         for command in (
             "docker pull rust",
             "docker pull docker.io/library/rust",
+            "docker pull --platform linux/amd64 rust",
+            "docker pull --platform=linux/amd64 rust",
+            "docker --context default pull docker.io/library/rust",
+            "docker run --entrypoint /bin/sh rust",
+            "docker logs rust",
+            "docker --version\n          echo rust:1.99.0-bookworm",
+            "# A comment that ends in " + chr(92) + "\n          docker pull rust",
             "docker pull rust:1.100.0-slim-bookworm",
             "env docker pull --quiet docker.io/library/rust:'1.99.0'-bookworm",
             'id="$(docker run --rm docker.io/library/ru"st:1.99".1-slim-bookworm)"',
@@ -442,14 +449,27 @@ class CiWorkflowSplitTests(unittest.TestCase):
                 with self.assertRaisesRegex(PinError, "Rust image pin in YAML"):
                     workflow_image_versions(workflow)
 
-    def test_unrelated_docker_commands_have_no_rust_image_pins(self) -> None:
+    def test_step_names_and_shell_comments_do_not_supply_image_words(self) -> None:
         workflow = (
-            "jobs:\n  build:\n    steps:\n      - run: |\n"
-            "          docker --version\n"
-            "          docker logs rust\n"
+            "jobs:\n  build:\n    steps:\n"
+            '      - name: "Example image rust:1.100.0-bookworm"\n'
+            "        run: |\n"
+            "          # docker pull rust:1.99.0-bookworm\n"
+            "          docker --version # docker pull rust\n"
             "          docker pull alpine:3.24\n"
         )
         self.assertEqual(workflow_image_versions(workflow), [])
+
+    def test_shell_step_needs_both_docker_and_an_image_word(self) -> None:
+        for command in (
+            "docker --version",
+            "echo rust:1.99.0-bookworm",
+            "echo rust # docker --version",
+            'docker --label "example rust:1.99.0-bookworm" alpine:3.24',
+        ):
+            with self.subTest(command=command):
+                workflow = f"jobs:\n  build:\n    steps:\n      - run: |\n          {command}\n"
+                self.assertEqual(workflow_image_versions(workflow), [])
 
     def test_other_yaml_fields_cannot_declare_rust_image_pins(self) -> None:
         for fields in (
