@@ -5106,35 +5106,40 @@ mod tests {
                 assert_quote_payload_is_not_ignored(source, mode, expected_payload, &[]);
             }
         }
-        let strict_keeps_the_boundary_in_the_payload = [
-            ("zoi gy @gy gy", "@gy"),
-            ("la'o gy @gy gy", "@gy"),
-            ("zoi gy payload@gy gy", "payload@gy"),
-            ("la'o gy payload@gy gy", "payload@gy"),
+        // The closer search and the closing word ignore the permissive tier,
+        // so a boundary before or after the delimiter letters does not close
+        // the quote in either mode (#1132).
+        let payload_keeps_the_boundary = [
+            ("zoi gy @gy gy", "@gy", 1),
+            ("la'o gy @gy gy", "@gy", 1),
+            ("zoi gy payload@gy gy", "payload@gy", 1),
+            ("la'o gy payload@gy gy", "payload@gy", 1),
+            ("zoi gy a #gy b gy", "a #gy b", 1),
+            ("la'o gy a #gy b gy", "a #gy b", 1),
+            ("zoi gy a gy# b gy", "a gy# b", 1),
+            ("la'o gy a gy# b gy", "a gy# b", 1),
+            ("mi cusku zoi gy. tag: #gy .gy", "tag: #gy", 3),
         ];
-        for (source, expected_payload) in strict_keeps_the_boundary_in_the_payload {
-            assert_quote_payload_is_not_ignored(
-                source,
-                &MorphologyOptions::default(),
-                expected_payload,
-                &[],
-            );
-        }
-        let permissive_eats_the_boundary = [
-            ("zoi gy @gy", ""),
-            ("la'o gy @gy", ""),
-            ("zoi gy payload@gy", "payload"),
-            ("la'o gy payload@gy", "payload"),
-            ("zoi gy @gy gy", ""),
-            ("la'o gy payload@gy gy", "payload"),
-        ];
-        for (source, expected_payload) in permissive_eats_the_boundary {
-            let following: &[&str] = if source.ends_with(" gy") {
-                &["gy"]
-            } else {
-                &[]
-            };
-            assert_quote_payload_is_not_ignored(source, &permissive, expected_payload, following);
+        for (source, expected_payload, word_count) in payload_keeps_the_boundary {
+            for mode in [&MorphologyOptions::default(), &permissive] {
+                let words =
+                    segment_words_with_modifiers_with_options_and_source_id(source, mode, None)
+                        .unwrap_or_else(|error| panic!("quote parse failed for {source}: {error}"));
+                assert_eq!(words.len(), word_count, "{source}");
+                let quote = words
+                    .iter()
+                    .find_map(|word| match word.as_data() {
+                        data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) => {
+                            Some(quoted_text)
+                        }
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| panic!("expected a delimited quote: {source}"));
+                assert_eq!(quote.text, expected_payload, "{source}");
+                if word_count == 1 {
+                    assert_quote_payload_is_not_ignored(source, mode, expected_payload, &[]);
+                }
+            }
         }
     }
 
@@ -6044,7 +6049,7 @@ mod tests {
             data.warnings
                 .iter()
                 .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
-            "quote characters must not be counted as ignored: {source}"
+            "quote payload characters must not be counted as ignored: {source}"
         );
     }
 
