@@ -40,8 +40,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The reason carries an already validated byte limit.",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::DictionaryWord",
+        "The expansion plan selects this index from the dictionary that the builder uses.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::FixedRafsi",
+        "The builder accepts raw rafsi text so it can report invalid input.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::UnlistedWord",
+        "The builder accepts raw dictionary misses and tests their morphology.",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:ExpansionPlan::Plain",
-        "The plan borrows one raw input without another data constraint.",
+        "The plan carries one expanded input.",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:ExpansionPlan::Decomposed",
@@ -1750,6 +1762,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::TooMuchWork",
         "the measure, the amount and the limit are figures the refused build reports; every combination is a possible report, and JvozbaError is constructed and matched across the CLI, web-core and Discord as a plain enum",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::DictionaryWord",
+        "The builder checks that this index points to this spelling in the active dictionary.",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::FixedRafsi",
