@@ -1,4 +1,4 @@
-use bityzba::contract_trait;
+use bityzba::{contract_trait, requires};
 
 // The unsized parameter error must point at the parameter, not at
 // `contract_trait`.
