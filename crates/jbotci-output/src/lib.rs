@@ -374,8 +374,10 @@ pub fn compact_json_value_with_limit<T: Serialize>(
     value: &T,
     limit: budget::ByteLimit,
 ) -> Result<Value, OutputError> {
-    let bytes =
-        budget::bounded_json(value, limit).map_err(|error| OutputError::from_json(error, limit))?;
+    let mut budget = budget::SpanBudget::new(limit);
+    let bytes = budget
+        .collect_json(value)
+        .map_err(|error| OutputError::from_json(error, limit))?;
     let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
     deserializer.disable_recursion_limit();
     Value::deserialize(serde_stacker::Deserializer::new(&mut deserializer))

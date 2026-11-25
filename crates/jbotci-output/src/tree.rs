@@ -91,6 +91,8 @@ pub(crate) enum TreeValue {
     Verbatim {
         text: String,
         span: Option<(usize, usize)>,
+        /// Byte range of the original quote in the source text.
+        bytes: Option<(usize, usize)>,
     },
     Error {
         error: RecoveryTreeError,
@@ -214,7 +216,7 @@ pub fn pretty_generated_model_tree_with_limit(
         options,
         limit.get(),
         syntax_index,
-    );
+    )?;
     cancellation.check().map_err(|_| OutputError::Interrupted)?;
     let references = reference_analysis
         .as_ref()
@@ -236,7 +238,7 @@ pub fn pretty_generated_model_tree_with_reference_display(
         options,
         usize::MAX,
         Some(&display.analysis.syntax_index),
-    );
+    )?;
     Ok(render_tree_value_with_options(
         &generated_value,
         options,
@@ -263,7 +265,7 @@ pub fn generated_reference_display<'tree>(
         options,
         usize::MAX,
         Some(&reference_analysis.syntax_index),
-    );
+    )?;
     let references = ReferenceDisplayModel::new_generated(
         &reference_analysis,
         &generated_value,
@@ -304,10 +306,16 @@ pub(crate) fn projected_generated_syntax_tree_value_with_index(
     options: TreeRenderOptions,
     max_leaf_bytes: usize,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    generated_root_projection(generated_singular_text_field_projection(collapse_value(
-        generated_syntax_tree_value(tree, source, options, max_leaf_bytes, syntax_index),
-    )))
+) -> Result<TreeValue, OutputError> {
+    Ok(generated_root_projection(
+        generated_singular_text_field_projection(collapse_value(generated_syntax_tree_value(
+            tree,
+            source,
+            options,
+            max_leaf_bytes,
+            syntax_index,
+        )?)),
+    ))
 }
 
 #[requires(true)]
@@ -382,7 +390,7 @@ pub(crate) fn pretty_generated_model_raw_tree_with_options(
         options,
         usize::MAX,
         None,
-    ));
+    )?);
     Ok(render_tree_value_with_options(&value, options, None))
 }
 
@@ -421,6 +429,7 @@ pub(crate) fn recovered_generated_model_tree_value(
     options: TreeRenderOptions,
     max_leaf_bytes: usize,
 ) -> Result<TreeValue, OutputError> {
+    let scope = crate::budget::LimitScope::enter();
     let mut visitor = SyntaxTreeBuilder::<RecoveredSyntaxRenderModel>::new_recovered(
         source,
         options,
@@ -428,7 +437,11 @@ pub(crate) fn recovered_generated_model_tree_value(
         &recovered.errors,
     );
     recovered.parse_tree.visit_in_order(&mut visitor);
-    Ok(collapse_value(visitor.finish_recovered()?))
+    let value = visitor.finish_recovered()?;
+    if let Some(error) = scope.failure() {
+        return Err(OutputError::Limit { limit: error.limit });
+    }
+    Ok(collapse_value(value))
 }
 
 #[requires(true)]
@@ -460,7 +473,7 @@ pub fn pretty_morphology_tree_with_limit(
         words
             .iter()
             .map(|word_like| morphology_tree_value(word_like, source, options, limit.get()))
-            .collect(),
+            .collect::<Result<Vec<_>, _>>()?,
     ));
     render_tree_value_with_limit(&value, options, None, limit, cancellation)
 }
@@ -506,6 +519,21 @@ pub(crate) fn render_tree_value_with_limit(
     Ok(renderer.output.into_string().expect("tree output is UTF-8"))
 }
 
+/// Keep a nested tree value. An outermost limit error is noted again so the
+/// caller that owns the build scope can report it.
+#[requires(true)]
+#[ensures(true)]
+fn kept_tree(result: Result<TreeValue, OutputError>) -> TreeValue {
+    match result {
+        Ok(value) => value,
+        Err(OutputError::Limit { limit }) => {
+            crate::budget::note_limit(limit);
+            TreeValue::Text(String::new())
+        }
+        Err(_) => TreeValue::Text(String::new()),
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn with_indicators_tree_value(
@@ -515,9 +543,12 @@ pub(crate) fn with_indicators_tree_value(
     max_leaf_bytes: usize,
 ) -> TreeValue {
     match word.as_data() {
-        data!(WithIndicators::Plain(word_like)) => {
-            morphology_tree_value(word_like, source, options, max_leaf_bytes)
-        }
+        data!(WithIndicators::Plain(word_like)) => kept_tree(morphology_tree_value(
+            word_like,
+            source,
+            options,
+            max_leaf_bytes,
+        )),
         data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
@@ -540,7 +571,12 @@ pub(crate) fn with_indicators_tree_value(
             }
             entries.push(TreeEntry {
                 label: None,
-                value: morphology_tree_value(word_like, source, options, max_leaf_bytes),
+                value: kept_tree(morphology_tree_value(
+                    word_like,
+                    source,
+                    options,
+                    max_leaf_bytes,
+                )),
             });
             TreeValue::Node(TreeNode {
                 constructor: "Emphasized",
@@ -630,12 +666,12 @@ pub(crate) fn word_tree_value(
     options: TreeRenderOptions,
     max_leaf_bytes: usize,
 ) -> TreeValue {
-    morphology_tree_value(
+    kept_tree(morphology_tree_value(
         &WordLike::bare(word.clone()),
         source,
         options,
         max_leaf_bytes,
-    )
+    ))
 }
 
 #[requires(true)]
@@ -645,7 +681,7 @@ pub(crate) fn morphology_tree_value(
     source: &str,
     options: TreeRenderOptions,
     max_leaf_bytes: usize,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     let mut visitor = MorphologyTreeBuilder::new(source, options, max_leaf_bytes);
     word_like.visit_in_order(&mut visitor);
     visitor.finish()
@@ -659,7 +695,8 @@ fn generated_syntax_tree_value(
     options: TreeRenderOptions,
     max_leaf_bytes: usize,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
+    let scope = crate::budget::LimitScope::enter();
     let mut visitor = SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(
         source,
         options,
@@ -667,7 +704,11 @@ fn generated_syntax_tree_value(
         syntax_index,
     );
     tree.visit_in_order(&mut visitor);
-    visitor.finish()
+    let value = visitor.finish();
+    if let Some(error) = scope.failure() {
+        return Err(OutputError::Limit { limit: error.limit });
+    }
+    Ok(value)
 }
 
 #[requires(true)]
@@ -678,7 +719,8 @@ fn raw_generated_syntax_tree_value(
     options: TreeRenderOptions,
     max_leaf_bytes: usize,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
+    let scope = crate::budget::LimitScope::enter();
     let mut visitor = SyntaxTreeBuilder::<RawGeneratedSyntaxRenderModel>::new(
         source,
         options,
@@ -686,7 +728,11 @@ fn raw_generated_syntax_tree_value(
         syntax_index,
     );
     tree.visit_in_order(&mut visitor);
-    visitor.finish()
+    let value = visitor.finish();
+    if let Some(error) = scope.failure() {
+        return Err(OutputError::Limit { limit: error.limit });
+    }
+    Ok(value)
 }
 #[contract_trait]
 trait SyntaxRenderModel {
@@ -2759,7 +2805,7 @@ impl TreeRenderer<'_> {
                 span,
                 elided,
             } => self.render_word(constructor, phonemes, *span, *elided),
-            TreeValue::Verbatim { text, span } => self.render_verbatim(text, *span),
+            TreeValue::Verbatim { text, span, .. } => self.render_verbatim(text, *span),
             TreeValue::Error { error } => self.render_error(&error.text, error.span),
             TreeValue::Text(text) => self.render_string_literal(text, false, false),
             TreeValue::Span {
@@ -3198,6 +3244,8 @@ struct MorphologyTreeBuilder<'source> {
     max_leaf_bytes: usize,
     stack: Vec<MorphologyFrame>,
     root: Option<TreeValue>,
+    limit_error: Option<OutputError>,
+    scope: crate::budget::LimitScope,
 }
 
 impl<'source> MorphologyTreeBuilder<'source> {
@@ -3210,13 +3258,21 @@ impl<'source> MorphologyTreeBuilder<'source> {
             max_leaf_bytes,
             stack: Vec::new(),
             root: None,
+            limit_error: None,
+            scope: crate::budget::LimitScope::enter(),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn finish(self) -> TreeValue {
-        self.root.expect("morphology tree walk produced a root")
+    fn finish(self) -> Result<TreeValue, OutputError> {
+        if let Some(OutputError::Limit { limit }) = self.limit_error {
+            crate::budget::note_limit(limit);
+        }
+        if let Some(error) = self.scope.failure() {
+            return Err(OutputError::Limit { limit: error.limit });
+        }
+        Ok(self.root.expect("morphology tree walk produced a root"))
     }
 
     #[requires(true)]
@@ -3228,6 +3284,26 @@ impl<'source> MorphologyTreeBuilder<'source> {
                 entries.push(TreeEntry { label: None, value })
             }
             None => self.root = Some(value),
+        }
+    }
+
+    /// Measure the trimmed quote, then copy it only when that span fits.
+    #[requires(true)]
+    #[ensures(true)]
+    fn copy_quote(&mut self, text: &str) -> String {
+        let Some(limit) = crate::budget::ByteLimit::new(self.max_leaf_bytes) else {
+            self.limit_error = Some(OutputError::Recovery(
+                "quote byte budget must be positive".to_owned(),
+            ));
+            return String::new();
+        };
+        let mut budget = crate::budget::SpanBudget::new(limit);
+        match budget.copy_trimmed(text) {
+            Ok(copied) => copied,
+            Err(error) => {
+                self.limit_error = Some(OutputError::Limit { limit: error.limit });
+                String::new()
+            }
         }
     }
 }
@@ -3318,15 +3394,14 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
-        self.push_value(match atom {
+        let value = match atom {
             jbotci_morphology::AtomRef::Phonemes(phonemes) => {
                 TreeValue::Text(phonemes.render(self.options.phonemes))
             }
-            jbotci_morphology::AtomRef::String(text) => TreeValue::Text(
-                crate::brackets::bounded_leaf_text(text, self.max_leaf_bytes),
-            ),
+            jbotci_morphology::AtomRef::String(text) => TreeValue::Text(self.copy_quote(text)),
             jbotci_morphology::AtomRef::SourceSpan(span) => source_span_value(span),
-        });
+        };
+        self.push_value(value);
     }
 }
 
@@ -3391,6 +3466,7 @@ fn verbatim_node_value(constructor: &'static str, entries: &[TreeEntry]) -> Opti
             return Some(TreeValue::Verbatim {
                 text: text.trim().to_owned(),
                 span: span_from_labelled_entries(entries),
+                bytes: byte_span_from_labelled_entries(entries),
             });
         }
     }
@@ -3436,6 +3512,24 @@ fn lujvo_phoneme_text_from_entries(
             parts.join("")
         }
     })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|(start, end)| start <= end))]
+fn byte_span_from_labelled_entries(entries: &[TreeEntry]) -> Option<(usize, usize)> {
+    entries
+        .iter()
+        .find_map(|entry| match (&entry.label, &entry.value) {
+            (
+                Some("span"),
+                TreeValue::Span {
+                    byte_start,
+                    byte_end,
+                    ..
+                },
+            ) => Some((*byte_start, *byte_end)),
+            _ => None,
+        })
 }
 
 #[requires(true)]
@@ -3532,6 +3626,7 @@ mod tests {
         let value = TreeValue::Verbatim {
             text: "a\u{85}b".to_owned(),
             span: None,
+            bytes: None,
         };
         for color in [false, true] {
             let output = render_tree_value_with_options(

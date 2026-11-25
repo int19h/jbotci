@@ -3,6 +3,7 @@
 //! A renderer builds this value first. One serializer turns it into ANSI.
 //! Line breaks separate lines. They never sit inside a segment.
 
+use std::cell::Cell;
 use std::io::{self, Write};
 
 #[allow(unused_imports)]
@@ -260,11 +261,10 @@ pub(crate) fn plain_line(text: &str) -> StyledText {
 }
 
 /// Bytes already promised to the serializer for this document.
-#[invariant(*limit > 0 && *used <= *limit)]
+#[invariant(budget.charged() <= budget.limit().get())]
 struct ByteAccount {
-    limit: usize,
+    budget: crate::budget::SpanBudget,
     color: bool,
-    used: usize,
     open: TextStyle,
 }
 
@@ -294,10 +294,10 @@ impl StyledBuilder {
     #[requires(limit > 0)]
     #[ensures(true)]
     pub(crate) fn set_byte_budget(&mut self, limit: usize, color: bool) {
+        let limit = crate::budget::ByteLimit::new(limit).expect("positive byte budget");
         self.account = Some(new!(ByteAccount {
-            limit,
+            budget: crate::budget::SpanBudget::new(limit),
             color,
-            used: 0,
             open: TextStyle::default(),
         }));
     }
@@ -473,10 +473,7 @@ impl StyledBuilder {
             } else {
                 0
             };
-            let room = account
-                .limit
-                .saturating_sub(account.used)
-                .saturating_sub(transition);
+            let room = account.budget.remaining().saturating_sub(transition);
             let Some(text_bytes) = escaped_byte_len_within(text, room) else {
                 self.error = Some(output_too_large());
                 return;
@@ -504,21 +501,15 @@ impl StyledBuilder {
     }
 
     #[requires(true)]
-    #[ensures(ret == self.account.is_none() || self.account.as_ref().is_some_and(|account| account.used <= account.limit))]
+    #[ensures(true)]
     fn try_charge(&mut self, bytes: usize) -> bool {
         let Some(account) = self.account.take() else {
             return true;
         };
-        match account.used.checked_add(bytes) {
-            Some(next) if next <= account.limit => {
-                self.account = Some(account.with_data(data! { used: next }));
-                true
-            }
-            _ => {
-                self.account = Some(account);
-                false
-            }
-        }
+        let mut data = account.into_data();
+        let charged = data.budget.charge(bytes).is_ok();
+        self.account = Some(ByteAccount::from_data(data));
+        charged
     }
 }
 
@@ -555,15 +546,51 @@ pub(crate) struct TerminalExcerpt<'text> {
     pub(crate) map: Vec<usize>,
 }
 
+thread_local! {
+    static EXCERPT_COPY: Cell<usize> = const { Cell::new(0) };
+    static EXCERPT_MAP: Cell<usize> = const { Cell::new(0) };
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(excerpt_copy_bytes() == 0 && excerpt_map_len() == 0)]
+pub(crate) fn reset_excerpt_account() {
+    EXCERPT_COPY.with(|copy| copy.set(0));
+    EXCERPT_MAP.with(|map| map.set(0));
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn excerpt_copy_bytes() -> usize {
+    EXCERPT_COPY.with(|copy| copy.get())
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn excerpt_map_len() -> usize {
+    EXCERPT_MAP.with(|map| map.get())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn note_excerpt(copy: usize, map: usize) {
+    EXCERPT_COPY.with(|cell| cell.set(cell.get().saturating_add(copy)));
+    EXCERPT_MAP.with(|cell| cell.set(cell.get().saturating_add(map)));
+}
+
 #[requires(true)]
 #[ensures(ret.map.is_empty() || ret.map.len() == text.len() + 1)]
 pub(crate) fn escape_terminal_source(text: &str) -> TerminalExcerpt<'_> {
     if !text.chars().any(is_raw_terminal_control) {
+        note_excerpt(text.len(), 0);
         return new!(TerminalExcerpt {
             text: std::borrow::Cow::Borrowed(text),
             map: Vec::new(),
         });
     }
+    // The offset table covers only this text. Callers clip before this copy.
     let mut output = String::new();
     let mut map = vec![0; text.len() + 1];
     let mut escaped_at = 0usize;
@@ -585,6 +612,7 @@ pub(crate) fn escape_terminal_source(text: &str) -> TerminalExcerpt<'_> {
         index += len;
     }
     map[text.len()] = escaped_at;
+    note_excerpt(text.len(), map.len());
     new!(TerminalExcerpt {
         text: std::borrow::Cow::Owned(output),
         map,

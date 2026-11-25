@@ -23,8 +23,8 @@ use crate::{
 #[invariant(true)]
 pub(crate) struct BracketContext {
     pub(crate) options: BracketRenderOptions,
-    /// Owned quote text stops after this many bytes, plus one character when
-    /// the quote is longer. `usize::MAX` keeps the whole quote.
+    /// A quote is copied only when its trimmed text fits in this many bytes.
+    /// `usize::MAX` keeps the whole quote.
     pub(crate) max_leaf_bytes: usize,
 }
 
@@ -54,6 +54,7 @@ pub fn pretty_morphology_brackets_with_limit(
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     let _ = source;
+    let scope = crate::budget::LimitScope::enter();
     let context = BracketContext {
         options,
         max_leaf_bytes: limit.get(),
@@ -64,6 +65,7 @@ pub fn pretty_morphology_brackets_with_limit(
         cancellation.check().map_err(|_| OutputError::Interrupted)?;
         children.push(word_like_brackets(word_like, &context));
     }
+    quote_limit_error(&scope)?;
     let sexpr = sexpr::node(children);
     sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
 }
@@ -183,6 +185,7 @@ pub(crate) fn generated_model_bracket_sexpr(
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<sexpr::SExpr, OutputError> {
     let _ = source;
+    let scope = crate::budget::LimitScope::enter();
     let context = BracketContext {
         options,
         max_leaf_bytes,
@@ -194,6 +197,7 @@ pub(crate) fn generated_model_bracket_sexpr(
     if visitor.cancelled {
         return Err(OutputError::Interrupted);
     }
+    quote_limit_error(&scope)?;
     Ok(visitor.finish())
 }
 
@@ -550,8 +554,26 @@ fn word_leaf_in_context(
 #[requires(true)]
 #[ensures(true)]
 fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim, max_leaf_bytes: usize) -> sexpr::SExpr {
+    let text = match crate::budget::ByteLimit::new(max_leaf_bytes) {
+        Some(limit) => {
+            let mut budget = crate::budget::SpanBudget::new(limit);
+            match budget.copy_trimmed(&verbatim.text) {
+                Ok(copied) => copied,
+                Err(error) => {
+                    crate::budget::note_limit(error.limit);
+                    String::new()
+                }
+            }
+        }
+        None => {
+            crate::budget::note_limit(
+                crate::budget::ByteLimit::new(1).expect("one byte is a positive limit"),
+            );
+            String::new()
+        }
+    };
     sexpr::leaf_with_range(
-        bounded_leaf_text(verbatim.text.trim(), max_leaf_bytes),
+        text,
         Some(new!(BracketSourceRange {
             byte_start: verbatim.span.byte_start,
             byte_end: verbatim.span.byte_end,
@@ -559,26 +581,14 @@ fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim, max_leaf_bytes: usiz
     )
 }
 
-/// Copy `text` when it fits in `max_bytes`. A longer text keeps one extra
-/// character past that bound, on a character boundary, so the later renderer
-/// still sees that the leaf does not fit.
+/// Report a quote that did not fit, when this build is the outermost one.
 #[requires(true)]
-#[ensures(ret.len() <= text.len())]
-#[ensures(text.len() <= max_bytes || ret.len() <= max_bytes.saturating_add(4))]
-pub(crate) fn bounded_leaf_text(text: &str, max_bytes: usize) -> String {
-    if text.len() <= max_bytes {
-        return text.to_owned();
+#[ensures(true)]
+pub(crate) fn quote_limit_error(scope: &crate::budget::LimitScope) -> Result<(), OutputError> {
+    match scope.failure() {
+        Some(error) => Err(OutputError::Limit { limit: error.limit }),
+        None => Ok(()),
     }
-    let mut end = max_bytes.saturating_add(1).min(text.len());
-    while end > 0 && !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    if end <= max_bytes
-        && let Some(character) = text[end..].chars().next()
-    {
-        end += character.len_utf8();
-    }
-    text[..end].to_owned()
 }
 
 #[requires(word.span().byte_start <= word.span().byte_end)]
