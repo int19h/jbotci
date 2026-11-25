@@ -416,52 +416,35 @@ pub(crate) fn cmavo_or_gismu_cell_inlines(text: &str) -> Vec<CllInline> {
     cmavo_or_gismu_cell_inlines_from(text, |candidate| shipped_dictionary_link_target(candidate))
 }
 
-/// The dictionary result for one spelling under a lujvo mark.
+/// One word under a lujvo mark in a single-word cell or a rule-12 part.
 ///
-/// `Link` is a shipped headword. `Plain` is an empty target. `Marked` is a
-/// miss. A spelling that is not one dictionary token is a miss.
-#[invariant(::Link(target) => !target.is_empty())]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LujvoInline {
-    Link(&'static str),
-    Marked,
-    Plain,
-}
-
-/// The shared lujvo lookup for a single-word cell and a rule-12 part.
-///
-/// Both paths call this function. A hit is one headword. An empty target is
-/// plain. Every other spelling is a marked miss.
-#[requires(true)]
-// The type invariant rejects an empty headword. The dictionary class is expensive.
-#[ensures(true)]
-#[bityzba::expensive_ensures(match ret.as_data() {
-    data!(LujvoInline::Link(_)) => {
-        shipped_dictionary_link_target(text).is_some_and(|target| !target.is_empty())
+/// A dictionary hit uses a link. A miss uses a marked span so that the word
+/// stays searchable.
+#[requires(!text.is_empty())]
+#[ensures(matches!(
+    ret,
+    CllInline::Link { kind: CllLinkKind::Dictionary, .. }
+        | CllInline::LanguageSpan { kind: CllLanguageSpanKind::MarkedValsi, .. }
+))]
+#[ensures(match &ret {
+    CllInline::Link { target, inlines, .. } => {
+        target.trim_matches('.') == text.trim_matches('.')
+            && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
     }
-    data!(LujvoInline::Plain) => {
-        shipped_dictionary_link_target(text).is_some_and(|target| target.is_empty())
-    }
-    data!(LujvoInline::Marked) => true,
+    _ => true,
 })]
-pub(crate) fn lujvo_inline_choice(text: &str) -> LujvoInline {
+pub(crate) fn lujvo_word_inline(text: &str) -> CllInline {
     if is_dictionary_token(text)
         && let Some(target) = shipped_dictionary_link_target(text)
     {
-        if target.is_empty() {
-            return new!(LujvoInline::Plain);
-        }
-        return new!(LujvoInline::Link(target));
+        return dictionary_word_link(target, text);
     }
-    new!(LujvoInline::Marked)
+    marked_valsi_span(text)
 }
 
 /// The inlines for a cell whose mark is one bare lujvo.
 ///
-/// A dictionary hit uses the ordinary link. A miss stores a marked span, so
-/// the word stays searchable. That miss includes a lujvo that is not one
-/// dictionary token. A bracketed miss keeps the brackets outside that span.
-/// An empty target stays one text node. The lookup is `lujvo_inline_choice`.
+/// A bracketed word keeps its brackets outside the link or marked span.
 #[requires(text == text.trim())]
 #[expensive_ensures(cmavo_cell_joined_text(&ret) == text)]
 #[ensures(ret.iter().filter(|inline| matches!(inline, CllInline::Link { .. })).count() <= 1)]
@@ -471,25 +454,13 @@ pub(crate) fn lujvo_cell_inlines(text: &str) -> Vec<CllInline> {
         return Vec::new();
     }
     if let Some(word) = bracketed_dictionary_word(text) {
-        return match lujvo_inline_choice(word).as_data() {
-            data!(LujvoInline::Link(target)) => vec![
-                CllInline::Text("[".to_owned()),
-                dictionary_word_link(target, word),
-                CllInline::Text("]".to_owned()),
-            ],
-            data!(LujvoInline::Plain) => vec![CllInline::Text(text.to_owned())],
-            data!(LujvoInline::Marked) => vec![
-                CllInline::Text("[".to_owned()),
-                marked_valsi_span(word),
-                CllInline::Text("]".to_owned()),
-            ],
-        };
+        return vec![
+            CllInline::Text("[".to_owned()),
+            lujvo_word_inline(word),
+            CllInline::Text("]".to_owned()),
+        ];
     }
-    match lujvo_inline_choice(text).as_data() {
-        data!(LujvoInline::Link(target)) => vec![dictionary_word_link(target, text)],
-        data!(LujvoInline::Plain) => vec![CllInline::Text(text.to_owned())],
-        data!(LujvoInline::Marked) => vec![marked_valsi_span(text)],
-    }
+    vec![lujvo_word_inline(text)]
 }
 
 #[requires(!target.is_empty())]
@@ -581,9 +552,8 @@ pub(crate) fn marked_unlinked_cell_inlines(text: &str) -> Vec<CllInline> {
 
 /// One part of a cell made of adjacent valsi elements.
 ///
-/// `link` is false when the cell or this part opts out. A dictionary hit
-/// becomes one link. Every other part becomes one Lojban span. The span
-/// keeps `text` when `text` is not a dictionary token.
+/// A dictionary hit becomes one link. Every other part becomes one Lojban
+/// span that keeps the original text.
 #[requires(!text.is_empty())]
 #[ensures(match &ret {
     CllInline::Link {
@@ -601,11 +571,9 @@ pub(crate) fn marked_unlinked_cell_inlines(text: &str) -> Vec<CllInline> {
     } => matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text && !shown.is_empty()),
     _ => false,
 })]
-pub(crate) fn cmavo_valsi_part_inline(text: &str, link: bool) -> CllInline {
-    if link
-        && is_dictionary_token(text)
+pub(crate) fn cmavo_valsi_part_inline(text: &str) -> CllInline {
+    if is_dictionary_token(text)
         && let Some(target) = shipped_dictionary_link_target(text)
-        && !target.is_empty()
     {
         return dictionary_word_link(target, text);
     }
