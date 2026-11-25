@@ -1184,6 +1184,24 @@ fn pack_server_read_error_wakes_the_request_wait() {
     waiter.join().expect("the waiter finishes");
 }
 
+/// True for the root user.
+/// Root can read a file whose mode is 000.
+#[cfg(unix)]
+#[requires(true)]
+#[ensures(true)]
+fn pack_test_euid_is_root() -> bool {
+    unsafe extern "C" {
+        fn geteuid() -> u32;
+    }
+    unsafe { geteuid() == 0 }
+}
+
+/// Report a file open error that is not a missing file.
+/// A normal user gets that error from a mode of 000.
+/// Root can read a mode of 000.
+/// For root, the path is a child of a regular file.
+/// The response is not HTTP 404.
+/// The error names the path and the cause.
 #[cfg(unix)]
 #[test]
 #[requires(true)]
@@ -1193,14 +1211,17 @@ fn pack_server_reports_an_unreadable_file() {
     let root = setup_test_dir();
     let path = root.path().join("big");
     std::fs::write(&path, b"secret").unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+    let (request, cause): (&'static [u8], &'static str) = if pack_test_euid_is_root() {
+        (b"GET /big/child HTTP/1.1\r\n\r\n", "directory")
+    } else {
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+        (b"GET /big HTTP/1.1\r\n\r\n", "permission")
+    };
     let mut server = PackServer::start(root.path().to_owned());
     wait_until_pack_accept_is_ready(&server);
     let mut client =
         std::net::TcpStream::connect(server.address).expect("the pack client connects");
-    client
-        .write_all(b"GET /big HTTP/1.1\r\n\r\n")
-        .expect("the pack client writes");
+    client.write_all(request).expect("the pack client writes");
     wait_for_pack_request(&server);
     // The client reads until the worker closes the socket.
     // That close follows the file open.
@@ -1231,7 +1252,7 @@ fn pack_server_reports_an_unreadable_file() {
         .expect_err("the pack server reports the file error");
     assert!(started.elapsed() < std::time::Duration::from_secs(5));
     assert!(error.contains("big"), "{error}");
-    assert!(error.to_lowercase().contains("permission"), "{error}");
+    assert!(error.to_lowercase().contains(cause), "{error}");
     drop(client);
 }
 
