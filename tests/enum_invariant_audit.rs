@@ -1248,6 +1248,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "validation error wrapper carries the sound index position and structural diagnostic",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyPart::Wildcard",
+        "a wildcard carries the caller token unchanged. The text part already requires a non-empty string",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupPatternPart::Literal",
+        "a literal accepts any source text. The key function decides which characters stay",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupPatternPart::Wildcard",
+        "a wildcard carries the caller token unchanged. The token type has its own rules",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:RafsiAvailability::Free",
         "a free short rafsi has no claimants to constrain; the Taken alternative carries and validates the claimant list",
     ),
