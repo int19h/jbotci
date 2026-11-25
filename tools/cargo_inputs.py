@@ -19,13 +19,13 @@ from uuid import uuid4
 
 from tools.cargo_inputs_trace import TraceError, trace
 from tools.cargo_unit_layout import (
-    RECORD, UNIT_ID, is_fingerprint_hash_name, inside_unit_out, profile_inside_target,
+    PROFILE_KEEP, RECORD, UNIT_ID, fingerprint_profile, is_auxiliary_fingerprint_entry,
+    is_fingerprint_hash_name, inside_unit_out, profile_inside_target,
 )
 
 VERSION = 1
 OLD_TIME_NS = 946684800_000000000
 HASH = re.compile(r"[0-9a-f]{64}")
-UNIT_HASH = re.compile(r"-([0-9a-f]{16})(?:\.|$)")
 
 
 class InputError(Exception):
@@ -143,10 +143,6 @@ class Unit:
     def profile(self) -> Path:
         return fingerprint_profile(self.directory)
 
-    @property
-    def suffix(self) -> str:
-        return self.directory.parent.name
-
     def fingerprint_digest(self) -> str:
         return sha((self.directory / self.stem).read_bytes() + (self.directory / (self.stem + ".json")).read_bytes())
 
@@ -194,11 +190,6 @@ def is_profile_build_directory(target: Path, path: Path) -> bool:
     ):
         return False
     return True
-
-
-def fingerprint_profile(directory: Path) -> Path:
-    """Return the profile directory that owns one fingerprint directory."""
-    return directory.parents[3]
 
 
 def build_unit_child(child: Path) -> Path | None:
@@ -280,7 +271,7 @@ def read_unit(layout: Layout, directory: Path) -> Unit | None:
         name = entry.name
         if name.endswith(".json") and name != RECORD:
             metadata.append(entry)
-        elif name not in ("invoked.timestamp", RECORD) and not name.startswith(("dep-", "output-")):
+        elif not is_auxiliary_fingerprint_entry(name):
             unknown.append(entry)
     if len(metadata) > 1:
         raise InputError(f"A fingerprint directory must contain one metadata file: {directory}")
@@ -561,24 +552,14 @@ def discard_unrecorded(layout: Layout, scanned: UnitInventory, retained: set[str
     """Remove output that no retained unit in the same profile owns."""
     for directory in scanned.uncommitted.values():
         evict_unit_directory(directory)
-    hashes_by_profile: dict[Path, set[str]] = {}
     for key, unit in scanned.committed.items():
         if key not in retained:
             evict_unit_directory(unit.directory)
-        else:
-            hashes_by_profile.setdefault(unit.profile, set()).add(unit.suffix)
     for profile in profiles:
         if not profile.is_dir() or not profile_inside_target(layout.target, profile):
             continue
         if inside_unit_out(layout.target, profile):
             continue
-        valid_hashes = hashes_by_profile.get(profile, set())
-        deps = profile / "deps"
-        if deps.is_dir():
-            for path in list(deps.iterdir()):
-                match = UNIT_HASH.search(path.name)
-                if match is None or match[1] not in valid_hashes:
-                    remove(path)
         # Cargo can recreate every example copy from the retained unit outputs.
         remove(profile / "examples")
         build = profile / "build"
@@ -611,7 +592,7 @@ def scrub_outputs(layout: Layout, profiles: set[Path]) -> None:
         if inside_unit_out(layout.target, profile):
             continue
         for entry in profile.iterdir():
-            if entry.name not in ("deps", "build", ".cargo-lock"):
+            if entry.name not in PROFILE_KEEP:
                 remove(entry)
     if layout.profiles is not None:
         return

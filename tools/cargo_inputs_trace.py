@@ -15,7 +15,8 @@ import tomllib
 from typing import Callable
 
 from tools.cargo_unit_layout import (
-    EXACT_TEST_MARKERS, RECORD, UNIT_ID, fingerprint_from_out, inside_unit_out, profile_inside_target,
+    EXACT_TEST_MARKERS, UNIT_ID, fingerprint_from_out, fingerprint_profile, inside_unit_out,
+    is_auxiliary_fingerprint_entry, profile_inside_target,
 )
 from tools.release_compiler import CompilerPinError, toolchain_channel
 
@@ -475,18 +476,10 @@ def build_unit_executable_fingerprint(target: Path, executable: Path) -> Path | 
     The place is `<profile>/build/<package>/<16 hex>/out/<name>`.
     Return None when `executable` is not in that place.
     """
-    if executable.parent.name != "out":
+    fingerprint = fingerprint_from_out(executable.parent)
+    if fingerprint is None or not profile_inside_target(target, fingerprint_profile(fingerprint)):
         return None
-    compile_dir = executable.parent.parent
-    if not UNIT_ID.fullmatch(compile_dir.name):
-        return None
-    package_dir = compile_dir.parent
-    if package_dir.parent.name != "build":
-        return None
-    profile = package_dir.parent.parent
-    if not profile_inside_target(target, profile):
-        return None
-    return compile_dir / "fingerprint"
+    return fingerprint
 
 
 def regular_file(entry: Path) -> bool:
@@ -543,7 +536,7 @@ def fingerprint_ready(path: Path, run: bool) -> None:
         raise TraceError(reason)
     for entry in path.iterdir():
         name = entry.name
-        if name in ("invoked.timestamp", RECORD) or name.startswith(("dep-", "output-")):
+        if is_auxiliary_fingerprint_entry(name):
             continue
         if run and not name.startswith("run-build-script-"):
             raise TraceError(reason)
@@ -566,41 +559,36 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
     """
     if not executable.name.startswith("build_script_") or executable.name == "build_script_":
         return None
-    if executable.parent.name != "out":
+    compile_fingerprint = fingerprint_from_out(executable.parent)
+    if compile_fingerprint is None:
         return None
-    compile_dir = executable.parent.parent
-    if not UNIT_ID.fullmatch(compile_dir.name):
-        return None
+    compile_dir = compile_fingerprint.parent
     package_dir = compile_dir.parent
-    build_dir = package_dir.parent
-    # The package name can end in 16 hex characters. The `out/<id>` shape is the layout.
-    if build_dir.name != "build":
-        return None
-    profile = build_dir.parent
+    profile = fingerprint_profile(compile_fingerprint)
     if not profile_inside_target(target, profile):
         raise TraceError("Unknown build script unit layout")
-    compile_fingerprint = compile_dir / "fingerprint"
     if not fingerprint_names(compile_fingerprint, "build-script-"):
         raise TraceError("Unknown build script unit layout")
-    run_id = out_dir.parent.name
-    out_package = out_dir.parent.parent
-    out_build = out_package.parent
-    out_profile = out_build.parent
+    run_fingerprint = fingerprint_from_out(out_dir)
+    # The package name can end in 16 hex characters. The `out/<id>` shape is the layout.
     if (
-        out_dir.name != "out"
-        or not UNIT_ID.fullmatch(run_id)
-        or run_id == compile_dir.name
-        or out_build.name != "build"
-        or out_package.name != package_dir.name
+        run_fingerprint is None
+        or run_fingerprint.parent.name == compile_dir.name
+        or not out_dir.is_relative_to(target)
+    ):
+        raise TraceError("Unknown build script unit layout")
+    out_package = run_fingerprint.parents[1]
+    out_profile = fingerprint_profile(run_fingerprint)
+    if (
+        out_package.name != package_dir.name
         or not profiles_match(profile, out_profile, requested_target)
         or not profile_inside_target(target, out_profile)
-        or not out_dir.is_relative_to(target)
     ):
         raise TraceError("Unknown build script unit layout")
     if package_dir.name != cargo_package:
         raise TraceError(
             f"The target package {package_dir.name} does not match CARGO_PKG_NAME {cargo_package}")
-    return out_dir.parent / "fingerprint"
+    return run_fingerprint
 
 
 class Parser:
@@ -792,7 +780,8 @@ class Parser:
             if not (process.from_pinned_dx and metadata_free_probe(arguments)):
                 raise TraceError(UNSUPPORTED_COMPILER)
 
-        if path.name.startswith(("build-script-", "build_script_")) and under_profile_build(self.target, path):
+        # Cargo 1.100.0 runs `build_script_<stem>`. A `build-script-` name is not a script.
+        if path.name.startswith("build_script_") and under_profile_build(self.target, path):
             self.record_build_script(process, path, env)
         if compiler == self.compiler and cargo_rustc_metadata(arguments):
             self.record_compile(process, arguments, env)
@@ -849,9 +838,9 @@ class Parser:
         if self.nested_output(process, directory):
             return
         fingerprint = fingerprint_from_out(directory)
-        if fingerprint is None or not profile_inside_target(self.target, fingerprint.parents[3]):
+        if fingerprint is None or not profile_inside_target(self.target, fingerprint_profile(fingerprint)):
             raise TraceError("Unknown rustc unit layout")
-        path_package = directory.parents[1].name
+        path_package = fingerprint.parents[1].name
         if path_package != package:
             raise TraceError(f"The target package {path_package} does not match CARGO_PKG_NAME {package}")
         key = fingerprint.relative_to(self.target).as_posix()

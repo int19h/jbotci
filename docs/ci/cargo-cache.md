@@ -29,13 +29,13 @@ The CLI release tooling job pins the Debian package to `2.1.0-5`. [Test workflow
 ## Completed and unfinished units
 
 Each cached job writes a time marker before its first Cargo call.
-Cargo 1.100.0 leaves the modification time of the hash file unchanged when it reuses a unit.
-Cargo writes a new hash when it rebuilds a compile unit, a build-script binary, or a build-script run.
+Cargo 1.100.0 keeps the modification time of the hash file for a reused unit.
+A rebuild of a compile unit, a build-script binary, or a build-script run writes a new hash.
 
 An interrupted rebuild can leave an empty hash file beside metadata from the last build.
 If the first build stops during the hash write, the empty hash can precede the metadata.
 Inventory treats both units as unfinished.
-Restore and save remove its fingerprint and artifacts.
+Restore and save remove the fingerprint and artifacts of each unfinished unit.
 The scanner accepts only a Cargo hash name for the pinned layout.
 The same metadata rules apply to empty and non-empty hashes.
 A malformed non-empty hash, invalid metadata, or multiple metadata files still cause an error.
@@ -90,7 +90,9 @@ The trace parser retains file paths, unit metadata, and process identities.
 It records the executable, parent PID, and argument count without argument values or environment values.
 When the executable is inside the traced target, a rejected operation also records that path.
 The trace decides a candidate from the operation position in the traced target.
-When its name starts with `build-script-` or `build_script_`, an executable under a profile `build` directory is a build-script candidate.
+Cargo 1.100.0 runs a build script as `build_script_<stem>`.
+An executable with that name under a profile `build` directory is a build-script candidate.
+The trace does not treat a name that starts with `build-script-` as a build script.
 When that executable is in the Cargo 1.100.0 unit place, the trace reads its fingerprint first.
 When the fingerprint has an exact test or bench marker, the trace does not make the execution a unit.
 The exact markers are `test-lib-`, `test-bin-`, `test-integration-test-`, `test-example-`, and `test-bench-`.
@@ -179,10 +181,15 @@ An inline comment is not part of the value.
 The drift tests compare Rust pins with the channel in `rust-toolchain.toml`.
 They read job container images and workflow or job `env` values.
 They accept registry prefixes and tags such as `1.100.0-slim-bookworm`.
-The tests do not read Rust image references in shell commands.
-Use the resolver output when a container needs a digest.
-The resolver reads the tag and obtains the matching digest.
+The repository name is the last path component before the tag or the digest.
+They read `FROM` lines in Dockerfiles that the build configuration names.
+`render.yaml` names one Dockerfile through `dockerfilePath`.
 
+A workflow names a Dockerfile through the `file` input of `docker/build-push-action`.
+The tests compare each Rust image on those lines with the channel.
+The tests do not read Rust image references in shell commands.
+If a container needs a digest, use the resolver output.
+The resolver reads the tag and obtains the matching digest.
 The tests compare the version text in this guide and `README.md` after they read Markdown formatting.
 
 ## Release compiler checks
@@ -295,3 +302,9 @@ CI disables and removes incremental directories because their session hashes do 
 Cargo recreates uplifted outputs, which are copies outside the unit directory.
 Save and restore remove the entire `examples` directory for that profile.
 The original examples stay in the retained unit directories.
+Save and restore keep the profile `build` directory.
+They also keep `.cargo-lock`, `.cargo-artifact-lock`, and `.cargo-build-lock`.
+Cargo 1.100.0 writes those three lock files.
+
+Save and restore remove every other entry in the profile.
+That removal includes a `deps` directory.

@@ -89,7 +89,7 @@ def exactly_one(text: str, key: str, pattern: re.Pattern[str]) -> str:
     return found[0]
 
 
-def _jobs(root: object) -> list[tuple[str, YamlMapping]]:
+def jobs(root: object) -> list[tuple[str, YamlMapping]]:
     if not isinstance(root, YamlMapping):
         raise PinError("The workflow pin is unavailable.")
     jobs: list[tuple[str, YamlMapping]] = []
@@ -105,7 +105,7 @@ def _jobs(root: object) -> list[tuple[str, YamlMapping]]:
     return jobs
 
 
-def _direct(node: YamlMapping, key: str) -> list[object]:
+def direct(node: YamlMapping, key: str) -> list[object]:
     return [value for name, value in node.pairs if name == key]
 
 
@@ -113,7 +113,7 @@ def _string_values(node: object, key: str) -> list[str]:
     if not isinstance(node, YamlMapping):
         raise PinError("The workflow pin is unavailable.")
     found: list[str] = []
-    for value in _direct(node, key):
+    for value in direct(node, key):
         if not isinstance(value, str):
             raise PinError("The workflow pin is unavailable.")
         found.append(value)
@@ -123,8 +123,8 @@ def _string_values(node: object, key: str) -> list[str]:
 def job_env_values(text: str, key: str) -> list[tuple[str, str]]:
     """Return `(job, value)` for each job-level `env` declaration of `key`."""
     found: list[tuple[str, str]] = []
-    for job_name, job in _jobs(load_workflow(text)):
-        for env in _direct(job, "env"):
+    for job_name, job in jobs(load_workflow(text)):
+        for env in direct(job, "env"):
             if not isinstance(env, YamlMapping):
                 raise PinError("The workflow pin is unavailable.")
             for value in _string_values(env, key):

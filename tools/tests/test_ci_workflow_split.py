@@ -15,7 +15,10 @@ from markdown_it import MarkdownIt
 
 from tools.cargo_inputs_trace import dioxus_cli_version, shared_rustup_home
 from tools.release_compiler import toolchain_channel
-from tools.workflow_images import workflow_rust_versions
+from tools.workflow_images import (
+    dockerfile_rust_versions, named_dockerfiles, require_channel, workflow_dockerfiles,
+    workflow_rust_versions,
+)
 from tools.workflow_pins import PinError, exactly_one, job_env_values
 
 
@@ -401,7 +404,11 @@ class CiWorkflowSplitTests(unittest.TestCase):
             workflow_rust_versions(workflow),
             ["1.100.0", "1.99.0", "1.100.0", "1.99.0", "1.99.1", "1.100.0"],
         )
-        with self.assertRaisesRegex(PinError, "Rust image pin in YAML"):
+        with self.assertRaisesRegex(
+            PinError,
+            "job build container image value 'docker.io/library/rust:latest' is not a full Rust version. "
+            "The tag must start with a full Rust version.",
+        ):
             workflow_rust_versions(workflow.replace("rust:1.99.0-slim-bookworm", "rust:latest"))
         with self.assertRaisesRegex(PinError, "Declare a Rust version in RUSTUP_TOOLCHAIN"):
             workflow_rust_versions(workflow.replace("1.99.1", "stable"))
@@ -429,6 +436,63 @@ class CiWorkflowSplitTests(unittest.TestCase):
                 with self.subTest(workflow=workflow):
                     with self.assertRaisesRegex(PinError, "Use the image resolver"):
                         workflow_rust_versions(workflow)
+
+    def test_a_registry_port_does_not_make_the_repository_rust(self) -> None:
+        workflow = (
+            "jobs:\n"
+            "  build:\n"
+            "    container: 'rust:5000/team/alpine:3.24'\n"
+            "    env:\n"
+            "      OTHER: myrust:1.100.0\n"
+            "      BASE: not-rust:1.100.0\n"
+        )
+        self.assertEqual(workflow_rust_versions(workflow), [])
+        broken = "jobs:\n  build:\n    env: {LANGUAGE: rust}\n"
+        with self.assertRaisesRegex(
+            PinError,
+            "job build env LANGUAGE value 'rust' is not a full Rust version. "
+            "The tag must start with a full Rust version.",
+        ):
+            workflow_rust_versions(broken)
+
+    def test_named_dockerfiles_match_the_toolchain_channel(self) -> None:
+        paths = named_dockerfiles(REPOSITORY_ROOT)
+        relative = [path.relative_to(REPOSITORY_ROOT).as_posix() for path in paths]
+        self.assertEqual(relative, [
+            "deploy/render/Dockerfile",
+            "deploy/render/Dockerfile.runtime",
+        ])
+        for path in paths:
+            with self.subTest(file=relative[paths.index(path)]):
+                source = path.relative_to(REPOSITORY_ROOT).as_posix()
+                versions = dockerfile_rust_versions(path.read_text(encoding="utf-8"), source)
+                require_channel(versions, self.channel, source)
+
+    def test_a_stale_dockerfile_rust_image_fails(self) -> None:
+        text = "FROM rust:1.99.0-bookworm AS build\n"
+        source = "deploy/render/Dockerfile"
+        versions = dockerfile_rust_versions(text, source)
+        self.assertEqual(versions, ["1.99.0"])
+        with self.assertRaisesRegex(PinError, "deploy/render/Dockerfile pins Rust 1.99.0"):
+            require_channel(versions, "1.100.0", source)
+        runtime = "FROM --platform=linux/amd64 debian:bookworm-slim AS runtime\n"
+        self.assertEqual(dockerfile_rust_versions(runtime, "Dockerfile.runtime"), [])
+
+    def test_declared_dockerfile_paths_exclude_shell_commands(self) -> None:
+        text = (
+            "jobs:\n"
+            "  build:\n"
+            "    steps:\n"
+            "      - run: docker build -f deploy/stale/Dockerfile .\n"
+            "      - uses: docker/build-push-action@v7\n"
+            "        with:\n"
+            "          file: deploy/render/Dockerfile.runtime\n"
+        )
+        paths = workflow_dockerfiles(REPOSITORY_ROOT, text)
+        self.assertEqual(
+            [path.relative_to(REPOSITORY_ROOT).as_posix() for path in paths],
+            ["deploy/render/Dockerfile.runtime"],
+        )
 
 
 class TracedTargetTests(unittest.TestCase):

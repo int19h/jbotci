@@ -19,6 +19,7 @@ from tools.cargo_inputs_trace import (
     process_snapshot, query_rustup_rustc, rustup_binary, string_at, supported_compiler, trace,
     shared_rustup_home, version_line_matches,
 )
+from tools.cargo_unit_layout import inside_unit_out
 from tools.release_compiler import toolchain_channel
 
 
@@ -348,7 +349,7 @@ class CargoUnitTests(unittest.TestCase):
         self.assertEqual(set(units), {build_key})
         self.assertEqual(units[build_key].kind, c.Kind.RUN)
         self.assertEqual(units[build_key].cargo_hash, 42)
-        self.assertEqual(units[build_key].suffix, "fedcba9876543210")
+        self.assertEqual(units[build_key].directory.parent.name, "fedcba9876543210")
         self.assertEqual(units[build_key].profile, self.layout.target / "opt")
 
     def test_two_metadata_files_fail_closed(self) -> None:
@@ -538,7 +539,7 @@ class CargoUnitTests(unittest.TestCase):
         cases = [
             "/tmp/build-script-build",
             str(target / "debug/build-script-build"),
-            str(target / "debug/deps/build-script-build-0123456789abcdef"),
+            str(target / "debug/examples/build-script-build-0123456789abcdef"),
         ]
         for executable in cases:
             with self.subTest(executable=executable):
@@ -571,10 +572,14 @@ class CargoUnitTests(unittest.TestCase):
         self.assertEqual(events[-1]["errors"], 0)
         self.assertFalse(any(event["event"] == "unit" for event in events))
         inside = out / "sub/build-script-build"
-        self.assert_trace_layout_error(
-            f'1 execve("{inside}", ["{inside}"], {environment}) = 0\n',
-            "Unknown build script unit layout",
-        )
+        output = io.StringIO()
+        parser = Parser(self.workspace, target, output, compiler=FIXTURE_COMPILER)
+        parser.feed([(
+            f'1 execve("{inside}", ["{inside}"], {environment}) = 0\n'
+        ).encode()])
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(events[-1]["errors"], 0)
+        self.assertFalse(any(event["event"] == "unit" for event in events))
 
     def test_trace_rejects_a_build_script_candidate_without_its_environment(self) -> None:
         target = self.layout.target
@@ -887,6 +892,11 @@ class CargoUnitTests(unittest.TestCase):
         stale_deps = profile / f"deps/libother-{stale}.rlib"
         good_deps = profile / f"deps/libapp-{good}.rlib"
         unhashed_deps = profile / "deps/unhashed.rlib"
+        locks = [
+            profile / ".cargo-lock",
+            profile / ".cargo-artifact-lock",
+            profile / ".cargo-build-lock",
+        ]
         stale_example = profile / f"examples/demo-{stale}"
         # The failed example name ends in the retained sibling's unit ID.
         colliding_example = profile / f"examples/demo-{good}"
@@ -897,6 +907,7 @@ class CargoUnitTests(unittest.TestCase):
         paths = [
             good_artifact, bad_artifact, stale_build, stale_deps, good_deps, unhashed_deps,
             stale_example, colliding_example, unhashed_example, uplifted, stray, unexecuted,
+            *locks,
         ]
         for path in paths:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -915,7 +926,10 @@ class CargoUnitTests(unittest.TestCase):
             self.assertEqual(stats["recorded"], 0)
         self.assertTrue(good_dir.is_dir())
         self.assertTrue(good_artifact.is_file())
-        self.assertTrue(good_deps.is_file())
+        self.assertFalse((profile / "deps").exists())
+        self.assertFalse(good_deps.exists())
+        for path in locks:
+            self.assertTrue(path.is_file(), path.name)
         self.assertFalse(colliding_example.exists())
         self.assertFalse(bad_dir.exists())
         self.assertFalse(bad_artifact.exists())
@@ -966,7 +980,8 @@ class CargoUnitTests(unittest.TestCase):
         subprocess.run(["git", "config", "user.email", "cache@example.invalid"], cwd=self.workspace, check=True)
         subprocess.run(["git", "config", "user.name", "Cache Test"], cwd=self.workspace, check=True)
 
-    def write_record(self, layout: c.Layout, directory: Path, stem: str) -> None:
+    def write_record(self, layout: c.Layout, directory: Path, stem: str,
+                     dependencies: dict[str, str] | None = None) -> None:
         self.write_fingerprint(directory, stem, 7)
         unit = c.read_unit(layout, directory)
         assert unit is not None
@@ -980,9 +995,49 @@ class CargoUnitTests(unittest.TestCase):
             "directories": {},
             "env": {},
             "cargo_env": {},
-            "dependencies": {},
+            "dependencies": {} if dependencies is None else dependencies,
         }
         c.atomic_json(directory / c.RECORD, {"data": data, "sha256": c.record_signature(data)})
+
+    def test_an_unfinished_dependency_invalidates_its_consumer(self) -> None:
+        self.ensure_git()
+        for mode in ("restore", "save"):
+            with self.subTest(mode=mode):
+                self.assert_unfinished_dependency_drops_its_consumer(mode)
+
+    def assert_unfinished_dependency_drops_its_consumer(self, mode: str) -> None:
+        library = "a" * 16
+        consumer = "b" * 16
+        other = "c" * 16
+        target = self.root / f"unfinished-{mode}"
+        profile = target / "debug"
+        layout = c.Layout(self.workspace, target)
+        library_dir = profile / f"build/lib/{library}/fingerprint"
+        consumer_dir = profile / f"build/app/{consumer}/fingerprint"
+        other_dir = profile / f"build/other/{other}/fingerprint"
+        self.write_record(layout, library_dir, "lib-lib")
+        library_unit = c.read_unit(layout, library_dir)
+        assert library_unit is not None
+        signature = c.record_signature(c.load_record(library_unit))
+        library_key = library_dir.relative_to(target).as_posix()
+        self.write_record(layout, consumer_dir, "bin-app", {library_key: signature})
+        self.write_record(layout, other_dir, "bin-other")
+        (library_dir / "lib-lib").write_text("")
+        if mode == "restore":
+            stats = c.restore(layout, normalize=False)
+            self.assertEqual(stats, {"retained": 1, "invalidated": 1})
+        else:
+            session = self.root / f"session-unfinished-{mode}"
+            c.begin(layout, session)
+            marker_ns = json.loads((session / "session.json").read_text())["marker_ns"]
+            for directory, stem in ((consumer_dir, "bin-app"), (other_dir, "bin-other")):
+                os.utime(directory / stem, ns=(marker_ns - 1_000_000, marker_ns - 1_000_000))
+            stats = c.save(layout, session)
+            self.assertEqual(stats["retained"], 1)
+            self.assertEqual(stats["discarded"], 1)
+        self.assertTrue(other_dir.is_dir())
+        self.assertFalse(library_dir.exists())
+        self.assertFalse(consumer_dir.exists())
 
     def test_trace_rejects_an_unknown_cargo_rustc_layout(self) -> None:
         output = io.StringIO()
@@ -1021,9 +1076,12 @@ class CargoUnitTests(unittest.TestCase):
         dependency = target / "debug/deps/libdemo-bbbbbbbbbbbbbbbb.rlib"
         dependency.parent.mkdir(parents=True)
         dependency.write_text("data")
-        c.discard_unrecorded(self.layout, scanned, {key}, c.profile_directories(self.layout, scanned))
+        profiles = c.profile_directories(self.layout, scanned)
+        c.discard_unrecorded(self.layout, scanned, {key}, profiles)
+        c.scrub_outputs(self.layout, profiles)
         self.assertTrue(fingerprint.is_dir())
-        self.assertTrue(dependency.is_file())
+        self.assertFalse(dependency.exists())
+        self.assertFalse((target / "debug/deps").exists())
 
     def test_a_profile_or_package_named_out_keeps_its_build_unit(self) -> None:
         target = self.layout.target
@@ -1038,6 +1096,13 @@ class CargoUnitTests(unittest.TestCase):
         keys = {path.relative_to(target).as_posix() for path in paths}
         self.assertEqual(set(c.inventory(self.layout)), keys)
 
+    def test_the_unit_root_is_not_inside_its_own_output(self) -> None:
+        root = Path("/a/release/build/p/0123456789abcdef/out/nested-target")
+        self.assertFalse(inside_unit_out(root, root))
+        self.assertFalse(inside_unit_out(root, root / "notes"))
+        inside = root / "debug/build/child/aaaaaaaaaaaaaaaa/out/file"
+        self.assertTrue(inside_unit_out(root, inside))
+
     def test_a_nested_target_inside_out_dir_is_not_a_unit(self) -> None:
         fingerprint = self.layout.target / (
             "debug/build/demo/0123456789abcdef/out/nested-target/debug/build/child/aaaaaaaaaaaaaaaa/fingerprint"
@@ -1046,7 +1111,7 @@ class CargoUnitTests(unittest.TestCase):
         self.assertEqual(c.inventory(self.layout), {})
         self.assertTrue(fingerprint.is_dir())
 
-    def test_cleanup_keeps_hashes_inside_one_profile(self) -> None:
+    def test_cleanup_removes_deps_directories(self) -> None:
         target = self.layout.target
         suffix = "a" * 16
         debug_fingerprint = target / f"debug/build/app/{suffix}/fingerprint"
@@ -1061,10 +1126,13 @@ class CargoUnitTests(unittest.TestCase):
             path.write_text("data")
         scanned = c.scan_units(self.layout)
         key = debug_fingerprint.relative_to(target).as_posix()
-        c.discard_unrecorded(self.layout, scanned, {key}, c.profile_directories(self.layout, scanned))
-        self.assertTrue(debug_dependency.is_file())
+        profiles = c.profile_directories(self.layout, scanned)
+        c.discard_unrecorded(self.layout, scanned, {key}, profiles)
+        c.scrub_outputs(self.layout, profiles)
+        self.assertTrue(debug_fingerprint.is_dir())
+        self.assertFalse((target / "debug/deps").exists())
+        self.assertFalse((target / "release/deps").exists())
         self.assertFalse(debug_example.exists())
-        self.assertFalse(release_dependency.exists())
         self.assertFalse(release_example.exists())
 
     def test_restore_skips_a_nested_profile_removed_with_its_outer_unit(self) -> None:
