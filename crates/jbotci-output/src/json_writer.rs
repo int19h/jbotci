@@ -83,10 +83,7 @@ fn key<W: Write>(
             Color::Field
         },
         options.color,
-        |output| {
-            let escaped = crate::styled::escape_c1_controls(text);
-            serde_json::to_writer(output, escaped.as_ref()).map_err(json_io_error)
-        },
+        |output| write_json_string(output, text),
     )
 }
 
@@ -130,12 +127,9 @@ fn write_value(
             punctuation(output, b"}", options)
         }
         Value::Object(fields) => write_object(output, fields, indent, options, compact),
-        Value::String(text) => {
-            let escaped = crate::styled::escape_c1_controls(text);
-            colored(output, Color::String, options.color, |output| {
-                serde_json::to_writer(output, escaped.as_ref()).map_err(json_io_error)
-            })
-        }
+        Value::String(text) => colored(output, Color::String, options.color, |output| {
+            write_json_string(output, text)
+        }),
         scalar => colored(output, Color::Number, options.color, |output| {
             scalar
                 .serialize(&mut serde_json::Serializer::new(output))
@@ -236,4 +230,115 @@ fn write_object(
 #[ensures(true)]
 fn json_io_error(error: serde_json::Error) -> io::Error {
     io::Error::new(error.io_error_kind().unwrap_or(io::ErrorKind::Other), error)
+}
+
+/// Write one JSON string. DEL and C1 controls use `\u00XX`. A reader gets
+/// the original character. Other characters follow the usual JSON escapes.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn write_json_string<W: Write>(output: &mut W, text: &str) -> io::Result<()> {
+    output.write_all(b"\"")?;
+    let mut start = 0usize;
+    for (index, character) in text.char_indices() {
+        if !json_string_needs_escape(character) {
+            continue;
+        }
+        if index > start {
+            output.write_all(text[start..index].as_bytes())?;
+        }
+        write_json_escape(output, character)?;
+        start = index + character.len_utf8();
+    }
+    if start < text.len() {
+        output.write_all(text[start..].as_bytes())?;
+    }
+    output.write_all(b"\"")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn json_string_needs_escape(character: char) -> bool {
+    matches!(character, '"' | '\\' | '\u{08}' | '\u{0C}')
+        || (character as u32) < 0x20
+        || character == '\u{7F}'
+        || (0x80..=0x9F).contains(&(character as u32))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_json_escape<W: Write>(output: &mut W, character: char) -> io::Result<()> {
+    match character {
+        '"' => output.write_all(b"\\\""),
+        '\\' => output.write_all(b"\\\\"),
+        '\u{08}' => output.write_all(b"\\b"),
+        '\u{0C}' => output.write_all(b"\\f"),
+        '\n' => output.write_all(b"\\n"),
+        '\r' => output.write_all(b"\\r"),
+        '\t' => output.write_all(b"\\t"),
+        other => {
+            let code = other as u32;
+            let hex = b"0123456789abcdef";
+            output.write_all(&[
+                b'\\',
+                b'u',
+                b'0',
+                b'0',
+                hex[((code >> 4) & 0xF) as usize],
+                hex[(code & 0xF) as usize],
+            ])
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::JsonRenderOptions;
+    use crate::budget::ByteLimit;
+    use bityzba::requires;
+    use serde_json::Value;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_reader_gets_the_original_control() {
+        let mut fields = serde_json::Map::new();
+        fields.insert("a\u{7f}".to_owned(), Value::String("a\u{85}b".to_owned()));
+        let value = Value::Object(fields);
+        let limit = ByteLimit::new(4096).expect("positive limit");
+        for color in [false, true] {
+            let options = JsonRenderOptions {
+                color,
+                ..JsonRenderOptions::default()
+            };
+            let encoded = render(&value, 0, options, true, limit).expect("json");
+            assert!(encoded.contains("\\u007f"), "{encoded}");
+            assert!(encoded.contains("\\u0085"), "{encoded}");
+            assert!(!encoded.contains('\u{85}'), "{encoded}");
+            assert!(!encoded.contains('\u{7f}'), "{encoded}");
+            let plain = strip_style(&encoded);
+            let decoded: Value = serde_json::from_str(&plain).expect("decode");
+            assert_eq!(decoded["a\u{7f}"], Value::String("a\u{85}b".to_owned()));
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn strip_style(text: &str) -> String {
+        let mut output = String::new();
+        let mut characters = text.chars().peekable();
+        while let Some(character) = characters.next() {
+            if character == '\u{1b}' && characters.peek() == Some(&'[') {
+                characters.next();
+                for next in characters.by_ref() {
+                    if next == 'm' {
+                        break;
+                    }
+                }
+                continue;
+            }
+            output.push(character);
+        }
+        output
+    }
 }

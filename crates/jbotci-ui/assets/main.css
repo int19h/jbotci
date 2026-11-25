@@ -411,7 +411,7 @@ body::-webkit-scrollbar-thumb:hover,
   margin: 0;
   padding: 0.08rem 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
   align-items: center;
   column-gap: 0.65rem;
   font-size: 0.92rem;
@@ -421,7 +421,7 @@ body::-webkit-scrollbar-thumb:hover,
 .app-topbar-left {
   grid-column: 1;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.16rem;
   padding-left: 0.2rem;
@@ -439,7 +439,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-topbar-brand-logo {
   display: block;
-  height: 1.9rem;
+  height: min(1.9rem, 11vw);
   width: auto;
 }
 
@@ -461,9 +461,9 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page .app-topbar .app-topbar-settings-toggle {
-  width: 1.55rem;
-  min-width: 1.55rem;
-  height: 1.55rem;
+  width: min(1.55rem, 9vw);
+  min-width: min(1.55rem, 9vw);
+  height: min(1.55rem, 9vw);
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -544,9 +544,9 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .theme-btn {
-  width: 1.25rem;
-  min-width: 1.25rem;
-  height: 1.25rem;
+  width: min(1.25rem, 8vw);
+  min-width: min(1.25rem, 8vw);
+  height: min(1.25rem, 8vw);
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -573,8 +573,8 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .orthography-btn {
-  width: 1.55rem;
-  min-width: 1.55rem;
+  width: min(1.55rem, 8vw);
+  min-width: min(1.55rem, 8vw);
   font-family: var(--ui-font);
   font-size: 0.82rem;
   font-weight: 400;
@@ -679,11 +679,12 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page .app-topbar .app-topbar-nav-carousel {
-  --topbar-carousel-item-width: 4.55rem;
+  --topbar-carousel-item-width: min(4.55rem, 100%);
   --topbar-carousel-gap: 0.12rem;
-  width: clamp(7.4rem, 24vw, 13.6rem);
-  min-width: 6.2rem;
-  flex: 0 1 clamp(7.4rem, 24vw, 13.6rem);
+  width: min(13.6rem, 24vw);
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
   display: block;
   position: relative;
   margin-left: 0.42rem;
@@ -800,6 +801,8 @@ body::-webkit-scrollbar-thumb:hover,
   grid-column: 3;
   justify-self: end;
   align-self: center;
+  min-width: 0;
+  max-width: 100%;
   padding-right: 0.2rem;
   color: var(--topbar-text);
   text-align: right;
@@ -808,8 +811,9 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .page-find-control {
-  width: clamp(10rem, 26vw, 18rem);
-  min-width: 10rem;
+  width: min(18rem, max(10rem, 26vw), 34vw);
+  min-width: 0;
+  max-width: 100%;
   height: 1.7rem;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1763,13 +1767,27 @@ body::-webkit-scrollbar-thumb:hover,
   font-weight: 500;
 }
 
+.parse-page .view-tab,
+.parse-page .text-tab {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .parse-page .view-tab::after,
 .parse-page .text-tab::after {
   content: attr(data-label);
   display: block;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
   height: 0;
   overflow: hidden;
+  overflow-wrap: anywhere;
   visibility: hidden;
+  white-space: normal;
   font-weight: 500;
 }
 
@@ -1820,6 +1838,20 @@ body::-webkit-scrollbar-thumb:hover,
   flex-wrap: nowrap;
   max-width: none;
   min-width: max-content;
+}
+
+.parse-page .gentufa-toolbar-fit-probe .view-tab,
+.parse-page .gentufa-toolbar-fit-probe .text-tab,
+.parse-page .gentufa-toolbar-first-row-fit-probe .view-tab,
+.parse-page .gentufa-toolbar-first-row-fit-probe .text-tab,
+.parse-page .gentufa-toolbar-fit-probe .view-tab::after,
+.parse-page .gentufa-toolbar-fit-probe .text-tab::after,
+.parse-page .gentufa-toolbar-first-row-fit-probe .view-tab::after,
+.parse-page .gentufa-toolbar-first-row-fit-probe .text-tab::after {
+  white-space: nowrap;
+  max-width: none;
+  min-width: max-content;
+  overflow-wrap: normal;
 }
 
 .parse-page .text-tab {

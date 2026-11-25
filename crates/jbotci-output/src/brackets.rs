@@ -23,6 +23,9 @@ use crate::{
 #[invariant(true)]
 pub(crate) struct BracketContext {
     pub(crate) options: BracketRenderOptions,
+    /// Owned quote text stops after this many bytes, plus one character when
+    /// the quote is longer. `usize::MAX` keeps the whole quote.
+    pub(crate) max_leaf_bytes: usize,
 }
 
 #[requires(true)]
@@ -51,7 +54,10 @@ pub fn pretty_morphology_brackets_with_limit(
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     let _ = source;
-    let context = BracketContext { options };
+    let context = BracketContext {
+        options,
+        max_leaf_bytes: limit.get(),
+    };
     let mut children = Vec::with_capacity(words.len());
     for word_like in words {
         // One load per word. A cancelled segmentation render is not a bracket string.
@@ -88,7 +94,7 @@ pub fn pretty_generated_model_brackets_with_limit(
     limit: ByteLimit,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    let sexpr = generated_model_bracket_sexpr(tree, source, options, cancellation)?;
+    let sexpr = generated_model_bracket_sexpr(tree, source, options, limit.get(), cancellation)?;
     sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
 }
 
@@ -104,6 +110,7 @@ pub(crate) fn pretty_generated_model_bracket_source_fragments_with_options(
         tree,
         source,
         options,
+        usize::MAX,
         &jbotci_interrupt::CancellationToken::never(),
     )?;
     Ok(sexpr::render_bracketed_source_fragments_with_options(
@@ -122,7 +129,7 @@ pub fn pretty_generated_model_plain_with_limit(
     limit: ByteLimit,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    let sexpr = generated_model_bracket_sexpr(tree, source, options, cancellation)?;
+    let sexpr = generated_model_bracket_sexpr(tree, source, options, limit.get(), cancellation)?;
     sexpr::render_plain_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
 }
 
@@ -138,6 +145,7 @@ pub fn pretty_generated_model_plain_source_fragments_with_options(
         tree,
         source,
         options,
+        usize::MAX,
         &jbotci_interrupt::CancellationToken::never(),
     )?;
     Ok(sexpr::render_plain_source_fragments_with_options(
@@ -171,10 +179,14 @@ pub(crate) fn generated_model_bracket_sexpr(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: BracketRenderOptions,
+    max_leaf_bytes: usize,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<sexpr::SExpr, OutputError> {
     let _ = source;
-    let context = BracketContext { options };
+    let context = BracketContext {
+        options,
+        max_leaf_bytes,
+    };
     let mut visitor = GeneratedBracketVisitor::with_cancellation(&context, cancellation);
     tree.visit_in_order(&mut visitor);
     // The visitor keeps walking so the frame stack stays balanced, but a
@@ -460,7 +472,7 @@ fn word_like_brackets_in_context(
         }) => sexpr::node(vec![
             word_leaf(zoi, source),
             word_leaf(opening_delimiter, source),
-            quoted_text_leaf(quoted_text),
+            quoted_text_leaf(quoted_text, source.max_leaf_bytes),
             word_leaf(closing_delimiter, source),
         ]),
         data!(WordLike::QuotedWords {
@@ -478,7 +490,7 @@ fn word_like_brackets_in_context(
             quoted_text,
         }) => sexpr::node(vec![
             word_leaf(marker, source),
-            quoted_text_leaf(quoted_text),
+            quoted_text_leaf(quoted_text, source.max_leaf_bytes),
         ]),
         data!(WordLike::ReplacementQuote { runs, lehai }) => {
             let mut children = Vec::new();
@@ -537,14 +549,36 @@ fn word_leaf_in_context(
 
 #[requires(true)]
 #[ensures(true)]
-fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim) -> sexpr::SExpr {
+fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim, max_leaf_bytes: usize) -> sexpr::SExpr {
     sexpr::leaf_with_range(
-        verbatim.text.trim().to_owned(),
+        bounded_leaf_text(verbatim.text.trim(), max_leaf_bytes),
         Some(new!(BracketSourceRange {
             byte_start: verbatim.span.byte_start,
             byte_end: verbatim.span.byte_end,
         })),
     )
+}
+
+/// Copy `text` when it fits in `max_bytes`. A longer text keeps one extra
+/// character past that bound, on a character boundary, so the later renderer
+/// still sees that the leaf does not fit.
+#[requires(true)]
+#[ensures(ret.len() <= text.len())]
+#[ensures(text.len() <= max_bytes || ret.len() <= max_bytes.saturating_add(4))]
+pub(crate) fn bounded_leaf_text(text: &str, max_bytes: usize) -> String {
+    if text.len() <= max_bytes {
+        return text.to_owned();
+    }
+    let mut end = max_bytes.saturating_add(1).min(text.len());
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    if end <= max_bytes
+        && let Some(character) = text[end..].chars().next()
+    {
+        end += character.len_utf8();
+    }
+    text[..end].to_owned()
 }
 
 #[requires(word.span().byte_start <= word.span().byte_end)]

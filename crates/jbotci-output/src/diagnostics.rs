@@ -3,9 +3,7 @@ use std::borrow::Cow;
 use std::io::Write;
 use std::ops::Range;
 
-use annotate_snippets::{
-    Annotation, AnnotationKind, Group, Level, Renderer, Snippet, renderer::DecorStyle,
-};
+use annotate_snippets::{AnnotationKind, Group, Level, Renderer, Snippet, renderer::DecorStyle};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_diagnostics::{
@@ -71,10 +69,35 @@ pub fn render_diagnostics_with_limit(
 ) -> Result<String, OutputError> {
     let renderer = diagnostic_renderer(options);
     let mut output = OutputBudget::new(limit).writer();
+    let excerpt = crate::styled::escape_terminal_source(source);
+    let source_label = crate::styled::escape_terminal_controls(source_label);
     for diagnostic in diagnostics {
         let remaining =
             ByteLimit::new(output.remaining()).ok_or_else(|| OutputError::Limit { limit })?;
-        let group = diagnostic_group(source_label, source, diagnostic, options, remaining)?;
+        let message = crate::styled::escape_terminal_controls(&diagnostic.message);
+        let code = crate::styled::escape_terminal_controls(&diagnostic.code);
+        let notes = diagnostic
+            .notes
+            .iter()
+            .map(|note| crate::styled::escape_terminal_controls(note))
+            .collect::<Vec<_>>();
+        let label_messages = diagnostic
+            .labels
+            .iter()
+            .map(|label| crate::styled::escape_terminal_controls(&label.message))
+            .collect::<Vec<_>>();
+        let group = diagnostic_group(
+            source_label.as_ref(),
+            &excerpt.text,
+            &excerpt.map,
+            diagnostic,
+            &label_messages,
+            message.as_ref(),
+            code.as_ref(),
+            &notes,
+            options,
+            remaining,
+        )?;
         renderer
             .render_into(&[group], &mut output, remaining.get())
             .map_err(|_| OutputError::Limit { limit })?;
@@ -94,14 +117,24 @@ pub fn render_diagnostics_with_limit(
 fn diagnostic_group<'diagnostic>(
     source_label: &'diagnostic str,
     source: &'diagnostic str,
+    source_map: &'diagnostic [usize],
     diagnostic: &'diagnostic Diagnostic,
+    label_messages: &'diagnostic [Cow<'diagnostic, str>],
+    message: &'diagnostic str,
+    code: &'diagnostic str,
+    notes: &'diagnostic [Cow<'diagnostic, str>],
     options: DiagnosticRenderOptions,
     limit: ByteLimit,
 ) -> Result<Group<'diagnostic>, OutputError> {
     let annotations = diagnostic
         .labels
         .iter()
-        .map(annotation_for_label)
+        .zip(label_messages)
+        .map(|(label, label_message)| {
+            annotation_kind(label.primary)
+                .span(mapped_label_span(label, source_map))
+                .label(label_message.as_ref())
+        })
         .collect::<Vec<_>>();
     let snippet = Snippet::source(source)
         .line_start(1)
@@ -109,13 +142,13 @@ fn diagnostic_group<'diagnostic>(
         .annotations(annotations);
     let mut group = Group::with_title(
         severity_level(diagnostic.severity)
-            .primary_title(&diagnostic.message)
-            .id(&diagnostic.code),
+            .primary_title(message)
+            .id(code),
     )
     .element(snippet);
 
-    for note in &diagnostic.notes {
-        group = group.element(Level::NOTE.message(note));
+    for note in notes {
+        group = group.element(Level::NOTE.message(note.as_ref()));
     }
     let mut remaining = limit.get();
     for note in &diagnostic.styled_notes {
@@ -150,10 +183,15 @@ fn diagnostic_renderer(options: DiagnosticRenderOptions) -> Renderer {
 
 #[requires(true)]
 #[ensures(true)]
-fn annotation_for_label(label: &DiagnosticLabel) -> Annotation<'_> {
-    annotation_kind(label.primary)
-        .span(label_span(label))
-        .label(&label.message)
+fn mapped_label_span(label: &DiagnosticLabel, map: &[usize]) -> Range<usize> {
+    let span = label_span(label);
+    if map.is_empty() {
+        return span;
+    }
+    let last = map.len() - 1;
+    let start = map[span.start.min(last)];
+    let end = map[span.end.min(last)];
+    start..end.max(start)
 }
 
 #[requires(true)]
@@ -537,6 +575,55 @@ mod tests {
         assert!(rendered.contains("FIhOI bridi/subbridi adverbial term"));
         assert!(rendered.contains("syntax accepted with warning"));
         assert!(!rendered.contains("\x1b["));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_excerpt_escapes_controls_and_keeps_the_later_span() {
+        let source = "ab\u{85}cd\u{7f}";
+        let span =
+            source_span_from_byte_offsets(Some(SourceId("<input>".to_owned())), source, 4, 6)
+                .expect("span on cd");
+        let diagnostic = Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Morphology,
+            "morphology.quote".to_owned(),
+            "bad control".to_owned(),
+            vec![DiagnosticLabel::new(span, "here".to_owned(), true)],
+            Vec::new(),
+            None,
+        );
+        let rendered = render_diagnostics(
+            "<input>",
+            source,
+            &[diagnostic],
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::Ascii,
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            }),
+        )
+        .expect("render excerpt");
+        assert!(rendered.contains("ab\\u{85}cd\\u{7f}"), "{rendered}");
+        assert!(!rendered.contains('\u{85}'), "{rendered}");
+        assert!(!rendered.contains('\u{7f}'), "{rendered}");
+        let lines = rendered.lines().collect::<Vec<_>>();
+        let source_line = lines
+            .iter()
+            .find(|line| line.contains("ab\\u{85}cd\\u{7f}"))
+            .expect("excerpt line");
+        let column = source_line
+            .find("ab\\u{85}cd\\u{7f}")
+            .expect("excerpt column");
+        let marked = column + "ab\\u{85}".len();
+        let caret_line = lines
+            .iter()
+            .find(|line| line.contains('^'))
+            .expect("caret line");
+        let caret_at = caret_line.find('^').expect("caret");
+        assert_eq!(caret_at, marked, "{rendered}");
     }
 
     #[test]

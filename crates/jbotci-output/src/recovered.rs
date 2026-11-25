@@ -252,7 +252,10 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
             cancellation,
         );
     }
-    let context = brackets::BracketContext { options };
+    let context = brackets::BracketContext {
+        options,
+        max_leaf_bytes: limit.get(),
+    };
     let children = recovered_morphology_sequence(recovered, source)?
         .into_iter()
         .map(|item| match item.into_data() {
@@ -304,7 +307,7 @@ pub fn pretty_recovered_morphology_tree_with_limit(
         .into_iter()
         .map(|item| match item.into_data() {
             data!(RecoveredMorphologySequenceItem::Valid { word }) => {
-                tree::morphology_tree_value(word, source, options)
+                tree::morphology_tree_value(word, source, options, limit.get())
             }
             data!(RecoveredMorphologySequenceItem::Error { item }) => {
                 recovery_error_tree_value(&item)
@@ -600,9 +603,13 @@ impl<'source, 'errors> RecoveredBracketBuilder<'source, 'errors> {
         source: &'source str,
         errors: &'errors [SyntaxError],
         options: BracketRenderOptions,
+        max_leaf_bytes: usize,
     ) -> Self {
         Self {
-            context: brackets::BracketContext { options },
+            context: brackets::BracketContext {
+                options,
+                max_leaf_bytes,
+            },
             source,
             errors,
             stack: Vec::new(),
@@ -755,6 +762,8 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
     if cancellation.is_cancelled() {
         return Err(OutputError::Interrupted);
     }
+    // The conversion takes the tree by value. Each token is a shared pointer.
+    // The quote text stays in that pointer. The leaf copy uses the byte limit.
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
         return crate::pretty_generated_model_brackets_with_limit(
             &valid,
@@ -764,7 +773,7 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
             cancellation,
         );
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, limit.get());
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -858,12 +867,18 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
             &valid,
             source,
             options,
+            max_chars.saturating_mul(4).saturating_add(4),
             &jbotci_interrupt::CancellationToken::never(),
         )?;
         let document = sexpr::bracket_document(&sexpr::flatten(sexpr), options);
         return Ok(document.within_char_budget(max_chars, options.color));
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    let mut visitor = RecoveredBracketBuilder::new(
+        source,
+        &recovered.errors,
+        options,
+        max_chars.saturating_mul(4).saturating_add(4),
+    );
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -1029,7 +1044,7 @@ pub fn pretty_recovered_syntax_bracket_source_fragments_with_options(
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
         return crate::pretty_bracket_source_fragments_with_options(&valid, source, options);
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, usize::MAX);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -1053,7 +1068,7 @@ pub fn pretty_recovered_syntax_plain_source_fragments_with_options(
             &valid, source, options,
         );
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, usize::MAX);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -1076,6 +1091,8 @@ pub fn pretty_recovered_syntax_plain_with_limit(
     if cancellation.is_cancelled() {
         return Err(OutputError::Interrupted);
     }
+    // The conversion takes the tree by value. Each token is a shared pointer.
+    // The quote text stays in that pointer. The leaf copy uses the byte limit.
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
         return crate::pretty_generated_model_plain_with_limit(
             &valid,
@@ -1085,7 +1102,7 @@ pub fn pretty_recovered_syntax_plain_with_limit(
             cancellation,
         );
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, limit.get());
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -1166,7 +1183,12 @@ pub fn compact_recovered_syntax_json_string_with_limits(
         decompose_lujvo: false,
         show_elided: options.show_elided,
     };
-    let tree = tree::recovered_generated_model_tree_value(recovered, source, tree_options)?;
+    let tree = tree::recovered_generated_model_tree_value(
+        recovered,
+        source,
+        tree_options,
+        projection_limit.get(),
+    )?;
     let value = recovered_tree_json_value(&tree);
     crate::render_compact_json_value_with_limit(&value, options, limit)
 }
@@ -1692,6 +1714,63 @@ mod tests {
         .expect("a recovered quote parses");
         let limit = crate::budget::ByteLimit::new(32).expect("positive limit");
         let cancel = jbotci_interrupt::CancellationToken::never();
+        let options = BracketRenderOptions::default();
+        let generated_sexpr = crate::brackets::generated_model_bracket_sexpr(
+            &generated,
+            &source,
+            options,
+            limit.get(),
+            &cancel,
+        )
+        .expect("generated projection");
+        let morphology_context = crate::brackets::BracketContext {
+            options,
+            max_leaf_bytes: limit.get(),
+        };
+        let morphology_sexpr = crate::sexpr::node(
+            words
+                .iter()
+                .map(|word| crate::brackets::word_like_brackets(word, &morphology_context))
+                .collect(),
+        );
+        let valid = recovered
+            .parse_tree
+            .as_ref()
+            .clone()
+            .try_into_valid()
+            .expect("recovered quote converts");
+        let recovered_sexpr = crate::brackets::generated_model_bracket_sexpr(
+            &valid,
+            &source,
+            options,
+            limit.get(),
+            &cancel,
+        )
+        .expect("recovered projection");
+        let tree_options = crate::TreeRenderOptions::default();
+        let generated_tree = crate::tree::projected_generated_syntax_tree_value_with_index(
+            &generated,
+            &source,
+            tree_options,
+            limit.get(),
+            None,
+        );
+        let morphology_tree =
+            crate::tree::morphology_tree_value(&words[0], &source, tree_options, limit.get());
+        for expr in [&generated_sexpr, &morphology_sexpr, &recovered_sexpr] {
+            let longest = longest_leaf_bytes(expr);
+            assert!(
+                longest > limit.get() && longest <= limit.get() + 4,
+                "projected leaf is {longest} bytes"
+            );
+        }
+        for value in [&generated_tree, &morphology_tree] {
+            let longest = longest_tree_text(value);
+            assert!(
+                longest > limit.get() && longest <= limit.get() + 4,
+                "projected tree text is {longest} bytes"
+            );
+        }
         for color in [false, true] {
             let options = BracketRenderOptions {
                 color,
@@ -1720,6 +1799,39 @@ mod tests {
                     "{color}: {result:?}"
                 );
             }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn longest_leaf_bytes(expr: &crate::sexpr::SExpr) -> usize {
+        match expr {
+            crate::sexpr::SExpr::Leaf { text, .. } => text.len(),
+            crate::sexpr::SExpr::Node { children, .. } => {
+                children.iter().map(longest_leaf_bytes).max().unwrap_or(0)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn longest_tree_text(value: &crate::tree::TreeValue) -> usize {
+        match value {
+            crate::tree::TreeValue::Text(text)
+            | crate::tree::TreeValue::Verbatim { text, .. }
+            | crate::tree::TreeValue::Word { phonemes: text, .. } => text.len(),
+            crate::tree::TreeValue::Node(node) => node
+                .entries
+                .iter()
+                .map(|entry| longest_tree_text(&entry.value))
+                .max()
+                .unwrap_or(0),
+            crate::tree::TreeValue::Collection(items) => {
+                items.iter().map(longest_tree_text).max().unwrap_or(0)
+            }
+            crate::tree::TreeValue::Syntax { value, .. } => longest_tree_text(value),
+            crate::tree::TreeValue::Error { error } => error.text.len(),
+            crate::tree::TreeValue::Span { .. } => 0,
         }
     }
 
@@ -2106,6 +2218,7 @@ mod tests {
             source,
             &recovered.errors,
             BracketRenderOptions::default(),
+            usize::MAX,
         );
         jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
             recovered.parse_tree.as_ref(),
