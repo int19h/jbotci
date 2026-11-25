@@ -84,10 +84,10 @@ pub use lujvo::{
     ConsonantPairClass, GismuShape, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData,
     LujvoCandidate, LujvoCandidateData, RafsiShape, ShortRafsiForm, ShortRafsiFormData,
     ShortRafsiShape, bond_rafsis, choose_best_lujvo_candidate,
-    choose_best_lujvo_candidate_from_parts, consonant_pair_class, ends_with_consonant,
-    ends_with_vowel, ensure_cmevla_word, is_bonding_hyphen, is_cmevla, is_consonant,
-    is_valid_lujvo_candidate_word, is_vowel, permissible_consonant_pair,
-    possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
+    choose_best_lujvo_candidate_from_parts, choose_best_lujvo_candidate_from_parts_with_filter,
+    consonant_pair_class, ends_with_consonant, ends_with_vowel, ensure_cmevla_word,
+    is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
+    permissible_consonant_pair, possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
 };
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,

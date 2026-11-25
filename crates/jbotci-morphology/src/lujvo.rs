@@ -235,7 +235,27 @@ pub fn choose_best_lujvo_candidate_from_parts(
     choices: &[Vec<LujvoBuildPart>],
     cancellation: &CancellationToken,
 ) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
-    choose_best_candidate_from_parts(mode, choices, &mut Vec::new(), None, cancellation)
+    choose_best_lujvo_candidate_from_parts_with_filter(mode, choices, cancellation, |_| true)
+}
+
+/// Filter parsed lujvo after their parts match the joined candidate.
+/// Cmevla candidates keep their separate rules and skip this filter.
+#[requires(true)]
+#[ensures(true)]
+pub fn choose_best_lujvo_candidate_from_parts_with_filter(
+    mode: LujvoBuildMode,
+    choices: &[Vec<LujvoBuildPart>],
+    cancellation: &CancellationToken,
+    mut accept: impl FnMut(&[crate::LujvoPart]) -> bool,
+) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
+    choose_best_candidate_from_parts(
+        mode,
+        choices,
+        &mut Vec::new(),
+        None,
+        cancellation,
+        &mut accept,
+    )
 }
 
 #[requires(true)]
@@ -246,6 +266,7 @@ fn choose_best_candidate_from_parts<'a>(
     selected: &mut Vec<&'a LujvoBuildPart>,
     best: Option<LujvoCandidate>,
     cancellation: &CancellationToken,
+    accept: &mut impl FnMut(&[crate::LujvoPart]) -> bool,
 ) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
     let Some((next_choices, rest)) = choices.split_first() else {
         let Some(bonded) = bond_lujvo_build_part_refs(selected) else {
@@ -257,7 +278,9 @@ fn choose_best_candidate_from_parts<'a>(
             parts: bonded,
             word,
         });
-        if mode == LujvoBuildMode::Lujvo && !is_valid_lujvo_candidate(&candidate, cancellation)? {
+        if mode == LujvoBuildMode::Lujvo
+            && !is_valid_lujvo_candidate(&candidate, cancellation, accept)?
+        {
             return Ok(best);
         }
         return Ok(Some(select_better_candidate(best, candidate)));
@@ -266,8 +289,14 @@ fn choose_best_candidate_from_parts<'a>(
     let mut current_best = best;
     for choice in next_choices {
         selected.push(choice);
-        current_best =
-            choose_best_candidate_from_parts(mode, rest, selected, current_best, cancellation)?;
+        current_best = choose_best_candidate_from_parts(
+            mode,
+            rest,
+            selected,
+            current_best,
+            cancellation,
+            accept,
+        )?;
         selected.pop();
     }
     Ok(current_best)
@@ -363,6 +392,7 @@ pub fn is_valid_lujvo_candidate_word(word_text: &str) -> bool {
 fn is_valid_lujvo_candidate(
     candidate: &LujvoCandidate,
     cancellation: &CancellationToken,
+    accept: &mut impl FnMut(&[crate::LujvoPart]) -> bool,
 ) -> Result<bool, crate::MorphologyError> {
     // An interrupt is not an invalid spelling. The search must stop instead
     // of treating the flag as "try the next candidate".
@@ -385,9 +415,9 @@ fn is_valid_lujvo_candidate(
     if word.kind() != crate::WordKind::Lujvo {
         return Ok(false);
     }
-    Ok(word
-        .lujvo_parts()
-        .is_some_and(|parts| lujvo_parts_match(parts.as_slice(), &candidate.parts)))
+    Ok(word.lujvo_parts().is_some_and(|parts| {
+        lujvo_parts_match(parts.as_slice(), &candidate.parts) && accept(parts.as_slice())
+    }))
 }
 
 #[requires(true)]

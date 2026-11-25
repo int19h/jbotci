@@ -233,15 +233,16 @@ fn card_markdown(
                     text_scope.format(format_args!("{} (fu'ivla rafsi)", piece.surface))
                 }
                 VlackuCompositionKind::FuivlaRafsi => {
-                    let sources = text_scope.join(piece.sources.iter(), " / ");
+                    let sources =
+                        text_scope.join(piece.sources.iter().map(|source| &source.word), " / ");
                     text_scope.format(format_args!(
                         "{} (fu'ivla rafsi of {sources})",
                         piece.surface
                     ))
                 }
                 VlackuCompositionKind::Rafsi => match piece.sources.first() {
-                    Some(source) if source != &piece.surface => {
-                        text_scope.format(format_args!("{} ({source})", piece.surface))
+                    Some(source) if source.word != piece.surface => {
+                        text_scope.format(format_args!("{} ({})", piece.surface, source.word))
                     }
                     _ => text_scope.copy(&piece.surface),
                 },

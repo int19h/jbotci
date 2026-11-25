@@ -1197,6 +1197,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
         hidden_by_vote_filter: false,
         state: VlackuWebState::default(),
         cards: vec![VlackuWebCard {
+            entry_index: None,
             rank: 1,
             word: "broda".to_owned(),
             display_word: "broda".to_owned(),
@@ -1228,6 +1229,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
                 surface: "bro".to_owned(),
                 display_surface: "bro".to_owned(),
                 sources: vec![new!(jbotci_web_core::VlackuCompositionSource {
+                    entry_index: None,
                     word: "broda".to_owned(),
                     href: "/vlacku/broda".to_owned(),
                     is_surface: false,

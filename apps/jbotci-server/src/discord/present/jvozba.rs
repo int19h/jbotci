@@ -72,7 +72,7 @@ pub(crate) fn render_in_scope(
                                 constituent
                                     .sources
                                     .iter()
-                                    .map(|source| inline_code_in_scope(source, text_scope)),
+                                    .map(|source| inline_code_in_scope(&source.word, text_scope)),
                                 " / ",
                             );
                             text_scope.format(format_args!("{text} — {kind} of {sources}"))
@@ -163,7 +163,10 @@ mod tests {
                     new!(JvozbaConstituent {
                         text: "kla".to_owned(),
                         is_hyphen: false,
-                        sources: vec!["klama".to_owned()],
+                        sources: vec![new!(jbotci_search::vlacku::VlackuCompositionSource {
+                            entry_index: jbotci_dictionary::EntryIndex(0),
+                            word: "klama".to_owned(),
+                        })],
                         is_fuivla_rafsi: false
                     }),
                     new!(JvozbaConstituent {

@@ -15,8 +15,8 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    ShortRafsiShape, canonicalize_text, ends_with_vowel, fold_lojban_diacritic,
-    is_fuhivla_rafsi_stem, normalize_latin_apostrophe, possible_short_rafsi_forms,
+    ShortRafsiShape, ends_with_vowel, fold_lojban_diacritic, is_fuhivla_rafsi_stem,
+    normalize_latin_apostrophe, normalize_lojban_input_text, possible_short_rafsi_forms,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -177,12 +177,17 @@ impl<'a> Dictionary<'a> {
 
     /// Return an entry's index when the reference belongs to this dictionary.
     #[requires(true)]
-    #[ensures(ret.is_none_or(|index| index.0 < self.entries.len()))]
+    #[ensures(ret.is_none_or(|index| self.entries.get(index.0).is_some_and(|candidate| std::ptr::eq(candidate, entry))))]
     pub fn entry_index_for_entry(&self, entry: &DictionaryEntry<'a>) -> Option<EntryIndex> {
+        // Use the address to find a candidate index, then confirm that it is this entry.
+        let bytes = std::ptr::from_ref(entry)
+            .addr()
+            .checked_sub(self.entries.as_ptr().addr())?;
+        let index = bytes / std::mem::size_of::<DictionaryEntry<'_>>();
         self.entries
-            .iter()
-            .position(|candidate| std::ptr::eq(candidate, entry))
-            .map(EntryIndex)
+            .get(index)
+            .filter(|candidate| std::ptr::eq(*candidate, entry))
+            .map(|_| EntryIndex(index))
     }
 
     /// Return the highest-scored entry for a normalized lookup query.
@@ -842,7 +847,8 @@ pub struct DictionaryUser<'a> {
 }
 
 /// Entry index into a dictionary entry slice.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 #[invariant(true)]
 pub struct EntryIndex(pub usize);
 
@@ -1116,8 +1122,9 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
         if entry.word_type.is_fuivla_like()
             && let Some(stem) = fuivla_stem_rafsi(entry.word)
         {
-            pattern_rafsi_keys.push(stem.clone());
-            rafsi_map.entry(stem).or_default().push(RafsiIndexTarget {
+            let key = normalize_lookup_query(&stem);
+            pattern_rafsi_keys.push(key.clone());
+            rafsi_map.entry(key).or_default().push(RafsiIndexTarget {
                 entry_index,
                 source: RafsiSource::FuivlaStem,
             });
@@ -1233,15 +1240,19 @@ pub fn normalize_lookup_query(raw: &str) -> String {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
 #[bityzba::expensive_ensures({
-    let canonical = canonicalize_text(word.trim_matches(['.', ',']));
-    let accepted = canonical.split_at_checked(canonical.len().saturating_sub(1))
-        .filter(|(_, vowel)| ends_with_vowel(vowel))
-        .map(|(stem, _)| stem)
-        .filter(|stem| is_fuhivla_rafsi_stem(stem));
+    let canonical = normalize_lojban_input_text(word)
+        .map(|text| text.trim_matches('.').to_owned());
+    let accepted = canonical.as_deref().and_then(|text| {
+        text.split_at_checked(text.len().saturating_sub(1))
+            .filter(|(_, vowel)| ends_with_vowel(vowel))
+            .map(|(stem, _)| stem)
+            .filter(|stem| is_fuhivla_rafsi_stem(stem))
+    });
     ret.as_deref() == accepted
 })]
 pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
-    let mut stem = canonicalize_text(word.trim_matches(['.', ',']));
+    let normalized = normalize_lojban_input_text(word)?;
+    let mut stem = normalized.trim_matches('.').to_owned();
     if !ends_with_vowel(&stem) {
         return None;
     }
@@ -1616,6 +1627,24 @@ mod tests {
         assert_eq!(
             universal_gismu_rafsi_forms("broda"),
             vec![("broda".to_owned(), RafsiSource::UniversalLong)]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cyrillic_fuivla_supplies_a_normalized_stem_key() {
+        let word = "иерхи";
+        let entries = [test_entry(word, WordType::Fuivla, &[], None)];
+        let indexes = build_owned_indexes(&entries);
+        let stem = fuivla_stem_rafsi(word).expect("Cyrillic spelling has a stem");
+        assert_eq!(stem, "i'erx");
+        let key = normalize_lookup_query(&stem);
+        assert_eq!(indexes.rafsi_index[0].key, key);
+        assert_eq!(indexes.pattern_index[0].rafsi_keys, [key]);
+        assert_eq!(
+            indexes.rafsi_index[0].targets[0].source,
+            RafsiSource::FuivlaStem
         );
     }
 

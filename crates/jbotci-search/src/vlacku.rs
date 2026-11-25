@@ -1,6 +1,9 @@
+use std::collections::HashSet;
+
 use bityzba::{data, invariant, new, requires};
 use jbotci_dictionary::{
-    Dictionary, DictionaryEntry, DictionaryLujvoEntry, Keyword, WordType, normalize_lookup_query,
+    Dictionary, DictionaryEntry, DictionaryLujvoEntry, EntryIndex, Keyword, WordType,
+    normalize_lookup_query,
 };
 use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
@@ -338,6 +341,7 @@ pub struct VlackuSearchOutput {
 )]
 #[derive(Debug, Clone, PartialEq)]
 pub struct VlackuCard {
+    pub entry_index: Option<EntryIndex>,
     pub word: String,
     pub word_type: String,
     /// False marks a synthesized card for a word with no dictionary entry
@@ -370,7 +374,14 @@ pub struct VlackuAuthor {
 pub struct VlackuCompositionPiece {
     pub kind: VlackuCompositionKind,
     pub surface: String,
-    pub sources: Vec<String>,
+    pub sources: Vec<VlackuCompositionSource>,
+}
+
+#[invariant(!word.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VlackuCompositionSource {
+    pub entry_index: EntryIndex,
+    pub word: String,
 }
 
 #[invariant(!lookup_text.is_empty())]
@@ -1044,9 +1055,10 @@ fn cards_for_rafsi(
     let Some(query) = normalize_exact_lojban_query(query) else {
         return invalid_lojban_word_output(query);
     };
-    let query = query.as_str();
+    let mut seen = HashSet::new();
     let candidates = dictionary
-        .lookup_rafsi(query)
+        .lookup_rafsi(&query)
+        .filter(|matched| seen.insert(matched.entry_index))
         .map(|matched| VlackuCandidate::entry(matched.entry))
         .collect::<Vec<_>>();
     found_or_missing(cards_for_candidates(dictionary, candidates, options, false))
@@ -1359,6 +1371,7 @@ impl<'dictionary> VlackuCandidate<'dictionary> {
                 decomposition: EntryDecomposition::Always,
                 ..
             }) => entry_card_with_dictionary_decomposition(
+                dictionary,
                 entry,
                 similarity,
                 dictionary_lujvo_decomposition_for_entry(dictionary, entry),
@@ -2095,7 +2108,7 @@ pub fn dictionary_entry_card(
     let decomposition = decompose_lujvo
         .then(|| dictionary_lujvo_decomposition_for_entry(dictionary, entry))
         .flatten();
-    entry_card_with_dictionary_decomposition(entry, similarity, decomposition)
+    entry_card_with_dictionary_decomposition(dictionary, entry, similarity, decomposition)
 }
 
 /// The parts the dictionary already worked out for this entry, if it has
@@ -2116,11 +2129,13 @@ fn dictionary_lujvo_decomposition_for_entry<'dictionary>(
 #[requires(true)]
 #[ensures(true)]
 fn entry_card_with_dictionary_decomposition(
+    dictionary: &Dictionary<'_>,
     entry: &DictionaryEntry<'_>,
     similarity: Option<f32>,
     decomposition: Option<&DictionaryLujvoEntry<'_>>,
 ) -> VlackuCard {
     new!(VlackuCard {
+        entry_index: dictionary.entry_index_for_entry(entry),
         word: entry.word.to_owned(),
         word_type: entry.word_type.as_str().to_owned(),
         known: true,
@@ -2161,6 +2176,7 @@ fn unknown_card(
     decomposition: Option<&LujvoDecomposition<'_>>,
 ) -> VlackuCard {
     new!(VlackuCard {
+        entry_index: None,
         word: classification.word,
         word_type: classification.word_type.as_str().to_owned(),
         known: false,
@@ -2217,16 +2233,18 @@ fn composition_piece(
     surface: &str,
     entries: &[jbotci_dictionary::DictionaryLujvoSource<'_>],
 ) -> VlackuCompositionPiece {
-    let mut sources = Vec::new();
-    for entry in entries {
-        if !sources.iter().any(|word| word == entry.word) {
-            sources.push(entry.word.to_owned());
-        }
-    }
     VlackuCompositionPiece {
         kind,
         surface: surface.to_owned(),
-        sources,
+        sources: entries
+            .iter()
+            .map(|source| {
+                new!(VlackuCompositionSource {
+                    entry_index: source.entry_index,
+                    word: source.word.to_owned(),
+                })
+            })
+            .collect(),
     }
 }
 
@@ -2720,7 +2738,7 @@ mod tests {
                     .iter()
                     .map(|piece| (
                         piece.surface.as_str(),
-                        piece.sources.first().map(String::as_str)
+                        piece.sources.first().map(|source| source.word.as_str())
                     ))
                     .collect::<Vec<_>>(),
                 vec![("fek", Some("fenki")), ("lat", Some("mlatu"))],
@@ -2750,7 +2768,7 @@ mod tests {
                 .map(|piece| (
                     piece.kind,
                     piece.surface.as_str(),
-                    piece.sources.first().map(String::as_str)
+                    piece.sources.first().map(|source| source.word.as_str())
                 ))
                 .collect::<Vec<_>>(),
             [
@@ -3564,7 +3582,22 @@ mod tests {
                     VlackuCompositionKind::FuivlaRafsi,
                     "{lujvo}"
                 );
-                assert_eq!(first_part.sources, [word], "{lujvo}");
+                assert_eq!(
+                    first_part
+                        .sources
+                        .iter()
+                        .map(|source| source.word.as_str())
+                        .collect::<Vec<_>>(),
+                    [word],
+                    "{lujvo}"
+                );
+                assert_eq!(
+                    dictionary
+                        .entry_for_index(first_part.sources[0].entry_index)
+                        .unwrap()
+                        .word,
+                    word
+                );
                 assert!(
                     result
                         .cards
@@ -3581,16 +3614,25 @@ mod tests {
     #[ensures(true)]
     fn shared_fuivla_stem_lists_both_entries_and_keeps_jvozba_unambiguous() {
         use jbotci_dictionary::{
-            RafsiIndexEntry, Score, WordIndexEntry, WordType, build_owned_indexes,
+            Rafsi, RafsiClaimKind, RafsiIndexEntry, Score, WordIndexEntry, WordType,
+            build_owned_indexes,
         };
         use jbotci_jvozba::{JvozbaInput, JvozbaMode, build_best_jvozba_detailed};
 
         let english = jbotci_dictionary_data::english();
-        let ierxi = *english.lookup_word("ierxi").expect("ierxi entry");
+        let listed = [Rafsi {
+            form: "ierx",
+            standing: RafsiClaimKind::Experimental,
+        }];
+        let ierxi = DictionaryEntry {
+            rafsi: &listed,
+            ..*english.lookup_word("ierxi").expect("ierxi entry")
+        };
         let ierxa = DictionaryEntry {
             word: "ierxa",
             word_type: WordType::Fuivla,
             definition: "synthetic fu'ivla",
+            rafsi: &[],
             score: Score(ierxi.score.get() + 1.0),
             ..ierxi
         };
@@ -3621,13 +3663,27 @@ mod tests {
         let options = VlackuSearchOptions::default().with_data(data! {
             decompose_lujvo: true,
         });
+        assert_eq!(dictionary.lookup_rafsi("ierx").count(), 3);
+        let exact_rafsi = search(
+            &dictionary,
+            &[VlackuRequest::rafsi("ierx".to_owned())],
+            &options,
+        );
+        assert_eq!(words(&exact_rafsi.cards), ["ierxa", "ierxi"]);
         let lujvo = "ierxyklama";
         let result = search(
             &dictionary,
             &[VlackuRequest::lujvo(lujvo.to_owned())],
             &options,
         );
-        assert_eq!(result.cards[0].decomposition[0].sources, ["ierxa", "ierxi"]);
+        assert_eq!(
+            result.cards[0].decomposition[0]
+                .sources
+                .iter()
+                .map(|source| source.word.as_str())
+                .collect::<Vec<_>>(),
+            ["ierxa", "ierxi"],
+        );
         assert_eq!(&words(&result.cards)[..3], [lujvo, "ierxa", "ierxi"]);
 
         let error = build_best_jvozba_detailed(
@@ -3689,7 +3745,7 @@ mod tests {
         let headword = result.cards.first().expect("headword card");
         assert!(headword.decomposition.iter().any(|piece| {
             piece.surface == "jenjigu"
-                && piece.sources.first().map(String::as_str) == Some("jenjigu")
+                && piece.sources.first().map(|source| source.word.as_str()) == Some("jenjigu")
         }));
     }
 
@@ -3720,7 +3776,7 @@ mod tests {
                 (
                     piece.kind,
                     piece.surface.as_str(),
-                    piece.sources.first().map(String::as_str),
+                    piece.sources.first().map(|source| source.word.as_str()),
                 )
             })
             .collect::<Vec<_>>();

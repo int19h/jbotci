@@ -775,7 +775,7 @@ fn render_vlacku_decomposition_piece(
             } else {
                 scope.format(format_args!(
                     "fu'ivla rafsi of {}",
-                    scope.join(piece.sources.iter(), " / ")
+                    scope.join(piece.sources.iter().map(|source| &source.word), " / ")
                 ))
             };
             scope.format(format_args!(

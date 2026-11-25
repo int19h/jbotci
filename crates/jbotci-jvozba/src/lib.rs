@@ -3,14 +3,14 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{
-    Dictionary, DictionaryLujvoSegmentKind, DictionaryLujvoSource, RafsiSource, WordType,
-    fuivla_stem_rafsi,
+    Dictionary, DictionaryLujvoSegmentKind, DictionaryLujvoSource, EntryIndex, RafsiSource,
+    WordType, fuivla_stem_rafsi,
 };
 use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{
     LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, MorphologyOptions, Phonemes,
-    WordKind, WordLike, canonicalize_text, choose_best_lujvo_candidate_from_parts,
-    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen,
+    WordKind, WordLike, canonicalize_text, choose_best_lujvo_candidate_from_parts_with_filter,
+    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen, normalize_lojban_input_text,
     parse_cmevla_lujvo_word_part_candidates,
     segment_words_with_modifiers_with_options_and_source_id,
 };
@@ -252,8 +252,14 @@ pub fn build_best_jvozba_detailed_within(
         raw_inputs,
         limits,
         cancellation,
-        |mode, choices, cancellation| {
-            choose_best_lujvo_candidate_from_parts(mode, choices, cancellation).map_err(|error| {
+        |mode, choices, inputs, cancellation| {
+            choose_best_lujvo_candidate_from_parts_with_filter(
+                mode,
+                choices,
+                cancellation,
+                |parsed| sources_match(dictionary, inputs, parsed),
+            )
+            .map_err(|error| {
                 if error.is_interrupted() {
                     JvozbaError::Interrupted
                 } else {
@@ -275,6 +281,7 @@ fn build_best_jvozba_with_evaluator(
     evaluate: impl FnOnce(
         LujvoBuildMode,
         &[Vec<LujvoBuildPart>],
+        &[ExpandedInput<'_>],
         &CancellationToken,
     ) -> Result<Option<jbotci_morphology::LujvoCandidate>, JvozbaError>,
 ) -> Result<JvozbaBuildResult, JvozbaError> {
@@ -306,7 +313,7 @@ fn build_best_jvozba_with_evaluator(
     }
     let mut expanded_inputs = Vec::with_capacity(count);
     for plan in plans {
-        plan.append_to(&mut expanded_inputs);
+        plan.append_to(dictionary, &mut expanded_inputs);
     }
     let candidate_lists = build_candidate_lists(mode, dictionary, &expanded_inputs, cancellation)?;
     // A short choice list can still carry long pieces, and every spelling is
@@ -334,7 +341,13 @@ fn build_best_jvozba_with_evaluator(
     if cancellation.is_cancelled() {
         return Err(JvozbaError::Interrupted);
     }
-    let Some(candidate) = evaluate(mode.into(), &candidate_lists, cancellation)? else {
+    let Some(candidate) = evaluate(
+        mode.into(),
+        &candidate_lists,
+        &expanded_inputs,
+        cancellation,
+    )?
+    else {
         return Err(match mode {
             JvozbaMode::Lujvo => JvozbaError::CouldNotBuildLujvo,
             JvozbaMode::Cmevla => JvozbaError::CouldNotBuildCompound,
@@ -354,23 +367,50 @@ pub fn word_can_enter_jvozba_pane(
     word_text: &str,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
-    let canonical_word = canonicalize_text(word_text);
-    if pane_candidate_available(candidate_list_for_word(
-        JvozbaMode::Lujvo,
+    input_can_enter_jvozba_pane(
         dictionary,
-        false,
-        &canonical_word,
+        ExpandedInput::for_word(dictionary, word_text),
         cancellation,
-    ))? {
-        return Ok(true);
+    )
+}
+
+/// Test the exact dictionary entry carried by a result card.
+#[requires(true)]
+#[ensures(true)]
+pub fn entry_can_enter_jvozba_pane(
+    dictionary: &Dictionary<'_>,
+    entry_index: EntryIndex,
+    cancellation: &CancellationToken,
+) -> Result<bool, JvozbaError> {
+    if dictionary.entry_for_index(entry_index).is_none() {
+        return Ok(false);
     }
-    pane_candidate_available(candidate_list_for_word(
-        JvozbaMode::Lujvo,
+    input_can_enter_jvozba_pane(
         dictionary,
-        true,
-        &canonical_word,
+        ExpandedInput::DictionaryWord(entry_index),
         cancellation,
-    ))
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn input_can_enter_jvozba_pane(
+    dictionary: &Dictionary<'_>,
+    input: ExpandedInput<'_>,
+    cancellation: &CancellationToken,
+) -> Result<bool, JvozbaError> {
+    for is_last_input in [false, true] {
+        if pane_candidate_available(candidate_list_for_input(
+            JvozbaMode::Lujvo,
+            dictionary,
+            is_last_input,
+            input,
+            cancellation,
+        ))? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// A missing rafsi is "no", and a set flag is an interrupt. The two must not share one answer.
@@ -446,6 +486,25 @@ pub struct LujvoSegmentInfo<'a> {
     pub sources: Vec<DictionaryLujvoSource<'a>>,
 }
 
+/// The source chosen before the builder generates any candidate spellings.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+enum ExpandedInput<'a> {
+    FixedRafsi(&'a str),
+    UnlistedWord(&'a str),
+    DictionaryWord(EntryIndex),
+}
+
+impl<'a> ExpandedInput<'a> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn for_word(dictionary: &Dictionary<'_>, word: &'a str) -> Self {
+        dictionary
+            .lookup_word_index(word)
+            .map_or(Self::UnlistedWord(word), Self::DictionaryWord)
+    }
+}
+
 /// A borrowed input or its parsed decomposition, before expanded strings are allocated.
 #[invariant(true)]
 #[invariant(::Plain { .. } => true)]
@@ -459,28 +518,27 @@ enum ExpansionPlan<'input, 'dictionary> {
         decomposition: LujvoDecomposition<'dictionary>,
     },
 }
-impl ExpansionPlan<'_, '_> {
+impl<'input> ExpansionPlan<'input, '_> {
     #[requires(true)]
     #[ensures(ret > 0)]
     fn piece_count(&self) -> usize {
         match self {
             Self::Plain { .. } => 1,
             Self::Decomposed { decomposition } => {
-                sourced_rafsi_words(&decomposition.segments).count()
+                sourced_rafsi_entries(&decomposition.segments).count()
             }
         }
     }
     #[requires(true)]
     #[ensures(destination.len() >= old(destination.len()))]
-    fn append_to(self, destination: &mut Vec<JvozbaInput>) {
+    fn append_to(self, dictionary: &Dictionary<'_>, destination: &mut Vec<ExpandedInput<'input>>) {
         match self {
             Self::Plain { input } => destination.push(match input {
-                JvozbaInput::FixedRafsi(text) => JvozbaInput::FixedRafsi(canonicalize_text(text)),
-                JvozbaInput::Word(text) => JvozbaInput::Word(canonicalize_text(text)),
+                JvozbaInput::FixedRafsi(text) => ExpandedInput::FixedRafsi(text),
+                JvozbaInput::Word(text) => ExpandedInput::for_word(dictionary, text),
             }),
             Self::Decomposed { decomposition } => destination.extend(
-                sourced_rafsi_words(&decomposition.segments)
-                    .map(|source| JvozbaInput::Word(source.to_owned())),
+                sourced_rafsi_entries(&decomposition.segments).map(ExpandedInput::DictionaryWord),
             ),
         }
     }
@@ -494,6 +552,9 @@ fn plan_expansion<'input, 'dictionary>(
 ) -> Result<ExpansionPlan<'input, 'dictionary>, JvozbaError> {
     if let JvozbaInput::Word(text) = input
         && let Some(decomposition) = decompose_lujvo_like(dictionary, text, cancellation)?
+        && sourced_rafsi_entries(&decomposition.segments)
+            .next()
+            .is_some()
     {
         if let Some(segment) = decomposition
             .segments
@@ -515,7 +576,7 @@ fn plan_expansion<'input, 'dictionary>(
 fn build_candidate_lists(
     mode: JvozbaMode,
     dictionary: &Dictionary<'_>,
-    inputs: &[JvozbaInput],
+    inputs: &[ExpandedInput<'_>],
     cancellation: &CancellationToken,
 ) -> Result<Vec<Vec<LujvoBuildPart>>, JvozbaError> {
     let total_count = inputs.len();
@@ -527,7 +588,7 @@ fn build_candidate_lists(
                 mode,
                 dictionary,
                 index + 1 == total_count,
-                input,
+                *input,
                 cancellation,
             )
         })
@@ -540,11 +601,11 @@ fn candidate_list_for_input(
     mode: JvozbaMode,
     dictionary: &Dictionary<'_>,
     is_last_input: bool,
-    input: &JvozbaInput,
+    input: ExpandedInput<'_>,
     cancellation: &CancellationToken,
 ) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
     match input {
-        JvozbaInput::FixedRafsi(rafsi_text) => {
+        ExpandedInput::FixedRafsi(rafsi_text) => {
             let rafsi_text = canonicalize_text(rafsi_text);
             if rafsi_text.is_empty() {
                 return Err(JvozbaError::FixedRafsiEmpty);
@@ -556,35 +617,32 @@ fn candidate_list_for_input(
             }
             Ok(vec![new!(LujvoBuildPart::Rafsi(rafsi_text))])
         }
-        JvozbaInput::Word(word_text) => {
-            candidate_list_for_word(mode, dictionary, is_last_input, word_text, cancellation)
+        ExpandedInput::DictionaryWord(index) => {
+            let entry = dictionary
+                .entry_for_index(index)
+                .expect("resolved entry index");
+            candidate_list_for_entry(mode, dictionary, is_last_input, index, entry)
+        }
+        ExpandedInput::UnlistedWord(word_text) => {
+            let canonical_word = normalized_spelling(word_text);
+            non_dictionary_word_candidates(mode, is_last_input, &canonical_word, cancellation)?
+                .ok_or(JvozbaError::NoDictionaryEntry {
+                    offending: canonical_word,
+                })
         }
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|candidates| !candidates.is_empty()) || ret.is_err())]
-fn candidate_list_for_word(
+fn candidate_list_for_entry(
     mode: JvozbaMode,
     dictionary: &Dictionary<'_>,
     is_last_input: bool,
-    word_text: &str,
-    cancellation: &CancellationToken,
+    entry_index: EntryIndex,
+    entry: &jbotci_dictionary::DictionaryEntry<'_>,
 ) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
-    let canonical_word = canonicalize_text(word_text);
-    let Some(entry) = dictionary.lookup_word(&canonical_word) else {
-        return match non_dictionary_word_candidates(
-            mode,
-            is_last_input,
-            &canonical_word,
-            cancellation,
-        )? {
-            Some(candidates) => Ok(candidates),
-            None => Err(JvozbaError::NoDictionaryEntry {
-                offending: canonical_word,
-            }),
-        };
-    };
+    let canonical_word = normalized_spelling(entry.word);
     let stem = if mode == JvozbaMode::Lujvo && !is_last_input && entry.word_type.is_fuivla_like() {
         fuivla_stem_rafsi(entry.word)
     } else {
@@ -593,7 +651,7 @@ fn candidate_list_for_word(
     let listed_rafsi = entry
         .rafsi
         .iter()
-        .map(|rafsi| canonicalize_text(rafsi.form))
+        .map(|rafsi| normalized_spelling(rafsi.form))
         .filter(|rafsi| stem.as_deref() != Some(rafsi))
         .collect::<Vec<_>>();
     let gismu_extras = if entry.word_type.is_gismu_like() {
@@ -623,12 +681,7 @@ fn candidate_list_for_word(
             all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
         }
         if let Some(stem) = stem
-            && dictionary
-                .lookup_rafsi(&stem)
-                .filter(|matched| matched.source == RafsiSource::FuivlaStem)
-                .take(2)
-                .count()
-                == 1
+            && unique_fuivla_source(dictionary, &stem) == Some(entry_index)
         {
             all_candidates.push(new!(LujvoBuildPart::FuhivlaStem(stem)));
         }
@@ -835,7 +888,14 @@ fn is_universal_gismu_long_rafsi(rafsi_text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn normalize_lujvo_like_input(raw_word: &str) -> String {
-    canonicalize_text(raw_word.trim().trim_matches('.'))
+    normalized_spelling(raw_word)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalized_spelling(raw: &str) -> String {
+    let trimmed = raw.trim().trim_matches('.');
+    normalize_lojban_input_text(trimmed).unwrap_or_else(|| canonicalize_text(trimmed))
 }
 
 #[requires(true)]
@@ -892,18 +952,13 @@ fn decomposition_from_parts<'a>(
     }))
 }
 
-/// The word behind every rafsi the decomposition spells, in order and with
-/// repeats kept, skipping hyphens and any rafsi the dictionary cannot place.
-///
-/// This is the sequence of pieces. `LujvoDecomposition::source_words` is the
-/// set of words those pieces name, which is what a lookup or an index wants;
-/// anything that works piece by piece wants this.
+/// Return the entry behind each sourced rafsi in order, with repeats.
 #[requires(true)]
 #[ensures(true)]
-fn sourced_rafsi_words<'a>(segments: &[LujvoSegmentInfo<'a>]) -> impl Iterator<Item = &'a str> {
+fn sourced_rafsi_entries(segments: &[LujvoSegmentInfo<'_>]) -> impl Iterator<Item = EntryIndex> {
     segments
         .iter()
-        .filter_map(|segment| segment.sources.first().map(|source| source.word))
+        .filter_map(|segment| segment.sources.first().map(|source| source.entry_index))
 }
 
 #[requires(true)]
@@ -972,22 +1027,61 @@ fn primary_rafsi_source<'a>(
     phonemes: &Phonemes,
 ) -> Option<DictionaryLujvoSource<'a>> {
     let surface = phonemes.as_str();
-    let entry_index = dictionary
+    if let Some(matched) = dictionary
         .lookup_rafsi(surface)
         .find(|matched| matched.source != RafsiSource::FuivlaStem)
-        .and_then(|matched| dictionary.lookup_word_index(matched.entry.word))
-        .or_else(|| {
-            dictionary.lookup_word_index(surface).filter(|index| {
-                dictionary
-                    .entry_for_index(*index)
-                    .is_some_and(|entry| word_type_is_direct_brivla(entry.word_type))
-            })
-        })?;
+    {
+        return Some(DictionaryLujvoSource {
+            entry_index: matched.entry_index,
+            word: matched.entry.word,
+        });
+    }
+    let entry_index = dictionary.lookup_word_index(surface)?;
     let entry = dictionary.entry_for_index(entry_index)?;
-    Some(DictionaryLujvoSource {
+    word_type_is_direct_brivla(entry.word_type).then_some(DictionaryLujvoSource {
         entry_index,
         word: entry.word,
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn unique_fuivla_source(dictionary: &Dictionary<'_>, stem: &str) -> Option<EntryIndex> {
+    let mut sources = dictionary
+        .lookup_rafsi(stem)
+        .filter(|matched| matched.source == RafsiSource::FuivlaStem);
+    let first = sources.next()?;
+    sources.next().is_none().then_some(first.entry_index)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sources_match(
+    dictionary: &Dictionary<'_>,
+    inputs: &[ExpandedInput<'_>],
+    parsed: &[LujvoPart],
+) -> bool {
+    let mut inputs = inputs.iter();
+    for (index, part) in parsed.iter().enumerate() {
+        let LujvoPart::Rafsi(phonemes) = part else {
+            continue;
+        };
+        match inputs.next() {
+            Some(ExpandedInput::DictionaryWord(expected)) => {
+                let source = if part.is_fuhivla_rafsi_before(parsed.get(index + 1)) {
+                    unique_fuivla_source(dictionary, phonemes.as_str())
+                } else {
+                    primary_rafsi_source(dictionary, phonemes).map(|source| source.entry_index)
+                };
+                if source != Some(*expected) {
+                    return false;
+                }
+            }
+            Some(ExpandedInput::FixedRafsi(_) | ExpandedInput::UnlistedWord(_)) => {}
+            None => return false,
+        }
+    }
+    inputs.next().is_none()
 }
 
 #[requires(true)]
@@ -1212,6 +1306,163 @@ mod tests {
                 limit: u64::MAX,
             })
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn with_source_dictionary(
+        entries: &[jbotci_dictionary::DictionaryEntry<'_>],
+        test: impl FnOnce(&Dictionary<'_>),
+    ) {
+        use jbotci_dictionary::{RafsiIndexEntry, WordIndexEntry, build_owned_indexes};
+
+        let indexes = build_owned_indexes(entries);
+        let words = indexes
+            .word_index
+            .iter()
+            .map(|entry| WordIndexEntry {
+                key: &entry.key,
+                targets: &entry.targets,
+            })
+            .collect::<Vec<_>>();
+        let rafsi = indexes
+            .rafsi_index
+            .iter()
+            .map(|entry| RafsiIndexEntry {
+                key: &entry.key,
+                targets: &entry.targets,
+            })
+            .collect::<Vec<_>>();
+        let dictionary =
+            Dictionary::from_static_slices(entries, &words, &rafsi, &[], &[], &[], &[], 0);
+        test(&dictionary);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn decomposition_and_expansion_keep_the_original_rafsi_entry() {
+        use jbotci_dictionary::{DictionaryEntry, Rafsi, RafsiClaimKind, Score};
+
+        let english = jbotci_dictionary_data::english();
+        let listed = [Rafsi {
+            form: "dat",
+            standing: RafsiClaimKind::Official,
+        }];
+        let datni = DictionaryEntry {
+            rafsi: &listed,
+            ..*english.lookup_word("datni").unwrap()
+        };
+        let dat_ni = DictionaryEntry {
+            word: "dat,ni",
+            rafsi: &[],
+            score: Score(datni.score.get() + 1.0),
+            ..datni
+        };
+        let sidbo = *english.lookup_word("sidbo").unwrap();
+        let token = CancellationToken::never();
+        with_source_dictionary(&[datni, dat_ni, sidbo], |dictionary| {
+            assert_eq!(dictionary.lookup_word("datni").unwrap().word, "dat,ni");
+            let decomposition = decompose_lujvo_like(dictionary, "datsi'o", &token)
+                .unwrap()
+                .unwrap();
+            let source = &decomposition.segments[0].sources[0];
+            assert_eq!(source.entry_index, EntryIndex(0));
+            assert_eq!(source.word, "datni");
+            let result = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[JvozbaInput::Word("datsi'o".to_owned())],
+                &token,
+            )
+            .unwrap();
+            assert_eq!(result.word, "datsi'o");
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_listed_rafsi_must_still_name_its_source_after_parsing() {
+        use jbotci_dictionary::{DictionaryEntry, Rafsi, RafsiClaimKind};
+
+        let english = jbotci_dictionary_data::english();
+        let listed = [Rafsi {
+            form: "ierx",
+            standing: RafsiClaimKind::Experimental,
+        }];
+        let bahe = DictionaryEntry {
+            rafsi: &listed,
+            ..*english.lookup_word("ba'e").unwrap()
+        };
+        let ierxi = *english.lookup_word("ierxi").unwrap();
+        let ierxa = DictionaryEntry {
+            word: "ierxa",
+            rafsi: &[],
+            ..ierxi
+        };
+        let klama = *english.lookup_word("klama").unwrap();
+        let token = CancellationToken::never();
+        with_source_dictionary(&[bahe, ierxi, ierxa, klama], |dictionary| {
+            let final_piece = JvozbaInput::FixedRafsi("kla".to_owned());
+            assert_eq!(
+                build_best_jvozba_detailed(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    &[JvozbaInput::Word("ba'e".to_owned()), final_piece.clone()],
+                    &token
+                ),
+                Err(JvozbaError::CouldNotBuildLujvo),
+            );
+            let literal = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[JvozbaInput::FixedRafsi("ierx".to_owned()), final_piece],
+                &token,
+            )
+            .unwrap();
+            assert_eq!(literal.word, "ierxykla");
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_shared_universal_rafsi_must_still_name_its_ranked_source() {
+        use jbotci_dictionary::{DictionaryEntry, Score};
+
+        let english = jbotci_dictionary_data::english();
+        let klama = DictionaryEntry {
+            rafsi: &[],
+            score: Score(2.0),
+            ..*english.lookup_word("klama").unwrap()
+        };
+        let klami = DictionaryEntry {
+            word: "klami",
+            score: Score(1.0),
+            ..klama
+        };
+        let token = CancellationToken::never();
+        with_source_dictionary(&[klami, klama], |dictionary| {
+            let final_piece = JvozbaInput::FixedRafsi("bajra".to_owned());
+            assert_eq!(
+                build_best_jvozba_detailed(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    &[JvozbaInput::Word("klami".to_owned()), final_piece.clone()],
+                    &token
+                ),
+                Err(JvozbaError::CouldNotBuildLujvo),
+            );
+            let top = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[JvozbaInput::Word("klama".to_owned()), final_piece],
+                &token,
+            )
+            .unwrap();
+            assert_eq!(top.word, "klamybajra");
+        });
     }
 
     #[test]
@@ -1932,7 +2183,7 @@ mod tests {
                     &inputs,
                     limits,
                     &jbotci_interrupt::CancellationToken::never(),
-                    |_, _, _| {
+                    |_, _, _, _| {
                         evaluations.set(evaluations.get() + 1);
                         Ok(None)
                     },

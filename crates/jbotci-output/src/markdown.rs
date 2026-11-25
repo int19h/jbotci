@@ -161,7 +161,7 @@ pub fn render_vlacku_decomposition_markdown(pieces: &[VlackuCompositionPiece]) -
             if index > 0 {
                 output.push_str(" / ");
             }
-            output.push_str(&inline_code(source));
+            output.push_str(&inline_code(&source.word));
         }
         source_count += 1;
     }

@@ -440,7 +440,12 @@ fn lujvo_hover_markdown(word: &Word) -> String {
                         || decomposition
                             .iter()
                             .filter(|piece| piece.kind == VlackuCompositionKind::FuivlaRafsi)
-                            .any(|piece| piece.sources.contains(&card.word)))
+                            .any(|piece| {
+                                piece
+                                    .sources
+                                    .iter()
+                                    .any(|source| Some(source.entry_index) == card.entry_index)
+                            }))
             })
             .cloned()
             .map(without_decomposition),

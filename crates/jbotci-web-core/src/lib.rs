@@ -33,7 +33,7 @@ use jbotci_diagnostics::{
     diagnostic_text_segments_text,
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
-use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
+use jbotci_dictionary::{Dictionary, DictionaryEntry, EntryIndex, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
 use jbotci_gentufa::{
     AppliedGentufaCompound, GentufaCompoundKind, GentufaCompoundLayout, GentufaCompoundMember,
@@ -60,7 +60,7 @@ use jbotci_gimfihi::{
 use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
-    build_best_jvozba_detailed, word_can_enter_jvozba_pane,
+    build_best_jvozba_detailed, entry_can_enter_jvozba_pane, word_can_enter_jvozba_pane,
 };
 use jbotci_morphology::{
     MorphologyOptions, PhonemeRenderOptions, RecoveredMorphologySegmentation, WordLike,
@@ -308,10 +308,14 @@ pub enum GentufaBracketFragment {
 
 #[invariant(!word.is_empty())]
 #[invariant(*known || definition.is_empty())]
-#[invariant(components.is_empty() || (!*known && word_type_key == "lujvo"))]
+#[invariant(components.is_empty()
+    || (!*known && word_type_key == "lujvo")
+    || decomposition.iter().any(|piece| piece.kind == VlackuCompositionPieceKind::FuivlaRafsi))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DictionaryTooltipCard {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_index: Option<EntryIndex>,
     pub word: String,
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub known: bool,
@@ -2664,6 +2668,8 @@ impl std::error::Error for WebComputeError {}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuWebCard {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_index: Option<EntryIndex>,
     pub rank: usize,
     pub word: String,
     pub display_word: String,
@@ -2737,6 +2743,8 @@ pub struct VlackuCompositionPiece {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuCompositionSource {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_index: Option<EntryIndex>,
     pub word: String,
     pub href: String,
     pub is_surface: bool,
@@ -6217,14 +6225,18 @@ fn dictionary_tooltip_card_from_search_card(
     base_path: &str,
     card: VlackuCard,
 ) -> DictionaryTooltipCard {
+    let dictionary = jbotci_dictionary_data::english();
     let missing_lujvo = !card.known && normalize_word_type_filter(&card.word_type) == "lujvo";
     let components = card
         .decomposition
         .iter()
         .filter(|piece| missing_lujvo || piece.kind == VlackuCompositionPieceKind::FuivlaRafsi)
-        .flat_map(|piece| piece.sources.iter().map(String::as_str))
-        .filter_map(dictionary_tooltip_search_card_for_word)
-        .map(|card| {
+        .flat_map(|piece| &piece.sources)
+        .map(|source| {
+            let entry = dictionary
+                .entry_for_index(source.entry_index)
+                .expect("the source index belongs to the search dictionary");
+            let card = dictionary_entry_card(dictionary, entry, Some(1.0), true);
             new!(DictionaryTooltipComponentCard {
                 card: dictionary_tooltip_card_without_components(base_path, card),
             })
@@ -6243,7 +6255,9 @@ fn web_composition_piece(
     let sources = piece
         .sources
         .into_iter()
-        .map(|word| {
+        .map(|source| {
+            let source = source.into_data();
+            let word = source.word;
             let href = vlacku_web_url(
                 base_path,
                 &VlackuWebState {
@@ -6256,6 +6270,7 @@ fn web_composition_piece(
             );
             let is_surface = jbotci_morphology::canonical_text_eq(&piece.surface, &word);
             new!(VlackuCompositionSource {
+                entry_index: Some(source.entry_index),
                 word,
                 href,
                 is_surface
@@ -6288,6 +6303,7 @@ fn dictionary_tooltip_card_without_components(
         },
     );
     new!(DictionaryTooltipCard {
+        entry_index: card.entry_index,
         word: card.word.clone(),
         known: card.known,
         display_word: card.word.clone(),
@@ -6312,8 +6328,9 @@ fn dictionary_tooltip_card_without_components(
             .into_iter()
             .map(|piece| web_composition_piece(base_path, piece))
             .collect(),
-        can_add_to_jvozba: dictionary_word_allows_jvozba(
+        can_add_to_jvozba: dictionary_card_allows_jvozba(
             jbotci_dictionary_data::english(),
+            card.entry_index,
             &card.word,
         ),
         components: Vec::new(),
@@ -6660,6 +6677,7 @@ fn web_card_from_search_card(
         .map(|text| parse_vlacku_inline_text(jbotci_dictionary_data::english(), text))
         .unwrap_or_default();
     VlackuWebCard {
+        entry_index: card.entry_index,
         rank,
         ipa: dictionary_word_ipa(&card.word),
         word: card.word.clone(),
@@ -6684,8 +6702,9 @@ fn web_card_from_search_card(
             .into_iter()
             .map(|piece| web_composition_piece("", piece))
             .collect(),
-        can_add_to_jvozba: dictionary_word_allows_jvozba(
+        can_add_to_jvozba: dictionary_card_allows_jvozba(
             jbotci_dictionary_data::english(),
+            card.entry_index,
             &card.word,
         ),
     }
@@ -7283,6 +7302,20 @@ fn push_vlacku_text_inline(text: &str, output: &mut Vec<VlackuInline>) {
 #[ensures(true)]
 fn is_vlacku_word_link(value: &str) -> bool {
     !value.is_empty() && !value.chars().any(char::is_whitespace)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_card_allows_jvozba(
+    dictionary: &Dictionary<'_>,
+    entry_index: Option<EntryIndex>,
+    word: &str,
+) -> bool {
+    match entry_index {
+        Some(index) => entry_can_enter_jvozba_pane(dictionary, index, &CancellationToken::never())
+            .expect("the browser token is never cancelled"),
+        None => dictionary_word_allows_jvozba(dictionary, word),
+    }
 }
 
 #[requires(true)]
@@ -9084,6 +9117,30 @@ mod tests {
                 serde_json::from_str::<DictionaryTooltipCard>(&json).unwrap(),
                 card
             );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tooltip_keeps_both_entries_with_the_same_normalized_spelling() {
+        let dictionary = jbotci_dictionary_data::english();
+        let expected = dictionary.lookup_rafsi("onj").collect::<Vec<_>>();
+        assert_eq!(
+            expected
+                .iter()
+                .map(|source| source.entry.user.username)
+                .collect::<Vec<_>>(),
+            ["lakanro", "ractu"],
+        );
+        let card = dictionary_tooltip_for_word("", "onjykla").expect("lujvo tooltip");
+        let piece = &card.decomposition[0];
+        assert_eq!(piece.sources.len(), expected.len());
+        for (index, matched) in expected.iter().enumerate() {
+            assert_eq!(piece.sources[index].entry_index, Some(matched.entry_index));
+            let expected_card = dictionary_entry_card(dictionary, matched.entry, Some(1.0), true);
+            let expected_card = dictionary_tooltip_card_without_components("", expected_card);
+            assert_eq!(card.components[index].card, expected_card);
         }
     }
 
