@@ -28,8 +28,24 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The fixture owns socket and thread resources. A missing worker is a valid stopped state, and cleanup accepts it.",
     ),
     (
+        "crates/jbotci-embeddings/src/setup_tests.rs:AlwaysInterrupt",
+        "The reader returns an interrupt on every read. The call count accepts any usize and has no second field.",
+    ),
+    (
         "crates/jbotci-embeddings/src/setup_tests.rs:ResetOnce",
         "The reader returns a connection reset on every read. The call count accepts any usize and has no second field.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:ScriptedPackWrite",
+        "The write script, the step cursor, and the captured bytes are test controls. The test checks the captured bytes after the write.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:StopThenInterrupt",
+        "The reader sets the stop flag and then returns an interrupt. The call count accepts any usize and has no relation to the flag.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:StopThenInterruptWrite",
+        "The writer sets the stop flag and then returns an interrupt. The call count accepts any usize and has no relation to the flag.",
     ),
     (
         "apps/jbotci-server/src/discord/components.rs:AttachmentText",
@@ -66,6 +82,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/delivery.rs:DegradedRouteOnlyPage",
         "A route-only page served after a failed computation is a degraded answer and carries no extra state.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:ScriptedProbeRead",
+        "The read script, the part cursor, and the interrupt flag are test controls. The test checks the bytes that the probe kept.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:ScriptedProbeWrite",
+        "The write script, the step cursor, and the captured bytes are test controls. The test checks the captured bytes after the probe.",
     ),
     (
         "apps/jbotci-server/src/execution.rs:AdmissionCancellation",

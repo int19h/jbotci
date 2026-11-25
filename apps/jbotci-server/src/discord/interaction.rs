@@ -2144,12 +2144,164 @@ mod tests {
         patch_applied: tokio::sync::Notify,
     }
 
+    /// Bind one local port.
+    /// An interrupt retries the same port.
+    /// An address that is already in use advances to the next port.
+    /// Any other error names the address and the cause.
+    #[requires(start <= end)]
+    #[ensures(true)]
+    async fn select_local_port<T, F, Fut>(
+        start: u16,
+        end: u16,
+        mut bind_port: F,
+    ) -> Result<T, String>
+    where
+        F: FnMut(u16) -> Fut,
+        Fut: std::future::Future<Output = std::io::Result<T>>,
+    {
+        let mut port = start;
+        loop {
+            if port > end {
+                return Err(format!("no free port in {start}..={end}"));
+            }
+            match bind_port(port).await {
+                Ok(value) => return Ok(value),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+                    port = match port.checked_add(1) {
+                        Some(next) => next,
+                        None => return Err(format!("no free port in {start}..={end}")),
+                    };
+                }
+                Err(error) => return Err(format!("cannot bind 127.0.0.1:{port}: {error}")),
+            }
+        }
+    }
+
+    /// The text of a task panic.
+    /// The text is not empty.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn discord_panic_text(payload: &(dyn std::any::Any + Send)) -> String {
+        if let Some(message) = payload.downcast_ref::<String>() {
+            if !message.is_empty() {
+                return message.clone();
+            }
+        }
+        if let Some(message) = payload.downcast_ref::<&str>() {
+            if !message.is_empty() {
+                return (*message).to_owned();
+            }
+        }
+        "the discord stub server panicked".to_owned()
+    }
+
+    /// Observe a Discord stub task.
+    /// Drop cannot await.
+    /// A finished panic is a test failure.
+    /// A live task is cancelled.
+    #[requires(true)]
+    #[ensures(true)]
+    fn observe_discord_server(mut task: tokio::task::JoinHandle<()>) {
+        task.abort();
+        let waker = std::task::Waker::noop();
+        let mut context = std::task::Context::from_waker(&waker);
+        match std::pin::Pin::new(&mut task).poll(&mut context) {
+            std::task::Poll::Ready(Ok(())) => {}
+            std::task::Poll::Ready(Err(error)) if error.is_cancelled() => {}
+            std::task::Poll::Ready(Err(error)) if error.is_panic() => {
+                panic!("{}", discord_panic_text(error.into_panic().as_ref()));
+            }
+            std::task::Poll::Ready(Err(error)) => {
+                panic!("the discord stub server failed: {error}");
+            }
+            std::task::Poll::Pending => {}
+        }
+    }
+
     /// A Discord that answers on localhost and remembers what it was asked.
     #[invariant(true)]
     #[derive(Debug)]
     struct FakeDiscord {
         base_url: String,
         state: Arc<FakeState>,
+        server: Option<tokio::task::JoinHandle<()>>,
+    }
+
+    impl Drop for FakeDiscord {
+        #[requires(true)]
+        #[ensures(true)]
+        fn drop(&mut self) {
+            if let Some(server) = self.server.take() {
+                observe_discord_server(server);
+            }
+        }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_port_scan_reports_permission_denied() {
+        let mut calls = 0_u32;
+        let error = select_local_port(18800, 18899, |port| {
+            calls += 1;
+            async move {
+                assert_eq!(port, 18800);
+                Err::<(), _>(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "injected permission",
+                ))
+            }
+        })
+        .await
+        .expect_err("permission denied is not a missing port");
+        assert_eq!(calls, 1);
+        assert!(error.contains("127.0.0.1:18800"), "{error}");
+        assert!(error.contains("injected permission"), "{error}");
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_port_scan_retries_the_same_port_after_an_interrupt() {
+        let mut calls = 0_u32;
+        let port = select_local_port(18800, 18899, |port| {
+            calls += 1;
+            async move {
+                if calls == 1 {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::Interrupted,
+                        "injected interrupt",
+                    ))
+                } else {
+                    Ok(port)
+                }
+            }
+        })
+        .await
+        .expect("an interrupt retries the same port");
+        assert_eq!(port, 18800);
+        assert_eq!(calls, 2);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_server_cancellation_is_normal() {
+        let task = tokio::spawn(std::future::pending::<()>());
+        observe_discord_server(task);
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "discord stub sentinel")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_server_panic_is_a_failure() {
+        let task = tokio::spawn(async { panic!("discord stub sentinel") });
+        while !task.is_finished() {
+            tokio::task::yield_now().await;
+        }
+        observe_discord_server(task);
     }
 
     impl FakeDiscord {
@@ -2167,23 +2319,21 @@ mod tests {
                     axum::routing::post(followup),
                 )
                 .with_state(Arc::clone(&state));
-            let mut selected = None;
-            for port in 18800..=18899 {
-                if let Ok(listener) =
-                    tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await
-                {
-                    selected = Some(listener);
-                    break;
-                }
-            }
-            let listener = selected.expect("a free jbotci test port");
+            let listener = select_local_port(18800, 18899, |port| {
+                tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
+            })
+            .await
+            .unwrap_or_else(|error| panic!("{error}"));
             let address = listener.local_addr().expect("an address");
-            tokio::spawn(async move {
-                let _ = axum::serve(listener, router).await;
+            let server = tokio::spawn(async move {
+                if let Err(error) = axum::serve(listener, router).await {
+                    panic!("the discord stub server failed: {error}");
+                }
             });
             Self {
                 base_url: format!("http://{address}"),
                 state,
+                server: Some(server),
             }
         }
 

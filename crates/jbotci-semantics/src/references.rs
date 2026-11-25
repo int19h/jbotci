@@ -8377,6 +8377,76 @@ mod tests {
     use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
 
+    /// One observation from the place-boundary probe.
+    #[invariant(true)]
+    enum PlaceProbeKind {
+        Exited,
+        Running,
+        Interrupted,
+        Failed,
+    }
+
+    /// The next step for the place-boundary probe.
+    #[invariant(true)]
+    enum PlaceProbeStep {
+        Finished,
+        Sleep,
+        TimedOut,
+        Failed,
+    }
+
+    /// Choose the next step for the place-boundary probe.
+    /// An interrupt and a running child use the same deadline.
+    #[requires(true)]
+    #[ensures(true)]
+    fn place_probe_step(
+        kind: PlaceProbeKind,
+        now: std::time::Instant,
+        deadline: std::time::Instant,
+    ) -> PlaceProbeStep {
+        match kind {
+            PlaceProbeKind::Exited => PlaceProbeStep::Finished,
+            PlaceProbeKind::Failed => PlaceProbeStep::Failed,
+            PlaceProbeKind::Running | PlaceProbeKind::Interrupted if now >= deadline => {
+                PlaceProbeStep::TimedOut
+            }
+            PlaceProbeKind::Running | PlaceProbeKind::Interrupted => PlaceProbeStep::Sleep,
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn place_boundary_interrupted_poll_reaches_the_deadline() {
+        let deadline = std::time::Instant::now();
+        let before = deadline
+            .checked_sub(std::time::Duration::from_millis(100))
+            .expect("the clock has a past instant");
+        assert!(matches!(
+            place_probe_step(PlaceProbeKind::Interrupted, before, deadline),
+            PlaceProbeStep::Sleep
+        ));
+        assert!(matches!(
+            place_probe_step(PlaceProbeKind::Interrupted, deadline, deadline),
+            PlaceProbeStep::TimedOut
+        ));
+        let start = std::time::Instant::now();
+        let short_deadline = start + std::time::Duration::from_millis(100);
+        let mut now = start;
+        let mut steps = 0_u32;
+        let outcome = loop {
+            match place_probe_step(PlaceProbeKind::Interrupted, now, short_deadline) {
+                PlaceProbeStep::Sleep => {
+                    steps += 1;
+                    now += std::time::Duration::from_millis(10);
+                    assert!(steps < 50, "the probe did not reach the deadline");
+                }
+                outcome => break outcome,
+            }
+        };
+        assert!(matches!(outcome, PlaceProbeStep::TimedOut));
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -8402,19 +8472,30 @@ mod tests {
             .expect("start the place-boundary probe");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         // A signal can interrupt try_wait.
-        // Retry that call.
+        // That pass uses the same deadline as a running child.
         // Any other error fails this test.
         let status = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break status,
-                Ok(None) if std::time::Instant::now() >= deadline => {
+            let now = std::time::Instant::now();
+            let (kind, exited, failed) = match child.try_wait() {
+                Ok(Some(status)) => (PlaceProbeKind::Exited, Some(status), None),
+                Ok(None) => (PlaceProbeKind::Running, None, None),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+                    (PlaceProbeKind::Interrupted, None, None)
+                }
+                Err(error) => (PlaceProbeKind::Failed, None, Some(error)),
+            };
+            match place_probe_step(kind, now, deadline) {
+                PlaceProbeStep::Finished => break exited.expect("the probe exited"),
+                PlaceProbeStep::Sleep => std::thread::sleep(std::time::Duration::from_millis(10)),
+                PlaceProbeStep::TimedOut => {
                     child.kill().expect("stop the stalled place-boundary probe");
                     child.wait().expect("reap the place-boundary probe");
                     panic!("The place-boundary probe did not finish within 30 seconds.");
                 }
-                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(10)),
-                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(error) => panic!("the place-boundary probe status failed: {error}"),
+                PlaceProbeStep::Failed => {
+                    let error = failed.expect("the probe status failed");
+                    panic!("the place-boundary probe status failed: {error}");
+                }
             }
         };
         // An empty test filter exits zero. Require proof that both probes ran.

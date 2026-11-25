@@ -510,19 +510,50 @@ fn run_bounded(command: &mut Command, timeout: Duration) -> Result<()> {
     wait_bounded(&mut child, timeout)
 }
 
-// A signal can interrupt a blocking call.
-// The call returns `ErrorKind::Interrupted`.
-// Retry that call.
-// Leave every other error.
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
-fn retry_interrupted<T>(mut operation: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
-    loop {
-        match operation() {
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-            result => return result,
+/// One observation from `try_wait`.
+#[invariant(true)]
+enum ChildPollKind {
+    Exited,
+    Running,
+    Interrupted,
+    Failed,
+}
+
+/// The next step for a bounded child wait.
+#[invariant(true)]
+enum WaitStepKind {
+    Succeeded,
+    Continue,
+    TimedOut,
+    Failed,
+}
+
+/// Choose the next step for a bounded wait.
+/// An interrupt and a running child use the same deadline.
+/// An exit is success.
+#[requires(!timeout.is_zero())]
+#[ensures(true)]
+fn bounded_wait_step(kind: ChildPollKind, elapsed: Duration, timeout: Duration) -> WaitStepKind {
+    match kind {
+        ChildPollKind::Exited => WaitStepKind::Succeeded,
+        ChildPollKind::Failed => WaitStepKind::Failed,
+        ChildPollKind::Running | ChildPollKind::Interrupted if elapsed < timeout => {
+            WaitStepKind::Continue
         }
+        ChildPollKind::Running | ChildPollKind::Interrupted => WaitStepKind::TimedOut,
     }
+}
+
+/// Stop the child and its process group.
+#[requires(true)]
+#[ensures(true)]
+fn stop_publisher_child(child: &mut std::process::Child) {
+    #[cfg(unix)]
+    unsafe {
+        libc::kill(-(child.id() as i32), libc::SIGKILL);
+    }
+    let _ = child.kill();
+    let _ = child.wait();
 }
 
 #[requires(!timeout.is_zero())]
@@ -532,31 +563,36 @@ fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()
     loop {
         // `try_wait` uses `waitpid`.
         // A signal can interrupt that call.
-        // Retry the interrupt.
-        // Any other error still stops the child.
-        match retry_interrupted(|| child.try_wait()) {
-            Ok(Some(status)) => {
+        // The deadline is checked on that pass too.
+        let elapsed = start.elapsed();
+        let (kind, status, failure) = match child.try_wait() {
+            Ok(Some(status)) => (ChildPollKind::Exited, Some(status), None),
+            Ok(None) => (ChildPollKind::Running, None, None),
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+                (ChildPollKind::Interrupted, None, None)
+            }
+            Err(error) => (ChildPollKind::Failed, None, Some(error)),
+        };
+        match bounded_wait_step(kind, elapsed, timeout) {
+            WaitStepKind::Succeeded => {
+                let status = status.expect("an exited child has a status");
                 if !status.success() {
                     bail!("Publisher command failed with {status}");
                 }
                 return Ok(());
             }
-            Ok(None) if start.elapsed() < timeout => std::thread::sleep(Duration::from_millis(20)),
-            result => {
-                #[cfg(unix)]
-                // Kill descendants too if the command starts another process.
-                unsafe {
-                    libc::kill(-(child.id() as i32), libc::SIGKILL);
-                }
-                let _ = child.kill();
-                let _ = child.wait();
-                if let Err(error) = result {
-                    return Err(error.into());
-                }
+            WaitStepKind::Continue => std::thread::sleep(Duration::from_millis(20)),
+            WaitStepKind::TimedOut => {
+                stop_publisher_child(child);
                 bail!(
                     "Publisher command timed out after {} seconds",
                     timeout.as_secs_f64()
                 );
+            }
+            WaitStepKind::Failed => {
+                let error = failure.expect("a failed wait has an error");
+                stop_publisher_child(child);
+                return Err(error.into());
             }
         }
     }
@@ -613,6 +649,72 @@ fn redacted_readback_stderr(bytes: &[u8]) -> String {
     }
 }
 
+/// Bytes drained from the read-back stderr pipe.
+/// `error` is set when the pipe operation fails.
+#[invariant(true)]
+struct ReadbackDrain {
+    bytes: Vec<u8>,
+    error: Option<String>,
+}
+
+/// The text of a worker panic.
+/// The text is the panic message.
+/// An empty payload uses a fixed sentence.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn worker_panic_text(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<String>() {
+        if !message.is_empty() {
+            return message.clone();
+        }
+    }
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        if !message.is_empty() {
+            return (*message).to_owned();
+        }
+    }
+    "the worker panicked".to_owned()
+}
+
+/// The text of an I/O error.
+/// The text is not empty.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn io_error_text(error: &std::io::Error) -> String {
+    let message = error.to_string();
+    if !message.is_empty() {
+        return message;
+    }
+    format!("{:?}", error.kind())
+}
+
+/// Join the child status with the stderr worker.
+/// A worker error or panic fails the command.
+/// The child status stays in the message.
+/// Stderr bytes stay redacted.
+#[requires(match &worker {
+    Ok(drain) => drain.bytes.len() <= 4096,
+    Err(_) => true,
+})]
+#[ensures(true)]
+fn combine_readback(child: Result<()>, worker: std::thread::Result<ReadbackDrain>) -> Result<()> {
+    let (bytes, worker_error) = match worker {
+        Ok(drain) => (drain.bytes, drain.error),
+        Err(payload) => (Vec::new(), Some(worker_panic_text(payload.as_ref()))),
+    };
+    let redacted = redacted_readback_stderr(&bytes);
+    match (child, worker_error) {
+        (Ok(()), None) => Ok(()),
+        (Ok(()), Some(error)) => {
+            bail!("the read-back stderr worker failed: {error}")
+        }
+        (Err(error), None) => Err(error).context(format!("Read-back stderr: {redacted}")),
+        (Err(error), Some(worker_error)) => Err(error).context(format!(
+            "Read-back stderr: {redacted}; the read-back stderr worker failed: {worker_error}"
+        )),
+    }
+}
+
 #[requires(!timeout.is_zero())]
 #[ensures(true)]
 fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
@@ -633,9 +735,14 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
     let reader = std::thread::spawn(move || {
         // Drain after the limit too, so verbose failures cannot block the child or grow memory use.
         let mut bytes = Vec::new();
-        stderr.by_ref().take(4096).read_to_end(&mut bytes)?;
-        std::io::copy(&mut stderr, &mut std::io::sink())?;
-        Ok::<_, std::io::Error>(bytes)
+        let error = match stderr.by_ref().take(4096).read_to_end(&mut bytes) {
+            Ok(_) => match std::io::copy(&mut stderr, &mut std::io::sink()) {
+                Ok(_) => None,
+                Err(error) => Some(io_error_text(&error)),
+            },
+            Err(error) => Some(io_error_text(&error)),
+        };
+        ReadbackDrain { bytes, error }
     });
     let result = wait_bounded(&mut child, timeout);
     #[cfg(unix)]
@@ -643,8 +750,7 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
     unsafe {
         libc::kill(-(child.id() as i32), libc::SIGKILL);
     }
-    let bytes = reader.join().ok().and_then(Result::ok).unwrap_or_default();
-    result.with_context(|| format!("Read-back stderr: {}", redacted_readback_stderr(&bytes)))
+    combine_readback(result, reader.join())
 }
 
 #[invariant(true)]
@@ -696,36 +802,141 @@ mod tests {
             "body_encoding": object.content_encoding})
     }
 
+    const REQUEST_HEAD_LIMIT: usize = 16 * 1024;
+    const STUB_SOCKET_POLL: Duration = Duration::from_millis(100);
+
+    /// A socket poll that this loop can retry.
+    /// An interrupt, a timeout, and a would-block result are polls.
     #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
-    fn read_retry(socket: &mut impl std::io::Read, buf: &mut [u8]) -> std::io::Result<usize> {
-        super::retry_interrupted(|| std::io::Read::read(socket, buf))
+    #[ensures(true)]
+    fn stub_io_is_a_poll(error: &std::io::Error) -> bool {
+        matches!(
+            error.kind(),
+            std::io::ErrorKind::Interrupted
+                | std::io::ErrorKind::TimedOut
+                | std::io::ErrorKind::WouldBlock
+        )
     }
 
-    const REQUEST_HEAD_LIMIT: usize = 16 * 1024;
-
     /// Read one HTTP request head.
-    /// Retry an interrupted read.
+    /// An interrupt returns to this loop.
+    /// The stop flag is checked on every pass.
+    /// A timeout or a would-block result is the same kind of pass.
+    /// `Ok(None)` means the stop flag is true.
     /// Stop at the blank line, at a closed socket, or past the size limit.
     #[requires(true)]
     #[ensures(match &ret {
-        Ok(request) => request.len() < REQUEST_HEAD_LIMIT,
+        Ok(Some(request)) => request.len() < REQUEST_HEAD_LIMIT,
+        Ok(None) => true,
         Err(error) => !error.is_empty(),
     })]
-    fn read_request_head(socket: &mut impl std::io::Read) -> Result<Vec<u8>, String> {
+    fn read_request_head(
+        socket: &mut impl std::io::Read,
+        stop: &std::sync::atomic::AtomicBool,
+    ) -> Result<Option<Vec<u8>>, String> {
         let mut request = Vec::new();
-        while !request.ends_with(b"\r\n\r\n") {
+        loop {
+            if stop.load(Ordering::Relaxed) {
+                return Ok(None);
+            }
+            if request.ends_with(b"\r\n\r\n") {
+                return Ok(Some(request));
+            }
             let mut byte = [0];
-            match read_retry(socket, &mut byte) {
-                Ok(0) => break,
-                Ok(_) => request.push(byte[0]),
+            match socket.read(&mut byte) {
+                Ok(0) => return Ok(Some(request)),
+                Ok(_) => {
+                    request.push(byte[0]);
+                    if request.len() >= REQUEST_HEAD_LIMIT {
+                        return Err("the stub server request is longer than 16 KiB".to_owned());
+                    }
+                }
+                Err(error) if stub_io_is_a_poll(&error) => continue,
                 Err(error) => return Err(format!("the stub server read failed: {error}")),
             }
-            if request.len() >= REQUEST_HEAD_LIMIT {
-                return Err("the stub server request is longer than 16 KiB".to_owned());
+        }
+    }
+
+    /// Write every byte.
+    /// An interrupt leaves the byte offset unchanged.
+    /// The stop flag is checked on every pass.
+    /// `Ok(false)` means the stop flag ended the write.
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_stub_bytes(
+        socket: &mut impl std::io::Write,
+        bytes: &[u8],
+        stop: &std::sync::atomic::AtomicBool,
+    ) -> Result<bool, String> {
+        let mut offset = 0;
+        while offset < bytes.len() {
+            if stop.load(Ordering::Relaxed) {
+                return Ok(false);
+            }
+            match socket.write(&bytes[offset..]) {
+                Ok(0) => {
+                    return Err("the stub server write returned no bytes".to_owned());
+                }
+                Ok(count) => offset += count,
+                Err(error) if stub_io_is_a_poll(&error) => continue,
+                Err(error) => return Err(format!("the stub server write failed: {error}")),
             }
         }
-        Ok(request)
+        Ok(true)
+    }
+
+    /// Bind one local port.
+    /// An interrupt retries the same port.
+    /// An address that is already in use advances to the next port.
+    /// Any other error names the address and the cause.
+    #[requires(start <= end)]
+    #[ensures(true)]
+    fn select_local_port<T>(
+        start: u16,
+        end: u16,
+        mut bind_port: impl FnMut(u16) -> std::io::Result<T>,
+    ) -> Result<T, String> {
+        let mut port = start;
+        loop {
+            if port > end {
+                return Err(format!("no free port in {start}..={end}"));
+            }
+            match bind_port(port) {
+                Ok(value) => return Ok(value),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+                    port = match port.checked_add(1) {
+                        Some(next) => next,
+                        None => return Err(format!("no free port in {start}..={end}")),
+                    };
+                }
+                Err(error) => {
+                    return Err(format!("cannot bind 127.0.0.1:{port}: {error}"));
+                }
+            }
+        }
+    }
+
+    /// Apply one socket option.
+    /// An interrupt returns to this loop.
+    /// The stop flag is checked on every pass.
+    /// `Ok(false)` means the stop flag is true.
+    #[requires(true)]
+    #[ensures(true)]
+    fn stub_option_until_stop(
+        stop: &std::sync::atomic::AtomicBool,
+        mut operation: impl FnMut() -> std::io::Result<()>,
+    ) -> Result<bool, String> {
+        loop {
+            if stop.load(Ordering::Relaxed) {
+                return Ok(false);
+            }
+            match operation() {
+                Ok(()) => return Ok(true),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => return Err(error.to_string()),
+            }
+        }
     }
 
     #[requires(true)]
@@ -743,37 +954,101 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn io_retry_interrupted_retries_until_success() {
-        let mut calls = 0;
-        let result = super::retry_interrupted(|| {
-            calls += 1;
-            if calls < 3 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Interrupted,
-                    "injected interrupt",
-                ));
+    fn wait_bounded_times_out_when_interrupts_pass_100_ms() {
+        // The poll returns interrupts until 110 ms.
+        // The limit is 100 ms.
+        // The wait times out before it can see the later exit.
+        let timeout = Duration::from_millis(100);
+        let interrupt_until = Duration::from_millis(110);
+        let mut elapsed = Duration::ZERO;
+        let mut steps = 0_u32;
+        let outcome = loop {
+            let kind = if elapsed < interrupt_until {
+                super::ChildPollKind::Interrupted
+            } else {
+                super::ChildPollKind::Exited
+            };
+            match super::bounded_wait_step(kind, elapsed, timeout) {
+                super::WaitStepKind::Continue => {
+                    steps += 1;
+                    elapsed += Duration::from_millis(20);
+                    assert!(steps < 20, "the wait did not reach the deadline");
+                }
+                outcome => break outcome,
             }
-            Ok(7)
-        });
-        assert_eq!(result.expect("the helper returns the value"), 7);
-        assert_eq!(calls, 3);
+        };
+        assert!(matches!(outcome, super::WaitStepKind::TimedOut));
+        assert!(elapsed >= timeout);
+        assert!(elapsed < interrupt_until);
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn io_retry_interrupted_returns_other_errors_once() {
-        let mut calls = 0;
-        let result: std::io::Result<()> = super::retry_interrupted(|| {
-            calls += 1;
-            Err(std::io::Error::new(
-                std::io::ErrorKind::ConnectionReset,
-                "injected reset",
-            ))
-        });
-        let error = result.expect_err("the helper returns the reset");
-        assert_eq!(error.kind(), std::io::ErrorKind::ConnectionReset);
-        assert_eq!(calls, 1);
+    fn wait_bounded_times_out_on_persistent_interrupts() {
+        let timeout = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        let outcome = loop {
+            match super::bounded_wait_step(super::ChildPollKind::Interrupted, elapsed, timeout) {
+                super::WaitStepKind::Continue => {
+                    elapsed += Duration::from_millis(20);
+                    assert!(elapsed < Duration::from_secs(1));
+                }
+                outcome => break outcome,
+            }
+        };
+        assert!(matches!(outcome, super::WaitStepKind::TimedOut));
+        assert!(elapsed >= timeout);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_reports_a_pipe_error_after_a_clean_child() {
+        let error = super::combine_readback(
+            Ok(()),
+            Ok(super::ReadbackDrain {
+                bytes: Vec::new(),
+                error: Some("injected pipe".to_owned()),
+            }),
+        )
+        .expect_err("a pipe error fails the command");
+        let text = format!("{error:#}");
+        assert!(text.contains("injected pipe"), "{text}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_reports_the_worker_panic_after_a_clean_child() {
+        let error = super::combine_readback(Ok(()), Err(Box::new("readback sentinel")))
+            .expect_err("a worker panic fails the command");
+        let text = format!("{error:#}");
+        assert!(text.contains("readback sentinel"), "{text}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_keeps_the_child_status_and_the_worker_error() {
+        let bytes = br#"{"r2_readback_error":"io","body_etag":null,"stored_etag":null}"#;
+        let error = super::combine_readback(
+            Err(anyhow::anyhow!(
+                "Publisher command failed with exit status: 1"
+            )),
+            Ok(super::ReadbackDrain {
+                bytes: bytes.to_vec(),
+                error: Some("injected pipe".to_owned()),
+            }),
+        )
+        .expect_err("both failures stay in the command error");
+        let text = format!("{error:#}");
+        assert!(text.contains("exit status: 1"), "{text}");
+        assert!(text.contains("injected pipe"), "{text}");
+        assert!(
+            text.contains("R2 read-back failed (untrusted details redacted)"),
+            "{text}"
+        );
     }
 
     /// A reader that returns Interrupted before each byte.
@@ -830,8 +1105,189 @@ mod tests {
             index: 0,
             interrupt: true,
         });
-        let request = read_request_head(&mut reader).expect("the head is complete");
+        let stop = std::sync::atomic::AtomicBool::new(false);
+        let request = read_request_head(&mut reader, &stop)
+            .expect("the head is complete")
+            .expect("the stop flag is false");
         assert_eq!(request, head);
+    }
+
+    /// A reader that sets the stop flag and then always returns Interrupted.
+    #[invariant(true)]
+    struct StopThenInterrupt {
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        calls: usize,
+    }
+
+    impl std::io::Read for StopThenInterrupt {
+        #[requires(true)]
+        #[ensures(ret.is_err())]
+        fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+            self.calls += 1;
+            self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "injected interrupt",
+            ))
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn read_request_head_returns_to_the_stop_flag_on_persistent_interrupts() {
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut reader = StopThenInterrupt {
+            stop: std::sync::Arc::clone(&stop),
+            calls: 0,
+        };
+        let head = read_request_head(&mut reader, &stop).expect("the read returns");
+        assert!(head.is_none());
+        assert!(reader.calls < 5, "calls={}", reader.calls);
+    }
+
+    /// One scripted write result.
+    /// `Bytes` carries a positive count.
+    #[invariant(true)]
+    #[invariant(::Bytes(count) => *count > 0)]
+    enum WriteStep {
+        Interrupt,
+        Bytes(usize),
+    }
+
+    /// A writer that follows a script.
+    #[invariant(true)]
+    struct ScriptedWrite {
+        steps: Vec<WriteStep>,
+        cursor: usize,
+        written: Vec<u8>,
+    }
+
+    impl std::io::Write for ScriptedWrite {
+        #[requires(true)]
+        #[ensures(true)]
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            let copied = match self.steps[self.cursor].as_data() {
+                data!(WriteStep::Interrupt) => None,
+                data!(WriteStep::Bytes(count)) => Some(*count),
+            };
+            self.cursor += 1;
+            let Some(count) = copied else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ));
+            };
+            let count = count.min(buf.len());
+            self.written.extend_from_slice(&buf[..count]);
+            Ok(count)
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_stub_bytes_keeps_the_offset_across_interrupts() {
+        let mut writer = ScriptedWrite {
+            steps: vec![
+                new!(WriteStep::Interrupt),
+                new!(WriteStep::Bytes(1)),
+                new!(WriteStep::Interrupt),
+                new!(WriteStep::Bytes(3)),
+            ],
+            cursor: 0,
+            written: Vec::new(),
+        };
+        let stop = std::sync::atomic::AtomicBool::new(false);
+        let finished = write_stub_bytes(&mut writer, b"abcd", &stop).expect("the write finishes");
+        assert!(finished);
+        assert_eq!(writer.written, b"abcd");
+    }
+
+    /// A writer that sets the stop flag and then always returns Interrupted.
+    #[invariant(true)]
+    struct StopThenInterruptWrite {
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        calls: usize,
+    }
+
+    impl std::io::Write for StopThenInterruptWrite {
+        #[requires(true)]
+        #[ensures(ret.is_err())]
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            self.calls += 1;
+            self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "injected interrupt",
+            ))
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_stub_bytes_returns_to_the_stop_flag_on_persistent_interrupts() {
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut writer = StopThenInterruptWrite {
+            stop: std::sync::Arc::clone(&stop),
+            calls: 0,
+        };
+        let finished = write_stub_bytes(&mut writer, b"abcd", &stop).expect("the write returns");
+        assert!(!finished);
+        assert!(writer.calls < 5, "calls={}", writer.calls);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn port_scan_reports_permission_denied_with_the_address() {
+        let mut calls = 0_u32;
+        let error = select_local_port(18800, 18899, |port| {
+            calls += 1;
+            assert_eq!(port, 18800);
+            Err::<(), _>(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "injected permission",
+            ))
+        })
+        .expect_err("permission denied is not a missing port");
+        assert_eq!(calls, 1);
+        assert!(error.contains("127.0.0.1:18800"), "{error}");
+        assert!(error.contains("injected permission"), "{error}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn port_scan_retries_the_same_port_after_an_interrupt() {
+        let mut calls = 0_u32;
+        let listener = select_local_port(18800, 18899, |port| {
+            calls += 1;
+            assert_eq!(port, 18800);
+            if calls == 1 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ));
+            }
+            Ok(port)
+        })
+        .expect("an interrupt retries the same port");
+        assert_eq!(listener, 18800);
+        assert_eq!(calls, 2);
     }
 
     #[invariant(true)]
@@ -846,32 +1302,39 @@ mod tests {
         #[requires(true)]
         #[ensures(ret.worker.is_some())]
         fn start(stored: serde_json::Value, body: Vec<u8>, encoding: Option<&'static str>) -> Self {
-            let listener = (18800..=18899)
-                .find_map(|port| {
-                    super::retry_interrupted(|| std::net::TcpListener::bind(("127.0.0.1", port)))
-                        .ok()
-                })
-                .expect("the stub server binds a local port");
-            super::retry_interrupted(|| listener.set_nonblocking(true))
-                .expect("the stub server socket accepts nonblocking mode");
+            let listener = select_local_port(18800, 18899, |port| {
+                std::net::TcpListener::bind(("127.0.0.1", port))
+            })
+            .unwrap_or_else(|error| panic!("{error}"));
+            loop {
+                match listener.set_nonblocking(true) {
+                    Ok(()) => break,
+                    Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(error) => {
+                        panic!("the stub server socket accepts nonblocking mode: {error}")
+                    }
+                }
+            }
             let url = format!("http://{}", listener.local_addr().unwrap());
             let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
             let requests = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
             let worker_stop = stop.clone();
             let worker_requests = requests.clone();
             let worker = std::thread::spawn(move || -> Result<(), String> {
-                let send = |socket: &mut std::net::TcpStream, bytes: &[u8]| -> Result<(), String> {
-                    socket
-                        .write_all(bytes)
-                        .map_err(|error| format!("the stub server write failed: {error}"))
+                let send = |socket: &mut std::net::TcpStream,
+                            bytes: &[u8],
+                            stop: &std::sync::atomic::AtomicBool|
+                 -> Result<bool, String> {
+                    write_stub_bytes(socket, bytes, stop)
                 };
                 while !worker_stop.load(Ordering::Relaxed) {
-                    let (mut socket, _) = match super::retry_interrupted(|| listener.accept()) {
+                    let (mut socket, _) = match listener.accept() {
                         Ok(connection) => connection,
                         Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                             std::thread::sleep(Duration::from_millis(2));
                             continue;
                         }
+                        Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
                         Err(error) => {
                             return Err(format!("the stub server accept failed: {error}"));
                         }
@@ -879,17 +1342,36 @@ mod tests {
                     // On macOS and BSD, an accepted socket keeps the nonblocking mode of the listener.
                     // A nonblocking read returns WouldBlock.
                     // Set this socket to blocking mode.
-                    super::retry_interrupted(|| socket.set_nonblocking(false)).map_err(
-                        |error| {
+                    // The read and write polls are 100 milliseconds.
+                    // Each poll returns to the stop flag.
+                    if !stub_option_until_stop(&worker_stop, || socket.set_nonblocking(false))
+                        .map_err(|error| {
                             format!(
                                 "the stub server accepted socket did not become blocking: {error}"
                             )
-                        },
-                    )?;
-                    // The read has no time limit.
-                    // run_readback kills the process group.
-                    // That close ends this read.
-                    let request = read_request_head(&mut socket)?;
+                        })?
+                    {
+                        break;
+                    }
+                    if !stub_option_until_stop(&worker_stop, || {
+                        socket.set_read_timeout(Some(STUB_SOCKET_POLL))
+                    })
+                    .map_err(|error| {
+                        format!("the stub server accepted socket has no read timeout: {error}")
+                    })? {
+                        break;
+                    }
+                    if !stub_option_until_stop(&worker_stop, || {
+                        socket.set_write_timeout(Some(STUB_SOCKET_POLL))
+                    })
+                    .map_err(|error| {
+                        format!("the stub server accepted socket has no write timeout: {error}")
+                    })? {
+                        break;
+                    }
+                    let Some(request) = read_request_head(&mut socket, &worker_stop)? else {
+                        break;
+                    };
                     let request = String::from_utf8(request).map_err(|error| {
                         format!("the stub server request is not utf-8: {error}")
                     })?;
@@ -911,8 +1393,12 @@ mod tests {
                             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                             json.len()
                         );
-                        send(&mut socket, header.as_bytes())?;
-                        send(&mut socket, &json)?;
+                        if !send(&mut socket, header.as_bytes(), &worker_stop)? {
+                            break;
+                        }
+                        if !send(&mut socket, &json, &worker_stop)? {
+                            break;
+                        }
                     } else {
                         let etag = stored["etag"]
                             .as_str()
@@ -922,16 +1408,26 @@ mod tests {
                                 "HTTP/1.1 200 OK\r\nETag: \"{etag}\"\r\nContent-Encoding: br\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                                 body.len()
                             );
-                            send(&mut socket, header.as_bytes())?;
-                            send(&mut socket, &body)?;
+                            if !send(&mut socket, header.as_bytes(), &worker_stop)? {
+                                break;
+                            }
+                            if !send(&mut socket, &body, &worker_stop)? {
+                                break;
+                            }
                         } else {
                             let header = format!(
                                 "HTTP/1.1 200 OK\r\nETag: W/\"{etag}\"\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:x}\r\n",
                                 body.len()
                             );
-                            send(&mut socket, header.as_bytes())?;
-                            send(&mut socket, &body)?;
-                            send(&mut socket, b"\r\n0\r\n\r\n")?;
+                            if !send(&mut socket, header.as_bytes(), &worker_stop)? {
+                                break;
+                            }
+                            if !send(&mut socket, &body, &worker_stop)? {
+                                break;
+                            }
+                            if !send(&mut socket, b"\r\n0\r\n\r\n", &worker_stop)? {
+                                break;
+                            }
                         }
                     }
                 }
@@ -990,6 +1486,30 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r6_shutdown_returns_while_a_peer_holds_a_partial_request() {
+        // The peer sends only the start of the request.
+        // The socket stays open.
+        // Shutdown must see the stop flag on the next poll.
+        let stored = serde_json::json!({ "etag": "abc" });
+        let mut server = R6Server::start(stored, b"body".to_vec(), None);
+        let address = server.url.trim_start_matches("http://");
+        let mut client = std::net::TcpStream::connect(address).expect("the peer connects");
+        client
+            .write_all(b"GET /")
+            .expect("the peer writes a partial request");
+        let started = Instant::now();
+        let result = server.shutdown();
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "shutdown took {elapsed:?}"
+        );
+        result.expect("the stub server stops during a partial request");
     }
 
     #[test]

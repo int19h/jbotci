@@ -7,19 +7,6 @@ use std::sync::Condvar;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::thread::JoinHandle;
 
-/// Retry a socket call that a signal interrupts.
-/// When the error is not an interrupt, return that error.
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
-fn retry_interrupted<T>(mut operation: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
-    loop {
-        match operation() {
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-            result => return result,
-        }
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn setup_test_dir() -> tempfile::TempDir {
@@ -85,7 +72,8 @@ fn pack_io_is_a_stall(error: &std::io::Error) -> bool {
 }
 
 /// Read one request line.
-/// An interrupted read is tried again.
+/// An interrupt returns to this loop.
+/// The stop flag and the hang limit are checked on every pass.
 /// A stall is tried again while the stop flag is false.
 /// A stall of 60 seconds with a false stop flag fails the hang limit.
 /// The failure text says that this limit only stops a hang.
@@ -103,7 +91,7 @@ fn read_pack_line(stream: &mut impl std::io::Read, stop: &AtomicBool) -> PackRea
         if progressed.elapsed() >= PACK_HANG_LIMIT {
             panic!("this limit only stops a hang");
         }
-        match retry_interrupted(|| std::io::Read::read(stream, &mut byte)) {
+        match std::io::Read::read(stream, &mut byte) {
             Ok(0) => {
                 if line.is_empty() {
                     return new!(PackRead::End);
@@ -117,7 +105,12 @@ fn read_pack_line(stream: &mut impl std::io::Read, stop: &AtomicBool) -> PackRea
                     return new!(PackRead::Line(String::from_utf8_lossy(&line).into_owned(),));
                 }
             }
-            Err(error) if pack_io_is_a_stall(&error) => continue,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::Interrupted
+                    || pack_io_is_a_stall(&error) =>
+            {
+                continue;
+            }
             Err(error) => return new!(PackRead::Broken(socket_error_text(&error))),
         }
     }
@@ -125,6 +118,8 @@ fn read_pack_line(stream: &mut impl std::io::Read, stop: &AtomicBool) -> PackRea
 
 /// Write every byte.
 /// The socket timeout is 100 milliseconds.
+/// An interrupt leaves the byte offset unchanged.
+/// The stop flag and the hang limit are checked on every pass.
 /// A stall is tried again while the stop flag is false.
 /// The first stall before the stop flag records that the write blocked.
 /// A stall of 60 seconds with a false stop flag fails the hang limit.
@@ -133,7 +128,7 @@ fn read_pack_line(stream: &mut impl std::io::Read, stop: &AtomicBool) -> PackRea
 #[requires(true)]
 #[ensures(true)]
 fn write_pack_bytes(
-    stream: &mut std::net::TcpStream,
+    stream: &mut impl std::io::Write,
     bytes: &[u8],
     stop: &AtomicBool,
     stalled: &Mutex<bool>,
@@ -148,7 +143,7 @@ fn write_pack_bytes(
         if progressed.elapsed() >= PACK_HANG_LIMIT {
             panic!("this limit only stops a hang");
         }
-        match retry_interrupted(|| std::io::Write::write(stream, &bytes[offset..])) {
+        match std::io::Write::write(stream, &bytes[offset..]) {
             Ok(0) => {
                 return new!(PackWrite::Broken(
                     "the pack server write returned no bytes".to_owned(),
@@ -158,6 +153,7 @@ fn write_pack_bytes(
                 offset += count;
                 progressed = std::time::Instant::now();
             }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(error) if pack_io_is_a_stall(&error) => {
                 if !stop.load(AtomicOrdering::Acquire) {
                     record_pack_write_stall(stalled, stall_wake);
@@ -199,22 +195,25 @@ fn record_pack_response_start(started: &Mutex<bool>, wake: &Condvar) {
 /// Read bytes until the response header ends.
 /// The header ends at a blank line.
 /// The socket timeout is 100 milliseconds.
-/// A stall is tried again for 60 seconds.
+/// An interrupt returns to this loop.
+/// The hang limit is checked on every pass.
+/// A stall is tried again for the same limit.
 /// The failure text says that this limit only stops a hang.
 /// End of file returns the bytes read so far.
-#[requires(true)]
+#[requires(!limit.is_zero())]
 #[ensures(true)]
-fn read_pack_response_header(stream: &mut std::net::TcpStream) -> String {
-    retry_interrupted(|| stream.set_read_timeout(Some(PACK_SOCKET_POLL)))
-        .expect("the pack client accepts a read timeout");
+fn read_pack_response_header_for(
+    stream: &mut impl std::io::Read,
+    limit: std::time::Duration,
+) -> String {
     let mut bytes = Vec::new();
     let mut buf = [0_u8; 1];
     let started = std::time::Instant::now();
     loop {
-        if started.elapsed() >= PACK_HANG_LIMIT {
+        if started.elapsed() >= limit {
             panic!("this limit only stops a hang");
         }
-        match retry_interrupted(|| std::io::Read::read(stream, &mut buf)) {
+        match std::io::Read::read(stream, &mut buf) {
             Ok(0) => return String::from_utf8_lossy(&bytes).into_owned(),
             Ok(_) => {
                 bytes.push(buf[0]);
@@ -222,8 +221,108 @@ fn read_pack_response_header(stream: &mut std::net::TcpStream) -> String {
                     return String::from_utf8_lossy(&bytes).into_owned();
                 }
             }
-            Err(error) if pack_io_is_a_stall(&error) => continue,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::Interrupted
+                    || pack_io_is_a_stall(&error) =>
+            {
+                continue;
+            }
             Err(error) => panic!("the pack response header failed: {error}"),
+        }
+    }
+}
+
+/// Read the response header from a pack client socket.
+/// The hang limit is 60 seconds.
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_response_header(stream: &mut std::net::TcpStream) -> String {
+    let started = std::time::Instant::now();
+    loop {
+        if started.elapsed() >= PACK_HANG_LIMIT {
+            panic!("this limit only stops a hang");
+        }
+        match stream.set_read_timeout(Some(PACK_SOCKET_POLL)) {
+            Ok(()) => break,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => panic!("the pack client accepts a read timeout: {error}"),
+        }
+    }
+    let remaining = PACK_HANG_LIMIT.saturating_sub(started.elapsed());
+    read_pack_response_header_for(stream, remaining.max(std::time::Duration::from_millis(1)))
+}
+
+/// Read one file chunk.
+/// An interrupt returns to this loop.
+/// The stop flag is checked on every pass.
+/// `Ok(None)` means the stop flag is true.
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_file_chunk(
+    file: &mut impl std::io::Read,
+    buf: &mut [u8],
+    stop: &AtomicBool,
+) -> Result<Option<usize>, String> {
+    loop {
+        if stop.load(AtomicOrdering::Acquire) {
+            return Ok(None);
+        }
+        match file.read(buf) {
+            Ok(count) => return Ok(Some(count)),
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(format!("the pack server file read failed: {error}")),
+        }
+    }
+}
+
+/// Bind one local port.
+/// An interrupt retries the same port.
+/// An address that is already in use advances to the next port.
+/// Any other error names the address and the cause.
+#[requires(start <= end)]
+#[ensures(true)]
+fn select_local_port<T>(
+    start: u16,
+    end: u16,
+    mut bind_port: impl FnMut(u16) -> std::io::Result<T>,
+) -> Result<T, String> {
+    let mut port = start;
+    loop {
+        if port > end {
+            return Err(format!("no free port in {start}..={end}"));
+        }
+        match bind_port(port) {
+            Ok(value) => return Ok(value),
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+                port = match port.checked_add(1) {
+                    Some(next) => next,
+                    None => return Err(format!("no free port in {start}..={end}")),
+                };
+            }
+            Err(error) => return Err(format!("cannot bind 127.0.0.1:{port}: {error}")),
+        }
+    }
+}
+
+/// Apply one socket call.
+/// An interrupt returns to this loop.
+/// The stop flag is checked on every pass.
+/// `Ok(false)` means the stop flag is true.
+#[requires(true)]
+#[ensures(true)]
+fn call_until_stop(
+    stop: &AtomicBool,
+    mut operation: impl FnMut() -> std::io::Result<()>,
+) -> Result<bool, std::io::Error> {
+    loop {
+        if stop.load(AtomicOrdering::Acquire) {
+            return Ok(false);
+        }
+        match operation() {
+            Ok(()) => return Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error),
         }
     }
 }
@@ -288,23 +387,262 @@ impl std::io::Read for ResetOnce {
     }
 }
 
+/// A reader that sets the stop flag and then always returns Interrupted.
+#[invariant(true)]
+struct StopThenInterrupt {
+    stop: Arc<AtomicBool>,
+    calls: usize,
+}
+
+impl std::io::Read for StopThenInterrupt {
+    #[requires(true)]
+    #[ensures(ret.is_err())]
+    fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+        self.calls += 1;
+        self.stop.store(true, AtomicOrdering::Release);
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            "injected interrupt",
+        ))
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn retry_interrupted_retries_until_success() {
-    let mut calls = 0;
-    let result = retry_interrupted(|| {
+fn read_pack_line_returns_to_the_stop_flag_on_persistent_interrupts() {
+    let stop = Arc::new(AtomicBool::new(false));
+    let mut reader = StopThenInterrupt {
+        stop: Arc::clone(&stop),
+        calls: 0,
+    };
+    match read_pack_line(&mut reader, &stop).into_data() {
+        data!(PackRead::Stopped) => {}
+        _ => panic!("the pack line returns to the stop flag"),
+    }
+    assert!(reader.calls < 5, "calls={}", reader.calls);
+}
+
+/// A reader that always returns Interrupted.
+#[invariant(true)]
+struct AlwaysInterrupt {
+    calls: usize,
+}
+
+impl std::io::Read for AlwaysInterrupt {
+    #[requires(true)]
+    #[ensures(ret.is_err())]
+    fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+        self.calls += 1;
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            "injected interrupt",
+        ))
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_response_header_reaches_a_100_ms_limit_on_persistent_interrupts() {
+    let mut reader = AlwaysInterrupt { calls: 0 };
+    let started = std::time::Instant::now();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        read_pack_response_header_for(&mut reader, std::time::Duration::from_millis(100));
+    }));
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    let message = panic_payload_text(result.expect_err("the hang limit fires"));
+    assert!(
+        message.contains("this limit only stops a hang"),
+        "{message}"
+    );
+    assert!(reader.calls > 0);
+}
+
+/// One scripted write result.
+/// `Bytes` carries a positive count.
+#[invariant(true)]
+#[invariant(::Bytes(count) => *count > 0)]
+enum PackWriteStep {
+    Interrupt,
+    Bytes(usize),
+}
+
+/// A writer that follows a script.
+#[invariant(true)]
+struct ScriptedPackWrite {
+    steps: Vec<PackWriteStep>,
+    cursor: usize,
+    written: Vec<u8>,
+}
+
+impl std::io::Write for ScriptedPackWrite {
+    #[requires(true)]
+    #[ensures(true)]
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let copied = match self.steps[self.cursor].as_data() {
+            data!(PackWriteStep::Interrupt) => None,
+            data!(PackWriteStep::Bytes(count)) => Some(*count),
+        };
+        self.cursor += 1;
+        let Some(count) = copied else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "injected interrupt",
+            ));
+        };
+        let count = count.min(buf.len());
+        self.written.extend_from_slice(&buf[..count]);
+        Ok(count)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn write_pack_bytes_keeps_the_offset_across_interrupts() {
+    let mut writer = ScriptedPackWrite {
+        steps: vec![
+            new!(PackWriteStep::Interrupt),
+            new!(PackWriteStep::Bytes(1)),
+            new!(PackWriteStep::Interrupt),
+            new!(PackWriteStep::Bytes(3)),
+        ],
+        cursor: 0,
+        written: Vec::new(),
+    };
+    let stop = AtomicBool::new(false);
+    let stalled = Mutex::new(false);
+    let wake = Condvar::new();
+    match write_pack_bytes(&mut writer, b"abcd", &stop, &stalled, &wake).into_data() {
+        data!(PackWrite::Done) => {}
+        _ => panic!("the pack write finishes"),
+    }
+    assert_eq!(writer.written, b"abcd");
+}
+
+/// A writer that sets the stop flag and then always returns Interrupted.
+#[invariant(true)]
+struct StopThenInterruptWrite {
+    stop: Arc<AtomicBool>,
+    calls: usize,
+}
+
+impl std::io::Write for StopThenInterruptWrite {
+    #[requires(true)]
+    #[ensures(ret.is_err())]
+    fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+        self.calls += 1;
+        self.stop.store(true, AtomicOrdering::Release);
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            "injected interrupt",
+        ))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn write_pack_bytes_returns_to_the_stop_flag_on_persistent_interrupts() {
+    let stop = Arc::new(AtomicBool::new(false));
+    let mut writer = StopThenInterruptWrite {
+        stop: Arc::clone(&stop),
+        calls: 0,
+    };
+    let stalled = Mutex::new(false);
+    let wake = Condvar::new();
+    match write_pack_bytes(&mut writer, b"abcd", &stop, &stalled, &wake).into_data() {
+        data!(PackWrite::Stopped) => {}
+        _ => panic!("the pack write returns to the stop flag"),
+    }
+    assert!(writer.calls < 5, "calls={}", writer.calls);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_file_chunk_returns_to_the_stop_flag_on_persistent_interrupts() {
+    let stop = Arc::new(AtomicBool::new(false));
+    let mut reader = StopThenInterrupt {
+        stop: Arc::clone(&stop),
+        calls: 0,
+    };
+    let mut buf = [0_u8; 8];
+    let chunk = read_pack_file_chunk(&mut reader, &mut buf, &stop).expect("the file read returns");
+    assert!(chunk.is_none());
+    assert!(reader.calls < 5, "calls={}", reader.calls);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn call_until_stop_returns_on_persistent_interrupts() {
+    let stop = Arc::new(AtomicBool::new(false));
+    let mut calls = 0_u32;
+    let finished = call_until_stop(&stop, || {
         calls += 1;
-        if calls < 3 {
+        stop.store(true, AtomicOrdering::Release);
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Interrupted,
+            "injected interrupt",
+        ))
+    })
+    .expect("the call returns to the stop flag");
+    assert!(!finished);
+    assert!(calls < 5, "calls={calls}");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn port_scan_reports_permission_denied_with_the_address() {
+    let mut calls = 0_u32;
+    let error = select_local_port(18800, 18899, |port| {
+        calls += 1;
+        assert_eq!(port, 18800);
+        Err::<(), _>(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "injected permission",
+        ))
+    })
+    .expect_err("permission denied is not a missing port");
+    assert_eq!(calls, 1);
+    assert!(error.contains("127.0.0.1:18800"), "{error}");
+    assert!(error.contains("injected permission"), "{error}");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn port_scan_retries_the_same_port_after_an_interrupt() {
+    let mut calls = 0_u32;
+    let listener = select_local_port(18800, 18899, |port| {
+        calls += 1;
+        assert_eq!(port, 18800);
+        if calls == 1 {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Interrupted,
                 "injected interrupt",
             ));
         }
-        Ok(7)
-    });
-    assert_eq!(result.expect("the helper returns the value"), 7);
-    assert_eq!(calls, 3);
+        Ok(port)
+    })
+    .expect("an interrupt retries the same port");
+    assert_eq!(listener, 18800);
+    assert_eq!(calls, 2);
 }
 
 #[test]
@@ -353,6 +691,7 @@ struct PackServer {
     write_stalled: Arc<Mutex<bool>>,
     write_stall_wake: Arc<Condvar>,
     stop: Arc<AtomicBool>,
+    worker_result: Arc<Mutex<Option<Result<(), String>>>>,
     worker: Option<JoinHandle<Result<(), String>>>,
 }
 
@@ -360,13 +699,17 @@ impl PackServer {
     #[requires(root.is_dir())]
     #[ensures(ret.worker.is_some())]
     fn start(root: PathBuf) -> Self {
-        let listener = (18800..18900)
-            .find_map(|port| {
-                retry_interrupted(|| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))).ok()
-            })
-            .expect("a test server port in 18800..18900");
-        retry_interrupted(|| listener.set_nonblocking(true))
-            .expect("the pack server socket accepts nonblocking mode");
+        let listener = select_local_port(18800, 18899, |port| {
+            TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
+        })
+        .unwrap_or_else(|error| panic!("{error}"));
+        loop {
+            match listener.set_nonblocking(true) {
+                Ok(()) => break,
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => panic!("the pack server socket accepts nonblocking mode: {error}"),
+            }
+        }
         let address = listener
             .local_addr()
             .expect("the pack server has a local address");
@@ -379,6 +722,7 @@ impl PackServer {
         let write_stalled = Arc::new(Mutex::new(false));
         let write_stall_wake = Arc::new(Condvar::new());
         let stop = Arc::new(AtomicBool::new(false));
+        let worker_result = Arc::new(Mutex::new(None));
         let worker_requests = Arc::clone(&requests);
         let worker_wake = Arc::clone(&request_wake);
         let worker_ready = Arc::clone(&accept_ready);
@@ -388,130 +732,149 @@ impl PackServer {
         let worker_stalled = Arc::clone(&write_stalled);
         let worker_stall_wake = Arc::clone(&write_stall_wake);
         let worker_stop = Arc::clone(&stop);
+        let worker_result_slot = Arc::clone(&worker_result);
         let worker = std::thread::spawn(move || -> Result<(), String> {
-            // The listener does not block in accept.
-            // The first WouldBlock poll records that the accept loop is running.
-            // Each pass reads the stop flag.
-            // Shutdown can join without a wakeup connection.
-            // An interrupted accept is tried again.
-            // Any other socket error stops the worker and names the error.
-            'accept: while !worker_stop.load(AtomicOrdering::Acquire) {
-                let (mut stream, _) = match retry_interrupted(|| listener.accept()) {
-                    Ok(connection) => connection,
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                        {
-                            let mut ready = worker_ready
-                                .lock()
-                                .expect("the pack server accept flag is open");
-                            if !*ready {
-                                *ready = true;
-                                worker_ready_wake.notify_all();
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<(), String> {
+                    // The listener does not block in accept.
+                    // The first WouldBlock poll records that the accept loop is running.
+                    // Each pass reads the stop flag.
+                    // Shutdown can join without a wakeup connection.
+                    // An interrupted accept is tried again.
+                    // Any other socket error stops the worker and names the error.
+                    'accept: while !worker_stop.load(AtomicOrdering::Acquire) {
+                        let (mut stream, _) = match listener.accept() {
+                            Ok(connection) => connection,
+                            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                                {
+                                    let mut ready = worker_ready
+                                        .lock()
+                                        .expect("the pack server accept flag is open");
+                                    if !*ready {
+                                        *ready = true;
+                                        worker_ready_wake.notify_all();
+                                    }
+                                }
+                                std::thread::sleep(std::time::Duration::from_millis(2));
+                                continue;
                             }
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(2));
-                        continue;
-                    }
-                    Err(error) => {
-                        return Err(format!("the pack server accept failed: {error}"));
-                    }
-                };
-                // On macOS and BSD, an accepted socket keeps the nonblocking mode of the listener.
-                // A nonblocking read returns WouldBlock.
-                // Set this socket to blocking mode before the read.
-                retry_interrupted(|| stream.set_nonblocking(false)).map_err(|error| {
-                    format!("the pack server accepted socket did not become blocking: {error}")
-                })?;
-                // The socket timeout is 100 milliseconds.
-                // A stall is tried again until the stop flag is true or the hang limit fires.
-                retry_interrupted(|| stream.set_read_timeout(Some(PACK_SOCKET_POLL))).map_err(
-                    |error| format!("the pack server accepted socket has no read timeout: {error}"),
-                )?;
-                retry_interrupted(|| stream.set_write_timeout(Some(PACK_SOCKET_POLL))).map_err(
-                    |error| {
-                        format!("the pack server accepted socket has no write timeout: {error}")
-                    },
-                )?;
-                let line = match read_pack_line(&mut stream, &worker_stop).into_data() {
-                    data!(PackRead::Line(line)) => line,
-                    data!(PackRead::Stopped) => break,
-                    data!(PackRead::End) => continue,
-                    data!(PackRead::Broken(message)) => {
-                        return Err(format!("the pack server read failed: {message}"));
-                    }
-                };
-                let mut parts = line.split_whitespace();
-                let method = parts.next().unwrap_or("");
-                if method != "GET" {
-                    return Err(format!(
-                        "the pack server saw a request that is not GET: {line}"
-                    ));
-                }
-                let Some(relative) = parts.next() else {
-                    return Err(format!("the pack server request has no path: {line}"));
-                };
-                let relative = relative.trim_start_matches('/').to_owned();
-                // Record the request, then wake a test that waits for it.
-                // The wake uses the same mutex as the request list.
-                {
-                    let mut recorded = worker_requests.lock().unwrap();
-                    recorded.push(relative.clone());
-                    worker_wake.notify_one();
-                }
-                loop {
-                    match read_pack_line(&mut stream, &worker_stop).into_data() {
-                        data!(PackRead::Stopped) => break 'accept,
-                        data!(PackRead::Broken(message)) => {
-                            return Err(format!("the pack server read failed: {message}"));
-                        }
-                        data!(PackRead::End) => break,
-                        data!(PackRead::Line(header)) if header == "\r\n" => break,
-                        data!(PackRead::Line(_)) => {}
-                    }
-                }
-                let path = root.join(
-                    safe_pack_relative_path(&relative)
-                        .map_err(|error| format!("the pack server path is not safe: {error}"))?,
-                );
-                if let Ok(mut file) = File::open(path) {
-                    let length = file
-                        .metadata()
-                        .map_err(|error| format!("the pack server file length failed: {error}"))?;
-                    let header = format!(
-                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                        length.len()
-                    );
-                    // io::copy uses sendfile for a file and a socket.
-                    // sendfile ignores the write timeout.
-                    // Each chunk uses the 100 millisecond timeout.
-                    // The record is set immediately before the first header write.
-                    record_pack_response_start(&worker_response, &worker_response_wake);
-                    match write_pack_bytes(
-                        &mut stream,
-                        header.as_bytes(),
-                        &worker_stop,
-                        &worker_stalled,
-                        &worker_stall_wake,
-                    )
-                    .into_data()
-                    {
-                        data!(PackWrite::Done) => {}
-                        data!(PackWrite::Stopped) => break,
-                        data!(PackWrite::Broken(message)) => {
-                            return Err(format!("the pack server write failed: {message}"));
-                        }
-                    }
-                    let mut buf = [0_u8; 64 * 1024];
-                    loop {
-                        let count = match retry_interrupted(|| file.read(&mut buf)) {
-                            Ok(0) => break,
-                            Ok(count) => count,
+                            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+                                continue;
+                            }
                             Err(error) => {
-                                return Err(format!("the pack server file read failed: {error}"));
+                                return Err(format!("the pack server accept failed: {error}"));
                             }
                         };
+                        // On macOS and BSD, an accepted socket keeps the nonblocking mode of the listener.
+                        // A nonblocking read returns WouldBlock.
+                        // Set this socket to blocking mode before the read.
+                        // The socket timeout is 100 milliseconds.
+                        // An interrupt returns to the stop flag.
+                        if !call_until_stop(&worker_stop, || stream.set_nonblocking(false)).map_err(
+                    |error| {
+                        format!("the pack server accepted socket did not become blocking: {error}")
+                    },
+                )? {
+                    break;
+                }
+                        if !call_until_stop(&worker_stop, || {
+                            stream.set_read_timeout(Some(PACK_SOCKET_POLL))
+                        })
+                        .map_err(|error| {
+                            format!("the pack server accepted socket has no read timeout: {error}")
+                        })? {
+                            break;
+                        }
+                        if !call_until_stop(&worker_stop, || {
+                            stream.set_write_timeout(Some(PACK_SOCKET_POLL))
+                        })
+                        .map_err(|error| {
+                            format!("the pack server accepted socket has no write timeout: {error}")
+                        })? {
+                            break;
+                        }
+                        let line = match read_pack_line(&mut stream, &worker_stop).into_data() {
+                            data!(PackRead::Line(line)) => line,
+                            data!(PackRead::Stopped) => break,
+                            data!(PackRead::End) => continue,
+                            data!(PackRead::Broken(message)) => {
+                                return Err(format!("the pack server read failed: {message}"));
+                            }
+                        };
+                        let mut parts = line.split_whitespace();
+                        let method = parts.next().unwrap_or("");
+                        if method != "GET" {
+                            return Err(format!(
+                                "the pack server saw a request that is not GET: {line}"
+                            ));
+                        }
+                        let Some(relative) = parts.next() else {
+                            return Err(format!("the pack server request has no path: {line}"));
+                        };
+                        let relative = relative.trim_start_matches('/').to_owned();
+                        // Record the request, then wake a test that waits for it.
+                        // The wake uses the same mutex as the request list.
+                        {
+                            let mut recorded = worker_requests.lock().unwrap();
+                            recorded.push(relative.clone());
+                            worker_wake.notify_one();
+                        }
+                        loop {
+                            match read_pack_line(&mut stream, &worker_stop).into_data() {
+                                data!(PackRead::Stopped) => break 'accept,
+                                data!(PackRead::Broken(message)) => {
+                                    return Err(format!("the pack server read failed: {message}"));
+                                }
+                                data!(PackRead::End) => break,
+                                data!(PackRead::Line(header)) if header == "\r\n" => break,
+                                data!(PackRead::Line(_)) => {}
+                            }
+                        }
+                        let path =
+                            root.join(safe_pack_relative_path(&relative).map_err(|error| {
+                                format!("the pack server path is not safe: {error}")
+                            })?);
+                        let mut file = match File::open(&path) {
+                    Ok(file) => file,
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                         match write_pack_bytes(
                             &mut stream,
-                            &buf[..count],
+                            b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                            &worker_stop,
+                            &worker_stalled,
+                            &worker_stall_wake,
+                        )
+                        .into_data()
+                        {
+                            data!(PackWrite::Stopped) => break,
+                            data!(PackWrite::Done) => continue,
+                            data!(PackWrite::Broken(message)) => {
+                                return Err(format!("the pack server write failed: {message}"));
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        return Err(format!(
+                            "the pack server cannot open {}: {error}",
+                            path.display()
+                        ));
+                    }
+                };
+                        let length = file.metadata().map_err(|error| {
+                            format!("the pack server file length failed: {error}")
+                        })?;
+                        let header = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            length.len()
+                        );
+                        // io::copy uses sendfile for a file and a socket.
+                        // sendfile ignores the write timeout.
+                        // Each chunk uses the 100 millisecond timeout.
+                        // The record is set immediately before the first header write.
+                        record_pack_response_start(&worker_response, &worker_response_wake);
+                        match write_pack_bytes(
+                            &mut stream,
+                            header.as_bytes(),
                             &worker_stop,
                             &worker_stalled,
                             &worker_stall_wake,
@@ -519,31 +882,54 @@ impl PackServer {
                         .into_data()
                         {
                             data!(PackWrite::Done) => {}
-                            data!(PackWrite::Stopped) => break 'accept,
+                            data!(PackWrite::Stopped) => break,
                             data!(PackWrite::Broken(message)) => {
                                 return Err(format!("the pack server write failed: {message}"));
                             }
                         }
-                    }
-                } else {
-                    match write_pack_bytes(
-                        &mut stream,
-                        b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                        &worker_stop,
-                        &worker_stalled,
-                        &worker_stall_wake,
-                    )
-                    .into_data()
-                    {
-                        data!(PackWrite::Stopped) => break,
-                        data!(PackWrite::Done) => {}
-                        data!(PackWrite::Broken(message)) => {
-                            return Err(format!("the pack server write failed: {message}"));
+                        let mut buf = [0_u8; 64 * 1024];
+                        loop {
+                            let count =
+                                match read_pack_file_chunk(&mut file, &mut buf, &worker_stop)? {
+                                    Some(0) => break,
+                                    Some(count) => count,
+                                    None => break 'accept,
+                                };
+                            match write_pack_bytes(
+                                &mut stream,
+                                &buf[..count],
+                                &worker_stop,
+                                &worker_stalled,
+                                &worker_stall_wake,
+                            )
+                            .into_data()
+                            {
+                                data!(PackWrite::Done) => {}
+                                data!(PackWrite::Stopped) => break 'accept,
+                                data!(PackWrite::Broken(message)) => {
+                                    return Err(format!("the pack server write failed: {message}"));
+                                }
+                            }
                         }
                     }
-                }
-            }
-            Ok(())
+                    Ok(())
+                },
+            ));
+            let result = match outcome {
+                Ok(result) => result,
+                Err(payload) => Err(pack_server_panic_message(payload)),
+            };
+            publish_pack_worker_result(
+                &worker_result_slot,
+                &result,
+                &[
+                    &worker_ready_wake,
+                    &worker_wake,
+                    &worker_response_wake,
+                    &worker_stall_wake,
+                ],
+            );
+            result
         });
         Self {
             address,
@@ -556,6 +942,7 @@ impl PackServer {
             write_stalled,
             write_stall_wake,
             stop,
+            worker_result,
             worker: Some(worker),
         }
     }
@@ -595,6 +982,81 @@ impl PackServer {
     }
 }
 
+/// The text of a panic payload.
+/// The text is not empty.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn panic_payload_text(payload: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(message) = payload.downcast_ref::<String>() {
+        if !message.is_empty() {
+            return message.clone();
+        }
+    }
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        if !message.is_empty() {
+            return (*message).to_owned();
+        }
+    }
+    "the worker panicked".to_owned()
+}
+
+/// Publish a worker result and wake every pack wait.
+#[requires(true)]
+#[ensures(true)]
+fn publish_pack_worker_result(
+    slot: &Mutex<Option<Result<(), String>>>,
+    result: &Result<(), String>,
+    wakes: &[&Condvar],
+) {
+    {
+        let mut guard = slot.lock().expect("the pack server worker result is open");
+        *guard = Some(result.clone());
+    }
+    for wake in wakes {
+        wake.notify_all();
+    }
+}
+
+/// Wait until a milestone is set.
+/// A worker result wakes the wait at once.
+/// A set milestone returns to the caller.
+/// The caller reads a worker error from shutdown.
+/// A worker error fails this wait only while the milestone is unset.
+/// A live worker with no progress still hits the hang limit.
+#[requires(!limit.is_zero())]
+#[ensures(true)]
+fn wait_for_pack_milestone<T>(
+    state: &Mutex<T>,
+    wake: &Condvar,
+    worker_result: &Mutex<Option<Result<(), String>>>,
+    limit: std::time::Duration,
+    still_waiting: impl Fn(&T) -> bool,
+) {
+    let guard = state.lock().expect("the pack server milestone is open");
+    let (guard, _) = wake
+        .wait_timeout_while(guard, limit, |state| {
+            still_waiting(state)
+                && worker_result
+                    .lock()
+                    .expect("the pack server worker result is open")
+                    .is_none()
+        })
+        .expect("the pack server milestone is open");
+    let waiting = still_waiting(&guard);
+    drop(guard);
+    if !waiting {
+        return;
+    }
+    let worker_error = worker_result
+        .lock()
+        .expect("the pack server worker result is open")
+        .clone();
+    if let Some(Err(error)) = worker_error {
+        panic!("{error}");
+    }
+    panic!("this limit only stops a hang");
+}
+
 #[requires(true)]
 #[ensures(ret.starts_with("the pack server thread panicked"))]
 fn pack_server_panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
@@ -623,6 +1085,175 @@ fn pack_server_shutdown_joins_without_a_client() {
         .expect("the pack server thread finishes cleanly");
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_worker_panic_wakes_a_milestone_wait() {
+    let state = Arc::new(Mutex::new(false));
+    let wake = Arc::new(Condvar::new());
+    let slot = Arc::new(Mutex::new(None));
+    let state_worker = Arc::clone(&state);
+    let wake_worker = Arc::clone(&wake);
+    let slot_worker = Arc::clone(&slot);
+    let publisher = std::thread::spawn(move || {
+        let payload = std::panic::catch_unwind(|| panic!("pack worker sentinel"))
+            .expect_err("the worker panics");
+        let result = Err(pack_server_panic_message(payload));
+        publish_pack_worker_result(&slot_worker, &result, &[&wake_worker]);
+        drop(state_worker);
+    });
+    let started = std::time::Instant::now();
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        wait_for_pack_milestone(
+            &state,
+            &wake,
+            &slot,
+            std::time::Duration::from_secs(5),
+            |ready| !*ready,
+        );
+    }));
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    let message = panic_payload_text(caught.expect_err("the wait reports the worker panic"));
+    assert!(message.contains("pack worker sentinel"), "{message}");
+    assert!(
+        !message.contains("this limit only stops a hang"),
+        "{message}"
+    );
+    publisher.join().expect("the publisher finishes");
+}
+
+/// Close the socket with a reset.
+/// Linux linger of zero sends that reset.
+#[cfg(target_os = "linux")]
+#[requires(true)]
+#[ensures(true)]
+fn close_with_reset(stream: &std::net::TcpStream) {
+    use std::os::fd::AsRawFd;
+    unsafe extern "C" {
+        fn setsockopt(
+            fd: i32,
+            level: i32,
+            name: i32,
+            value: *const core::ffi::c_void,
+            len: u32,
+        ) -> i32;
+    }
+    // Linux SOL_SOCKET is 1. Linux SO_LINGER is 13.
+    // Two i32 values match the Linux linger record.
+    let linger = [1_i32, 0_i32];
+    let result = unsafe {
+        setsockopt(
+            stream.as_raw_fd(),
+            1,
+            13,
+            linger.as_ptr().cast(),
+            std::mem::size_of_val(&linger) as u32,
+        )
+    };
+    assert_eq!(result, 0, "the pack client sets linger");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_server_read_error_wakes_the_request_wait() {
+    let root = setup_test_dir();
+    let server = PackServer::start(root.path().to_owned());
+    wait_until_pack_accept_is_ready(&server);
+    let client = std::net::TcpStream::connect(server.address).expect("the pack client connects");
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    close_with_reset(&client);
+    drop(client);
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let waiter = std::thread::spawn(move || {
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            wait_for_pack_request(&server);
+        }));
+        let _ = sender.send(caught);
+    });
+    let caught = receiver
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("the request wait observes the worker error");
+    let message = panic_payload_text(caught.expect_err("the worker error reaches the wait"));
+    assert!(message.contains("the pack server read failed"), "{message}");
+    assert!(
+        !message.contains("this limit only stops a hang"),
+        "{message}"
+    );
+    waiter.join().expect("the waiter finishes");
+}
+
+#[cfg(unix)]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_server_reports_an_unreadable_file() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = setup_test_dir();
+    let path = root.path().join("big");
+    std::fs::write(&path, b"secret").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+    let mut server = PackServer::start(root.path().to_owned());
+    wait_until_pack_accept_is_ready(&server);
+    let mut client =
+        std::net::TcpStream::connect(server.address).expect("the pack client connects");
+    client
+        .write_all(b"GET /big HTTP/1.1\r\n\r\n")
+        .expect("the pack client writes");
+    wait_for_pack_request(&server);
+    // The client reads until the worker closes the socket.
+    // That close follows the file open.
+    // Shutdown starts after the close, so the stop flag does not skip the open.
+    loop {
+        match client.set_read_timeout(Some(std::time::Duration::from_secs(5))) {
+            Ok(()) => break,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => panic!("the pack client sets a read timeout: {error}"),
+        }
+    }
+    let mut buf = [0_u8; 128];
+    let count = loop {
+        match std::io::Read::read(&mut client, &mut buf) {
+            Ok(count) => break count,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) if error.kind() == std::io::ErrorKind::TimedOut => {
+                panic!("the pack server did not close the socket");
+            }
+            Err(_) => break 0,
+        }
+    };
+    let text = String::from_utf8_lossy(&buf[..count]);
+    assert!(!text.contains("404"), "{text}");
+    let started = std::time::Instant::now();
+    let error = server
+        .shutdown()
+        .expect_err("the pack server reports the file error");
+    assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    assert!(error.contains("big"), "{error}");
+    assert!(error.to_lowercase().contains("permission"), "{error}");
+    drop(client);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_server_returns_404_for_a_missing_file() {
+    let root = setup_test_dir();
+    let mut server = PackServer::start(root.path().to_owned());
+    wait_until_pack_accept_is_ready(&server);
+    let mut client =
+        std::net::TcpStream::connect(server.address).expect("the pack client connects");
+    client
+        .write_all(b"GET /missing HTTP/1.1\r\n\r\n")
+        .expect("the pack client writes");
+    let header = read_pack_response_header(&mut client);
+    assert!(header.starts_with("HTTP/1.1 404"), "{header}");
+    server
+        .shutdown()
+        .expect("the pack server thread finishes cleanly");
+}
+
 /// Wait until the accept loop records its first poll.
 /// A wall clock of 60 seconds waits with the ready flag.
 /// When the flag is true, a correct run returns.
@@ -631,17 +1262,13 @@ fn pack_server_shutdown_joins_without_a_client() {
 #[requires(true)]
 #[ensures(true)]
 fn wait_until_pack_accept_is_ready(server: &PackServer) {
-    let guard = server
-        .accept_ready
-        .lock()
-        .expect("the pack server accept flag is open");
-    let (guard, _status) = server
-        .accept_wake
-        .wait_timeout_while(guard, PACK_HANG_LIMIT, |ready| !*ready)
-        .expect("the pack server accept flag is open");
-    if !*guard {
-        panic!("this limit only stops a hang");
-    }
+    wait_for_pack_milestone(
+        &server.accept_ready,
+        &server.accept_wake,
+        &server.worker_result,
+        PACK_HANG_LIMIT,
+        |ready| !*ready,
+    );
 }
 
 /// Wait until the worker records one request.
@@ -652,19 +1279,13 @@ fn wait_until_pack_accept_is_ready(server: &PackServer) {
 #[requires(true)]
 #[ensures(true)]
 fn wait_for_pack_request(server: &PackServer) {
-    let guard = server
-        .requests
-        .lock()
-        .expect("the pack server request list is open");
-    let (guard, _status) = server
-        .request_wake
-        .wait_timeout_while(guard, std::time::Duration::from_secs(60), |requests| {
-            requests.is_empty()
-        })
-        .expect("the pack server request list is open");
-    if guard.is_empty() {
-        panic!("this limit only stops a hang");
-    }
+    wait_for_pack_milestone(
+        &server.requests,
+        &server.request_wake,
+        &server.worker_result,
+        PACK_HANG_LIMIT,
+        |requests| requests.is_empty(),
+    );
 }
 
 /// Wait until the worker is about to write the response header.
@@ -675,17 +1296,13 @@ fn wait_for_pack_request(server: &PackServer) {
 #[requires(true)]
 #[ensures(true)]
 fn wait_until_pack_response_starts(server: &PackServer) {
-    let guard = server
-        .response_started
-        .lock()
-        .expect("the pack server response flag is open");
-    let (guard, _status) = server
-        .response_wake
-        .wait_timeout_while(guard, PACK_HANG_LIMIT, |started| !*started)
-        .expect("the pack server response flag is open");
-    if !*guard {
-        panic!("this limit only stops a hang");
-    }
+    wait_for_pack_milestone(
+        &server.response_started,
+        &server.response_wake,
+        &server.worker_result,
+        PACK_HANG_LIMIT,
+        |started| !*started,
+    );
 }
 
 /// Wait until a write stalls before the stop flag.
@@ -696,17 +1313,13 @@ fn wait_until_pack_response_starts(server: &PackServer) {
 #[requires(true)]
 #[ensures(true)]
 fn wait_until_pack_write_stalls(server: &PackServer) {
-    let guard = server
-        .write_stalled
-        .lock()
-        .expect("the pack server stall flag is open");
-    let (guard, _status) = server
-        .write_stall_wake
-        .wait_timeout_while(guard, PACK_HANG_LIMIT, |stalled| !*stalled)
-        .expect("the pack server stall flag is open");
-    if !*guard {
-        panic!("this limit only stops a hang");
-    }
+    wait_for_pack_milestone(
+        &server.write_stalled,
+        &server.write_stall_wake,
+        &server.worker_result,
+        PACK_HANG_LIMIT,
+        |stalled| !*stalled,
+    );
 }
 
 #[test]
@@ -727,8 +1340,13 @@ fn pack_server_shutdown_returns_during_a_blocked_write() {
     big.set_len(256 * 1024 * 1024).unwrap();
     drop(big);
     let mut server = PackServer::start(root.path().to_owned());
-    let mut client = retry_interrupted(|| std::net::TcpStream::connect(server.address))
-        .expect("the pack client connects");
+    let mut client = loop {
+        match std::net::TcpStream::connect(server.address) {
+            Ok(stream) => break stream,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => panic!("the pack client connects: {error}"),
+        }
+    };
     client.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
     wait_for_pack_request(&server);
     wait_until_pack_response_starts(&server);
