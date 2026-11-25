@@ -426,7 +426,7 @@ pub(crate) fn cmavo_or_gismu_cell_inlines(text: &str) -> Vec<CllInline> {
     CllInline::Link { kind: CllLinkKind::Dictionary, .. }
         | CllInline::LanguageSpan { kind: CllLanguageSpanKind::MarkedValsi, .. }
 ))]
-#[expensive_ensures(match &ret {
+#[ensures(match &ret {
     CllInline::Link { target, inlines, .. } => {
         target.trim_matches('.') == text.trim_matches('.')
             && matches!(inlines.as_slice(), [CllInline::Text(shown)] if shown == text)
@@ -574,7 +574,6 @@ pub(crate) fn marked_unlinked_cell_inlines(text: &str) -> Vec<CllInline> {
 pub(crate) fn cmavo_valsi_part_inline(text: &str) -> CllInline {
     if is_dictionary_token(text)
         && let Some(target) = shipped_dictionary_link_target(text)
-        && !target.is_empty()
     {
         return dictionary_word_link(target, text);
     }

@@ -65,7 +65,10 @@ pub(crate) fn extract_old_calls(contracts: &mut [Contract]) {
                     let id = self.last_id;
                     self.last_id += 1;
 
-                    let span = Span::mixed_site();
+                    // The names stay in the macro's own name context, so a user
+                    // name cannot collide with them. They point at the `old(...)`
+                    // call, so the compiler reports a type error there.
+                    let span = Span::mixed_site().located_at(expr.span());
                     let binding = Ident::new(&format!("__contract_old_{id}"), span);
                     let marker = Ident::new(&format!("__contract_old_{id}_marker"), span);
 
@@ -126,11 +129,18 @@ fn get_assert_macro(
     }
 }
 
+// A statement that binds an `old(...)` value points at the captured
+// expression, as before the generated names had their own context. The
+// compiler then reports a moved value or a type error at that expression.
+fn old_statement_span(old: &OldExpr) -> Span {
+    Span::call_site().located_at(old.expr.span())
+}
+
 // Keep helper items in their own blocks so their names stay out of user expressions.
 fn disabled_old_binding(old: &OldExpr) -> TokenStream {
     let binding = &old.binding;
     let marker = &old.marker;
-    quote::quote! {
+    quote::quote_spanned! { old_statement_span(old)=>
         let #binding = {
             fn __bityzba_expensive_contract_old_value<T>(
                 _: ::core::marker::PhantomData<T>,
@@ -148,7 +158,7 @@ fn expensive_old_binding(old: &OldExpr, previous_expensive_olds: &[OldExpr]) -> 
     let expr = &old.expr;
     let previous_old_bindings = previous_expensive_olds.iter().map(disabled_old_binding);
 
-    quote::quote! {
+    quote::quote_spanned! { old_statement_span(old)=>
         #[cfg(feature = "expensive_contracts")]
         let #binding = #expr;
 
@@ -339,7 +349,7 @@ pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> Tok
                         let name = &old.binding;
                         let expr = &old.expr;
 
-                        toks.extend(quote::quote! {
+                        toks.extend(quote::quote_spanned! { old_statement_span(old)=>
                             let #name = #expr;
                         });
                     }

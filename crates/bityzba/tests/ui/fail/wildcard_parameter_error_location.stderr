@@ -1,0 +1,36 @@
+error: cannot find attribute `requires` in this scope
+ --> tests/ui/fail/wildcard_parameter_error_location.rs:7:7
+  |
+7 |     #[requires(true)]
+  |       ^^^^^^^^
+
+error: cannot find attribute `ensures` in this scope
+ --> tests/ui/fail/wildcard_parameter_error_location.rs:8:7
+  |
+8 |     #[ensures(true)]
+  |       ^^^^^^^
+
+error[E0277]: the size for values of type `str` cannot be known at compilation time
+ --> tests/ui/fail/wildcard_parameter_error_location.rs:9:24
+  |
+9 |     fn check(&self, _: str) -> bool;
+  |                        ^^^ doesn't have a size known at compile-time
+  |
+  = help: the trait `Sized` is not implemented for `str`
+help: function arguments must have a statically known size, borrowed types always have a known size
+  |
+9 |     fn check(&self, _: &str) -> bool;
+  |                        +
+
+error[E0277]: the size for values of type `str` cannot be known at compilation time
+ --> tests/ui/fail/wildcard_parameter_error_location.rs:9:21
+  |
+5 | #[contract_trait]
+  | ----------------- in this attribute macro expansion
+...
+9 |     fn check(&self, _: str) -> bool;
+  |                     ^ doesn't have a size known at compile-time
+  |
+  = help: the trait `Sized` is not implemented for `str`
+  = note: all function arguments must have a statically known size
+  = note: this error originates in the attribute macro `contract_trait` (in Nightly builds, run with -Z macro-backtrace for more info)

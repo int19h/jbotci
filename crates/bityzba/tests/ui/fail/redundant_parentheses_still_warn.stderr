@@ -1,0 +1,64 @@
+error: unnecessary parentheses around function argument
+  --> tests/ui/fail/redundant_parentheses_still_warn.rs:11:18
+   |
+11 | #[requires(takes((value > 0)))]
+   |                  ^         ^
+   |
+note: the lint level is defined here
+  --> tests/ui/fail/redundant_parentheses_still_warn.rs:1:9
+   |
+ 1 | #![deny(unused_parens)]
+   |         ^^^^^^^^^^^^^
+help: remove these parentheses
+   |
+11 - #[requires(takes((value > 0)))]
+11 + #[requires(takes(value > 0))]
+   |
+
+error: unnecessary parentheses around function argument
+  --> tests/ui/fail/redundant_parentheses_still_warn.rs:12:17
+   |
+12 | #[ensures(takes(((value > 0 -> ret))))]
+   |                 ^                  ^
+   |
+help: remove these parentheses
+   |
+12 - #[ensures(takes(((value > 0 -> ret))))]
+12 + #[ensures(takes((value > 0 -> ret)))]
+   |
+
+error: unnecessary parentheses around `if` condition
+  --> tests/ui/fail/redundant_parentheses_still_warn.rs:13:14
+   |
+13 | #[ensures(if (value > 0) { ret } else { true })]
+   |              ^         ^
+   |
+help: remove these parentheses
+   |
+13 - #[ensures(if (value > 0) { ret } else { true })]
+13 + #[ensures(if value > 0 { ret } else { true })]
+   |
+
+error: unnecessary parentheses around closure body
+  --> tests/ui/fail/redundant_parentheses_still_warn.rs:14:36
+   |
+14 | #[ensures([1u32].iter().all(|item| (*item > 0)))]
+   |                                    ^         ^
+   |
+help: remove these parentheses
+   |
+14 - #[ensures([1u32].iter().all(|item| (*item > 0)))]
+14 + #[ensures([1u32].iter().all(|item| *item > 0))]
+   |
+
+error: unnecessary parentheses around function argument
+  --> tests/ui/fail/redundant_parentheses_still_warn.rs:15:27
+   |
+15 | #[expensive_ensures(takes(((value > 0 -> ret))))]
+   |                           ^                  ^
+   |
+help: remove these parentheses
+   |
+15 - #[expensive_ensures(takes(((value > 0 -> ret))))]
+15 + #[expensive_ensures(takes((value > 0 -> ret)))]
+   |

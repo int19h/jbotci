@@ -251,3 +251,48 @@ fn enum_debug_keeps_fields_with_generated_names() {
     });
     assert_eq!(format!("{data:?}"), "Value { formatter: 3, debug: 4 }");
 }
+
+// The user must write these parentheses. Without them, the closure body, the
+// call argument and the `if` condition end before the implication. They must
+// not get the `unused_parens` lint, in either feature mode.
+#[test]
+fn needed_parentheses_around_an_implication_are_not_unused() {
+    fn both(first: bool, second: bool) -> bool {
+        first && second
+    }
+
+    #[requires(true)]
+    #[ensures(values.iter().all(|value| (*value > 0 -> ret)))]
+    #[expensive_ensures(values.iter().all(|value| (*value > 0 -> ret)))]
+    fn closure_body(values: &[u32]) -> bool {
+        values.iter().all(|value| *value > 0)
+    }
+
+    #[requires(true)]
+    #[ensures(both((flag -> ret), flag || !flag))]
+    #[expensive_ensures(both((flag -> ret), flag || !flag))]
+    fn call_argument(flag: bool) -> bool {
+        flag
+    }
+
+    #[requires(true)]
+    #[ensures(if (flag -> ret) { true } else { false })]
+    #[expensive_ensures(if (flag -> ret) { true } else { false })]
+    fn if_condition(flag: bool) -> bool {
+        flag
+    }
+
+    #[requires(true)]
+    #[ensures(Some(flag).is_some_and(|value| (value -> ret)))]
+    #[expensive_ensures(Some(flag).is_some_and(|value| (value -> ret)))]
+    fn method_closure(flag: bool) -> bool {
+        flag
+    }
+
+    assert!(closure_body(&[1, 2]));
+    assert!(!closure_body(&[0]));
+    assert!(call_argument(true));
+    assert!(!call_argument(false));
+    assert!(if_condition(true));
+    assert!(method_closure(true));
+}

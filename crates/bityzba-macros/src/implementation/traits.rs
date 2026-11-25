@@ -77,12 +77,13 @@ pub(crate) fn contract_trait_item_trait(_attrs: TokenStream, mut trait_: ItemTra
                     };
                     Ok(ArgInfo { call_toks: toks })
                 }
-                Pat::Wild(_) => {
+                Pat::Wild(wild) => {
                     let index = *next_synthetic;
                     *next_synthetic += 1;
+                    // Keep the generated name context, and point at the `_`.
                     let ident = syn::Ident::new(
                         &format!("__bityzba_contract_arg_{index}"),
-                        Span::mixed_site(),
+                        Span::mixed_site().located_at(wild.underscore_token.span),
                     );
                     *pat = syn::parse_quote!(#ident);
                     Ok(ArgInfo {
