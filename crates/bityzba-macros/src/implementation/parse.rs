@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use proc_macro2::{Spacing, TokenStream, TokenTree};
+use proc_macro2::{Spacing, Span, TokenStream, TokenTree};
 use syn::{Expr, ExprLit, Lit};
 
 /// Parse attributes into a list of expression and an optional description of
@@ -181,8 +181,10 @@ fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
         (Some(rhs), Some(span)) => {
             let lhs: TokenStream = lhs.into_iter().collect();
 
+            // Keep the arrow location for diagnostics. Give the generated
+            // parentheses a macro span and keep the source spans on the operands.
             quote::quote_spanned! {
-                span =>
+                Span::call_site().located_at(span) =>
                 (!(#lhs) || #rhs)
             }
         }

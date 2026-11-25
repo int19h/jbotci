@@ -76,3 +76,49 @@ fn expensive_trait_postcondition_is_checked_with_feature() {
 fn expensive_type_invariant_is_checked_with_feature() {
     assert!(try_new!(ExpensiveEven { value: 3 }).is_err());
 }
+
+#[test]
+fn implication_in_expensive_call_argument() {
+    #[expensive_ensures(std::convert::identity(value > 0 -> ret))]
+    fn check_positive(value: i32) -> bool {
+        value > 1
+    }
+
+    assert!(!check_positive(0));
+    assert!(check_positive(2));
+    assert_eq!(
+        std::panic::catch_unwind(|| check_positive(1)).is_err(),
+        cfg!(feature = "expensive_contracts")
+    );
+}
+
+#[test]
+fn implication_in_expensive_old_capture() {
+    #[expensive_ensures(old(*premise -> conclusion) == ret)]
+    fn set_premise(premise: &mut bool, conclusion: bool) -> bool {
+        let result = !*premise || conclusion;
+        *premise = true;
+        result
+    }
+
+    let mut premise = false;
+    assert!(set_premise(&mut premise, false));
+    assert!(!set_premise(&mut premise, false));
+}
+
+#[test]
+fn implication_in_expensive_variant_invariant() {
+    #[expensive_invariant(::Pair(premise, conclusion) =>
+        std::convert::identity(*premise -> *conclusion)
+    )]
+    enum Implication {
+        Pair(bool, bool),
+    }
+
+    assert!(try_new!(Implication::Pair(false, false)).is_ok());
+    assert!(try_new!(Implication::Pair(true, true)).is_ok());
+    assert_eq!(
+        try_new!(Implication::Pair(true, false)).is_err(),
+        cfg!(feature = "expensive_contracts")
+    );
+}
