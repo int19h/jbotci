@@ -8401,23 +8401,28 @@ mod tests {
             .spawn()
             .expect("start the place-boundary probe");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-        loop {
-            if let Some(status) = child.try_wait().expect("read the probe status") {
-                // An empty test filter exits zero. Require proof that both probes ran.
-                assert_eq!(
-                    status.code(),
-                    Some(PROBE_PASSED),
-                    "place-boundary probe failed: {status}"
-                );
-                break;
+        // A signal can interrupt try_wait.
+        // Retry that call.
+        // Any other error fails this test.
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if std::time::Instant::now() >= deadline => {
+                    child.kill().expect("stop the stalled place-boundary probe");
+                    child.wait().expect("reap the place-boundary probe");
+                    panic!("The place-boundary probe did not finish within 30 seconds.");
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(10)),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => panic!("the place-boundary probe status failed: {error}"),
             }
-            if std::time::Instant::now() >= deadline {
-                child.kill().expect("stop the stalled place-boundary probe");
-                child.wait().expect("reap the place-boundary probe");
-                panic!("The place-boundary probe did not finish within 30 seconds.");
-            }
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
+        };
+        // An empty test filter exits zero. Require proof that both probes ran.
+        assert_eq!(
+            status.code(),
+            Some(PROBE_PASSED),
+            "place-boundary probe failed: {status}"
+        );
     }
 
     #[requires(true)]

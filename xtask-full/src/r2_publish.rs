@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -510,12 +510,31 @@ fn run_bounded(command: &mut Command, timeout: Duration) -> Result<()> {
     wait_bounded(&mut child, timeout)
 }
 
+// A signal can interrupt a blocking call.
+// The call returns `ErrorKind::Interrupted`.
+// Retry that call.
+// Leave every other error.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
+fn retry_interrupted<T>(mut operation: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
+    loop {
+        match operation() {
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            result => return result,
+        }
+    }
+}
+
 #[requires(!timeout.is_zero())]
 #[ensures(true)]
 fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()> {
     let start = Instant::now();
     loop {
-        match child.try_wait() {
+        // `try_wait` uses `waitpid`.
+        // A signal can interrupt that call.
+        // Retry the interrupt.
+        // Any other error still stops the child.
+        match retry_interrupted(|| child.try_wait()) {
             Ok(Some(status)) => {
                 if !status.success() {
                     bail!("Publisher command failed with {status}");
@@ -677,25 +696,10 @@ mod tests {
             "body_encoding": object.content_encoding})
     }
 
-    // A signal interrupts a blocking socket call. The call returns
-    // `ErrorKind::Interrupted`. Retry that call. Leave every other error.
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
-    fn io_retry_interrupted<T>(
-        mut operation: impl FnMut() -> std::io::Result<T>,
-    ) -> std::io::Result<T> {
-        loop {
-            match operation() {
-                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-                result => return result,
-            }
-        }
-    }
-
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
     fn read_retry(socket: &mut impl std::io::Read, buf: &mut [u8]) -> std::io::Result<usize> {
-        io_retry_interrupted(|| std::io::Read::read(socket, buf))
+        super::retry_interrupted(|| std::io::Read::read(socket, buf))
     }
 
     const REQUEST_HEAD_LIMIT: usize = 16 * 1024;
@@ -741,7 +745,7 @@ mod tests {
     #[ensures(true)]
     fn io_retry_interrupted_retries_until_success() {
         let mut calls = 0;
-        let result = io_retry_interrupted(|| {
+        let result = super::retry_interrupted(|| {
             calls += 1;
             if calls < 3 {
                 return Err(std::io::Error::new(
@@ -760,7 +764,7 @@ mod tests {
     #[ensures(true)]
     fn io_retry_interrupted_returns_other_errors_once() {
         let mut calls = 0;
-        let result: std::io::Result<()> = io_retry_interrupted(|| {
+        let result: std::io::Result<()> = super::retry_interrupted(|| {
             calls += 1;
             Err(std::io::Error::new(
                 std::io::ErrorKind::ConnectionReset,
@@ -773,7 +777,9 @@ mod tests {
     }
 
     /// A reader that returns Interrupted before each byte.
-    #[invariant(true)]
+    /// The index is never past the end of the byte slice.
+    #[invariant(self.index <= self.bytes.len())]
+    #[derive(Clone)]
     struct InterruptBeforeEachByte {
         bytes: &'static [u8],
         index: usize,
@@ -792,7 +798,7 @@ mod tests {
                 return Ok(0);
             }
             if self.interrupt {
-                self.interrupt = false;
+                *self = self.clone().with_data(data! { interrupt: false });
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Interrupted,
                     "injected interrupt",
@@ -801,9 +807,13 @@ mod tests {
             if self.index >= self.bytes.len() {
                 return Ok(0);
             }
-            buf[0] = self.bytes[self.index];
-            self.index += 1;
-            self.interrupt = true;
+            let byte = self.bytes[self.index];
+            let index = self.index + 1;
+            *self = self.clone().with_data(data! {
+                index: index,
+                interrupt: true,
+            });
+            buf[0] = byte;
             Ok(1)
         }
     }
@@ -815,11 +825,11 @@ mod tests {
         // One interrupt comes before each byte.
         // A read path that stops on Interrupted fails this test.
         let head = b"GET / HTTP/1.1\r\n\r\n";
-        let mut reader = InterruptBeforeEachByte {
+        let mut reader = new!(InterruptBeforeEachByte {
             bytes: head,
             index: 0,
             interrupt: true,
-        };
+        });
         let request = read_request_head(&mut reader).expect("the head is complete");
         assert_eq!(request, head);
     }
@@ -838,10 +848,11 @@ mod tests {
         fn start(stored: serde_json::Value, body: Vec<u8>, encoding: Option<&'static str>) -> Self {
             let listener = (18800..=18899)
                 .find_map(|port| {
-                    io_retry_interrupted(|| std::net::TcpListener::bind(("127.0.0.1", port))).ok()
+                    super::retry_interrupted(|| std::net::TcpListener::bind(("127.0.0.1", port)))
+                        .ok()
                 })
                 .expect("the stub server binds a local port");
-            io_retry_interrupted(|| listener.set_nonblocking(true))
+            super::retry_interrupted(|| listener.set_nonblocking(true))
                 .expect("the stub server socket accepts nonblocking mode");
             let url = format!("http://{}", listener.local_addr().unwrap());
             let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -855,7 +866,7 @@ mod tests {
                         .map_err(|error| format!("the stub server write failed: {error}"))
                 };
                 while !worker_stop.load(Ordering::Relaxed) {
-                    let (mut socket, _) = match io_retry_interrupted(|| listener.accept()) {
+                    let (mut socket, _) = match super::retry_interrupted(|| listener.accept()) {
                         Ok(connection) => connection,
                         Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                             std::thread::sleep(Duration::from_millis(2));
@@ -868,9 +879,13 @@ mod tests {
                     // On macOS and BSD, an accepted socket keeps the nonblocking mode of the listener.
                     // A nonblocking read returns WouldBlock.
                     // Set this socket to blocking mode.
-                    io_retry_interrupted(|| socket.set_nonblocking(false)).map_err(|error| {
-                        format!("the stub server accepted socket did not become blocking: {error}")
-                    })?;
+                    super::retry_interrupted(|| socket.set_nonblocking(false)).map_err(
+                        |error| {
+                            format!(
+                                "the stub server accepted socket did not become blocking: {error}"
+                            )
+                        },
+                    )?;
                     // The read has no time limit.
                     // run_readback kills the process group.
                     // That close ends this read.
