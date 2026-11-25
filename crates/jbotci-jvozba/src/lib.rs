@@ -494,6 +494,9 @@ pub struct LujvoSegmentInfo<'a> {
 
 /// The source chosen before the builder generates any candidate spellings.
 #[invariant(true)]
+#[invariant(::FixedRafsi(_) => true)]
+#[invariant(::UnlistedWord(_) => true)]
+#[invariant(::DictionaryWord(_) => true)]
 #[derive(Debug, Clone, Copy)]
 enum ExpandedInput<'a> {
     FixedRafsi(&'a str),
