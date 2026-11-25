@@ -84,6 +84,162 @@ pub(crate) fn normalize_word_checked_with_options(
     )
 }
 
+/// Converter state for one lookup transcription.
+///
+/// Call `push_str` for each piece of one literal run. The state keeps the
+/// implicit-apostrophe flag and a shorthand mark that still needs its
+/// payload. Call `finish` at a wildcard and at the end of the pattern.
+/// `finish` emits a shorthand mark that has no payload, then clears the state.
+#[invariant(self.pending_shorthand.is_none_or(|value| value == '\u{ed8b}'))]
+#[derive(Debug, Clone, Copy)]
+pub struct LookupTranscript {
+    previous_implicit_apostrophe_vowel: bool,
+    pending_shorthand: Option<char>,
+}
+
+impl LookupTranscript {
+    /// Start a transcript with a clear state.
+    #[requires(true)]
+    #[ensures(ret.pending_shorthand.is_none())]
+    #[ensures(!ret.previous_implicit_apostrophe_vowel)]
+    pub fn new() -> Self {
+        new!(LookupTranscript {
+            previous_implicit_apostrophe_vowel: false,
+            pending_shorthand: None,
+        })
+    }
+
+    /// Transcribe `input` and keep the converter state.
+    ///
+    /// The return value is the first character in `input` that is not
+    /// whitespace. An empty `input` leaves the state unchanged.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|value| !value.is_whitespace()))]
+    #[ensures(
+        !input.is_empty()
+            || (self.previous_implicit_apostrophe_vowel
+                == old(self.previous_implicit_apostrophe_vowel)
+                && self.pending_shorthand == old(self.pending_shorthand))
+    )]
+    #[bityzba::expensive_ensures(ret == input.chars().find(|value| !value.is_whitespace()))]
+    pub fn push_str(&mut self, input: &str, mut on_char: impl FnMut(char)) -> Option<char> {
+        let options = MorphologyOptions::default();
+        let mut previous_implicit_apostrophe_vowel = self.previous_implicit_apostrophe_vowel;
+        let mut pending_shorthand = self.pending_shorthand;
+        let mut chars = input.chars().peekable();
+        let mut first_non_whitespace = None;
+        while let Some(value) = chars.next() {
+            if first_non_whitespace.is_none() && !value.is_whitespace() {
+                first_non_whitespace = Some(value);
+            }
+            if pending_shorthand.is_some()
+                && options.accept_zbalermorna
+                && let Some(payload) = normalize_zbalermorna_shorthand_payload(value)
+            {
+                pending_shorthand = None;
+                emit_lookup_shorthand_payload(
+                    payload,
+                    &mut previous_implicit_apostrophe_vowel,
+                    &mut on_char,
+                );
+                continue;
+            }
+            if let Some(shorthand) = pending_shorthand {
+                pending_shorthand = None;
+                on_char(shorthand);
+                previous_implicit_apostrophe_vowel = false;
+            }
+            if is_separator(value) {
+                let emitted = if crate::is_period_character(value) {
+                    '.'
+                } else {
+                    value
+                };
+                on_char(emitted);
+                previous_implicit_apostrophe_vowel = false;
+                continue;
+            }
+            if options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value) {
+                if let Some(payload_value) = chars.peek().copied()
+                    && let Some(payload) = normalize_zbalermorna_shorthand_payload(payload_value)
+                {
+                    chars.next();
+                    emit_lookup_shorthand_payload(
+                        payload,
+                        &mut previous_implicit_apostrophe_vowel,
+                        &mut on_char,
+                    );
+                    continue;
+                }
+                // The payload can sit in the next literal. Keep the mark until finish.
+                if chars.peek().is_none() {
+                    pending_shorthand = Some(value);
+                    continue;
+                }
+                on_char(value);
+                previous_implicit_apostrophe_vowel = false;
+                continue;
+            }
+            match normalize_char_event(value, &options) {
+                Some(event) => match event.as_data() {
+                    data!(NormalizedCharEvent::Emit {
+                        value: normalized_value,
+                        implicit_apostrophe_vowel,
+                    }) => {
+                        emit_lookup_transcript_char(
+                            *normalized_value,
+                            *implicit_apostrophe_vowel,
+                            &mut previous_implicit_apostrophe_vowel,
+                            &mut on_char,
+                        );
+                    }
+                    data!(NormalizedCharEvent::EmitText { text }) => {
+                        for normalized_value in text.chars() {
+                            emit_lookup_transcript_char(
+                                normalized_value,
+                                false,
+                                &mut previous_implicit_apostrophe_vowel,
+                                &mut on_char,
+                            );
+                        }
+                    }
+                    data!(NormalizedCharEvent::StressPrevious)
+                    | data!(NormalizedCharEvent::StressPreviousVowel) => {}
+                    data!(NormalizedCharEvent::Ignore) => {
+                        previous_implicit_apostrophe_vowel = false;
+                    }
+                },
+                None => {
+                    on_char(value);
+                    previous_implicit_apostrophe_vowel = false;
+                }
+            }
+        }
+        *self = new!(LookupTranscript {
+            previous_implicit_apostrophe_vowel,
+            pending_shorthand,
+        });
+        first_non_whitespace
+    }
+
+    /// End the current literal run.
+    ///
+    /// A shorthand mark with no payload is emitted as itself. The state is
+    /// clear after this call.
+    #[requires(true)]
+    #[ensures(self.pending_shorthand.is_none())]
+    #[ensures(!self.previous_implicit_apostrophe_vowel)]
+    pub fn finish(&mut self, mut on_char: impl FnMut(char)) {
+        if let Some(shorthand) = self.pending_shorthand {
+            on_char(shorthand);
+        }
+        *self = new!(LookupTranscript {
+            previous_implicit_apostrophe_vowel: false,
+            pending_shorthand: None,
+        });
+    }
+}
+
 /// Walk `input` once. Send each lookup transcript character to `on_char`.
 ///
 /// The walk converts every character it can convert. It passes every other
@@ -94,85 +250,10 @@ pub(crate) fn normalize_word_checked_with_options(
 #[requires(true)]
 #[ensures(ret.is_none_or(|value| !value.is_whitespace()))]
 pub(crate) fn transcribe_lookup_chars(input: &str, mut on_char: impl FnMut(char)) -> Option<char> {
-    let options = MorphologyOptions::default();
-    let mut chars = input.chars().peekable();
-    let mut first_non_whitespace = None;
-    let mut previous_implicit_apostrophe_vowel = false;
-    while let Some(value) = chars.next() {
-        if first_non_whitespace.is_none() && !value.is_whitespace() {
-            first_non_whitespace = Some(value);
-        }
-        if is_separator(value) {
-            let emitted = if crate::is_period_character(value) {
-                '.'
-            } else {
-                value
-            };
-            on_char(emitted);
-            previous_implicit_apostrophe_vowel = false;
-            continue;
-        }
-        if options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value) {
-            if let Some(payload_value) = chars.peek().copied()
-                && let Some(payload) = normalize_zbalermorna_shorthand_payload(payload_value)
-            {
-                chars.next();
-                for normalized_value in payload.chars() {
-                    emit_lookup_transcript_char(
-                        normalized_value,
-                        false,
-                        &mut previous_implicit_apostrophe_vowel,
-                        &mut on_char,
-                    );
-                }
-                emit_lookup_transcript_char(
-                    '\'',
-                    false,
-                    &mut previous_implicit_apostrophe_vowel,
-                    &mut on_char,
-                );
-                continue;
-            }
-            on_char(value);
-            previous_implicit_apostrophe_vowel = false;
-            continue;
-        }
-        match normalize_char_event(value, &options) {
-            Some(event) => match event.as_data() {
-                data!(NormalizedCharEvent::Emit {
-                    value: normalized_value,
-                    implicit_apostrophe_vowel,
-                }) => {
-                    emit_lookup_transcript_char(
-                        *normalized_value,
-                        *implicit_apostrophe_vowel,
-                        &mut previous_implicit_apostrophe_vowel,
-                        &mut on_char,
-                    );
-                }
-                data!(NormalizedCharEvent::EmitText { text }) => {
-                    for normalized_value in text.chars() {
-                        emit_lookup_transcript_char(
-                            normalized_value,
-                            false,
-                            &mut previous_implicit_apostrophe_vowel,
-                            &mut on_char,
-                        );
-                    }
-                }
-                data!(NormalizedCharEvent::StressPrevious)
-                | data!(NormalizedCharEvent::StressPreviousVowel) => {}
-                data!(NormalizedCharEvent::Ignore) => {
-                    previous_implicit_apostrophe_vowel = false;
-                }
-            },
-            None => {
-                on_char(value);
-                previous_implicit_apostrophe_vowel = false;
-            }
-        }
-    }
-    first_non_whitespace
+    let mut transcript = LookupTranscript::new();
+    let first = transcript.push_str(input, &mut on_char);
+    transcript.finish(&mut on_char);
+    first
 }
 
 #[requires(true)]
@@ -188,6 +269,24 @@ fn emit_lookup_transcript_char<F: FnMut(char)>(
     }
     on_char(value);
     *previous_implicit_apostrophe_vowel = implicit_apostrophe_vowel;
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn emit_lookup_shorthand_payload<F: FnMut(char)>(
+    payload: &str,
+    previous_implicit_apostrophe_vowel: &mut bool,
+    on_char: &mut F,
+) {
+    for normalized_value in payload.chars() {
+        emit_lookup_transcript_char(
+            normalized_value,
+            false,
+            previous_implicit_apostrophe_vowel,
+            on_char,
+        );
+    }
+    emit_lookup_transcript_char('\'', false, previous_implicit_apostrophe_vowel, on_char);
 }
 
 #[requires(true)]

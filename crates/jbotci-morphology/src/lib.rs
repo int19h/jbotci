@@ -89,6 +89,7 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
 };
+pub use segment::LookupTranscript;
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,
     word_needs_leading_pause_in_context,
@@ -3529,6 +3530,7 @@ pub fn normalize_lojban_input_text_with_options(
 /// character through. A failed character does not discard an earlier
 /// conversion. The return value is the first source character that is not
 /// whitespace. An empty return means that `input` is empty or whitespace.
+/// `LookupTranscript` is this walk for several pieces of one literal run.
 #[requires(true)]
 #[ensures(ret.is_none_or(|value| !value.is_whitespace()))]
 #[bityzba::expensive_ensures(ret == input.chars().find(|value| !value.is_whitespace()))]
@@ -5030,6 +5032,57 @@ mod tests {
             transcribe_lookup_chars("\u{0301}", |_| {}),
             Some('\u{0301}')
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_transcript_carries_state_across_literal_pieces() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn stream(parts: &[&str]) -> String {
+            let mut transcript = LookupTranscript::new();
+            let mut text = String::new();
+            for part in parts {
+                let _ = transcript.push_str(part, |value| text.push(value));
+            }
+            transcript.finish(|value| text.push(value));
+            text
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn whole(input: &str) -> String {
+            let mut text = String::new();
+            let _ = transcribe_lookup_chars(input, |value| text.push(value));
+            text
+        }
+
+        assert_eq!(stream(&["шо", "и"]), whole("шои"));
+        assert_eq!(stream(&["шо", "и"]), "co'i");
+        assert_eq!(stream(&["шо", "", "и"]), "co'i");
+        assert_eq!(stream(&["ш", "о", "и"]), "co'i");
+        assert_eq!(stream(&["\u{ed8b}", "\u{eda2}"]), whole("\u{ed8b}\u{eda2}"));
+        assert_eq!(stream(&["\u{ed8b}", "\u{eda2}"]), "i'");
+        assert_eq!(stream(&["\u{ed8b}", "", "\u{eda2}"]), "i'");
+        assert_eq!(stream(&["\u{ed8b}", "a"]), whole("\u{ed8b}a"));
+        assert_eq!(stream(&["\u{ed8b}"]), "\u{ed8b}");
+
+        let mut transcript = LookupTranscript::new();
+        let mut reset = String::new();
+        let _ = transcript.push_str("шо", |value| reset.push(value));
+        transcript.finish(|value| reset.push(value));
+        let _ = transcript.push_str("и", |value| reset.push(value));
+        transcript.finish(|value| reset.push(value));
+        assert_eq!(reset, "coi");
+
+        let mut transcript = LookupTranscript::new();
+        let mut split_mark = String::new();
+        let _ = transcript.push_str("\u{ed8b}", |value| split_mark.push(value));
+        transcript.finish(|value| split_mark.push(value));
+        let _ = transcript.push_str("\u{eda2}", |value| split_mark.push(value));
+        transcript.finish(|value| split_mark.push(value));
+        assert_eq!(split_mark, "\u{ed8b}i");
     }
 
     #[test]

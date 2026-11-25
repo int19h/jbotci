@@ -15,12 +15,7 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    MorphologyOptions, MorphologyWarningKind, ShortRafsiShape, canonicalize_text, ends_with_vowel,
-    fold_lojban_diacritic, is_fuhivla_rafsi_form, normalize_latin_apostrophe,
-    normalize_lojban_input_text, possible_short_rafsi_forms,
-    segment_words_with_modifiers_with_options_and_source_id,
-    segment_words_with_modifiers_with_options_and_source_id_attempt, strip_lojban_diacritic,
-    transcribe_lookup_chars,
+    LookupTranscript, MorphologyOptions, MorphologyWarningKind, ShortRafsiShape, canonicalize_text, ends_with_vowel, fold_lojban_diacritic, is_fuhivla_rafsi_form, normalize_latin_apostrophe, normalize_lojban_input_text, possible_short_rafsi_forms, segment_words_with_modifiers_with_options_and_source_id, segment_words_with_modifiers_with_options_and_source_id_attempt, strip_lojban_diacritic, transcribe_lookup_chars,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -1425,12 +1420,14 @@ pub struct LookupPatternError {
 /// Key one whole lookup pattern.
 ///
 /// `parts` is literal text and wildcard tokens in pattern order. The
-/// function converts each literal, then folds, filters, and collapses
-/// whitespace with the same character rule as an exact key. A wildcard
-/// counts as a part that stays. A space stays when a surviving part is on
-/// both sides. A character that the filter removes does not hide a space.
-/// A literal run that keeps no lookup character is an error. A pattern with
-/// no wildcard has the same key as that text alone.
+/// function transcribes each run of literals between wildcards as one stream.
+/// It carries the converter state across adjacent literals. A wildcard resets
+/// that state. The function then folds, filters, and collapses whitespace
+/// with the same character rule as an exact key. A wildcard counts as a part
+/// that stays. A space stays when a surviving part is on both sides. A
+/// character that the filter removes does not hide a space. A literal run
+/// that keeps no lookup character is an error. A pattern with no wildcard
+/// has the same key as that text alone.
 #[requires(true)]
 #[ensures(match &ret {
     Ok(_) => true,
@@ -1584,10 +1581,11 @@ fn build_lookup_key<T: Clone>(
     let mut started = false;
     let mut segment_kept = false;
     let mut segment_error = None;
+    let mut transcript = LookupTranscript::new();
     for part in parts {
         match part {
             LookupPatternPart::Literal(text) => {
-                let first = transcribe_lookup_chars(text, |value| {
+                let first = transcript.push_str(text, |value| {
                     note_lookup_transcript_char(
                         value,
                         &mut current,
@@ -1601,6 +1599,15 @@ fn build_lookup_key<T: Clone>(
                 }
             }
             LookupPatternPart::Wildcard(token) => {
+                transcript.finish(|value| {
+                    note_lookup_transcript_char(
+                        value,
+                        &mut current,
+                        &mut pending_space,
+                        &mut started,
+                        &mut segment_kept,
+                    );
+                });
                 rejected_lookup_segment(segment_kept, segment_error)?;
                 segment_kept = false;
                 segment_error = None;
@@ -1616,6 +1623,15 @@ fn build_lookup_key<T: Clone>(
             }
         }
     }
+    transcript.finish(|value| {
+        note_lookup_transcript_char(
+            value,
+            &mut current,
+            &mut pending_space,
+            &mut started,
+            &mut segment_kept,
+        );
+    });
     rejected_lookup_segment(segment_kept, segment_error)?;
     if !current.is_empty() {
         keyed.push(new!(LookupKeyPart::Text(current)));
@@ -2027,6 +2043,109 @@ mod tests {
         .expect("space between stars");
         assert_eq!(key_text_of(&stars), " ");
         assert_eq!(stars.len(), 3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn adjacent_literals_share_one_lookup_stream() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn whole(text: &str) -> Result<Vec<LookupKeyPart<char>>, LookupPatternError> {
+            normalize_lookup_pattern(&[LookupPatternPart::Literal(text)])
+        }
+
+        let cyrillic = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("шо"),
+            LookupPatternPart::Literal("и"),
+        ]);
+        assert_eq!(cyrillic, whole("шои"));
+        assert_eq!(
+            key_text_of(&cyrillic.expect("split Cyrillic keeps a letter")),
+            "co'i"
+        );
+
+        let with_empty = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("шо"),
+            LookupPatternPart::Literal(""),
+            LookupPatternPart::Literal("и"),
+        ]);
+        assert_eq!(with_empty, whole("шои"));
+
+        let three = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ш"),
+            LookupPatternPart::Literal("о"),
+            LookupPatternPart::Literal("и"),
+        ]);
+        assert_eq!(three, whole("шои"));
+
+        let shorthand = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("\u{ed8b}"),
+            LookupPatternPart::Literal("\u{eda2}"),
+        ]);
+        assert_eq!(shorthand, whole("\u{ed8b}\u{eda2}"));
+        assert_eq!(
+            key_text_of(&shorthand.expect("split shorthand keeps a letter")),
+            "i'"
+        );
+
+        let shorthand_with_empty = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("\u{ed8b}"),
+            LookupPatternPart::Literal(""),
+            LookupPatternPart::Literal("\u{eda2}"),
+        ]);
+        assert_eq!(shorthand_with_empty, whole("\u{ed8b}\u{eda2}"));
+
+        let bare_mark = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("\u{ed8b}"),
+            LookupPatternPart::Literal("a"),
+        ]);
+        assert_eq!(bare_mark, whole("\u{ed8b}a"));
+        assert_eq!(
+            key_text_of(&bare_mark.expect("a letter after a bare mark stays")),
+            "a"
+        );
+
+        let across_star = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("шо"),
+            LookupPatternPart::Wildcard('*'),
+            LookupPatternPart::Literal("и"),
+        ])
+        .expect("a wildcard starts a new stream");
+        assert_eq!(
+            across_star,
+            vec![
+                new!(LookupKeyPart::Text("co".to_owned())),
+                new!(LookupKeyPart::Wildcard('*')),
+                new!(LookupKeyPart::Text("i".to_owned())),
+            ]
+        );
+
+        assert_eq!(
+            normalize_lookup_pattern(&[
+                LookupPatternPart::Literal("\u{ed8b}"),
+                LookupPatternPart::Wildcard('*'),
+            ])
+            .expect_err("a bare shorthand mark keeps no letter")
+            .character,
+            '\u{ed8b}'
+        );
+
+        let mark_before_star = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("a"),
+            LookupPatternPart::Literal("\u{ed8b}"),
+            LookupPatternPart::Wildcard('*'),
+            LookupPatternPart::Literal("\u{eda2}"),
+        ])
+        .expect("a kept letter survives a shorthand mark");
+        assert_eq!(
+            mark_before_star,
+            vec![
+                new!(LookupKeyPart::Text("a".to_owned())),
+                new!(LookupKeyPart::Wildcard('*')),
+                new!(LookupKeyPart::Text("i".to_owned())),
+            ]
+        );
     }
 
     #[test]
