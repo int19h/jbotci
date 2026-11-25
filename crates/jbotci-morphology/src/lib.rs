@@ -5094,36 +5094,47 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn permissive_lexer_leaves_zoi_and_laho_payload_text_untouched() {
-        let options = permissive_lexer_options();
-        let cases = [
+        let permissive = permissive_lexer_options();
+        let unchanged = [
             ("zoi gy !?#🙂 gy", "!?#🙂"),
             ("la'o gy !?#🙂 gy", "!?#🙂"),
-            ("zoi gy @gy gy", "@gy"),
-            ("zoi gy payload@gy gy", "payload@gy"),
             ("zoi gy text gy@tail gy", "text gy@tail"),
+            ("la'o gy text gy@tail gy", "text gy@tail"),
         ];
-        for (source, expected_payload) in cases {
-            for mode in [&MorphologyOptions::default(), &options] {
-                let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
-                    source, mode, None,
-                );
-                let data = attempt.into_data();
-                let words = data.result.expect("valid delimited quote");
-                let [word] = words.as_slice() else {
-                    panic!("expected one quote token: {source}");
-                };
-                let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = word.as_data()
-                else {
-                    panic!("expected delimited quote: {source}");
-                };
-                assert_eq!(quoted_text.text, expected_payload, "{source}");
-                assert!(
-                    data.warnings
-                        .iter()
-                        .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
-                    "quote payload characters must not be counted as ignored: {source}"
-                );
+        for (source, expected_payload) in unchanged {
+            for mode in [&MorphologyOptions::default(), &permissive] {
+                assert_quote_payload_is_not_ignored(source, mode, expected_payload, &[]);
             }
+        }
+        let strict_keeps_the_boundary_in_the_payload = [
+            ("zoi gy @gy gy", "@gy"),
+            ("la'o gy @gy gy", "@gy"),
+            ("zoi gy payload@gy gy", "payload@gy"),
+            ("la'o gy payload@gy gy", "payload@gy"),
+        ];
+        for (source, expected_payload) in strict_keeps_the_boundary_in_the_payload {
+            assert_quote_payload_is_not_ignored(
+                source,
+                &MorphologyOptions::default(),
+                expected_payload,
+                &[],
+            );
+        }
+        let permissive_eats_the_boundary = [
+            ("zoi gy @gy", ""),
+            ("la'o gy @gy", ""),
+            ("zoi gy payload@gy", "payload"),
+            ("la'o gy payload@gy", "payload"),
+            ("zoi gy @gy gy", ""),
+            ("la'o gy payload@gy gy", "payload"),
+        ];
+        for (source, expected_payload) in permissive_eats_the_boundary {
+            let following: &[&str] = if source.ends_with(" gy") {
+                &["gy"]
+            } else {
+                &[]
+            };
+            assert_quote_payload_is_not_ignored(source, &permissive, expected_payload, following);
         }
     }
 
@@ -5999,6 +6010,42 @@ mod tests {
             .iter()
             .map(|word| base_phonemes(word).expect("base word"))
             .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_quote_payload_is_not_ignored(
+        source: &str,
+        mode: &MorphologyOptions,
+        expected_payload: &str,
+        following: &[&str],
+    ) {
+        let attempt =
+            segment_words_with_modifiers_with_options_and_source_id_attempt(source, mode, None);
+        let data = attempt.into_data();
+        let words = data
+            .result
+            .unwrap_or_else(|error| panic!("quote parse failed for {source}: {error}"));
+        assert_eq!(words.len(), 1 + following.len(), "{source}");
+        let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = words[0].as_data()
+        else {
+            panic!("expected delimited quote: {source}");
+        };
+        assert_eq!(quoted_text.text, expected_payload, "{source}");
+        assert_eq!(
+            &source[quoted_text.span.byte_start..quoted_text.span.byte_end],
+            expected_payload,
+            "{source}"
+        );
+        for (word, expected) in words[1..].iter().zip(following) {
+            assert_eq!(base_phonemes(word).as_deref(), Some(*expected), "{source}");
+        }
+        assert!(
+            data.warnings
+                .iter()
+                .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+            "quote characters must not be counted as ignored: {source}"
+        );
     }
 
     #[requires(true)]
