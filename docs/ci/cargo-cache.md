@@ -23,7 +23,8 @@ The CLI release tooling job installs actionlint 1.7.12 and compares the archive 
 It runs actionlint on every workflow with ShellCheck enabled.
 When actionlint is installed, the local Python workflow tests run the same command.
 Install ShellCheck before you run the actionlint tests.
-Install `shfmt` and `python3-markdown-it` before you run the drift tests.
+Install `python3-markdown-it` before you run the drift tests.
+The CLI release tooling job pins the Debian package to `2.1.0-5`. [Test workflow](../../.github/workflows/test.yml)
 
 ## Completed and unfinished units
 
@@ -176,10 +177,13 @@ A flow mapping is a declaration.
 A quoted key is a declaration.
 An inline comment is not part of the value.
 Each Rust image tag must name the channel in `rust-toolchain.toml`.
-The drift tests read YAML image declarations and direct image commands in Bash steps.
-They accept registry prefixes, shell quotes, and tags such as `1.100.0-slim-bookworm`.
-If a shell command uses a variable for its image, set the full image reference in `env`.
-A container can also use the output of the image resolver.
+Declare each Rust image tag in a job `container` or in workflow or job `env`.
+The tests accept registry prefixes and tags such as `1.100.0-slim-bookworm`.
+Use the YAML variable in commands that need the image.
+The tests reject literal Rust image tags in commands.
+Use the resolver output when a container needs a digest.
+The resolver reads the tag and obtains the matching digest.
+The Render workflow keeps its existing resolver command and the tests read that tag.
 The tests compare the version text in this guide and `README.md` after they read Markdown formatting.
 
 ## Release compiler checks

@@ -75,7 +75,8 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
         self.assertEqual(self.workflow.count("rustc -vV"), 0)
         self.assertEqual(self.workflow.count("rustc --version"), 0)
         self.assertNotIn("sed ", self.workflow)
-        self.assertIn("rust:1.100.0-alpine3.24", self.build_step)
+        self.assertIn("      RUST_BUILD_IMAGE: rust:1.100.0-alpine3.24\n", self.linux_job)
+        self.assertIn('"${RUST_BUILD_IMAGE}"', self.build_step)
         self.assertNotIn("1.96.0", self.workflow)
         windows = self.workflow.split("  build-windows:\n", 1)[1].split("  package:\n", 1)[0]
         self.assertNotIn("shell: bash", windows)
