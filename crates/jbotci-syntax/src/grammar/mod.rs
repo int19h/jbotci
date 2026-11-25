@@ -39,6 +39,7 @@ mod baseline_termset;
 mod description_leading;
 mod generated;
 mod generated_runtime;
+
 mod link_payload;
 mod parse_error;
 mod parser_core;
@@ -270,8 +271,40 @@ impl ContinuationTimeLimit {
     #[requires(true)]
     #[ensures(true)]
     fn exhausted(self) -> bool {
+        // A test clock replaces the elapsed time. The duration stays the
+        // product limit. A normal build has no clock and reads the instant.
+        if let Some(elapsed) = continuation_test_elapsed() {
+            return elapsed >= self.duration;
+        }
         self.started.elapsed() >= self.duration
     }
+}
+
+#[cfg(feature = "continuation_test_clock")]
+thread_local! {
+    static CONTINUATION_TEST_ELAPSED: Cell<Option<Duration>> = const { Cell::new(None) };
+}
+
+#[cfg(feature = "continuation_test_clock")]
+#[requires(true)]
+#[ensures(true)]
+fn continuation_test_elapsed() -> Option<Duration> {
+    CONTINUATION_TEST_ELAPSED.with(|cell| cell.get())
+}
+
+#[cfg(not(feature = "continuation_test_clock"))]
+#[requires(true)]
+#[ensures(ret.is_none())]
+fn continuation_test_elapsed() -> Option<Duration> {
+    None
+}
+
+/// Store the test elapsed time and return the previous value.
+#[cfg(feature = "continuation_test_clock")]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn replace_continuation_test_elapsed(elapsed: Option<Duration>) -> Option<Duration> {
+    CONTINUATION_TEST_ELAPSED.with(|cell| cell.replace(elapsed))
 }
 
 /// Why a parse should stop, or that it should continue.
@@ -2439,16 +2472,21 @@ impl<'tokens> ParserState<'tokens> {
                 let trial_id = context
                     .recovery_trial_id
                     .expect("recovered memo context has a trial identity");
+                note_syntax_memo_store();
+                note_recovery_memo_store();
                 store.sensitive_successes.insert(
                     (rule_name, start_location, trial_id, context.recovery_index),
                     success,
                 );
             } else {
+                note_syntax_memo_store();
+                note_recovery_memo_store();
                 store
                     .insensitive_successes
                     .insert((rule_name, start_location), success);
             }
         } else {
+            note_syntax_memo_store();
             self.syntax_memo
                 .insert((rule_name, start_location), success);
         }
@@ -2502,11 +2540,15 @@ impl<'tokens> ParserState<'tokens> {
                 let trial_id = context
                     .recovery_trial_id
                     .expect("recovered memo context has a trial identity");
+                note_syntax_memo_store();
+                note_recovery_memo_store();
                 store.sensitive_failures.insert(
                     (rule_name, start_location, trial_id, context.recovery_index),
                     failure,
                 );
             } else {
+                note_syntax_memo_store();
+                note_recovery_memo_store();
                 store
                     .insensitive_failures
                     .insert((rule_name, start_location), failure);
@@ -2515,6 +2557,7 @@ impl<'tokens> ParserState<'tokens> {
         }
         let diagnostic_observations = self.current_strict_diagnostic_observations();
         let end_location = self.memo_failure_end_location(start_location, &error);
+        note_syntax_memo_store();
         self.syntax_failure_memo.insert(
             (rule_name, start_location),
             new!(SyntaxMemoFailure {
@@ -4663,6 +4706,61 @@ fn replay_winning_continuation_attempt<'tokens>(
     )
 }
 
+#[cfg(test)]
+thread_local! {
+    static RECOVERY_TRIALS: Cell<u64> = const { Cell::new(0) };
+    static RECOVERY_MEMO_STORES: Cell<u64> = const { Cell::new(0) };
+    static SYNTAX_MEMO_STORES: Cell<u64> = const { Cell::new(0) };
+}
+
+/// One recovery trial. Tests bound this count in both profiles.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_recovery_trial() {
+    #[cfg(test)]
+    RECOVERY_TRIALS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// One store into the recovery memo. A cleared memo stores the same rule again.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_recovery_memo_store() {
+    #[cfg(test)]
+    RECOVERY_MEMO_STORES.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// One syntax-memo store, strict or recovered.
+///
+/// A repeated trial that keeps the same memo does not store again. A cleared
+/// memo stores the same rule a second time.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_syntax_memo_store() {
+    #[cfg(test)]
+    SYNTAX_MEMO_STORES.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// Trials and recovery-memo stores since the last read. The next read starts at zero.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn take_recovery_work() -> (u64, u64) {
+    let trials = RECOVERY_TRIALS.with(|count| count.replace(0));
+    let stores = RECOVERY_MEMO_STORES.with(|count| count.replace(0));
+    (trials, stores)
+}
+
+/// Syntax-memo stores since the last read. The next read starts at zero.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn take_syntax_memo_stores() -> u64 {
+    SYNTAX_MEMO_STORES.with(|count| count.replace(0))
+}
+
 #[requires(!trial_directives.is_empty())]
 #[requires(current_error_count > 0)]
 #[ensures(true)]
@@ -4678,6 +4776,7 @@ fn run_recovery_trial<'tokens>(
     global_hard_cap: usize,
     previous_error_start: usize,
 ) -> RecoveryTrialClassification {
+    note_recovery_trial();
     let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
         tokens,
         parser_tokens,
@@ -8350,6 +8449,7 @@ mod tests {
             tokens.push(expected_continuation_sentinel(cut_byte));
             let sentinel_index = tokens.len() - 1;
 
+            let _ = take_recovery_work();
             let started = Instant::now();
             let tracked_attempt = generated::generated_model::parse_text_detailed_tracked_attempt_for_expected_continuations(
                 &tokens,
@@ -8388,22 +8488,30 @@ mod tests {
             else {
                 panic!("unbounded recovery finishes");
             };
+            let (trials, recovery_memo_stores) = take_recovery_work();
             assert!(
                 continuation_cut_reached,
                 "unbounded recovery must reach the requested completion cut",
             );
+            // The cleaned owner document yields 49 recovery errors. One run
+            // of that document stored 241 trials and 648610 recovery memos.
             assert_eq!(
                 parse.errors.len(),
-                14,
+                49,
                 "the winning recovery must retain every prior owner-document error",
             );
-            // The 30 s figure is a release speed budget for memo retention.
-            // A debug build does the same recovery more slowly. The cut and
-            // the error count above stay the bounds in both profiles.
+            assert_eq!(
+                (trials, recovery_memo_stores),
+                (241, 648_610),
+                "recovery trials and recovery-memo stores are the work bound",
+            );
+            // The 30 s figure is the release latency requirement for this
+            // document. The trial count and the memo-store count are the work
+            // bounds in both profiles.
             if !cfg!(debug_assertions) {
                 assert!(
                     elapsed <= Duration::from_secs(30),
-                    "unbounded issue #463 recovery took {elapsed:?}; the generous ceiling guards memo-retention regressions",
+                    "release latency requirement: issue #463 recovery took {elapsed:?}, limit 30s",
                 );
             }
         });

@@ -120,12 +120,50 @@ fn a_late_trip_stops_one_lexical_word_after_recognition() {
 #[ensures(true)]
 fn a_mid_loop_trip_stops_a_long_brivla_quickly() {
     let input = format!("{}y", "zbasu".repeat(SLOW_ZBASU_COPIES));
+    let chars = input.chars().count();
+    let _ = super::take_word_start_work();
+    let _ = super::take_recognition_work();
     let token = jbotci_interrupt::CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
     let options = MorphologyOptions::default().with_cancellation(&token);
     let segmentation =
         super::segment_words_with_modifiers_with_options_and_source_id(&input, &options, None);
+    let (ends, boundary_chars, prefix_slots) = super::take_word_start_work();
+    let (bodies, steps) = super::take_recognition_work();
+    assert_word_start_trip(chars, ends, boundary_chars, prefix_slots, bodies, steps);
     assert!(
         segmentation.is_err_and(|error| error.is_interrupted()),
         "the early trip must be an interrupt, not an invalid word"
+    );
+}
+
+/// The scan that runs before the trip builds one prefix table set and reads
+/// one boundary index per candidate end. Recognition stays outside that scan.
+#[requires(true)]
+#[ensures(true)]
+fn assert_word_start_trip(
+    chars: usize,
+    ends: u64,
+    boundary_chars: u64,
+    prefix_slots: u64,
+    bodies: u64,
+    steps: u64,
+) {
+    assert!(
+        ends > 0 && ends <= SLOW_LOOP_TRIP as u64,
+        "the word-start scan visited {ends} ends; the trip allows {SLOW_LOOP_TRIP}"
+    );
+    assert_eq!(
+        boundary_chars, ends,
+        "each visited end reads one boundary index"
+    );
+    assert_eq!(
+        prefix_slots,
+        3 * (chars as u64 + 1),
+        "one candidate stores three prefix tables"
+    );
+    assert_eq!(
+        (bodies, steps),
+        (0, 0),
+        "the pause scan stored recognition work"
     );
 }

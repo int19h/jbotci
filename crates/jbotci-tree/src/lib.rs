@@ -22,6 +22,54 @@ use vec1::Vec1;
 pub use jbotci_tree_macros::tree_model;
 pub mod view;
 
+/// Run one tree step on a stack that can hold the next frame.
+///
+/// `stacker::maybe_grow` runs the body on the current stack while at least
+/// the red zone remains. The bytes from this call to the next one are the
+/// frame span. A debug build with rustc 1.100.0 measured two spans. The input
+/// was `mi klama` plus 32 copies of `lo nu mi klama`, on the 2 MiB test thread.
+///
+/// The warning walk placed 6146 frames. The largest frame was 3056 bytes, on
+/// `Arc<TermSyntax>::visit_in_order`. The bytes between two node frames, not
+/// counting the node frame, were at most 96. The grow closure was outside
+/// that sample. Bound the closure by the same 3056 bytes. That sum is 6208
+/// bytes.
+///
+/// The recovered conversion then placed 3521 `from_valid` frames. The largest
+/// frame was 7520 bytes. The bytes between those frames were 0. Bound the
+/// grow closure by the same 7520 bytes. That sum is 15040 bytes.
+///
+/// The red zone is 16 KiB, the next power of two above 15040. A fresh stack
+/// is 1 MiB. wasm32 has no auxiliary stack. The body stays on the host stack
+/// there.
+#[cfg(not(target_arch = "wasm32"))]
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+pub fn with_tree_stack<R>(body: impl FnOnce() -> R) -> R {
+    let (red_zone, stack_size) = tree_stack_allocation();
+    stacker::maybe_grow(red_zone, stack_size, body)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+pub fn with_tree_stack<R>(body: impl FnOnce() -> R) -> R {
+    body()
+}
+
+/// Red zone and fresh-stack size for one recursive tree edge.
+///
+/// The figures are the measurement in [`with_tree_stack`].
+#[cfg(not(target_arch = "wasm32"))]
+#[inline(always)]
+#[requires(true)]
+#[ensures(ret.0 == 16 * 1024 && ret.1 == 1024 * 1024)]
+fn tree_stack_allocation() -> (usize, usize) {
+    (16 * 1024, 1024 * 1024)
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Chain<E, Links> {

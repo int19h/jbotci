@@ -11,6 +11,8 @@ exclude = ["/tests/**", "/benches/**", "/examples/**"]
 
 [features]
 expensive_contracts = []
+# Tests in other crates read the recognition counters. A normal build leaves this off.
+recognition_work_counter = []
 
 [dependencies]
 bityzba.workspace = true

@@ -1,5 +1,7 @@
 //! CLL gismu composition.
 
+#[cfg(test)]
+use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 use std::fmt;
 use std::str::FromStr;
@@ -1358,6 +1360,7 @@ fn score_candidate_for_ranking_with_scratch(
     phonetic_scorer: Option<&PreparedGimfihiPhoneticScorer>,
     scratch: &mut GismuScoreScratch,
 ) -> ScoredGimfihiCandidate {
+    note_gimfihi_score_call();
     let candidate_self = prepare_candidate_for_scoring(&word, phonetic_scorer, scratch);
     let score = sources
         .iter()
@@ -1460,6 +1463,8 @@ fn score_source_value(
     let scaled_weight = f64::from(source.source.weight) / GIMFIHI_WEIGHT_SCALE;
     match source.data.as_data() {
         data!(PreparedScoringKind::Classic { chars }) => {
+            note_gimfihi_source_comparison();
+            note_gimfihi_lcs_expected(scratch.candidate_chars.len(), chars.len());
             let raw_score =
                 gismu_match_score_chars(&scratch.candidate_chars, chars, &mut scratch.lcs);
             raw_score as f64 / chars.len() as f64 * scaled_weight
@@ -1468,6 +1473,7 @@ fn score_source_value(
             prepared,
             self_similarity,
         }) => {
+            note_gimfihi_source_comparison();
             let scorer = phonetic_scorer.expect("phonetic sources have a phonetic scorer");
             let raw = prepared
                 .raw_similarity_with_scratch(&scratch.candidate_targets, &mut scratch.aline);
@@ -1565,6 +1571,7 @@ fn longest_common_subsequence_len_chars(
     scratch.current.resize(right.len() + 1, 0);
     for left_ch in left {
         for (right_index, right_ch) in right.iter().enumerate() {
+            note_gimfihi_lcs_cell();
             scratch.current[right_index + 1] = if *left_ch == *right_ch {
                 scratch.previous[right_index] + 1
             } else {
@@ -1575,6 +1582,71 @@ fn longest_common_subsequence_len_chars(
         scratch.current.fill(0);
     }
     scratch.previous[right.len()]
+}
+
+#[cfg(test)]
+thread_local! {
+    static GIMFIHI_SCORE_CALLS: Cell<u64> = const { Cell::new(0) };
+    static GIMFIHI_SOURCE_COMPARISONS: Cell<u64> = const { Cell::new(0) };
+    static GIMFIHI_LCS_CELLS: Cell<u64> = const { Cell::new(0) };
+    static GIMFIHI_LCS_EXPECTED: Cell<u64> = const { Cell::new(0) };
+}
+
+/// One scored candidate. The count is the blow-up unit outside each source.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_gimfihi_score_call() {
+    #[cfg(test)]
+    GIMFIHI_SCORE_CALLS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// One source comparison inside a scored candidate.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_gimfihi_source_comparison() {
+    #[cfg(test)]
+    GIMFIHI_SOURCE_COMPARISONS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// The letter-table shape for one classic comparison. A second table is extra.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_gimfihi_lcs_expected(candidate_len: usize, source_len: usize) {
+    #[cfg(test)]
+    {
+        let cells = (candidate_len as u64).saturating_mul(source_len as u64);
+        GIMFIHI_LCS_EXPECTED.with(|count| count.set(count.get().saturating_add(cells)));
+    }
+    #[cfg(not(test))]
+    {
+        let _ = (candidate_len, source_len);
+    }
+}
+
+/// One written cell of the classic letter table.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_gimfihi_lcs_cell() {
+    #[cfg(test)]
+    GIMFIHI_LCS_CELLS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// Scores, source comparisons, letter-table cells, and the predicted cell count.
+///
+/// The next call starts all four at zero.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn take_gimfihi_score_work() -> (u64, u64, u64, u64) {
+    let scores = GIMFIHI_SCORE_CALLS.with(|count| count.replace(0));
+    let comparisons = GIMFIHI_SOURCE_COMPARISONS.with(|count| count.replace(0));
+    let cells = GIMFIHI_LCS_CELLS.with(|count| count.replace(0));
+    let expected = GIMFIHI_LCS_EXPECTED.with(|count| count.replace(0));
+    (scores, comparisons, cells, expected)
 }
 
 #[requires(true)]
@@ -3319,8 +3391,24 @@ mod tests {
             all_letters: true,
             ..small_scoring_request()
         };
+        let _ = super::take_gimfihi_score_work();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let result = compose_gismu(dictionary, &request, &token);
+        let (scores, comparisons, cells, expected_cells) = super::take_gimfihi_score_work();
+        let sources = request.sources.len() as u64;
+        assert!(
+            scores > 0 && scores <= SLOW_LOOP_TRIP as u64,
+            "scoring started {scores} candidates; the trip allows {SLOW_LOOP_TRIP}"
+        );
+        assert_eq!(
+            comparisons,
+            scores * sources,
+            "each scored candidate compares every source once"
+        );
+        assert!(
+            cells > 0 && cells == expected_cells,
+            "the letter table wrote {cells} cells; the shape predicts {expected_cells}"
+        );
         assert!(
             matches!(result, Err(GimfihiError::Interrupted)),
             "the early trip must be an interrupt, not a finished score"

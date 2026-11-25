@@ -11,6 +11,8 @@ exclude = ["/tests/**", "/benches/**", "/examples/**"]
 
 [features]
 expensive_contracts = []
+# IDE tests freeze the continuation deadline. A normal build leaves this off.
+continuation_test_clock = []
 
 [dependencies]
 bityzba.workspace = true

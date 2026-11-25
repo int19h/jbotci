@@ -1215,7 +1215,21 @@ fn is_elidable_terminator(cmavo: Cmavo) -> bool {
 mod tests {
     use std::time::{Duration, Instant};
 
+    use jbotci_syntax::ContinuationTestClock;
+
     use super::*;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn grammar_timed_out(result: &CompletionResult) -> bool {
+        let data!(CompletionResult::Incomplete { reason, .. }) = result.as_data() else {
+            return false;
+        };
+        *reason
+            == CompletionIncompleteReason::Grammar {
+                cause: ContinuationError::TimedOut,
+            }
+    }
 
     #[invariant(!name.is_empty())]
     #[invariant(marked_source.matches('|').count() == 1)]
@@ -1662,12 +1676,31 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn timing_sruma_end_of_word_meets_short_smoke_limit() {
-        // Preserve the existing clock-test policy on shared CI hardware.
-        if std::env::var_os("CI").is_some() {
-            return;
-        }
-        let limit = release_smoke_limit(SHORT_SMOKE_LIMIT);
-        assert_sruma_end_of_word_completion(limit.map(|_| COMPLETION_GRAMMAR_TIME_LIMIT), limit);
+        // The product deadline stays armed in both profiles. The test clock
+        // replaces elapsed time. Label checks stay in the untimed test.
+        let marked = ".i la prux. ba'o sruma| lo du'u le ckule cipra ku frili ra";
+        let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
+        let cursor = marked[..marker_byte].chars().count();
+        let text = marked.replacen('|', "", 1);
+        let snapshot = DocumentSnapshot::new(text, 1);
+        let open = {
+            let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+            snapshot
+                .completions_with_grammar_time_limit(cursor, Some(COMPLETION_GRAMMAR_TIME_LIMIT))
+        };
+        assert!(
+            !grammar_timed_out(&open),
+            "a frozen clock leaves the product deadline open"
+        );
+        let closed = {
+            let _clock = ContinuationTestClock::elapsed(COMPLETION_GRAMMAR_TIME_LIMIT);
+            snapshot
+                .completions_with_grammar_time_limit(cursor, Some(COMPLETION_GRAMMAR_TIME_LIMIT))
+        };
+        assert!(
+            grammar_timed_out(&closed),
+            "the product deadline reports a grammar timeout"
+        );
     }
 
     #[test]
@@ -2087,12 +2120,45 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn timing_boundary_positions_meet_long_smoke_limit() {
-        // Preserve the existing clock-test policy on shared CI hardware.
-        if std::env::var_os("CI").is_some() {
-            return;
+        // The product deadline stays armed in both profiles. The test clock
+        // replaces elapsed time. Label checks stay in the untimed test.
+        let marked_sources = [
+            "mi klama le |zarci",
+            "mi tavla .|alis.",
+            "mi klama .i |sruma",
+            "|sruma",
+            "mi klama |",
+            "ne'i zo'e le mamta ku |zvati",
+            ".i la prux. ba'o |sruma lo du'u le ckule cipra ku frili ra",
+        ];
+        for marked in marked_sources {
+            let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
+            let cursor = marked[..marker_byte].chars().count();
+            let text = marked.replacen('|', "", 1);
+            let snapshot = DocumentSnapshot::new(text, 1);
+            let open = {
+                let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+                snapshot.completions_with_grammar_time_limit(
+                    cursor,
+                    Some(COMPLETION_GRAMMAR_TIME_LIMIT),
+                )
+            };
+            assert!(
+                !grammar_timed_out(&open),
+                "{marked}: a frozen clock leaves the product deadline open"
+            );
+            let closed = {
+                let _clock = ContinuationTestClock::elapsed(COMPLETION_GRAMMAR_TIME_LIMIT);
+                snapshot.completions_with_grammar_time_limit(
+                    cursor,
+                    Some(COMPLETION_GRAMMAR_TIME_LIMIT),
+                )
+            };
+            assert!(
+                grammar_timed_out(&closed),
+                "{marked}: the product deadline reports a grammar timeout"
+            );
         }
-        let limit = release_smoke_limit(LONG_SMOKE_LIMIT);
-        assert_boundary_completion_cases(limit.map(|_| COMPLETION_GRAMMAR_TIME_LIMIT), limit);
     }
 
     #[test]

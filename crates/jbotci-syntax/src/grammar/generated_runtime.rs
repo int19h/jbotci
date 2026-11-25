@@ -850,18 +850,18 @@ where
                 match input.parse(&parser) {
                     Ok(output) => {
                         let end_location = ParserInput::cursor_location(input.cursor().inner());
-                        let end_checkpoint = input.save();
-                        if end_location == start_location
-                            && !end_checkpoint.recovery_state_changed_since(&checkpoint)
-                        {
-                            input.rewind(checkpoint);
-                            if values.len() < min_count {
-                                return Err(expected_found_at_current(
-                                    input,
-                                    "non-empty recovered repetition item",
-                                ));
+                        if end_location == start_location {
+                            let end_checkpoint = input.save();
+                            if !end_checkpoint.recovery_state_changed_since(&checkpoint) {
+                                input.rewind(checkpoint);
+                                if values.len() < min_count {
+                                    return Err(expected_found_at_current(
+                                        input,
+                                        "non-empty recovered repetition item",
+                                    ));
+                                }
+                                break;
                             }
-                            break;
                         }
                         values.push(output);
                     }
@@ -896,13 +896,16 @@ pub(crate) fn recovered_greedy_many_parser<'tokens, O: 'tokens>(
             match input.parse(&parser) {
                 Ok(output) => {
                     let end_location = ParserInput::cursor_location(input.cursor().inner());
-                    let end_checkpoint = input.save();
-                    if end_location == start_location
-                        && !end_checkpoint.recovery_state_changed_since(&checkpoint)
-                    {
-                        debug_assert!(false, "generated repetition parser accepted empty input");
-                        input.rewind(checkpoint);
-                        break;
+                    if end_location == start_location {
+                        let end_checkpoint = input.save();
+                        if !end_checkpoint.recovery_state_changed_since(&checkpoint) {
+                            debug_assert!(
+                                false,
+                                "generated repetition parser accepted empty input"
+                            );
+                            input.rewind(checkpoint);
+                            break;
+                        }
                     }
                     values.push(output);
                 }
@@ -938,15 +941,15 @@ pub(crate) fn recovered_greedy_many1_parser<
             let first = match input.parse(&parser) {
                 Ok(output) => {
                     let first_end_location = ParserInput::cursor_location(input.cursor().inner());
-                    let first_end_checkpoint = input.save();
-                    if first_end_location == first_start_location
-                        && !first_end_checkpoint.recovery_state_changed_since(&first_checkpoint)
-                    {
-                        input.rewind(first_checkpoint);
-                        return Err(expected_found_at_current(
-                            input,
-                            "non-empty recovered repetition item",
-                        ));
+                    if first_end_location == first_start_location {
+                        let first_end_checkpoint = input.save();
+                        if !first_end_checkpoint.recovery_state_changed_since(&first_checkpoint) {
+                            input.rewind(first_checkpoint);
+                            return Err(expected_found_at_current(
+                                input,
+                                "non-empty recovered repetition item",
+                            ));
+                        }
                     }
                     output
                 }
@@ -963,12 +966,12 @@ pub(crate) fn recovered_greedy_many1_parser<
                 match input.parse(&parser) {
                     Ok(output) => {
                         let end_location = ParserInput::cursor_location(input.cursor().inner());
-                        let end_checkpoint = input.save();
-                        if end_location == start_location
-                            && !end_checkpoint.recovery_state_changed_since(&checkpoint)
-                        {
-                            input.rewind(checkpoint);
-                            break;
+                        if end_location == start_location {
+                            let end_checkpoint = input.save();
+                            if !end_checkpoint.recovery_state_changed_since(&checkpoint) {
+                                input.rewind(checkpoint);
+                                break;
+                            }
                         }
                         values.push(output);
                     }
@@ -1891,17 +1894,21 @@ where
             match input.parse(&parser) {
                 Ok(output) => {
                     let end_location = ParserInput::cursor_location(input.cursor().inner());
-                    let end_checkpoint = input.save();
                     // A recovered required field can build an item and consume no token.
                     // The other recovered repetition helpers count a recovery-state
                     // change as progress. No input progress and no recovery progress
-                    // is still an empty accept.
-                    if end_location == start_location
-                        && !end_checkpoint.recovery_state_changed_since(&checkpoint)
-                    {
-                        debug_assert!(false, "generated repetition parser accepted empty input");
-                        input.rewind(checkpoint);
-                        break;
+                    // is still an empty accept. The second checkpoint exists only for
+                    // that zero-width case.
+                    if end_location == start_location {
+                        let end_checkpoint = input.save();
+                        if !end_checkpoint.recovery_state_changed_since(&checkpoint) {
+                            debug_assert!(
+                                false,
+                                "generated repetition parser accepted empty input"
+                            );
+                            input.rewind(checkpoint);
+                            break;
+                        }
                     }
                     if recovery_boundary {
                         input

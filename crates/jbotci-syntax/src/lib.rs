@@ -45,6 +45,39 @@ pub mod generated_model {
 }
 pub use generated_model::{ExperimentalConstruct, TextSyntax};
 
+/// Freeze the continuation deadline for one test.
+///
+/// The product still passes its own limit. This clock replaces the elapsed
+/// time that the limit compares. Drop restores the previous value. A normal
+/// build does not compile the clock.
+#[cfg(feature = "continuation_test_clock")]
+#[doc(hidden)]
+#[must_use]
+#[invariant(true)]
+pub struct ContinuationTestClock {
+    previous: Option<Duration>,
+}
+
+#[cfg(feature = "continuation_test_clock")]
+impl ContinuationTestClock {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn elapsed(elapsed: Duration) -> Self {
+        let previous = grammar::replace_continuation_test_elapsed(Some(elapsed));
+        Self { previous }
+    }
+}
+
+#[cfg(feature = "continuation_test_clock")]
+impl Drop for ContinuationTestClock {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        let previous = self.previous;
+        let _ = grammar::replace_continuation_test_elapsed(previous);
+    }
+}
+
 pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "text",
     "statement",
@@ -3200,26 +3233,6 @@ mod tests {
 
     use super::*;
 
-    /// Room for debug frames between `stacker::maybe_grow` points.
-    ///
-    /// A libtest thread starts at 2 MiB. A deep recovered parse overflows
-    /// that stack in a debug build. The frames are the parser. They are
-    /// not the morphology word span of issue 1085. They are not the walks
-    /// after the parse in issue 1118.
-    #[requires(true)]
-    #[ensures(true)]
-    fn run_on_recovered_parser_stack(test: impl FnOnce() + Send) {
-        std::thread::scope(|scope| {
-            std::thread::Builder::new()
-                .name("jbotci-syntax-recovered".to_owned())
-                .stack_size(16 * 1024 * 1024)
-                .spawn_scoped(scope, test)
-                .expect("spawn recovered-parser syntax test thread")
-                .join()
-                .expect("recovered-parser syntax test thread panicked");
-        });
-    }
-
     #[requires(true)]
     #[ensures(true)]
     fn formal_tokens(source: &str) -> Vec<Token> {
@@ -4403,38 +4416,76 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_resume_at_end_skip_consumes_what_it_claims() {
-        run_on_recovered_parser_stack(|| {
-            for source in [
-                "lenumakumokau",
-                " cusku lu se se li'u",
-                ".i xu cazi sarcu fa lenu tolcurmi lenu la kif. cu jdicmima (to vote toi)",
-                " i lu mi na go'i sei la cipnrlori sutra co cusku li'u",
-                " i lu la'e di'u cu vajrai lei datni poi se tirna ca le cabdei sei la noltrunau noi simymosra lei xance cu cusku i seki'ubo ei le pairkanmi li'o li'u ",
-                "le nu ma ku",
-                "le se ku",
-                "lu mi sei se se'u li'u",
-            ] {
-                let words = jbotci_morphology::segment_words_with_modifiers(source)
-                    .expect("valid morphology");
-                let recovered = parse_syntax_tree_recovered_with_source_and_options(
-                    &words,
-                    source,
-                    &ParseOptions::default(),
-                )
-                .expect("an uninterrupted recovered parse returns a tree");
-                assert!(
-                    recovered_syntax_parse_conserves_word_spans(&words, &recovered),
-                    "recovered syntax must account for every input token exactly once for {source:?}"
-                );
-            }
+        for source in [
+            "lenumakumokau",
+            " cusku lu se se li'u",
+            ".i xu cazi sarcu fa lenu tolcurmi lenu la kif. cu jdicmima (to vote toi)",
+            " i lu mi na go'i sei la cipnrlori sutra co cusku li'u",
+            " i lu la'e di'u cu vajrai lei datni poi se tirna ca le cabdei sei la noltrunau noi simymosra lei xance cu cusku i seki'ubo ei le pairkanmi li'o li'u ",
+            "le nu ma ku",
+            "le se ku",
+            "lu mi sei se se'u li'u",
+        ] {
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+            let recovered = parse_syntax_tree_recovered_with_source_and_options(
+                &words,
+                source,
+                &ParseOptions::default(),
+            )
+            .expect("an uninterrupted recovered parse returns a tree");
+            assert!(
+                recovered_syntax_parse_conserves_word_spans(&words, &recovered),
+                "recovered syntax must account for every input token exactly once for {source:?}"
+            );
+        }
 
-            // The skipped region runs to the end, so `le`'s terminator is elided rather than taken
-            // back out of it, and nothing after it is parsed twice.
-            let probe = recovered_syntax_probe("lenumakumokau");
-            assert_eq!(probe.error_byte_starts, [6]);
-            assert_eq!(probe.valid_tokens, ["le", "nu", "ma"]);
-            assert_eq!(probe.recovery_spans, [(6, 8), (8, 10), (10, 13)]);
-        });
+        // The skipped region runs to the end, so `le`'s terminator is elided rather than taken
+        // back out of it, and nothing after it is parsed twice.
+        let probe = recovered_syntax_probe("lenumakumokau");
+        assert_eq!(probe.error_byte_starts, [6]);
+        assert_eq!(probe.valid_tokens, ["le", "nu", "ma"]);
+        assert_eq!(probe.recovery_spans, [(6, 8), (8, 10), (10, 13)]);
+    }
+
+    /// Nested syntax and the `cadga` sentence stay inside the default test stack.
+    ///
+    /// The thread is the libtest thread. A debug build and a release build both
+    /// parse 32 and 128 copies. Strict `cadga` returns an error. Recovered
+    /// `cadga` returns a tree.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_syntax_parses_on_the_default_test_stack() {
+        for copies in [32usize, 128] {
+            let mut source = String::from("mi klama ");
+            for _ in 0..copies {
+                source.push_str("lo nu mi klama ");
+            }
+            source.push_str("ku");
+            let words = jbotci_morphology::segment_words_with_modifiers(&source)
+                .expect("nested input has valid morphology");
+            parse_syntax_tree(&words).expect("strict nested parse returns a tree");
+            parse_syntax_tree_recovered_with_source_and_options(
+                &words,
+                &source,
+                &ParseOptions::default(),
+            )
+            .expect("recovered nested parse returns a tree");
+        }
+        let cadga = "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo lo ka ce'u xendo ije cnikansa ro lo jmive kei ta'i lo racli";
+        let words = jbotci_morphology::segment_words_with_modifiers(cadga)
+            .expect("cadga input has valid morphology");
+        assert!(
+            parse_syntax_tree(&words).is_err(),
+            "strict cadga parse returns an error"
+        );
+        parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            cadga,
+            &ParseOptions::default(),
+        )
+        .expect("recovered cadga parse returns a tree");
     }
 
     #[test]

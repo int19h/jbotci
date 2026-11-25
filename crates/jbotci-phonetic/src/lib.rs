@@ -1,5 +1,7 @@
 //! IPA rendering and ALINE-style sound similarity.
 
+#[cfg(feature = "aline_work_counter")]
+use std::cell::Cell;
 use std::cmp::Ordering;
 use std::sync::LazyLock;
 
@@ -966,6 +968,10 @@ impl PreparedAlineQuery {
 
         let mut has_previous_previous = false;
         let mut best: f64 = 0.0;
+        let mut table_cells = 0usize;
+        // One call fills one table. The expected size is the product of the
+        // two lengths. The cell notes count writes, so a second pass is visible.
+        note_aline_table(candidate.len(), self.query_len);
         for candidate_index in 0..candidate.len() {
             let candidate_target = candidate[candidate_index].get() as usize;
             scratch.current[0] = 0.0;
@@ -998,13 +1004,67 @@ impl PreparedAlineQuery {
                     .max(0.0);
                 scratch.current[query_index] = cell;
                 best = best.max(cell);
+                table_cells = table_cells.saturating_add(1);
+                note_aline_table_cell();
             }
             std::mem::swap(&mut scratch.previous_previous, &mut scratch.previous);
             std::mem::swap(&mut scratch.previous, &mut scratch.current);
             has_previous_previous = true;
         }
+        debug_assert_eq!(
+            table_cells,
+            candidate.len().saturating_mul(self.query_len),
+            "one ALINE table writes one cell per candidate position and query position"
+        );
         best
     }
+}
+
+/// Record one similarity table. The product is the cell count of that table.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_aline_table(candidate_len: usize, query_len: usize) {
+    #[cfg(feature = "aline_work_counter")]
+    {
+        ALINE_CALLS.with(|calls| calls.set(calls.get().saturating_add(1)));
+        let cells = (candidate_len as u64).saturating_mul(query_len as u64);
+        ALINE_EXPECTED.with(|expected| expected.set(expected.get().saturating_add(cells)));
+    }
+    #[cfg(not(feature = "aline_work_counter"))]
+    {
+        let _ = (candidate_len, query_len);
+    }
+}
+
+/// Record one written cell of a similarity table.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_aline_table_cell() {
+    #[cfg(feature = "aline_work_counter")]
+    ALINE_CELLS.with(|cells| cells.set(cells.get().saturating_add(1)));
+}
+
+#[cfg(feature = "aline_work_counter")]
+thread_local! {
+    static ALINE_CELLS: Cell<u64> = const { Cell::new(0) };
+    static ALINE_EXPECTED: Cell<u64> = const { Cell::new(0) };
+    static ALINE_CALLS: Cell<u64> = const { Cell::new(0) };
+}
+
+/// Cells written, cells predicted from the table shape, and tables filled.
+///
+/// The next call starts all three at zero. Search tests compare the written
+/// cells with the prediction. A normal build does not compile this counter.
+#[cfg(feature = "aline_work_counter")]
+#[requires(true)]
+#[ensures(true)]
+pub fn take_aline_work() -> (u64, u64, u64) {
+    let cells = ALINE_CELLS.with(|cells| cells.replace(0));
+    let expected = ALINE_EXPECTED.with(|expected| expected.replace(0));
+    let calls = ALINE_CALLS.with(|calls| calls.replace(0));
+    (cells, expected, calls)
 }
 
 #[invariant(::InvalidValue { parameter, reason } => !parameter.is_empty() && !reason.is_empty())]

@@ -214,13 +214,24 @@ fn attach_constructs(mut expr: SExpr, inherited: Vec<BracketSourceConstruct>) ->
 }
 
 /// Whether any leaf in the expression marks a recovery error (‼…‼).
+///
+/// Pending nodes sit on a heap stack. One native frame per nesting level
+/// overflows the default thread on a deep `lo nu` chain.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn contains_error_leaf(expr: &SExpr) -> bool {
-    match expr {
-        SExpr::Leaf { role, .. } => *role == LeafRole::Error,
-        SExpr::Node { children, .. } => children.iter().any(contains_error_leaf),
+    let mut pending = vec![expr];
+    while let Some(expr) = pending.pop() {
+        match expr {
+            SExpr::Leaf { role, .. } => {
+                if *role == LeafRole::Error {
+                    return true;
+                }
+            }
+            SExpr::Node { children, .. } => pending.extend(children.iter().rev()),
+        }
     }
+    false
 }
 
 #[requires(true)]
@@ -248,10 +259,28 @@ pub(crate) fn render_bracketed_with_limit(
 #[requires(true)]
 #[ensures(true)]
 fn has_text(expr: &SExpr) -> bool {
-    match expr {
-        SExpr::Leaf { text, role, .. } => !text.is_empty() || *role == LeafRole::Error,
-        SExpr::Node { children, .. } => children.iter().any(has_text),
+    let mut pending = vec![expr];
+    while let Some(expr) = pending.pop() {
+        match expr {
+            SExpr::Leaf { text, role, .. } => {
+                if !text.is_empty() || *role == LeafRole::Error {
+                    return true;
+                }
+            }
+            SExpr::Node { children, .. } => pending.extend(children.iter().rev()),
+        }
     }
+    false
+}
+
+#[invariant(true)]
+#[invariant(::Node { .. } => true)]
+#[invariant(::Space => true)]
+#[invariant(::Close { .. } => true)]
+enum BracketWriteStep<'a> {
+    Node { depth: usize, expr: &'a SExpr },
+    Space,
+    Close { depth: usize },
 }
 
 #[requires(true)]
@@ -263,49 +292,77 @@ fn write_bracketed(
     options: BracketRenderOptions,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> std::io::Result<()> {
-    // Stop before writing another node. The bytes already written are discarded
-    // by the caller when this returns Interrupted.
-    if cancellation.is_cancelled() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Interrupted,
-            jbotci_interrupt::Interrupted,
-        ));
-    }
-    match expr {
-        SExpr::Leaf { text, role, .. } => {
-            if text.is_empty() && *role != LeafRole::Error {
-                return Ok(());
+    // One native frame per nesting level overflows the default thread on a
+    // deep `lo nu` chain. The pending steps sit on a heap stack.
+    let mut steps = vec![BracketWriteStep::Node { depth, expr }];
+    while let Some(step) = steps.pop() {
+        match step {
+            BracketWriteStep::Space => output.write_all(b" ")?,
+            BracketWriteStep::Close { depth } => {
+                if options.insert_hair_space {
+                    output.write_all("\u{200a}".as_bytes())?;
+                }
+                let (_, close) = bracket_pair(depth);
+                write!(output, "{close}")?;
+                write_style_close(output, depth, options, LeafRole::Normal)?;
             }
-            write_style_open(output, depth, options, *role)?;
-            output.write_all(text.as_bytes())?;
-            write_style_close(output, depth, options, *role)
+            BracketWriteStep::Node { depth, expr } => {
+                // Stop before writing another node. The bytes already written
+                // are discarded by the caller on Interrupted.
+                if cancellation.is_cancelled() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Interrupted,
+                        jbotci_interrupt::Interrupted,
+                    ));
+                }
+                match expr {
+                    SExpr::Leaf { text, role, .. } => {
+                        if text.is_empty() && *role != LeafRole::Error {
+                            continue;
+                        }
+                        write_style_open(output, depth, options, *role)?;
+                        output.write_all(text.as_bytes())?;
+                        write_style_close(output, depth, options, *role)?;
+                    }
+                    SExpr::Node { children, .. } => {
+                        let kids = children
+                            .iter()
+                            .filter(|child| has_text(child))
+                            .collect::<Vec<_>>();
+                        let Some((first, rest)) = kids.split_first() else {
+                            continue;
+                        };
+                        if rest.is_empty() {
+                            steps.push(BracketWriteStep::Node {
+                                depth: depth + 1,
+                                expr: *first,
+                            });
+                            continue;
+                        }
+                        write_style_open(output, depth, options, LeafRole::Normal)?;
+                        let (open, _) = bracket_pair(depth);
+                        write!(output, "{open}")?;
+                        if options.insert_hair_space {
+                            output.write_all("\u{200a}".as_bytes())?;
+                        }
+                        steps.push(BracketWriteStep::Close { depth });
+                        for child in rest.iter().rev() {
+                            steps.push(BracketWriteStep::Node {
+                                depth: depth + 1,
+                                expr: *child,
+                            });
+                            steps.push(BracketWriteStep::Space);
+                        }
+                        steps.push(BracketWriteStep::Node {
+                            depth: depth + 1,
+                            expr: *first,
+                        });
+                    }
+                }
+            }
         }
-        SExpr::Node { children, .. } => {
-            let mut children = children.iter().filter(|child| has_text(child)).peekable();
-            let Some(first) = children.next() else {
-                return Ok(());
-            };
-            if children.peek().is_none() {
-                return write_bracketed(output, depth + 1, first, options, cancellation);
-            }
-            write_style_open(output, depth, options, LeafRole::Normal)?;
-            let (open, close) = bracket_pair(depth);
-            write!(output, "{open}")?;
-            if options.insert_hair_space {
-                output.write_all("\u{200a}".as_bytes())?;
-            }
-            write_bracketed(output, depth + 1, first, options, cancellation)?;
-            for child in children {
-                output.write_all(b" ")?;
-                write_bracketed(output, depth + 1, child, options, cancellation)?;
-            }
-            if options.insert_hair_space {
-                output.write_all("\u{200a}".as_bytes())?;
-            }
-            write!(output, "{close}")?;
-            write_style_close(output, depth, options, LeafRole::Normal)
-        }
     }
+    Ok(())
 }
 
 #[requires(true)]
@@ -403,70 +460,121 @@ fn render_source_fragments_at_depth(
     expr: &SExpr,
     options: BracketRenderOptions,
 ) -> Vec<BracketSourceFragment> {
-    match expr {
-        SExpr::Leaf { text, range, role } => vec![BracketSourceFragment::Text {
-            text: if *role == LeafRole::Error {
-                format!("‼{text}‼")
-            } else {
-                text.clone()
-            },
-            range: *range,
-            role: match role {
-                LeafRole::Normal => BracketSourceFragmentRole::Normal,
-                LeafRole::Elided => BracketSourceFragmentRole::Elided,
-                LeafRole::Error => BracketSourceFragmentRole::Error,
-            },
-        }],
-        SExpr::Node {
-            children,
-            range,
-            constructs,
-        } => {
-            let rendered = children
-                .iter()
-                .flat_map(|child| render_source_fragments_at_depth(depth + 1, child, options))
-                .filter(|fragment| !source_fragment_is_empty(fragment))
-                .collect::<Vec<_>>();
-            match rendered.as_slice() {
-                [] => Vec::new(),
-                [single] => vec![single.clone()],
-                _ => {
-                    let (open, close) = bracket_pair(depth);
-                    let hair_space = if options.insert_hair_space {
-                        "\u{200a}"
-                    } else {
-                        ""
-                    };
-                    let mut children = Vec::new();
-                    children.push(BracketSourceFragment::Text {
-                        text: format!("{open}{hair_space}"),
+    // One native frame per nesting level overflows the default thread on a
+    // deep `lo nu` chain. Child results sit on a heap stack.
+    let mut jobs = vec![FragmentJob::Enter { depth, expr }];
+    let mut results: Vec<Vec<BracketSourceFragment>> = Vec::new();
+    while let Some(job) = jobs.pop() {
+        match job {
+            FragmentJob::Enter { depth, expr } => match expr {
+                SExpr::Leaf { text, range, role } => {
+                    results.push(vec![BracketSourceFragment::Text {
+                        text: if *role == LeafRole::Error {
+                            format!("‼{text}‼")
+                        } else {
+                            text.clone()
+                        },
                         range: *range,
-                        role: BracketSourceFragmentRole::Normal,
-                    });
-                    for (index, fragment) in rendered.into_iter().enumerate() {
-                        if index > 0 {
-                            children.push(BracketSourceFragment::Text {
-                                text: " ".to_owned(),
-                                range: None,
-                                role: BracketSourceFragmentRole::Normal,
-                            });
-                        }
-                        children.push(fragment);
-                    }
-                    children.push(BracketSourceFragment::Text {
-                        text: format!("{hair_space}{close}"),
-                        range: *range,
-                        role: BracketSourceFragmentRole::Normal,
-                    });
-                    vec![BracketSourceFragment::Span {
-                        range: *range,
-                        constructs: constructs.clone(),
-                        children,
-                    }]
+                        role: match role {
+                            LeafRole::Normal => BracketSourceFragmentRole::Normal,
+                            LeafRole::Elided => BracketSourceFragmentRole::Elided,
+                            LeafRole::Error => BracketSourceFragmentRole::Error,
+                        },
+                    }]);
                 }
+                SExpr::Node { children, .. } => {
+                    jobs.push(FragmentJob::Finish {
+                        depth,
+                        expr,
+                        child_count: children.len(),
+                    });
+                    for child in children.iter().rev() {
+                        jobs.push(FragmentJob::Enter {
+                            depth: depth + 1,
+                            expr: child,
+                        });
+                    }
+                }
+            },
+            FragmentJob::Finish {
+                depth,
+                expr,
+                child_count,
+            } => {
+                let start = results.len() - child_count;
+                let mut rendered = Vec::new();
+                for child_fragments in results.drain(start..) {
+                    rendered.extend(
+                        child_fragments
+                            .into_iter()
+                            .filter(|fragment| !source_fragment_is_empty(fragment)),
+                    );
+                }
+                let SExpr::Node {
+                    range, constructs, ..
+                } = expr
+                else {
+                    unreachable!("fragment finish runs on a node");
+                };
+                results.push(match rendered.as_slice() {
+                    [] => Vec::new(),
+                    [single] => vec![single.clone()],
+                    _ => {
+                        let (open, close) = bracket_pair(depth);
+                        let hair_space = if options.insert_hair_space {
+                            "\u{200a}"
+                        } else {
+                            ""
+                        };
+                        let mut children = Vec::new();
+                        children.push(BracketSourceFragment::Text {
+                            text: format!("{open}{hair_space}"),
+                            range: *range,
+                            role: BracketSourceFragmentRole::Normal,
+                        });
+                        for (index, fragment) in rendered.into_iter().enumerate() {
+                            if index > 0 {
+                                children.push(BracketSourceFragment::Text {
+                                    text: " ".to_owned(),
+                                    range: None,
+                                    role: BracketSourceFragmentRole::Normal,
+                                });
+                            }
+                            children.push(fragment);
+                        }
+                        children.push(BracketSourceFragment::Text {
+                            text: format!("{hair_space}{close}"),
+                            range: *range,
+                            role: BracketSourceFragmentRole::Normal,
+                        });
+                        vec![BracketSourceFragment::Span {
+                            range: *range,
+                            constructs: constructs.clone(),
+                            children,
+                        }]
+                    }
+                });
             }
         }
     }
+    results
+        .pop()
+        .expect("fragment render keeps its root result")
+}
+
+#[invariant(true)]
+#[invariant(::Enter { .. } => true)]
+#[invariant(::Finish { .. } => true)]
+enum FragmentJob<'a> {
+    Enter {
+        depth: usize,
+        expr: &'a SExpr,
+    },
+    Finish {
+        depth: usize,
+        expr: &'a SExpr,
+        child_count: usize,
+    },
 }
 
 #[requires(true)]

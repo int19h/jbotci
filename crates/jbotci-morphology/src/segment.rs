@@ -17,6 +17,8 @@ pub(crate) use phonotactics::{
     permissible_consonant_pair,
 };
 pub(crate) use recognition_cache::MorphologyRecognitionCache;
+#[cfg(any(test, feature = "recognition_work_counter"))]
+pub use recognition_cache::take_recognition_work;
 
 #[requires(true)]
 #[ensures(true)]

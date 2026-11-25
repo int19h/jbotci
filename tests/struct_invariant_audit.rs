@@ -2016,6 +2016,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic incomplete-kind candidates are copied ranking tuples built only from syntax metadata",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:ContinuationTestClock",
+        "test clock stores the previous elapsed value so Drop can restore it; every duration is valid",
+    ),
+    (
         "crates/jbotci-syntax/src/lib.rs:GeneratedModelSourceSpanVisitor",
         "generated source-span visitor validity is enforced by Rust references and lifetimes",
     ),

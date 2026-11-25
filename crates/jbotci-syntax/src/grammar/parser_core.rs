@@ -1388,7 +1388,7 @@ impl<'tokens, O> Parser<'tokens, O> for Recursive<'tokens, O> {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
+            call_with_parser_stack(|| {
                 self.node
                     .upgrade()
                     .expect("recursive parser family owner is not retained")
@@ -1416,7 +1416,7 @@ impl<'tokens, O> Parser<'tokens, O> for Recursive<'tokens, O> {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
+            call_with_parser_stack(|| {
                 self.node
                     .upgrade()
                     .expect("recursive parser family owner is not retained")
@@ -1427,6 +1427,46 @@ impl<'tokens, O> Parser<'tokens, O> for Recursive<'tokens, O> {
             })
         }
     }
+}
+
+/// Run one recursive parser body on a stack that can hold the next frame span.
+///
+/// `stacker::maybe_grow` runs the body on the current stack while at least
+/// `red_zone` bytes remain. The bytes from this call to the next one are the
+/// frame span. A debug build with rustc 1.100.0 measured that span. The inputs
+/// were `mi klama` plus 32 copies of `lo nu mi klama`, the same text with 128
+/// copies, the `cadga` sentence, `lenumakumokau`, and 40 copies of `lo`.
+/// Strict and recovered parses both ran. The largest span was 188864 bytes.
+/// The largest step between samples was 133088 bytes. The debug red zone is
+/// 256 KiB, the next power of two above both figures. Release frames fit in
+/// 64 KiB: the nested input still parses at 512 copies on the default main
+/// stack. A fresh stack is 1 MiB, so several recursive edges share it.
+#[cfg(not(target_arch = "wasm32"))]
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn call_with_parser_stack<R>(body: impl FnOnce() -> R) -> R {
+    let (red_zone, stack_size) = parser_stack_allocation();
+    stacker::maybe_grow(red_zone, stack_size, body)
+}
+
+/// Red zone and fresh-stack size for one recursive parser edge.
+///
+/// The figures are the measurement in [`call_with_parser_stack`].
+#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+#[inline(always)]
+#[requires(true)]
+#[ensures(ret.0 == 256 * 1024 && ret.1 == 1024 * 1024)]
+fn parser_stack_allocation() -> (usize, usize) {
+    (256 * 1024, 1024 * 1024)
+}
+
+#[cfg(all(not(debug_assertions), not(target_arch = "wasm32")))]
+#[inline(always)]
+#[requires(true)]
+#[ensures(ret.0 == 64 * 1024 && ret.1 == 1024 * 1024)]
+fn parser_stack_allocation() -> (usize, usize) {
+    (64 * 1024, 1024 * 1024)
 }
 
 /// An exported root parser that keeps its entire recursive family alive.

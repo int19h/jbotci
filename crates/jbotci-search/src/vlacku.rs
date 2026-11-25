@@ -1498,9 +1498,9 @@ struct SoundScoreEntry<'dictionary> {
 
 /// Score every sound-index entry against one prepared query.
 ///
-/// Each comparison walks the whole query, so the cost grows with the query.
-/// One load per entry stops before that comparison. A set flag drops every
-/// score gathered so far.
+/// One load per entry stops before that entry's similarity table. The table
+/// has one cell for each query position and each target position. A set flag
+/// drops every score gathered so far.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|scored| scored.len() <= dictionary.sound_index().len()) || ret.is_err())]
 fn rank_sound_entries<'dictionary>(
@@ -1516,16 +1516,16 @@ fn rank_sound_entries<'dictionary>(
         if options.cancellation.is_cancelled() {
             return Err(jbotci_interrupt::Interrupted);
         }
-        // Tests count ranked entries. The count is the blow-up bound.
-        // A clock is not, because a debug build ranks the same entries more slowly.
-        #[cfg(test)]
-        SOUND_RANK_STEPS.with(|steps| steps.set(steps.get() + 1));
         let Some(entry) = entries.get(sound_entry.entry_index.get()) else {
             continue;
         };
         if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
             continue;
         }
+        // One table per entry that reaches scoring. The phonetic counter
+        // records the cells inside that table.
+        #[cfg(test)]
+        SOUND_RANK_TABLES.with(|tables| tables.set(tables.get().saturating_add(1)));
         let similarity = prepared_query
             .similarity_with_scratch(sound_entry.pronunciation_targets, &mut scratch)
             as f32;
@@ -1542,15 +1542,15 @@ fn rank_sound_entries<'dictionary>(
 
 #[cfg(test)]
 thread_local! {
-    static SOUND_RANK_STEPS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static SOUND_RANK_TABLES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-/// Ranked sound-index entries since the last read. The next read starts at zero.
+/// Similarity tables started since the last read. The next read starts at zero.
 #[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
-fn take_sound_rank_steps() -> usize {
-    SOUND_RANK_STEPS.with(|steps| steps.replace(0))
+fn take_sound_rank_tables() -> usize {
+    SOUND_RANK_TABLES.with(|tables| tables.replace(0))
 }
 
 #[requires(true)]
@@ -3773,9 +3773,9 @@ mod tests {
     ///
     /// Release time of ranking this bracketed query with a clear token is
     /// 88.19 s. Preparation is outside that time. The test trips at check
-    /// 1,000 and does not repeat that run. The bound is the ranked-entry
-    /// count. A clock is not the bound. A debug build ranks the same
-    /// entries more slowly.
+    /// 1,000 and does not repeat that run. The bound is the cells written
+    /// in each similarity table. A clock is not the bound. A debug build
+    /// ranks the same entries more slowly.
     const SLOW_BRACKETED_A_COPIES: usize = 16_500;
     /// Copies of `zbasu` before the closing `y` in the vote-filter test.
     ///
@@ -3784,12 +3784,44 @@ mod tests {
     /// before the later lookup. The test trips at check 1,000 and does not
     /// repeat that run.
     const SLOW_VALSI_ZBASU_COPIES: usize = 900;
-    /// Checks before the flag is stored. The next load then stops the call.
+    /// Loads of the flag before it is stored. The next load then stops the call.
     ///
-    /// The bound is that interrupt. A deleted check finishes the query, so
-    /// the result is not an interrupt. A clock is not the bound. The same
-    /// checks are slower in a debug build.
+    /// The bound is the prefix-table shape and one boundary index per end.
+    /// A deleted load finishes the query, so the result is not an interrupt.
+    /// A clock is not the bound. The same loads are slower in a debug build.
     const SLOW_LOOP_TRIP: usize = 1_000;
+
+    /// The scan that runs before the trip builds one prefix table set and
+    /// reads one boundary index per candidate end.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_word_start_trip(
+        chars: usize,
+        ends: u64,
+        boundary_chars: u64,
+        prefix_slots: u64,
+        bodies: u64,
+        steps: u64,
+    ) {
+        assert!(
+            ends > 0 && ends <= SLOW_LOOP_TRIP as u64,
+            "the word-start scan visited {ends} ends; the trip allows {SLOW_LOOP_TRIP}"
+        );
+        assert_eq!(
+            boundary_chars, ends,
+            "each visited end reads one boundary index"
+        );
+        assert_eq!(
+            prefix_slots,
+            3 * (chars as u64 + 1),
+            "one candidate stores three prefix tables"
+        );
+        assert_eq!(
+            (bodies, steps),
+            (0, 0),
+            "the pause scan stored recognition work"
+        );
+    }
 
     #[requires(true)]
     #[ensures(ret.cancellation == *token)]
@@ -3823,12 +3855,18 @@ mod tests {
     fn a_mid_loop_trip_stops_a_long_lujvo_query_quickly() {
         let dictionary = jbotci_dictionary_data::english();
         let query = format!("{}y", "zbasu".repeat(SLOW_ZBASU_COPIES));
+        let chars = query.chars().count();
+        let _ = jbotci_morphology::take_word_start_work();
+        let _ = jbotci_morphology::take_recognition_work();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let result = super::run_vlacku_requests(
             dictionary,
             &[VlackuRequest::lujvo(query)],
             &options_with(&token),
         );
+        let (ends, boundary_chars, prefix_slots) = jbotci_morphology::take_word_start_work();
+        let (bodies, steps) = jbotci_morphology::take_recognition_work();
+        assert_word_start_trip(chars, ends, boundary_chars, prefix_slots, bodies, steps);
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),
             "the early trip must be an interrupt, not a missing-word card"
@@ -3841,6 +3879,9 @@ mod tests {
     fn a_mid_loop_trip_stops_a_long_valsi_vote_filter_quickly() {
         let dictionary = jbotci_dictionary_data::english();
         let query = format!("{}y", "zbasu".repeat(SLOW_VALSI_ZBASU_COPIES));
+        let chars = query.chars().count();
+        let _ = jbotci_morphology::take_word_start_work();
+        let _ = jbotci_morphology::take_recognition_work();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let options = VlackuSearchOptions::default().with_data(data! {
             cancellation: token,
@@ -3848,6 +3889,9 @@ mod tests {
         });
         let result =
             super::run_vlacku_requests(dictionary, &[VlackuRequest::valsi(query)], &options);
+        let (ends, boundary_chars, prefix_slots) = jbotci_morphology::take_word_start_work();
+        let (bodies, steps) = jbotci_morphology::take_recognition_work();
+        assert_word_start_trip(chars, ends, boundary_chars, prefix_slots, bodies, steps);
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),
             "the early trip must be an interrupt, not a missing-word card"
@@ -3860,12 +3904,18 @@ mod tests {
     fn a_mid_loop_trip_stops_a_long_sound_query_quickly() {
         let dictionary = jbotci_dictionary_data::english();
         let query = format!("{}y", "zbasu".repeat(SLOW_SOUND_ZBASU_COPIES));
+        let chars = query.chars().count();
+        let _ = jbotci_morphology::take_word_start_work();
+        let _ = jbotci_morphology::take_recognition_work();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let options = VlackuSearchOptions::default().with_data(data! {
             cancellation: token,
         });
         let result =
             super::run_vlacku_requests(dictionary, &[VlackuRequest::sound(query)], &options);
+        let (ends, boundary_chars, prefix_slots) = jbotci_morphology::take_word_start_work();
+        let (bodies, steps) = jbotci_morphology::take_recognition_work();
+        assert_word_start_trip(chars, ends, boundary_chars, prefix_slots, bodies, steps);
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),
             "the early trip must be an interrupt, not an invalid-query card"
@@ -3900,16 +3950,26 @@ mod tests {
             sound_query_to_sequence(&query, &clear).expect("a bracketed run of a is a sound query");
         let prepared =
             prepare_sound_query(&sequence, &clear).expect("a clear token prepares the query");
-        let _ = super::take_sound_rank_steps();
+        let _ = super::take_sound_rank_tables();
+        let _ = jbotci_phonetic::take_aline_work();
         let token = CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let options = VlackuSearchOptions::default().with_data(data! {
             cancellation: token,
         });
         let result = super::rank_sound_entries(&prepared, dictionary, &options);
-        let steps = super::take_sound_rank_steps();
+        let tables = super::take_sound_rank_tables();
+        let (cells, expected_cells, calls) = jbotci_phonetic::take_aline_work();
         assert!(
-            steps > 0 && steps <= SLOW_LOOP_TRIP,
-            "ranking compared {steps} entries; the trip allows {SLOW_LOOP_TRIP}"
+            tables > 0 && tables <= SLOW_LOOP_TRIP,
+            "ranking started {tables} tables; the trip allows {SLOW_LOOP_TRIP}"
+        );
+        assert_eq!(
+            calls, tables as u64,
+            "each scored entry fills one similarity table"
+        );
+        assert!(
+            cells > 0 && cells == expected_cells,
+            "the table wrote {cells} cells; the shape predicts {expected_cells}"
         );
         assert!(
             matches!(result, Err(jbotci_interrupt::Interrupted)),

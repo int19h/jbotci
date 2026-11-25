@@ -28,7 +28,7 @@ use jbotci_syntax::{
 use jbotci_tree::{FieldRef, RecoveryItemState, RecoveryProjection, TreeVisitor};
 use serde::Serialize;
 
-use crate::references::ReferenceDisplayModel;
+use crate::references::{ReferenceDisplayModel, ReferenceName};
 use crate::{GlyphStyle, Indentation, OutputError, TreeRenderOptions};
 
 #[derive(Debug)]
@@ -2544,6 +2544,54 @@ pub(crate) fn collapse_value(value: TreeValue) -> TreeValue {
     }
 }
 
+/// One step of a tree render.
+///
+/// The steps sit on a heap stack. A native frame per node overflows the
+/// default thread on a deep `lo nu` chain.
+#[invariant(true)]
+#[invariant(::Value { .. } => true)]
+#[invariant(::SyntaxOutgoing { .. } => true)]
+#[invariant(::NodeSuffix { .. } => true)]
+#[invariant(::EntryPrefix { .. } => true)]
+#[invariant(::InlineEntryPrefix { .. } => true)]
+#[invariant(::ItemPrefix { .. } => true)]
+#[invariant(::InlineItemPrefix { .. } => true)]
+#[invariant(::CollectionSuffix { .. } => true)]
+#[invariant(::CollectionClose => true)]
+#[invariant(::Comma => true)]
+enum RenderStep<'a> {
+    Value {
+        value: &'a TreeValue,
+        indent: usize,
+    },
+    SyntaxOutgoing {
+        outgoing: Vec<ReferenceName>,
+    },
+    NodeSuffix {
+        indent: usize,
+        trail: bool,
+    },
+    EntryPrefix {
+        child_indent: usize,
+        label: Option<&'static str>,
+    },
+    InlineEntryPrefix {
+        comma: bool,
+        label: Option<&'static str>,
+    },
+    ItemPrefix {
+        child_indent: usize,
+    },
+    InlineItemPrefix {
+        comma: bool,
+    },
+    CollectionSuffix {
+        indent: usize,
+    },
+    CollectionClose,
+    Comma,
+}
+
 #[derive(Debug)]
 #[invariant(true)]
 struct TreeRenderer<'references> {
@@ -2574,12 +2622,102 @@ impl TreeRenderer<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn render_value(&mut self, value: &TreeValue, indent: usize) -> std::io::Result<()> {
-        self.stop_if_cancelled()?;
+        let mut steps = vec![RenderStep::Value { value, indent }];
+        while let Some(step) = steps.pop() {
+            match step {
+                RenderStep::Comma => {
+                    self.output
+                        .write_all(self.punctuation_token(",").as_bytes())?;
+                }
+                RenderStep::SyntaxOutgoing { outgoing } => {
+                    for name in &outgoing {
+                        self.output.write_all(b" ")?;
+                        self.output
+                            .write_all(self.punctuation_token(self.glyphs.arrow()).as_bytes())?;
+                        self.output.write_all(
+                            self.reference_name(name, ReferenceRenderRole::Reference)
+                                .as_bytes(),
+                        )?;
+                    }
+                }
+                RenderStep::NodeSuffix { indent, trail } => {
+                    if trail {
+                        self.output.write_all(b"\n")?;
+                        self.push_indent(indent)?;
+                    }
+                    self.output
+                        .write_all(self.punctuation_token("}").as_bytes())?;
+                }
+                RenderStep::CollectionSuffix { indent } => {
+                    self.output.write_all(b"\n")?;
+                    self.push_indent(indent)?;
+                    self.output
+                        .write_all(self.punctuation_token("]").as_bytes())?;
+                }
+                RenderStep::CollectionClose => {
+                    self.output
+                        .write_all(self.punctuation_token("]").as_bytes())?;
+                }
+                RenderStep::EntryPrefix {
+                    child_indent,
+                    label,
+                } => {
+                    self.stop_if_cancelled()?;
+                    self.output.write_all(b"\n")?;
+                    self.push_indent(child_indent)?;
+                    if let Some(label) = label {
+                        self.output.write_all(self.field_token(label).as_bytes())?;
+                        self.output
+                            .write_all(self.punctuation_token(":").as_bytes())?;
+                        self.output.write_all(b" ")?;
+                    }
+                }
+                RenderStep::InlineEntryPrefix { comma, label } => {
+                    self.stop_if_cancelled()?;
+                    if comma {
+                        self.output
+                            .write_all(self.punctuation_token(",").as_bytes())?;
+                    }
+                    if let Some(label) = label {
+                        self.output.write_all(self.field_token(label).as_bytes())?;
+                        self.output
+                            .write_all(self.punctuation_token(":").as_bytes())?;
+                    }
+                }
+                RenderStep::ItemPrefix { child_indent } => {
+                    self.stop_if_cancelled()?;
+                    self.output.write_all(b"\n")?;
+                    self.push_indent(child_indent)?;
+                }
+                RenderStep::InlineItemPrefix { comma } => {
+                    self.stop_if_cancelled()?;
+                    if comma {
+                        self.output
+                            .write_all(self.punctuation_token(",").as_bytes())?;
+                    }
+                }
+                RenderStep::Value { value, indent } => {
+                    self.stop_if_cancelled()?;
+                    self.queue_tree_value(&mut steps, value, indent)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn queue_tree_value<'a>(
+        &mut self,
+        steps: &mut Vec<RenderStep<'a>>,
+        value: &'a TreeValue,
+        indent: usize,
+    ) -> std::io::Result<()> {
         match value {
-            TreeValue::Node(node) => self.render_node(node, indent),
-            TreeValue::Collection(items) => self.render_collection(items, indent),
+            TreeValue::Node(node) => self.queue_tree_node(steps, node, indent),
+            TreeValue::Collection(items) => self.queue_tree_collection(steps, items, indent),
             TreeValue::Syntax { syntax_ids, value } => {
-                self.render_syntax_value(syntax_ids, value, indent)
+                self.queue_syntax_value(steps, syntax_ids, value, indent)
             }
             TreeValue::Word {
                 constructor,
@@ -2602,10 +2740,11 @@ impl TreeRenderer<'_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_syntax_value(
+    fn queue_syntax_value<'a>(
         &mut self,
-        syntax_ids: &[RawSyntaxNodeId],
-        value: &TreeValue,
+        steps: &mut Vec<RenderStep<'a>>,
+        syntax_ids: &'a [RawSyntaxNodeId],
+        value: &'a TreeValue,
         indent: usize,
     ) -> std::io::Result<()> {
         let annotations = self
@@ -2622,17 +2761,71 @@ impl TreeRenderer<'_> {
                 self.output.write_all(b" ")?;
             }
         }
-        self.render_value(value, indent)?;
-        if let Some(annotations) = annotations.as_ref() {
-            for name in &annotations.outgoing {
-                self.output.write_all(b" ")?;
-                self.output
-                    .write_all(self.punctuation_token(self.glyphs.arrow()).as_bytes())?;
-                self.output.write_all(
-                    self.reference_name(name, ReferenceRenderRole::Reference)
-                        .as_bytes(),
-                )?;
+        if let Some(outgoing) = annotations.map(|annotations| annotations.outgoing) {
+            if !outgoing.is_empty() {
+                steps.push(RenderStep::SyntaxOutgoing { outgoing });
             }
+        }
+        steps.push(RenderStep::Value { value, indent });
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn queue_tree_node<'a>(
+        &mut self,
+        steps: &mut Vec<RenderStep<'a>>,
+        node: &'a TreeNode,
+        indent: usize,
+    ) -> std::io::Result<()> {
+        self.output
+            .write_all(self.constructor_token(node.constructor).as_bytes())?;
+        self.render_optional_node_span(tree_node_span(node))?;
+        if self.indent_step.spaces() != 0 {
+            self.output.write_all(b" ")?;
+        }
+        self.output
+            .write_all(self.punctuation_token("{").as_bytes())?;
+        if node.entries.is_empty() {
+            self.output
+                .write_all(self.punctuation_token("}").as_bytes())?;
+            return Ok(());
+        }
+        let step = self.indent_step.spaces();
+        if step == 0 {
+            steps.push(RenderStep::NodeSuffix {
+                indent,
+                trail: false,
+            });
+            for (index, entry) in node.entries.iter().enumerate().rev() {
+                steps.push(RenderStep::Value {
+                    value: &entry.value,
+                    indent: 0,
+                });
+                steps.push(RenderStep::InlineEntryPrefix {
+                    comma: index != 0,
+                    label: entry.label,
+                });
+            }
+            return Ok(());
+        }
+        let child_indent = indent
+            .checked_add(step)
+            .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
+        steps.push(RenderStep::NodeSuffix {
+            indent,
+            trail: true,
+        });
+        for entry in node.entries.iter().rev() {
+            steps.push(RenderStep::Comma);
+            steps.push(RenderStep::Value {
+                value: &entry.value,
+                indent: child_indent,
+            });
+            steps.push(RenderStep::EntryPrefix {
+                child_indent,
+                label: entry.label,
+            });
         }
         Ok(())
     }
@@ -2675,101 +2868,41 @@ impl TreeRenderer<'_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_node(&mut self, node: &TreeNode, indent: usize) -> std::io::Result<()> {
-        self.output
-            .write_all(self.constructor_token(node.constructor).as_bytes())?;
-        self.render_optional_node_span(tree_node_span(node))?;
-        if self.indent_step.spaces() != 0 {
-            self.output.write_all(b" ")?;
-        }
-        self.output
-            .write_all(self.punctuation_token("{").as_bytes())?;
-        if !node.entries.is_empty() {
-            if self.indent_step.spaces() == 0 {
-                self.render_inline_entries(&node.entries)?;
-            } else {
-                self.render_entries(&node.entries, indent)?;
-                self.output.write_all(b"\n")?;
-                self.push_indent(indent)?;
-            }
-        }
-        self.output
-            .write_all(self.punctuation_token("}").as_bytes())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_entries(&mut self, entries: &[TreeEntry], indent: usize) -> std::io::Result<()> {
-        let child_indent = indent
-            .checked_add(self.indent_step.spaces())
-            .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
-        for entry in entries {
-            self.stop_if_cancelled()?;
-            self.output.write_all(b"\n")?;
-            self.push_indent(child_indent)?;
-            if let Some(label) = entry.label {
-                self.output.write_all(self.field_token(label).as_bytes())?;
-                self.output
-                    .write_all(self.punctuation_token(":").as_bytes())?;
-                self.output.write_all(b" ")?;
-            }
-            self.render_value(&entry.value, child_indent)?;
-            self.output
-                .write_all(self.punctuation_token(",").as_bytes())?;
-        }
-        Ok(())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_inline_entries(&mut self, entries: &[TreeEntry]) -> std::io::Result<()> {
-        for (index, entry) in entries.iter().enumerate() {
-            self.stop_if_cancelled()?;
-            if index != 0 {
-                self.output
-                    .write_all(self.punctuation_token(",").as_bytes())?;
-            }
-            if let Some(label) = entry.label {
-                self.output.write_all(self.field_token(label).as_bytes())?;
-                self.output
-                    .write_all(self.punctuation_token(":").as_bytes())?;
-            }
-            self.render_value(&entry.value, 0)?;
-        }
-        Ok(())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_collection(&mut self, items: &[TreeValue], indent: usize) -> std::io::Result<()> {
+    fn queue_tree_collection<'a>(
+        &mut self,
+        steps: &mut Vec<RenderStep<'a>>,
+        items: &'a [TreeValue],
+        indent: usize,
+    ) -> std::io::Result<()> {
         self.output
             .write_all(self.punctuation_token("[").as_bytes())?;
         let step = self.indent_step.spaces();
         let child_indent = indent
             .checked_add(step)
             .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
-        for (index, value) in items.iter().enumerate() {
-            self.stop_if_cancelled()?;
-            if step == 0 {
-                if index != 0 {
-                    self.output
-                        .write_all(self.punctuation_token(",").as_bytes())?;
-                }
-                self.render_value(value, 0)?;
-            } else {
-                self.output.write_all(b"\n")?;
-                self.push_indent(child_indent)?;
-                self.render_value(value, child_indent)?;
+        if items.is_empty() || step == 0 {
+            if items.is_empty() {
                 self.output
-                    .write_all(self.punctuation_token(",").as_bytes())?;
+                    .write_all(self.punctuation_token("]").as_bytes())?;
+                return Ok(());
             }
+            steps.push(RenderStep::CollectionClose);
+            for (index, value) in items.iter().enumerate().rev() {
+                steps.push(RenderStep::Value { value, indent: 0 });
+                steps.push(RenderStep::InlineItemPrefix { comma: index != 0 });
+            }
+            return Ok(());
         }
-        if !items.is_empty() && step != 0 {
-            self.output.write_all(b"\n")?;
-            self.push_indent(indent)?;
+        steps.push(RenderStep::CollectionSuffix { indent });
+        for value in items.iter().rev() {
+            steps.push(RenderStep::Comma);
+            steps.push(RenderStep::Value {
+                value,
+                indent: child_indent,
+            });
+            steps.push(RenderStep::ItemPrefix { child_indent });
         }
-        self.output
-            .write_all(self.punctuation_token("]").as_bytes())
+        Ok(())
     }
 
     #[requires(true)]

@@ -519,7 +519,9 @@ pub(super) fn expand(
             impl<'tree> Walkable<'tree> for #reference<'tree> {
                 #[bityzba::requires(true)]
                 #[bityzba::ensures(true)]
-                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { walker.#method(self); }
+                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) {
+                    ::jbotci_tree::with_tree_stack(|| walker.#method(self))
+                }
             }
         });
         methods.push(quote! {
@@ -531,7 +533,9 @@ pub(super) fn expand(
             #[bityzba::requires(true)]
             #[bityzba::ensures(true)]
             pub fn #function<'tree, W: Walker<'tree> + ?Sized>(walker: &mut W, node: #reference<'tree>) {
-                match node.get() { #(#walk_cases,)* }
+                ::jbotci_tree::with_tree_stack(|| {
+                    match node.get() { #(#walk_cases,)* }
+                })
             }
         });
     }
@@ -608,37 +612,47 @@ pub(super) fn expand(
             impl<'tree, V: Walkable<'tree>> Walkable<'tree> for Slot<V> {
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
                 fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) {
-                    match self {
+                    ::jbotci_tree::with_tree_stack(|| match self {
                         Slot::Valid(value) => value.walk_with(walker),
                         Slot::Prefix(value) => { walker.walk_error(); value.walk_with(walker); },
                         Slot::Error => walker.walk_error(),
-                    }
+                    })
                 }
             }
             #[bityzba::contract_trait]
             impl<'tree, V: Walkable<'tree>> Walkable<'tree> for Option<V> {
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
-                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { if let Some(value) = self { value.walk_with(walker); } }
+                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) {
+                    ::jbotci_tree::with_tree_stack(|| { if let Some(value) = self { value.walk_with(walker); } })
+                }
             }
             #[bityzba::contract_trait]
             impl<'tree, S, R, V: Walkable<'tree>, P: ::jbotci_tree::view::Projection<'tree, S, R, View = V>> Walkable<'tree> for Sequence<'tree, S, R, V, P> {
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
-                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { for value in self { value.walk_with(walker); } }
+                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) {
+                    ::jbotci_tree::with_tree_stack(|| { for value in self { value.walk_with(walker); } })
+                }
             }
             #[bityzba::contract_trait]
             impl<'tree, E: Walkable<'tree>, L: Walkable<'tree>> Walkable<'tree> for ChainView<E, L> {
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
-                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { self.first.walk_with(walker); self.links.walk_with(walker); }
+                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) {
+                    ::jbotci_tree::with_tree_stack(|| { self.first.walk_with(walker); self.links.walk_with(walker); })
+                }
             }
             #[bityzba::contract_trait]
             impl<'tree, V: Walkable<'tree>, F: Walkable<'tree>> Walkable<'tree> for WithFreeModifiersView<V, F> {
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
-                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { self.value.walk_with(walker); self.free_modifiers.walk_with(walker); }
+                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) {
+                    ::jbotci_tree::with_tree_stack(|| { self.value.walk_with(walker); self.free_modifiers.walk_with(walker); })
+                }
             }
             #[bityzba::contract_trait]
             impl<'tree, A: Walkable<'tree>, B: Walkable<'tree>> Walkable<'tree> for (A, B) {
                 #[bityzba::requires(true)] #[bityzba::ensures(true)]
-                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) { self.0.walk_with(walker); self.1.walk_with(walker); }
+                fn walk_with<W: Walker<'tree> + ?Sized>(self, walker: &mut W) {
+                    ::jbotci_tree::with_tree_stack(|| { self.0.walk_with(walker); self.1.walk_with(walker); })
+                }
             }
             #(#projectors)*
             #(#atom_impls)*

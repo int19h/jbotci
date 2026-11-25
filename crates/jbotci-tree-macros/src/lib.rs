@@ -1488,19 +1488,23 @@ fn recovered_struct_from_valid_impl(
     Ok(quote! {
         impl #ident {
             pub fn from_valid(value: #valid_ty) -> Self {
-                *Self::from_valid_boxed(Box::new(value))
+                ::jbotci_tree::with_tree_stack(|| *Self::from_valid_boxed(Box::new(value)))
             }
 
             pub fn from_valid_boxed(value: Box<#valid_ty>) -> Box<Self> {
-                #boxed_destructure
-                #(#conversions)*
-                Box::new(#construct)
+                ::jbotci_tree::with_tree_stack(|| {
+                    #boxed_destructure
+                    #(#conversions)*
+                    Box::new(#construct)
+                })
             }
 
             pub(crate) fn from_valid_unboxed(value: #valid_ty) -> Self {
-                #destructure
-                #(#conversions)*
-                #construct
+                ::jbotci_tree::with_tree_stack(|| {
+                    #destructure
+                    #(#conversions)*
+                    #construct
+                })
             }
         }
     })
@@ -1699,19 +1703,23 @@ fn recovered_enum_from_valid_impl(
     Ok(quote! {
         impl #enum_ident {
             pub fn from_valid(value: #valid_ty) -> Self {
-                *Self::from_valid_boxed(Box::new(value))
+                ::jbotci_tree::with_tree_stack(|| *Self::from_valid_boxed(Box::new(value)))
             }
 
             pub fn from_valid_boxed(value: Box<#valid_ty>) -> Box<Self> {
-                Box::new(match #boxed_match_value {
-                    #(#arms,)*
+                ::jbotci_tree::with_tree_stack(|| {
+                    Box::new(match #boxed_match_value {
+                        #(#arms,)*
+                    })
                 })
             }
 
             pub(crate) fn from_valid_unboxed(value: #valid_ty) -> Self {
-                match #match_value {
-                    #(#arms,)*
-                }
+                ::jbotci_tree::with_tree_stack(|| {
+                    match #match_value {
+                        #(#arms,)*
+                    }
+                })
             }
         }
     })
@@ -2769,16 +2777,20 @@ fn wrapper_trait_impls(
                 where
                     V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
                 {
-                    match self {
-                        ::jbotci_tree::Recovered::Valid(value) => value.visit_in_order(visitor),
-                        ::jbotci_tree::Recovered::Error(item) => visitor.visit_recovered_error(item),
-                        ::jbotci_tree::Recovered::Prefix(prefix) => {
-                            for item in &prefix.errors {
-                                visitor.visit_recovered_error(item);
+                    ::jbotci_tree::with_tree_stack(|| {
+                        match self {
+                            ::jbotci_tree::Recovered::Valid(value) => value.visit_in_order(visitor),
+                            ::jbotci_tree::Recovered::Error(item) => {
+                                visitor.visit_recovered_error(item)
                             }
-                            prefix.value.visit_in_order(visitor);
+                            ::jbotci_tree::Recovered::Prefix(prefix) => {
+                                for item in &prefix.errors {
+                                    visitor.visit_recovered_error(item);
+                                }
+                                prefix.value.visit_in_order(visitor);
+                            }
                         }
-                    }
+                    })
                 }
 
                 fn path_to_node_from<'tree>(
@@ -2786,28 +2798,34 @@ fn wrapper_trait_impls(
                     target: NodeRef<'tree>,
                     path: &mut ::jbotci_tree::TreePath,
                 ) -> bool {
-                    match self {
-                        ::jbotci_tree::Recovered::Valid(value) => {
-                            value.path_to_node_from(target, path)
+                    ::jbotci_tree::with_tree_stack(|| {
+                        match self {
+                            ::jbotci_tree::Recovered::Valid(value) => {
+                                value.path_to_node_from(target, path)
+                            }
+                            ::jbotci_tree::Recovered::Error(_) => false,
+                            ::jbotci_tree::Recovered::Prefix(prefix) => {
+                                prefix.value.path_to_node_from(target, path)
+                            }
                         }
-                        ::jbotci_tree::Recovered::Error(_) => false,
-                        ::jbotci_tree::Recovered::Prefix(prefix) => {
-                            prefix.value.path_to_node_from(target, path)
-                        }
-                    }
+                    })
                 }
 
                 fn node_at_path_steps<'tree>(
                     &'tree self,
                     steps: &[::jbotci_tree::TreePathStep],
                 ) -> Option<NodeRef<'tree>> {
-                    match self {
-                        ::jbotci_tree::Recovered::Valid(value) => value.node_at_path_steps(steps),
-                        ::jbotci_tree::Recovered::Error(_) => None,
-                        ::jbotci_tree::Recovered::Prefix(prefix) => {
-                            prefix.value.node_at_path_steps(steps)
+                    ::jbotci_tree::with_tree_stack(|| {
+                        match self {
+                            ::jbotci_tree::Recovered::Valid(value) => {
+                                value.node_at_path_steps(steps)
+                            }
+                            ::jbotci_tree::Recovered::Error(_) => None,
+                            ::jbotci_tree::Recovered::Prefix(prefix) => {
+                                prefix.value.node_at_path_steps(steps)
+                            }
                         }
-                    }
+                    })
                 }
             }
         }
@@ -2828,13 +2846,16 @@ fn wrapper_trait_impls(
                 where
                     V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
                 {
-                    self.value.visit_in_order(visitor);
-                    if !self.free_modifiers.is_empty() {
-                        let field_ref = ::jbotci_tree::FieldRef::new(Some("free_modifiers"), 1, false);
-                        visitor.enter_field(field_ref);
-                        self.free_modifiers.visit_in_order(visitor);
-                        visitor.exit_field(field_ref);
-                    }
+                    ::jbotci_tree::with_tree_stack(|| {
+                        self.value.visit_in_order(visitor);
+                        if !self.free_modifiers.is_empty() {
+                            let field_ref =
+                                ::jbotci_tree::FieldRef::new(Some("free_modifiers"), 1, false);
+                            visitor.enter_field(field_ref);
+                            self.free_modifiers.visit_in_order(visitor);
+                            visitor.exit_field(field_ref);
+                        }
+                    })
                 }
 
                 fn path_to_node_from<'tree>(
@@ -2842,32 +2863,39 @@ fn wrapper_trait_impls(
                     target: NodeRef<'tree>,
                     path: &mut ::jbotci_tree::TreePath,
                 ) -> bool {
-                    if self.value.path_to_node_from(target, path) {
-                        return true;
-                    }
-                    if !self.free_modifiers.is_empty() {
-                        path.push(::jbotci_tree::TreePathStep::field(Some("free_modifiers"), 1));
-                        if self.free_modifiers.path_to_node_from(target, path) {
+                    ::jbotci_tree::with_tree_stack(|| {
+                        if self.value.path_to_node_from(target, path) {
                             return true;
                         }
-                        path.pop();
-                    }
-                    false
+                        if !self.free_modifiers.is_empty() {
+                            path.push(::jbotci_tree::TreePathStep::field(
+                                Some("free_modifiers"),
+                                1,
+                            ));
+                            if self.free_modifiers.path_to_node_from(target, path) {
+                                return true;
+                            }
+                            path.pop();
+                        }
+                        false
+                    })
                 }
 
                 fn node_at_path_steps<'tree>(
                     &'tree self,
                     steps: &[::jbotci_tree::TreePathStep],
                 ) -> Option<NodeRef<'tree>> {
-                    if let Some(node) = self.value.node_at_path_steps(steps) {
-                        return Some(node);
-                    }
-                    if let Some((step, rest)) = steps.split_first()
-                        && step.is_field(Some("free_modifiers"), 1)
-                    {
-                        return self.free_modifiers.node_at_path_steps(rest);
-                    }
-                    None
+                    ::jbotci_tree::with_tree_stack(|| {
+                        if let Some(node) = self.value.node_at_path_steps(steps) {
+                            return Some(node);
+                        }
+                        if let Some((step, rest)) = steps.split_first()
+                            && step.is_field(Some("free_modifiers"), 1)
+                        {
+                            return self.free_modifiers.node_at_path_steps(rest);
+                        }
+                        None
+                    })
                 }
             }
         }
@@ -2885,23 +2913,26 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 (**self).visit_in_order(visitor);
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 (**self).path_to_node_from(target, path)
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 (**self).node_at_path_steps(steps)
-            }
+            })}
         }
 
         impl<T: TreeNode + ?Sized> TreeNode for ::std::sync::Arc<T> {
@@ -2913,23 +2944,26 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 (**self).visit_in_order(visitor);
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 (**self).path_to_node_from(target, path)
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 (**self).node_at_path_steps(steps)
-            }
+            })}
         }
 
         impl<T: TreeNode> TreeNode for Option<T> {
@@ -2941,27 +2975,30 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 if let Some(value) = self {
-                    value.visit_in_order(visitor);
+                value.visit_in_order(visitor);
                 }
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 self.as_ref()
-                    .is_some_and(|value| value.path_to_node_from(target, path))
-            }
+                .is_some_and(|value| value.path_to_node_from(target, path))
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 self.as_ref()
-                    .and_then(|value| value.node_at_path_steps(steps))
-            }
+                .and_then(|value| value.node_at_path_steps(steps))
+            })}
         }
 
         impl<A: TreeNode, B: TreeNode> TreeNode for (A, B) {
@@ -2969,41 +3006,44 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 visitor.enter_sequence();
                 self.0.visit_in_order(visitor);
                 self.1.visit_in_order(visitor);
                 visitor.exit_sequence();
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 path.push(::jbotci_tree::TreePathStep::sequence_index(0));
                 if self.0.path_to_node_from(target, path) {
-                    return true;
+                return true;
                 }
                 path.pop();
                 path.push(::jbotci_tree::TreePathStep::sequence_index(1));
                 if self.1.path_to_node_from(target, path) {
-                    return true;
+                return true;
                 }
                 path.pop();
                 false
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 let (step, rest) = steps.split_first()?;
                 match step.as_sequence_index()? {
-                    0 => self.0.node_at_path_steps(rest),
-                    1 => self.1.node_at_path_steps(rest),
-                    _ => None,
+                0 => self.0.node_at_path_steps(rest),
+                1 => self.1.node_at_path_steps(rest),
+                _ => None,
                 }
-            }
+            })}
         }
 
         impl<E: TreeNode, L: TreeNode> TreeNode for ::jbotci_tree::Chain<E, Vec<L>> {
@@ -3011,46 +3051,49 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 visitor.enter_chain();
                 self.first.visit_in_order(visitor);
                 for link in &self.links {
-                    link.visit_in_order(visitor);
+                link.visit_in_order(visitor);
                 }
                 visitor.exit_chain();
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 path.push(::jbotci_tree::TreePathStep::sequence_index(0));
                 if self.first.path_to_node_from(target, path) {
-                    return true;
+                return true;
                 }
                 path.pop();
                 for (index, link) in self.links.iter().enumerate() {
-                    path.push(::jbotci_tree::TreePathStep::sequence_index(index + 1));
-                    if link.path_to_node_from(target, path) {
-                        return true;
-                    }
-                    path.pop();
+                path.push(::jbotci_tree::TreePathStep::sequence_index(index + 1));
+                if link.path_to_node_from(target, path) {
+                return true;
+                }
+                path.pop();
                 }
                 false
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 let (step, rest) = steps.split_first()?;
                 let index = step.as_sequence_index()?;
                 if index == 0 {
-                    self.first.node_at_path_steps(rest)
+                self.first.node_at_path_steps(rest)
                 } else {
-                    self.links.iter().nth(index - 1)?.node_at_path_steps(rest)
+                self.links.iter().nth(index - 1)?.node_at_path_steps(rest)
                 }
-            }
+            })}
         }
 
         impl<E: TreeNode, L: TreeNode> TreeNode for ::jbotci_tree::Chain<E, ::vec1::Vec1<L>> {
@@ -3058,46 +3101,49 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 visitor.enter_chain();
                 self.first.visit_in_order(visitor);
                 for link in &self.links {
-                    link.visit_in_order(visitor);
+                link.visit_in_order(visitor);
                 }
                 visitor.exit_chain();
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 path.push(::jbotci_tree::TreePathStep::sequence_index(0));
                 if self.first.path_to_node_from(target, path) {
-                    return true;
+                return true;
                 }
                 path.pop();
                 for (index, link) in self.links.iter().enumerate() {
-                    path.push(::jbotci_tree::TreePathStep::sequence_index(index + 1));
-                    if link.path_to_node_from(target, path) {
-                        return true;
-                    }
-                    path.pop();
+                path.push(::jbotci_tree::TreePathStep::sequence_index(index + 1));
+                if link.path_to_node_from(target, path) {
+                return true;
+                }
+                path.pop();
                 }
                 false
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 let (step, rest) = steps.split_first()?;
                 let index = step.as_sequence_index()?;
                 if index == 0 {
-                    self.first.node_at_path_steps(rest)
+                self.first.node_at_path_steps(rest)
                 } else {
-                    self.links.iter().nth(index - 1)?.node_at_path_steps(rest)
+                self.links.iter().nth(index - 1)?.node_at_path_steps(rest)
                 }
-            }
+            })}
         }
 
         impl<T: TreeNode> TreeNode for Vec<T> {
@@ -3105,36 +3151,39 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 visitor.enter_sequence();
                 for value in self {
-                    value.visit_in_order(visitor);
+                value.visit_in_order(visitor);
                 }
                 visitor.exit_sequence();
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 for (index, value) in self.iter().enumerate() {
-                    path.push(::jbotci_tree::TreePathStep::sequence_index(index));
-                    if value.path_to_node_from(target, path) {
-                        return true;
-                    }
-                    path.pop();
+                path.push(::jbotci_tree::TreePathStep::sequence_index(index));
+                if value.path_to_node_from(target, path) {
+                return true;
+                }
+                path.pop();
                 }
                 false
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 let (step, rest) = steps.split_first()?;
                 let index = step.as_sequence_index()?;
                 self.get(index)?.node_at_path_steps(rest)
-            }
+            })}
         }
 
         impl<T: TreeNode> TreeNode for ::vec1::Vec1<T> {
@@ -3142,36 +3191,39 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 visitor.enter_sequence();
                 for value in self {
-                    value.visit_in_order(visitor);
+                value.visit_in_order(visitor);
                 }
                 visitor.exit_sequence();
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 for (index, value) in self.iter().enumerate() {
-                    path.push(::jbotci_tree::TreePathStep::sequence_index(index));
-                    if value.path_to_node_from(target, path) {
-                        return true;
-                    }
-                    path.pop();
+                path.push(::jbotci_tree::TreePathStep::sequence_index(index));
+                if value.path_to_node_from(target, path) {
+                return true;
+                }
+                path.pop();
                 }
                 false
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 let (step, rest) = steps.split_first()?;
                 let index = step.as_sequence_index()?;
                 self.get(index)?.node_at_path_steps(rest)
-            }
+            })}
         }
 
         impl<A> TreeNode for ::smallvec::SmallVec<A>
@@ -3183,36 +3235,39 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 visitor.enter_sequence();
                 for value in self {
-                    value.visit_in_order(visitor);
+                value.visit_in_order(visitor);
                 }
                 visitor.exit_sequence();
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 for (index, value) in self.iter().enumerate() {
-                    path.push(::jbotci_tree::TreePathStep::sequence_index(index));
-                    if value.path_to_node_from(target, path) {
-                        return true;
-                    }
-                    path.pop();
+                path.push(::jbotci_tree::TreePathStep::sequence_index(index));
+                if value.path_to_node_from(target, path) {
+                return true;
+                }
+                path.pop();
                 }
                 false
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 let (step, rest) = steps.split_first()?;
                 let index = step.as_sequence_index()?;
                 self.get(index)?.node_at_path_steps(rest)
-            }
+            })}
         }
 
         impl<A> TreeNode for ::vec1::smallvec_v1::SmallVec1<A>
@@ -3224,36 +3279,39 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 visitor.enter_sequence();
                 for value in self {
-                    value.visit_in_order(visitor);
+                value.visit_in_order(visitor);
                 }
                 visitor.exit_sequence();
-            }
+            })}
 
             fn path_to_node_from<'tree>(
                 &'tree self,
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
                 for (index, value) in self.iter().enumerate() {
-                    path.push(::jbotci_tree::TreePathStep::sequence_index(index));
-                    if value.path_to_node_from(target, path) {
-                        return true;
-                    }
-                    path.pop();
+                path.push(::jbotci_tree::TreePathStep::sequence_index(index));
+                if value.path_to_node_from(target, path) {
+                return true;
+                }
+                path.pop();
                 }
                 false
-            }
+            })}
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
+                ::jbotci_tree::with_tree_stack(|| {
                 let (step, rest) = steps.split_first()?;
                 let index = step.as_sequence_index()?;
                 self.get(index)?.node_at_path_steps(rest)
-            }
+            })}
         }
     }
 }
@@ -3401,21 +3459,22 @@ fn walk_wrapper_functions(
                 W: TreeWalker<'tree> + ?Sized,
                 T: TreeWalkable<'tree>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 match value {
-                    ::jbotci_tree::Recovered::Valid(value) => {
-                        TreeWalkable::walk_with(value, walker);
-                    }
-                    ::jbotci_tree::Recovered::Error(item) => {
-                        walker.walk_recovered_error(item);
-                    }
-                    ::jbotci_tree::Recovered::Prefix(prefix) => {
-                        for item in &prefix.errors {
-                            walker.walk_recovered_error(item);
-                        }
-                        TreeWalkable::walk_with(&prefix.value, walker);
-                    }
+                ::jbotci_tree::Recovered::Valid(value) => {
+                TreeWalkable::walk_with(value, walker);
                 }
-            }
+                ::jbotci_tree::Recovered::Error(item) => {
+                walker.walk_recovered_error(item);
+                }
+                ::jbotci_tree::Recovered::Prefix(prefix) => {
+                for item in &prefix.errors {
+                walker.walk_recovered_error(item);
+                }
+                TreeWalkable::walk_with(&prefix.value, walker);
+                }
+                }
+            })}
         }
     });
     let with_free_modifiers_function = include_with_free_modifiers.then(|| {
@@ -3429,9 +3488,10 @@ fn walk_wrapper_functions(
                 T: TreeWalkable<'tree>,
                 F: TreeWalkable<'tree>,
             {
+                ::jbotci_tree::with_tree_stack(|| {
                 TreeWalkable::walk_with(&value.value, walker);
                 TreeWalkable::walk_with(&value.free_modifiers, walker);
-            }
+            })}
         }
     });
     quote! {
@@ -3443,26 +3503,29 @@ fn walk_wrapper_functions(
             W: TreeWalker<'tree> + ?Sized,
             T: TreeWalkable<'tree> + ?Sized,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             TreeWalkable::walk_with(&**value, walker);
-        }
+        })}
 
         pub fn arc<'tree, W, T>(walker: &mut W, value: &'tree ::std::sync::Arc<T>)
         where
             W: TreeWalker<'tree> + ?Sized,
             T: TreeWalkable<'tree> + ?Sized,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             TreeWalkable::walk_with(&**value, walker);
-        }
+        })}
 
         pub fn option<'tree, W, T>(walker: &mut W, value: &'tree Option<T>)
         where
             W: TreeWalker<'tree> + ?Sized,
             T: TreeWalkable<'tree>,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             if let Some(value) = value {
-                TreeWalkable::walk_with(value, walker);
+            TreeWalkable::walk_with(value, walker);
             }
-        }
+        })}
 
         pub fn tuple2<'tree, W, A, B>(walker: &mut W, value: &'tree (A, B))
         where
@@ -3470,9 +3533,10 @@ fn walk_wrapper_functions(
             A: TreeWalkable<'tree>,
             B: TreeWalkable<'tree>,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             TreeWalkable::walk_with(&value.0, walker);
             TreeWalkable::walk_with(&value.1, walker);
-        }
+        })}
 
         pub fn chain_vec<'tree, W, E, L>(
             walker: &mut W,
@@ -3483,11 +3547,12 @@ fn walk_wrapper_functions(
             E: TreeWalkable<'tree>,
             L: TreeWalkable<'tree>,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             TreeWalkable::walk_with(&value.first, walker);
             for link in &value.links {
-                TreeWalkable::walk_with(link, walker);
+            TreeWalkable::walk_with(link, walker);
             }
-        }
+        })}
 
         pub fn chain_vec1<'tree, W, E, L>(
             walker: &mut W,
@@ -3498,31 +3563,34 @@ fn walk_wrapper_functions(
             E: TreeWalkable<'tree>,
             L: TreeWalkable<'tree>,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             TreeWalkable::walk_with(&value.first, walker);
             for link in &value.links {
-                TreeWalkable::walk_with(link, walker);
+            TreeWalkable::walk_with(link, walker);
             }
-        }
+        })}
 
         pub fn vec<'tree, W, T>(walker: &mut W, value: &'tree Vec<T>)
         where
             W: TreeWalker<'tree> + ?Sized,
             T: TreeWalkable<'tree>,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             for value in value {
-                TreeWalkable::walk_with(value, walker);
+            TreeWalkable::walk_with(value, walker);
             }
-        }
+        })}
 
         pub fn vec1<'tree, W, T>(walker: &mut W, value: &'tree ::vec1::Vec1<T>)
         where
             W: TreeWalker<'tree> + ?Sized,
             T: TreeWalkable<'tree>,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             for value in value {
-                TreeWalkable::walk_with(value, walker);
+            TreeWalkable::walk_with(value, walker);
             }
-        }
+        })}
 
         pub fn small_vec<'tree, W, A>(walker: &mut W, value: &'tree ::smallvec::SmallVec<A>)
         where
@@ -3530,10 +3598,11 @@ fn walk_wrapper_functions(
             A: ::smallvec::Array,
             A::Item: TreeWalkable<'tree>,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             for value in value {
-                TreeWalkable::walk_with(value, walker);
+            TreeWalkable::walk_with(value, walker);
             }
-        }
+        })}
 
         pub fn small_vec1<'tree, W, A>(
             walker: &mut W,
@@ -3544,10 +3613,11 @@ fn walk_wrapper_functions(
             A: ::smallvec::Array,
             A::Item: TreeWalkable<'tree>,
         {
+            ::jbotci_tree::with_tree_stack(|| {
             for value in value {
-                TreeWalkable::walk_with(value, walker);
+            TreeWalkable::walk_with(value, walker);
             }
-        }
+        })}
     }
 }
 
@@ -3571,7 +3641,9 @@ fn walk_struct_function(item: &ItemStruct) -> syn::Result<Vec<proc_macro2::Token
         where
             W: TreeWalker<'tree> + ?Sized,
         {
-            #(#walks)*
+            ::jbotci_tree::with_tree_stack(|| {
+                #(#walks)*
+            })
         }
     }])
 }
@@ -3610,9 +3682,11 @@ fn walk_enum_functions(item: &ItemEnum) -> syn::Result<Vec<proc_macro2::TokenStr
         where
             W: TreeWalker<'tree> + ?Sized,
         {
-            match #match_value {
-                #(#enum_arms)*
-            }
+            ::jbotci_tree::with_tree_stack(|| {
+                match #match_value {
+                    #(#enum_arms)*
+                }
+            })
         }
     }];
     for variant in &item.variants {
@@ -3647,8 +3721,10 @@ fn walk_enum_variant_function(
                 where
                     W: TreeWalker<'tree> + ?Sized,
                 {
-                    let _ = (#(#bindings,)*);
-                    #(#walks)*
+                    ::jbotci_tree::with_tree_stack(|| {
+                        let _ = (#(#bindings,)*);
+                        #(#walks)*
+                    })
                 }
             })
         }
@@ -3663,8 +3739,10 @@ fn walk_enum_variant_function(
                 where
                     W: TreeWalker<'tree> + ?Sized,
                 {
-                    let _ = (#(#bindings,)*);
-                    #(#walks)*
+                    ::jbotci_tree::with_tree_stack(|| {
+                        let _ = (#(#bindings,)*);
+                        #(#walks)*
+                    })
                 }
             })
         }
@@ -4113,10 +4191,12 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
-                let node = NodeRef::#ident(self);
-                visitor.enter_node(node);
-                #(#visits)*
-                visitor.exit_node(node);
+                ::jbotci_tree::with_tree_stack(|| {
+                    let node = NodeRef::#ident(self);
+                    visitor.enter_node(node);
+                    #(#visits)*
+                    visitor.exit_node(node);
+                })
             }
 
             fn path_to_node_from<'tree>(
@@ -4124,23 +4204,27 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
-                let node = NodeRef::#ident(self);
-                if node == target {
-                    return true;
-                }
-                #(#paths)*
-                false
+                ::jbotci_tree::with_tree_stack(|| {
+                    let node = NodeRef::#ident(self);
+                    if node == target {
+                        return true;
+                    }
+                    #(#paths)*
+                    false
+                })
             }
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
-                if steps.is_empty() {
-                    return Some(NodeRef::#ident(self));
-                }
-                #(#child_lookups)*
-                None
+                ::jbotci_tree::with_tree_stack(|| {
+                    if steps.is_empty() {
+                        return Some(NodeRef::#ident(self));
+                    }
+                    #(#child_lookups)*
+                    None
+                })
             }
         }
     })
@@ -4311,9 +4395,11 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
-                match #match_value {
-                    #(#visit_arms)*
-                }
+                ::jbotci_tree::with_tree_stack(|| {
+                    match #match_value {
+                        #(#visit_arms)*
+                    }
+                })
             }
 
             fn path_to_node_from<'tree>(
@@ -4321,18 +4407,22 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
-                match #match_value {
-                    #(#path_arms)*
-                }
+                ::jbotci_tree::with_tree_stack(|| {
+                    match #match_value {
+                        #(#path_arms)*
+                    }
+                })
             }
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
-                match #match_value {
-                    #(#child_lookup_arms)*
-                }
+                ::jbotci_tree::with_tree_stack(|| {
+                    match #match_value {
+                        #(#child_lookup_arms)*
+                    }
+                })
             }
         }
     })

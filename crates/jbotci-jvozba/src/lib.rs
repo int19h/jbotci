@@ -1943,12 +1943,33 @@ mod tests {
     #[ensures(true)]
     fn a_mid_loop_trip_stops_a_long_zbasu_query_quickly() {
         let dictionary = jbotci_dictionary_data::english();
-        let inputs = [JvozbaInput::Word(format!(
-            "{}y",
-            "zbasu".repeat(SLOW_ZBASU_COPIES)
-        ))];
+        let query = format!("{}y", "zbasu".repeat(SLOW_ZBASU_COPIES));
+        let chars = query.chars().count();
+        let inputs = [JvozbaInput::Word(query)];
+        let _ = jbotci_morphology::take_word_start_work();
+        let _ = jbotci_morphology::take_recognition_work();
         let token = jbotci_interrupt::CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
         let result = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token);
+        let (ends, boundary_chars, prefix_slots) = jbotci_morphology::take_word_start_work();
+        let (bodies, steps) = jbotci_morphology::take_recognition_work();
+        assert!(
+            ends > 0 && ends <= SLOW_LOOP_TRIP as u64,
+            "the word-start scan visited {ends} ends; the trip allows {SLOW_LOOP_TRIP}"
+        );
+        assert_eq!(
+            boundary_chars, ends,
+            "each visited end reads one boundary index"
+        );
+        assert_eq!(
+            prefix_slots,
+            3 * (chars as u64 + 1),
+            "one candidate stores three prefix tables"
+        );
+        assert_eq!(
+            (bodies, steps),
+            (0, 0),
+            "the pause scan stored recognition work"
+        );
         assert!(
             matches!(result, Err(JvozbaError::Interrupted)),
             "the early trip must be an interrupt, not a finished refusal"
