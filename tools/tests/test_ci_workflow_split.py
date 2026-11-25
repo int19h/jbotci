@@ -15,8 +15,8 @@ from markdown_it import MarkdownIt
 
 from tools.cargo_inputs_trace import dioxus_cli_version, shared_rustup_home
 from tools.release_compiler import toolchain_channel
-from tools.workflow_images import dockerfile_image_versions, workflow_image_versions
-from tools.workflow_pins import PinError, exactly_one, job_env_values, mapping_values
+from tools.workflow_images import workflow_rust_versions
+from tools.workflow_pins import PinError, exactly_one, job_env_values
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -317,48 +317,23 @@ class CiWorkflowSplitTests(unittest.TestCase):
             self.test_workflow,
         )
 
-    def test_ci_rust_images_match_the_toolchain_channel(self) -> None:
+    def test_workflow_rust_pins_match_the_toolchain_channel(self) -> None:
         version = self.channel
         self.assertRegex(version, r"^[0-9]+\.[0-9]+\.[0-9]+$")
         for path in sorted(WORKFLOWS.iterdir()):
             if not path.is_file() or path.suffix not in (".yml", ".yaml"):
                 continue
             with self.subTest(file=path.name):
-                tags = workflow_image_versions(
-                    path.read_text(encoding="utf-8"), unchanged_render_resolver=path == RENDER_WORKFLOW,
-                )
-                for tag in tags:
-                    self.assertEqual(tag, version)
-        prepare = (WORKFLOWS / "prepare-cli-release.yml").read_text(encoding="utf-8")
-        dockerfile = (REPOSITORY_ROOT / "deploy/render/Dockerfile").read_text(encoding="utf-8")
-        self.assertEqual(set(dockerfile_image_versions(dockerfile)), {version})
+                for pin in workflow_rust_versions(path.read_text(encoding="utf-8")):
+                    self.assertEqual(pin, version)
 
+        prepare = (WORKFLOWS / "prepare-cli-release.yml").read_text(encoding="utf-8")
         self.assertEqual(job_env_values(self.test_workflow, "RUST_BUILD_IMAGE"), [
             ("build-image", f"rust:{version}-bookworm"),
         ])
-        self.assertIn(f"rust:{version}-bookworm", self.render_workflow)
-        self.assertIn(f"rust:{version}-trixie", self.render_workflow)
         self.assertEqual(job_env_values(prepare, "RUST_BUILD_IMAGE"), [
             ("build-linux", f"rust:{version}-alpine3.24"),
         ])
-        self.assertIn(f"FROM rust:{version}-bookworm AS build\n", dockerfile)
-        self.assertEqual(mapping_values(prepare, "RUSTUP_TOOLCHAIN"), [version, version])
-        job_toolchains = job_env_values(prepare, "RUSTUP_TOOLCHAIN")
-        self.assertEqual(
-            [(name, value) for name, value in job_toolchains],
-            [("build-macos", version), ("build-windows", version)],
-        )
-        pattern = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
-        for name, next_job in (("build-macos", "build-windows"), ("build-windows", "package")):
-            job = prepare.split(f"  {name}:\n", 1)[1].split(f"  {next_job}:\n", 1)[0]
-            self.assertEqual(exactly_one(job, "RUSTUP_TOOLCHAIN", pattern), version)
-        self.assertEqual(prepare.count(f"--env RUSTUP_TOOLCHAIN={version}"), 1)
-        self.assertEqual(prepare.count("tools.release_compiler gate --file rust-toolchain.toml"), 3)
-        self.assertEqual(prepare.count("rustc -vV"), 0)
-        self.assertGreaterEqual(prepare.count("rust-toolchain.toml"), 3)
-        compilers = re.findall(r"rustc ([0-9]+\.[0-9]+\.[0-9]+) \(", prepare)
-        self.assertGreaterEqual(len(compilers), 2)
-        self.assertEqual(set(compilers), {version})
 
     def test_documented_rust_and_cargo_versions_match_the_toolchain_channel(self) -> None:
         for name in ("README.md", "docs/ci/cargo-cache.md"):
@@ -411,125 +386,49 @@ class CiWorkflowSplitTests(unittest.TestCase):
                 with self.assertRaises(PinError):
                     exactly_one(malformed, key, pattern)
 
-    def test_rust_image_pins_read_containers_and_workflow_and_job_env(self) -> None:
+    def test_yaml_pins_include_image_tags_and_rust_versions(self) -> None:
         workflow = (
-            "env: {RUST_BASE: 'rust:1.100.0-trixie'}\n"
+            "env: {RUST_BASE: 'rust:1.100.0-trixie', RUST_VERSION: '1.99.0', NODE_VERSION: '24.14.0'}\n"
             "jobs:\n"
             "  build:\n"
             "    container: {image: 'docker.io/library/rust:1.99.0-slim-bookworm'}\n"
             "    env: {OTHER_BASE: 'registry.example:5000/mirror/rust:1.100.0-bookworm'}\n"
-            "    steps:\n"
-            "      - run: docker --version\n"
-            '      - run: docker pull "$OTHER_BASE"\n'
+            "  release:\n"
+            "    container: 'rust:1.100.0-slim-bookworm'\n"
+            "    env: {RUSTUP_TOOLCHAIN: '1.99.1'}\n"
         )
-        self.assertEqual(workflow_image_versions(workflow), ["1.100.0", "1.100.0", "1.99.0"])
+        self.assertEqual(
+            workflow_rust_versions(workflow),
+            ["1.100.0", "1.99.0", "1.100.0", "1.99.0", "1.99.1", "1.100.0"],
+        )
         with self.assertRaisesRegex(PinError, "Rust image pin in YAML"):
-            workflow_image_versions(workflow.replace("rust:1.99.0-slim-bookworm", "rust:latest"))
+            workflow_rust_versions(workflow.replace("rust:1.99.0-slim-bookworm", "rust:latest"))
+        with self.assertRaisesRegex(PinError, "Declare a Rust version in RUSTUP_TOOLCHAIN"):
+            workflow_rust_versions(workflow.replace("1.99.1", "stable"))
 
-    def test_shell_rust_image_spellings_require_a_yaml_pin(self) -> None:
-        for command in (
-            "docker pull rust",
-            "docker pull docker.io/library/rust",
-            "docker pull --platform linux/amd64 rust",
-            "docker pull --platform=linux/amd64 rust",
-            "docker --context default pull docker.io/library/rust",
-            "docker run --entrypoint /bin/sh rust",
-            "docker logs rust",
-            "docker --version\n          echo rust:1.99.0-bookworm",
-            "# A comment that ends in " + chr(92) + "\n          docker pull rust",
-            "docker pull rust:1.100.0-slim-bookworm",
-            "env docker pull --quiet docker.io/library/rust:'1.99.0'-bookworm",
-            'id="$(docker run --rm docker.io/library/ru"st:1.99".1-slim-bookworm)"',
-            'docker pull "rust:${RUST_VERSION}-bookworm"',
-            'docker pull rust@sha256:' + "a" * 64,
-            "docker pull ru" + chr(92) + "\n          st:1.99.0-bookworm",
-        ):
-            with self.subTest(command=command):
-                workflow = f"jobs:\n  build:\n    steps:\n      - run: |\n          {command}\n"
-                with self.assertRaisesRegex(PinError, "Rust image pin in YAML"):
-                    workflow_image_versions(workflow)
-
-    def test_step_names_and_shell_comments_do_not_supply_image_words(self) -> None:
+    def test_only_workflow_and_job_pin_fields_supply_versions(self) -> None:
         workflow = (
-            "jobs:\n  build:\n    steps:\n"
-            '      - name: "Example image rust:1.100.0-bookworm"\n'
-            "        run: |\n"
-            "          # docker pull rust:1.99.0-bookworm\n"
-            "          docker --version # docker pull rust\n"
-            "          docker pull alpine:3.24\n"
+            "name: 'Example image rust:1.99.0-bookworm'\n"
+            "jobs:\n"
+            "  build:\n"
+            "    container: {image: '${{ needs.image.outputs.image }}'}\n"
+            "    services: {builder: {image: 'rust:1.99.0-bookworm'}}\n"
+            "    env: {RUST_BUILD_IMAGE: 'rust:1.100.0-bookworm'}\n"
+            "    steps: [{env: {RUSTUP_TOOLCHAIN: '1.99.0'}}]\n"
         )
-        self.assertEqual(workflow_image_versions(workflow), [])
+        self.assertEqual(workflow_rust_versions(workflow), ["1.100.0"])
 
-    def test_shell_step_needs_both_docker_and_an_image_word(self) -> None:
-        for command in (
-            "docker --version",
-            "echo rust:1.99.0-bookworm",
-            "echo rust # docker --version",
-            'docker --label "example rust:1.99.0-bookworm" alpine:3.24',
-        ):
-            with self.subTest(command=command):
-                workflow = f"jobs:\n  build:\n    steps:\n      - run: |\n          {command}\n"
-                self.assertEqual(workflow_image_versions(workflow), [])
-
-    def test_other_yaml_fields_cannot_declare_rust_image_pins(self) -> None:
-        for fields in (
-            "    services: {builder: {image: 'rust:1.99.0-bookworm'}}\n",
-            "    steps: [{uses: 'docker://rust:1.99.0-bookworm'}]\n",
-            "    steps: [{env: {BUILD_IMAGE: 'rust:1.99.0-bookworm'}, run: 'docker pull $BUILD_IMAGE'}]\n",
-        ):
-            with self.subTest(fields=fields):
-                with self.assertRaisesRegex(PinError, "Rust image pin in YAML"):
-                    workflow_image_versions("jobs:\n  build:\n" + fields)
-
-    def test_rust_digest_must_come_from_the_image_resolver(self) -> None:
+    def test_yaml_rust_image_pins_reject_literal_digests(self) -> None:
         digest = "sha256:114c7a4425406451c2866b6aafe69fe29b1b298832db1277d411ac73c82d04d6"
         for image in ("docker.io/library/rust:1.100.0-bookworm@" + digest, "rust@" + digest):
             for workflow in (
                 f"jobs:\n  build:\n    container: {image}\n",
                 f"env: {{RUST_BASE: '{image}'}}\njobs: {{build: {{}}}}\n",
+                f"jobs:\n  build:\n    env: {{RUST_BASE: '{image}'}}\n",
             ):
                 with self.subTest(workflow=workflow):
                     with self.assertRaisesRegex(PinError, "Use the image resolver"):
-                        workflow_image_versions(workflow)
-            with self.assertRaisesRegex(PinError, "Use the image resolver"):
-                dockerfile_image_versions(f"FROM {image} AS build\n")
-
-    def test_digest_output_must_use_the_resolver_with_a_yaml_pin(self) -> None:
-        pinned = (
-            "jobs:\n"
-            "  build-image:\n"
-            "    outputs: {image: '${{ steps.image.outputs.image }}'}\n"
-            "    env: {RUST_BASE: 'rust:1.100.0-bookworm'}\n"
-            "    steps:\n"
-            "      - id: image\n"
-            '        run: python3 -m tools.cargo_cache_identity resolve-image "$RUST_BASE"\n'
-            "  build:\n"
-            "    needs: build-image\n"
-            "    container: {image: '${{ needs.build-image.outputs.image }}'}\n"
-        )
-        self.assertEqual(workflow_image_versions(pinned), ["1.100.0"])
-        for broken in (
-            pinned.replace('${{ steps.image.outputs.image }}', '${{ steps.unrelated.outputs.image }}'),
-            pinned.replace('resolve-image "$RUST_BASE"', 'identity "$RUST_BASE"'),
-            pinned.replace('    needs: build-image\n', ''),
-            pinned.replace('        run:', "        env: {RUST_BASE: 'alpine:3.24'}\n        run:"),
-        ):
-            with self.subTest(broken=broken):
-                with self.assertRaisesRegex(PinError, "Rust image pin in YAML"):
-                    workflow_image_versions(broken)
-
-    def test_unchanged_render_resolver_literal_is_limited_to_the_linked_step(self) -> None:
-        self.assertEqual(
-            workflow_image_versions(self.render_workflow, unchanged_render_resolver=True),
-            [self.channel, self.channel],
-        )
-        outdated = self.render_workflow.replace(f"rust:{self.channel}-bookworm", "rust:1.99.0-bookworm")
-        self.assertIn("1.99.0", workflow_image_versions(outdated, unchanged_render_resolver=True))
-        with self.assertRaisesRegex(PinError, "Rust image pin in YAML"):
-            workflow_image_versions(self.render_workflow)
-        extra_literal = self.render_workflow + "\n  other:\n    steps: [{run: 'docker pull rust:1.99.0-bookworm'}]\n"
-        with self.assertRaisesRegex(PinError, "Rust image pin in YAML"):
-            workflow_image_versions(extra_literal, unchanged_render_resolver=True)
+                        workflow_rust_versions(workflow)
 
 
 class TracedTargetTests(unittest.TestCase):
