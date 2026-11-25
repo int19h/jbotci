@@ -24,7 +24,9 @@ pub(crate) fn render_in_scope(
     };
     let inputs = text_scope.join(
         outcome.inputs.iter().map(|input| match input {
-            JvozbaInput::Word(word) => inline_code_in_scope(word, text_scope),
+            JvozbaInput::Word(word) | JvozbaInput::DictionaryWord { word, .. } => {
+                inline_code_in_scope(word, text_scope)
+            }
             JvozbaInput::FixedRafsi(rafsi) => text_scope.format(format_args!(
                 "{} (fixed rafsi)",
                 inline_code_in_scope(rafsi, text_scope)

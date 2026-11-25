@@ -33,7 +33,8 @@ use jbotci_diagnostics::{
     diagnostic_text_segments_text,
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
-use jbotci_dictionary::{Dictionary, DictionaryEntry, EntryIndex, WordType};
+pub use jbotci_dictionary::EntryIndex;
+use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
 use jbotci_gentufa::{
     AppliedGentufaCompound, GentufaCompoundKind, GentufaCompoundLayout, GentufaCompoundMember,
@@ -2823,6 +2824,8 @@ pub enum VlackuJvozbaMode {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuJvozbaItem {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry_index: Option<EntryIndex>,
     pub kind: VlackuJvozbaItemKind,
     pub value: String,
     pub source: Option<String>,
@@ -5702,7 +5705,13 @@ pub fn build_vlacku_jvozba_output(
     let parsed_inputs = items
         .iter()
         .map(|item| match item.kind {
-            VlackuJvozbaItemKind::Word => JvozbaSourceInput::Word(item.value.clone()),
+            VlackuJvozbaItemKind::Word => match item.entry_index {
+                Some(entry_index) => JvozbaSourceInput::DictionaryWord {
+                    entry_index,
+                    word: item.value.clone(),
+                },
+                None => JvozbaSourceInput::Word(item.value.clone()),
+            },
             VlackuJvozbaItemKind::FixedRafsi => JvozbaSourceInput::FixedRafsi(item.value.clone()),
         })
         .collect::<Vec<_>>();
@@ -5918,6 +5927,26 @@ pub fn escape_html_text(input: &str) -> String {
 pub fn dictionary_tooltip_for_word(base_path: &str, word: &str) -> Option<DictionaryTooltipCard> {
     dictionary_tooltip_search_card_for_word(word)
         .map(|card| dictionary_tooltip_card_from_search_card(base_path, card))
+}
+
+/// Build the tooltip for an entry selected from the dictionary results.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|card| card.entry_index == Some(entry_index)))]
+pub fn dictionary_tooltip_for_entry(
+    base_path: &str,
+    entry_index: EntryIndex,
+) -> Option<DictionaryTooltipCard> {
+    let dictionary = jbotci_dictionary_data::english();
+    let entry = dictionary.entry_for_index(entry_index)?;
+    let card = dictionary_entry_card(dictionary, entry, Some(1.0), true);
+    Some(dictionary_tooltip_card_from_search_card(base_path, card))
+}
+
+/// Identify the English dictionary snapshot used by an entry index.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn vlacku_dictionary_snapshot_sha256() -> &'static str {
+    jbotci_dictionary_data::english_metadata().sha256()
 }
 
 #[requires(true)]
@@ -9141,6 +9170,10 @@ mod tests {
             let expected_card = dictionary_entry_card(dictionary, matched.entry, Some(1.0), true);
             let expected_card = dictionary_tooltip_card_without_components("", expected_card);
             assert_eq!(card.components[index].card, expected_card);
+            assert_eq!(
+                dictionary_tooltip_for_entry("", matched.entry_index).unwrap(),
+                expected_card
+            );
         }
     }
 
@@ -11800,12 +11833,14 @@ mod tests {
             VlackuJvozbaMode::Lujvo,
             &[
                 VlackuJvozbaItem {
+                    entry_index: None,
                     kind: VlackuJvozbaItemKind::Word,
                     value: "lojbo".to_owned(),
                     source: None,
                     indent_level: 0,
                 },
                 VlackuJvozbaItem {
+                    entry_index: None,
                     kind: VlackuJvozbaItemKind::Word,
                     value: "bangu".to_owned(),
                     source: None,
@@ -11828,12 +11863,14 @@ mod tests {
             VlackuJvozbaMode::Lujvo,
             &[
                 VlackuJvozbaItem {
+                    entry_index: None,
                     kind: VlackuJvozbaItemKind::Word,
                     value: "jenjigu".to_owned(),
                     source: None,
                     indent_level: 0,
                 },
                 VlackuJvozbaItem {
+                    entry_index: None,
                     kind: VlackuJvozbaItemKind::Word,
                     value: "dirce".to_owned(),
                     source: None,

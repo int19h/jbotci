@@ -40,11 +40,17 @@ impl From<JvozbaMode> for LujvoBuildMode {
 
 #[invariant(true)]
 #[invariant(::Word(_) => true)]
+#[invariant(::DictionaryWord { .. } => true)]
 #[invariant(::FixedRafsi(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "kind", content = "value")]
 pub enum JvozbaInput {
     Word(String),
+    /// A word selected from this dictionary's results.
+    DictionaryWord {
+        entry_index: EntryIndex,
+        word: String,
+    },
     FixedRafsi(String),
 }
 
@@ -313,7 +319,7 @@ fn build_best_jvozba_with_evaluator(
     }
     let mut expanded_inputs = Vec::with_capacity(count);
     for plan in plans {
-        plan.append_to(dictionary, &mut expanded_inputs);
+        plan.append_to(&mut expanded_inputs);
     }
     let candidate_lists = build_candidate_lists(mode, dictionary, &expanded_inputs, cancellation)?;
     // A short choice list can still carry long pieces, and every spelling is
@@ -512,7 +518,7 @@ impl<'a> ExpandedInput<'a> {
 #[derive(Debug)]
 enum ExpansionPlan<'input, 'dictionary> {
     Plain {
-        input: &'input JvozbaInput,
+        input: ExpandedInput<'input>,
     },
     Decomposed {
         decomposition: LujvoDecomposition<'dictionary>,
@@ -531,12 +537,9 @@ impl<'input> ExpansionPlan<'input, '_> {
     }
     #[requires(true)]
     #[ensures(destination.len() >= old(destination.len()))]
-    fn append_to(self, dictionary: &Dictionary<'_>, destination: &mut Vec<ExpandedInput<'input>>) {
+    fn append_to(self, destination: &mut Vec<ExpandedInput<'input>>) {
         match self {
-            Self::Plain { input } => destination.push(match input {
-                JvozbaInput::FixedRafsi(text) => ExpandedInput::FixedRafsi(text),
-                JvozbaInput::Word(text) => ExpandedInput::for_word(dictionary, text),
-            }),
+            Self::Plain { input } => destination.push(input),
             Self::Decomposed { decomposition } => destination.extend(
                 sourced_rafsi_entries(&decomposition.segments).map(ExpandedInput::DictionaryWord),
             ),
@@ -550,7 +553,22 @@ fn plan_expansion<'input, 'dictionary>(
     input: &'input JvozbaInput,
     cancellation: &CancellationToken,
 ) -> Result<ExpansionPlan<'input, 'dictionary>, JvozbaError> {
-    if let JvozbaInput::Word(text) = input
+    let (input, word_text) = match input {
+        JvozbaInput::Word(text) => (ExpandedInput::for_word(dictionary, text), Some(text)),
+        JvozbaInput::DictionaryWord { entry_index, word } => {
+            if !dictionary
+                .entry_for_index(*entry_index)
+                .is_some_and(|entry| entry.word == word)
+            {
+                return Err(JvozbaError::NoDictionaryEntry {
+                    offending: word.clone(),
+                });
+            }
+            (ExpandedInput::DictionaryWord(*entry_index), Some(word))
+        }
+        JvozbaInput::FixedRafsi(text) => (ExpandedInput::FixedRafsi(text), None),
+    };
+    if let Some(text) = word_text
         && let Some(decomposition) = decompose_lujvo_like(dictionary, text, cancellation)?
         && sourced_rafsi_entries(&decomposition.segments)
             .next()
@@ -1377,6 +1395,20 @@ mod tests {
             )
             .unwrap();
             assert_eq!(result.word, "datsi'o");
+            let selected = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::DictionaryWord {
+                        entry_index: EntryIndex(0),
+                        word: "datni".to_owned(),
+                    },
+                    JvozbaInput::Word("sidbo".to_owned()),
+                ],
+                &token,
+            )
+            .unwrap();
+            assert_eq!(selected.word, "datsi'o");
         });
     }
 

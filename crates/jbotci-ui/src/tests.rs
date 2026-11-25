@@ -4202,12 +4202,14 @@ fn vlacku_jvozba_storage_reads_v0_json_items() {
         items,
         vec![
             VlackuJvozbaItem {
+                entry_index: None,
                 kind: VlackuJvozbaItemKind::Word,
                 value: "cmene".to_owned(),
                 source: None,
                 indent_level: 2,
             },
             VlackuJvozbaItem {
+                entry_index: None,
                 kind: VlackuJvozbaItemKind::FixedRafsi,
                 value: "vla".to_owned(),
                 source: Some("valsi".to_owned()),
@@ -4227,12 +4229,14 @@ fn vlacku_jvozba_storage_migrates_legacy_newline_items() {
         items,
         vec![
             VlackuJvozbaItem {
+                entry_index: None,
                 kind: VlackuJvozbaItemKind::Word,
                 value: "cmene".to_owned(),
                 source: None,
                 indent_level: 0,
             },
             VlackuJvozbaItem {
+                entry_index: None,
                 kind: VlackuJvozbaItemKind::FixedRafsi,
                 value: "vla".to_owned(),
                 source: None,
@@ -4247,6 +4251,7 @@ fn vlacku_jvozba_storage_migrates_legacy_newline_items() {
 #[ensures(true)]
 fn vlacku_jvozba_storage_writes_v0_json_shape() {
     let raw = format_vlacku_jvozba_items(&[VlackuJvozbaItem {
+        entry_index: None,
         kind: VlackuJvozbaItemKind::FixedRafsi,
         value: "vla".to_owned(),
         source: Some("valsi".to_owned()),
@@ -4258,6 +4263,32 @@ fn vlacku_jvozba_storage_writes_v0_json_shape() {
         serde_json::json!([
             {"kind":"rafsi","value":"vla","source":"valsi","indentLevel":1}
         ])
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_jvozba_storage_keeps_entry_selection_for_the_same_snapshot() {
+    let item = VlackuJvozbaItem {
+        entry_index: Some(EntryIndex(42)),
+        kind: VlackuJvozbaItemKind::Word,
+        value: ".onji".to_owned(),
+        source: None,
+        indent_level: 0,
+    };
+    let raw = format_vlacku_jvozba_items(std::slice::from_ref(&item));
+    assert_eq!(parse_vlacku_jvozba_items(&raw), [item.clone()]);
+
+    let mut old: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    old[0]["dictionarySnapshot"] = serde_json::json!("older snapshot");
+    let raw = serde_json::to_string(&old).unwrap();
+    assert_eq!(
+        parse_vlacku_jvozba_items(&raw),
+        [VlackuJvozbaItem {
+            entry_index: None,
+            ..item
+        }]
     );
 }
 
