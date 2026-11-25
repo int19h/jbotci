@@ -1236,6 +1236,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegmentKind::FuivlaRafsi",
+        "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidEntry",
         "validation error wrapper carries path and entry diagnostics",
     ),

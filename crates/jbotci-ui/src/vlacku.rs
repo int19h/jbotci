@@ -1854,7 +1854,9 @@ pub(super) fn render_composition_piece(
             rsx! {
                 span { class: "rafsi-split-pill",
                     span { class: "rafsi-split-left",
-                        { render_page_find_text(page_find, &display_surface) }
+                        span { class: "rafsi-split-surface",
+                            { render_page_find_text(page_find, &display_surface) }
+                        }
                         small { { render_page_find_text(page_find, "fu'ivla rafsi") } }
                     }
                     for source in &piece.sources {

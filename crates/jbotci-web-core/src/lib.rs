@@ -84,10 +84,11 @@ use jbotci_search::compounds::{
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuRequest,
-    VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
-    dictionary_matches_for_word_likes, format_vote_display, grouped_word_type_filter_key,
-    is_brivla_like, normalize_word_type_filter, run_vlacku_requests, vlacku_exact_query_is_pattern,
+    VlackuSearchOptions, WordTypeFilter, dictionary_cards_for_word_likes_with_limit,
+    dictionary_entry_card, dictionary_entry_passes_vlacku_entry_filters,
+    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
+    grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
+    vlacku_exact_query_is_pattern,
 };
 use jbotci_semantics::references::{
     GeneratedReferenceAnalysis, PlaceSlot, RawSyntaxNodeId, SelbriPlaceFrameId,
@@ -6256,21 +6257,26 @@ fn dictionary_tooltip_card_from_search_card(
 ) -> DictionaryTooltipCard {
     let dictionary = jbotci_dictionary_data::english();
     let missing_lujvo = !card.known && normalize_word_type_filter(&card.word_type) == "lujvo";
-    let components = card
+    let mut seen_entries = Vec::new();
+    let mut components = Vec::new();
+    for source in card
         .decomposition
         .iter()
         .filter(|piece| missing_lujvo || piece.kind == VlackuCompositionPieceKind::FuivlaRafsi)
         .flat_map(|piece| &piece.sources)
-        .map(|source| {
-            let entry = dictionary
-                .entry_for_index(source.entry_index)
-                .expect("the source index belongs to the search dictionary");
-            let card = dictionary_entry_card(dictionary, entry, Some(1.0), true);
-            new!(DictionaryTooltipComponentCard {
-                card: dictionary_tooltip_card_without_components(base_path, card),
-            })
-        })
-        .collect();
+    {
+        if seen_entries.contains(&source.entry_index) {
+            continue;
+        }
+        seen_entries.push(source.entry_index);
+        let entry = dictionary
+            .entry_for_index(source.entry_index)
+            .expect("the source index belongs to the search dictionary");
+        let component = dictionary_entry_card(dictionary, entry, Some(1.0), true);
+        components.push(new!(DictionaryTooltipComponentCard {
+            card: dictionary_tooltip_card_without_components(base_path, component),
+        }));
+    }
     dictionary_tooltip_card_without_components(base_path, card)
         .with_data(data! { components: components })
 }
@@ -9113,13 +9119,13 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn missing_lujvo_tooltips_keep_component_order_and_repetitions() {
+    fn missing_lujvo_tooltips_keep_one_card_per_entry_in_source_order() {
         for (word, expected) in [
-            ("klabajra", ["klama", "bajra"]),
-            ("klamybajra", ["klama", "bajra"]),
-            ("klaklama", ["klama", "klama"]),
-            ("brodau", ["xebro", "darlu"]),
-            ("blable", ["blanu", "ruble"]),
+            ("klabajra", &["klama", "bajra"][..]),
+            ("klamybajra", &["klama", "bajra"][..]),
+            ("klaklama", &["klama"][..]),
+            ("brodau", &["xebro", "darlu"][..]),
+            ("blable", &["blanu", "ruble"][..]),
         ] {
             let card = dictionary_tooltip_for_word("/tools", word).expect("lujvo tooltip");
             assert!(!card.known, "{word}");
@@ -9173,6 +9179,102 @@ mod tests {
             assert_eq!(
                 dictionary_tooltip_for_entry("", matched.entry_index).unwrap(),
                 expected_card
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tooltip_components_keep_one_card_per_entry_in_rank_order() {
+        for (word, expected) in [
+            ("ierxyierxykla", &["ierxi", "klama"][..]),
+            ("ierxyierxi", &["ierxi"][..]),
+            ("cticti", &["citka"][..]),
+        ] {
+            let card = dictionary_tooltip_for_word("", word).expect("lujvo tooltip");
+            assert_eq!(
+                card.components
+                    .iter()
+                    .map(|component| component.card.word.as_str())
+                    .collect::<Vec<_>>(),
+                expected,
+                "{word}"
+            );
+        }
+        // `klakla` is an attested lujvo. A known lujvo keeps its own card and
+        // does not repeat the gismu behind an ordinary rafsi.
+        let known = dictionary_tooltip_for_word("", "klakla").expect("attested lujvo");
+        assert!(known.known);
+        assert!(known.components.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn known_lujvo_leaf_tooltips_match_reference_cards() {
+        for word in ["itku'ilybau", "almybo'o"] {
+            let text = format!("mi {word}");
+            let GentufaWebResult::Success(success) = parse_gentufa_for_web(&GentufaWebRequest {
+                text: text.clone(),
+                options: GentufaWebOptions::default(),
+            }) else {
+                panic!("the leaf tooltip fixture must parse");
+            };
+            let leaf = success
+                .blocks_layout
+                .blocks
+                .iter()
+                .find(|block| block.is_leaf && block.raw_text == word)
+                .and_then(|block| block.tooltip.as_ref())
+                .expect("known lujvo leaf tooltip");
+            let reference = reference_tooltip_for_lookup_word("", word, Vec::new(), Vec::new());
+            let reference = reference.card.as_ref().expect("reference card");
+            assert_eq!(leaf.decomposition, reference.decomposition, "{word}");
+            assert_eq!(leaf.components, reference.components, "{word}");
+            assert!(
+                leaf.decomposition
+                    .iter()
+                    .any(|piece| piece.kind == VlackuCompositionPieceKind::FuivlaRafsi),
+                "{word}"
+            );
+            assert!(!leaf.components.is_empty(), "{word}");
+
+            let words = jbotci_morphology::segment_words_with_modifiers(&text).expect("morphology");
+            let cards = dictionary_cards_for_word_likes_with_limit(
+                jbotci_dictionary_data::english(),
+                &words,
+                std::num::NonZeroUsize::MAX,
+            )
+            .expect("definition cards");
+            let component_words = leaf
+                .components
+                .iter()
+                .map(|component| component.card.word.as_str())
+                .collect::<Vec<_>>();
+            assert!(
+                cards
+                    .iter()
+                    .all(|card| card.word == "mi" || card.word == word),
+                "{word}: {:?}",
+                cards
+                    .iter()
+                    .map(|card| card.word.as_str())
+                    .collect::<Vec<_>>()
+            );
+            assert!(component_words.iter().all(|component| *component != word));
+            assert!(
+                cards
+                    .iter()
+                    .filter(|card| card.word == word)
+                    .all(|card| card.decomposition.is_empty()),
+                "{word}"
+            );
+            assert!(
+                component_words
+                    .iter()
+                    .all(|component| !cards.iter().any(|card| card.word == *component)),
+                "{word}: {component_words:?}"
             );
         }
     }

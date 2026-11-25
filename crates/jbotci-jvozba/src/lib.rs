@@ -646,10 +646,9 @@ fn candidate_list_for_input(
         }
         ExpandedInput::UnlistedWord(word_text) => {
             let canonical_word = normalized_spelling(word_text);
+            let offending = offending_spelling(word_text, &canonical_word);
             non_dictionary_word_candidates(mode, is_last_input, &canonical_word, cancellation)?
-                .ok_or(JvozbaError::NoDictionaryEntry {
-                    offending: canonical_word,
-                })
+                .ok_or(JvozbaError::NoDictionaryEntry { offending })
         }
     }
 }
@@ -697,10 +696,8 @@ fn candidate_list_for_entry(
         all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
     }
     if mode == JvozbaMode::Lujvo && !is_last_input && entry.word_type.is_fuivla_like() {
-        // The full word is also needed when the stem cannot join to its neighbor.
-        if all_candidates.is_empty() {
-            all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
-        }
+        // The full word stays in the candidate list. A shorter valid rafsi has the better score and wins.
+        all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
         if let Some(stem) = stem
             && unique_fuivla_source(dictionary, &stem) == Some(entry_index)
         {
@@ -917,6 +914,21 @@ fn normalize_lujvo_like_input(raw_word: &str) -> String {
 fn normalized_spelling(raw: &str) -> String {
     let trimmed = raw.trim().trim_matches('.');
     normalize_lojban_input_text(trimmed).unwrap_or_else(|| canonicalize_text(trimmed))
+}
+
+#[requires(true)]
+#[ensures(!raw.trim().is_empty() -> !ret.is_empty())]
+#[ensures(!normalized.is_empty() -> ret == normalized)]
+fn offending_spelling(raw: &str, normalized: &str) -> String {
+    if !normalized.is_empty() {
+        return normalized.to_owned();
+    }
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        normalized.to_owned()
+    } else {
+        trimmed.to_owned()
+    }
 }
 
 #[requires(true)]
@@ -1685,6 +1697,61 @@ mod tests {
         )
         .expect_err("missing entry");
         assert_eq!(error.to_string(), "No dictionary entry for `feklef`.");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_empty_normalized_word_keeps_the_typed_spelling_in_the_error() {
+        let error = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word(".".to_owned()),
+                JvozbaInput::Word("klama".to_owned()),
+            ],
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect_err("a period is not a dictionary word");
+        assert_eq!(error.to_string(), "No dictionary entry for `.`.");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_shorter_valid_rafsi_still_wins_over_the_full_fuivla() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("ierxi".to_owned()),
+                JvozbaInput::Word("klama".to_owned()),
+            ],
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("ierxi has a usable rafsi");
+        assert_eq!(result.word, "ierxykla");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_nonfinal_fuivla_keeps_the_full_word_after_a_mismatched_listed_rafsi() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("spageti".to_owned()),
+                JvozbaInput::Word("kukte".to_owned()),
+            ],
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("the full fu'ivla remains a candidate");
+        assert!(
+            result.word.starts_with("spageti"),
+            "the listed rafsi must not replace the source word: {}",
+            result.word
+        );
     }
 
     #[test]

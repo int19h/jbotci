@@ -234,6 +234,7 @@ fn vlacku_search_options(
         min_votes: input.min_votes,
         min_similarity: input.min_similarity,
         decompose_lujvo: input.decompose_lujvo,
+        show_entry_decomposition: false,
         cancellation: cancellation.clone(),
     }))
 }

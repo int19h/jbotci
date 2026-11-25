@@ -82,6 +82,10 @@ pub struct VlackuSearchOptions {
     pub min_votes: Option<i32>,
     pub min_similarity: Option<f32>,
     pub decompose_lujvo: bool,
+    /// The entry card shows its dictionary decomposition.
+    /// Source words stay out of the result list.
+    /// `decompose_lujvo` shows that decomposition and adds the source words.
+    pub show_entry_decomposition: bool,
     /// The flag for morphology of the query. A caller with no deadline holds
     /// [`CancellationToken::never`]. The dictionary walk itself does not read it.
     pub cancellation: CancellationToken,
@@ -98,6 +102,7 @@ impl Default for VlackuSearchOptions {
             min_votes: None,
             min_similarity: None,
             decompose_lujvo: false,
+            show_entry_decomposition: false,
             cancellation: CancellationToken::never(),
         })
     }
@@ -780,11 +785,11 @@ fn dictionary_cards_for_lookup_target(
     dictionary: &Dictionary<'_>,
     target: &ParsedWordLookupTarget,
 ) -> Result<Vec<VlackuCard>, jbotci_interrupt::Interrupted> {
-    dictionary_cards_for_lookup_target_with_options(
-        dictionary,
-        target,
-        &parsed_word_vlacku_options(),
-    )
+    // The caller shows the word's own card. Decomposition stays on that card.
+    let options = parsed_word_vlacku_options().with_data(data! {
+        show_entry_decomposition: true,
+    });
+    dictionary_cards_for_lookup_target_with_options(dictionary, target, &options)
 }
 #[requires(!target.lookup_text.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|cards| cards.len() <= options.count) || ret.is_err())]
@@ -817,8 +822,15 @@ fn parsed_word_vlacku_options() -> VlackuSearchOptions {
         min_votes: None,
         min_similarity: None,
         decompose_lujvo: false,
+        show_entry_decomposition: false,
         cancellation: CancellationToken::never(),
     })
+}
+
+#[requires(true)]
+#[ensures(ret == (options.decompose_lujvo || options.show_entry_decomposition))]
+fn shows_entry_decomposition(options: &VlackuSearchOptions) -> bool {
+    options.decompose_lujvo || options.show_entry_decomposition
 }
 
 #[requires(true)]
@@ -1301,9 +1313,10 @@ impl<'dictionary> VlackuCandidate<'dictionary> {
                 entry,
                 decomposition,
                 ..
-            }) => (*decomposition == EntryDecomposition::Always || options.decompose_lujvo)
-                .then(|| dictionary_lujvo_decomposition_for_entry(dictionary, entry))
-                .flatten(),
+            }) => (*decomposition == EntryDecomposition::Always
+                || shows_entry_decomposition(options))
+            .then(|| dictionary_lujvo_decomposition_for_entry(dictionary, entry))
+            .flatten(),
             data!(VlackuCandidate::Missing { .. }) => None,
         }
     }
@@ -1420,7 +1433,7 @@ fn cards_for_candidates<'dictionary>(
         .filter(|candidate| candidate.passes(options, similarity_mode))
         .skip(options.skip)
         .take(options.count)
-        .map(|candidate| candidate.into_card(dictionary, options.decompose_lujvo))
+        .map(|candidate| candidate.into_card(dictionary, shows_entry_decomposition(options)))
         .collect()
 }
 
@@ -3861,6 +3874,45 @@ mod tests {
             Some("abu zei sance")
         );
     }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parsed_word_matches_show_known_lujvo_parts_without_source_cards() {
+        let words = segment_words_with_modifiers("mi itku'ilybau").expect("morphology");
+        let dictionary = jbotci_dictionary_data::english();
+        let matches = dictionary_matches_for_word_likes(dictionary, &words);
+        let lujvo = matches
+            .iter()
+            .find(|parsed_match| parsed_match.lookup_text == "itku'ilybau")
+            .expect("known lujvo match");
+        assert!(lujvo.cards.iter().all(|card| card.word == "itku'ilybau"));
+        assert!(
+            lujvo.cards[0]
+                .decomposition
+                .iter()
+                .any(|piece| piece.kind == VlackuCompositionKind::FuivlaRafsi)
+        );
+        let limited = dictionary_cards_for_word_likes_with_limit(
+            dictionary,
+            &words,
+            std::num::NonZeroUsize::MAX,
+        )
+        .expect("definition cards");
+        assert!(limited.iter().any(|card| card.word == "itku'ilybau"));
+        assert!(
+            limited
+                .iter()
+                .all(|card| card.word == "mi" || card.word == "itku'ilybau")
+        );
+        assert!(
+            limited
+                .iter()
+                .filter(|card| card.word == "itku'ilybau")
+                .all(|card| card.decomposition.is_empty())
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]

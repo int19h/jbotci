@@ -255,7 +255,7 @@ fn zei_compound_hover_markdown(word_like: &WordLike) -> String {
                 dictionary,
                 dictionary.entry_for_index(index).expect("exact entry"),
                 None,
-                false,
+                true,
             )
         })
         .map(zei_compound_card_for_hover)
@@ -550,6 +550,7 @@ fn hover_vlacku_options(decompose_lujvo: bool) -> VlackuSearchOptions {
     VlackuSearchOptions::default().with_data(data! {
         count: usize::MAX,
         decompose_lujvo: decompose_lujvo,
+        show_entry_decomposition: true,
     })
 }
 

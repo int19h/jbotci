@@ -2537,12 +2537,23 @@ fn css_font_stacks_cover_ui_controls_and_lojban_fallbacks() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn tooltip_stack_cards_follow_the_stack_visibility() {
+    let css = include_str!("../assets/main.css");
+    let rule = css_rule(css, ".tooltip-stack-card {\n  position: static;");
+    assert!(rule.contains("visibility: inherit;"));
+    assert!(rule.contains("transition: none;"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn zbalermorna_linked_lojban_css_uses_lojban_font() {
     let css = include_str!("../assets/main.css");
     let selectors = [
         ".app-page.orthography-zbalermorna .parse-page .brackets-output",
         ".app-page.orthography-zbalermorna .parse-page .diagnostic-text-specific-word",
         ".app-page.orthography-zbalermorna .dictionary-page .dictionary-word-link",
+        ".app-page.orthography-zbalermorna .dictionary-page .rafsi-split-surface",
         ".app-page.orthography-zbalermorna .reference-resolution-tooltip .reference-row-target",
         ".app-page.orthography-zbalermorna .rich-dictionary-tooltip .tooltip-inline-link",
         ".app-page.orthography-zbalermorna .cll-page .spa-cll-link-dictionary",

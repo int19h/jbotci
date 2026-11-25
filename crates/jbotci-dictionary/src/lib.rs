@@ -618,6 +618,7 @@ pub struct DictionaryLujvoSource<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(::Rafsi => true)]
+#[invariant(::FuivlaRafsi => true)]
 #[invariant(::Hyphen => true)]
 pub enum DictionaryLujvoSegmentKind {
     Rafsi,
@@ -1545,6 +1546,14 @@ fn validate_lujvo_index(
                 reason: "hyphen segment has a source word",
             });
         }
+        if lujvo_entry.segments.iter().any(|segment| {
+            segment.kind == DictionaryLujvoSegmentKind::Rafsi && segment.sources.len() > 1
+        }) {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "ordinary rafsi segment has more than one source",
+            });
+        }
         if lujvo_entry
             .segments
             .iter()
@@ -1678,6 +1687,76 @@ mod tests {
         assert!(fuivla_stem_rafsi("\u{0301},").is_none());
         assert!(dictionary.lookup_rafsi("spaget").next().is_none());
         assert!(dictionary.rafsi_availability("spaget").is_free());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn validation_rejects_an_ordinary_rafsi_segment_with_several_sources() {
+        let entries = [
+            test_entry("ierxi", WordType::Fuivla, &[], None),
+            test_entry("ierxa", WordType::Fuivla, &[], None),
+            test_entry("klama", WordType::Gismu, &[], None),
+            test_entry("ierxykla", WordType::Lujvo, &[], None),
+        ];
+        let fuivla_sources = [
+            DictionaryLujvoSource {
+                entry_index: EntryIndex(0),
+                word: "ierxi",
+            },
+            DictionaryLujvoSource {
+                entry_index: EntryIndex(1),
+                word: "ierxa",
+            },
+        ];
+        let klama_source = [DictionaryLujvoSource {
+            entry_index: EntryIndex(2),
+            word: "klama",
+        }];
+        let source_words = ["ierxi", "ierxa", "klama"];
+        let shared = [
+            DictionaryLujvoSegment {
+                kind: DictionaryLujvoSegmentKind::FuivlaRafsi,
+                surface: "ierx",
+                sources: &fuivla_sources,
+            },
+            DictionaryLujvoSegment {
+                kind: DictionaryLujvoSegmentKind::Rafsi,
+                surface: "kla",
+                sources: &klama_source,
+            },
+        ];
+        let accepted = [DictionaryLujvoEntry {
+            entry_index: EntryIndex(3),
+            segments: &shared,
+            source_words: &source_words,
+        }];
+        assert!(validate_lujvo_index(&entries, &accepted).is_ok());
+
+        let ordinary = [
+            DictionaryLujvoSegment {
+                kind: DictionaryLujvoSegmentKind::Rafsi,
+                surface: "ierx",
+                sources: &fuivla_sources,
+            },
+            DictionaryLujvoSegment {
+                kind: DictionaryLujvoSegmentKind::Rafsi,
+                surface: "kla",
+                sources: &klama_source,
+            },
+        ];
+        let rejected = [DictionaryLujvoEntry {
+            entry_index: EntryIndex(3),
+            segments: &ordinary,
+            source_words: &source_words,
+        }];
+        assert_eq!(
+            validate_lujvo_index(&entries, &rejected),
+            Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index: 0,
+                reason: "ordinary rafsi segment has more than one source",
+            })
+        );
     }
 
     #[test]
