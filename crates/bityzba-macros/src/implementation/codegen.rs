@@ -5,7 +5,7 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use syn::{
-    Attribute, Expr, ExprAsync, ExprCall, ExprClosure, Item, ReturnType, TypeImplTrait,
+    Attribute, Expr, ExprAsync, ExprCall, ExprClosure, Item, Lifetime, ReturnType, TypeImplTrait,
     spanned::Spanned,
     visit::{Visit, visit_return_type},
     visit_mut::{self as visitor, VisitMut, visit_block_mut, visit_expr_mut},
@@ -16,8 +16,10 @@ use crate::implementation::{Contract, ContractMode, ContractType, FuncWithContra
 /// Substitution for `old()` expressions.
 #[derive(Debug, Clone)]
 pub(crate) struct OldExpr {
-    /// Name of the variable binder.
-    pub(crate) name: String,
+    /// Binding for the captured value.
+    binding: Ident,
+    /// Type witness for a disabled expensive capture.
+    marker: Ident,
     /// Expression to be evaluated.
     pub(crate) expr: Expr,
 }
@@ -63,26 +65,16 @@ pub(crate) fn extract_old_calls(contracts: &mut [Contract]) {
                     let id = self.last_id;
                     self.last_id += 1;
 
-                    let old_var_name = format!("__contract_old_{}", id);
+                    let span = Span::mixed_site();
+                    let binding = Ident::new(&format!("__contract_old_{id}"), span);
+                    let marker = Ident::new(&format!("__contract_old_{id}_marker"), span);
 
-                    let old_expr = OldExpr {
-                        name: old_var_name.clone(),
+                    *expr = syn::parse_quote!(#binding);
+                    self.olds.push(OldExpr {
+                        binding,
+                        marker,
                         expr: old_arg,
-                    };
-
-                    self.olds.push(old_expr);
-
-                    // override the original expression with the new variable
-                    // identifier
-                    *expr = {
-                        let span = expr.span();
-
-                        let ident = syn::Ident::new(&old_var_name, span);
-
-                        let toks = quote::quote_spanned! { span=> #ident };
-
-                        syn::parse(toks.into()).unwrap()
-                    };
+                    });
                 } else {
                     // otherwise continue visiting the expression call
                     visitor::visit_expr_call_mut(self, call);
@@ -134,90 +126,57 @@ fn get_assert_macro(
     }
 }
 
-fn old_ident(old: &OldExpr) -> Ident {
-    Ident::new(&old.name, old.expr.span())
-}
-
-fn old_marker_ident(old: &OldExpr) -> Ident {
-    Ident::new(&format!("{}_marker", old.name), old.expr.span())
-}
-
-fn expensive_old_binding(old: &OldExpr, previous_expensive_olds: &[OldExpr]) -> TokenStream {
-    let span = old.expr.span();
-    let old_name = old_ident(old);
-    let marker_name = old_marker_ident(old);
-    let expr = &old.expr;
-
-    let previous_old_bindings = previous_expensive_olds.iter().map(|previous| {
-        let previous_name = old_ident(previous);
-        let previous_marker_name = old_marker_ident(previous);
-        let previous_span = previous.expr.span();
-
-        quote::quote_spanned! { previous_span=>
-            let #previous_name =
-                __bityzba_expensive_contract_old_value(#previous_marker_name);
-        }
-    });
-
-    quote::quote_spanned! { span=>
-        #[cfg(feature = "expensive_contracts")]
-        let #old_name = #expr;
-
-        #[cfg(not(feature = "expensive_contracts"))]
-        let #marker_name = {
-            fn __bityzba_expensive_contract_old_marker<
-                T,
-                F: ::core::ops::FnOnce() -> T,
-            >(
-                _: F,
-            ) -> ::core::marker::PhantomData<T> {
-                ::core::marker::PhantomData
-            }
-
+// Keep helper items in their own blocks so their names stay out of user expressions.
+fn disabled_old_binding(old: &OldExpr) -> TokenStream {
+    let binding = &old.binding;
+    let marker = &old.marker;
+    quote::quote! {
+        let #binding = {
             fn __bityzba_expensive_contract_old_value<T>(
                 _: ::core::marker::PhantomData<T>,
             ) -> T {
-                panic!("disabled expensive contract old() value was evaluated")
+                ::core::panic!("disabled expensive contract old() value was evaluated")
             }
+            __bityzba_expensive_contract_old_value(#marker)
+        };
+    }
+}
 
-            #[allow(clippy::redundant_closure)]
-            let marker = if false {
-                #(#previous_old_bindings)*
-                __bityzba_expensive_contract_old_marker(|| #expr)
-            } else {
-                ::core::marker::PhantomData
-            };
-            marker
+fn expensive_old_binding(old: &OldExpr, previous_expensive_olds: &[OldExpr]) -> TokenStream {
+    let binding = &old.binding;
+    let marker = &old.marker;
+    let expr = &old.expr;
+    let previous_old_bindings = previous_expensive_olds.iter().map(disabled_old_binding);
+
+    quote::quote! {
+        #[cfg(feature = "expensive_contracts")]
+        let #binding = #expr;
+
+        #[cfg(not(feature = "expensive_contracts"))]
+        #[allow(clippy::redundant_closure)]
+        let #marker = if false {
+            #(#previous_old_bindings)*
+            ({
+                fn __bityzba_expensive_contract_old_marker<
+                    T,
+                    F: ::core::ops::FnOnce() -> T,
+                >(
+                    _: F,
+                ) -> ::core::marker::PhantomData<T> {
+                    ::core::marker::PhantomData
+                }
+                __bityzba_expensive_contract_old_marker
+            })(|| #expr)
+        } else {
+            ::core::marker::PhantomData
         };
     }
 }
 
 fn expensive_typecheck(exec_expr: &Expr, old_exprs: &[OldExpr]) -> TokenStream {
-    let span = exec_expr.span();
+    let old_bindings = old_exprs.iter().map(disabled_old_binding);
 
-    let old_value_fn = if old_exprs.is_empty() {
-        TokenStream::new()
-    } else {
-        quote::quote_spanned! { span=>
-            fn __bityzba_expensive_contract_old_value<T>(
-                _: ::core::marker::PhantomData<T>,
-            ) -> T {
-                panic!("disabled expensive contract old() value was evaluated")
-            }
-        }
-    };
-
-    let old_bindings = old_exprs.iter().map(|old| {
-        let name = old_ident(old);
-        let marker_name = old_marker_ident(old);
-        let span = old.expr.span();
-
-        quote::quote_spanned! { span=>
-            let #name = __bityzba_expensive_contract_old_value(#marker_name);
-        }
-    });
-
-    quote::quote_spanned! { span=>
+    quote::quote! {
         #[allow(
             clippy::assertions_on_constants,
             clippy::nonminimal_bool,
@@ -225,7 +184,6 @@ fn expensive_typecheck(exec_expr: &Expr, old_exprs: &[OldExpr]) -> TokenStream {
             unused_variables
         )]
         {
-            #old_value_fn
             if false {
                 #(#old_bindings)*
                 let _: bool = #exec_expr;
@@ -374,16 +332,14 @@ pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> Tok
 
             for old_exprs in &contract.old_assertions {
                 for old in old_exprs {
-                    let span = old.expr.span();
-
                     if mode == ContractMode::Expensive {
                         toks.extend(expensive_old_binding(old, &previous_expensive_olds));
                         previous_expensive_olds.push(old.clone());
                     } else {
-                        let name = syn::Ident::new(&old.name, span);
+                        let name = &old.binding;
                         let expr = &old.expr;
 
-                        toks.extend(quote::quote_spanned! { span=>
+                        toks.extend(quote::quote! {
                             let #name = #expr;
                         });
                     }
@@ -398,9 +354,16 @@ pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> Tok
     // wrap the function body in a block so that we can use its return value
     //
 
+    let result = Ident::new("ret", Span::call_site());
+    let return_label = Lifetime::new("'run", Span::mixed_site());
     let body = 'blk: {
         let mut block = func.function.block.clone();
-        visit_block_mut(&mut ReturnReplacer, &mut block);
+        visit_block_mut(
+            &mut ReturnReplacer {
+                label: &return_label,
+            },
+            &mut block,
+        );
 
         let mut impl_detector = ImplDetector { found_impl: false };
         visit_return_type(&mut impl_detector, &func.function.sig.output);
@@ -409,12 +372,12 @@ pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> Tok
             && let ReturnType::Type(.., ref return_type) = func.function.sig.output
         {
             break 'blk quote::quote! {
-                let ret: #return_type = 'run: #block;
+                let #result: #return_type = #return_label: #block;
             };
         }
 
         quote::quote! {
-            let ret = 'run: #block;
+            let #result = #return_label: #block;
         }
     };
 
@@ -427,7 +390,7 @@ pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> Tok
         #olds
         #body
         #post
-        ret
+        #result
     };
     // Keep the source span on the braces so rustc can report unused items.
     // Contract tokens retain their own spans and macro hygiene.
@@ -445,13 +408,16 @@ pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> Tok
     func.function.into_token_stream()
 }
 
-struct ReturnReplacer;
+struct ReturnReplacer<'label> {
+    label: &'label Lifetime,
+}
 
-impl VisitMut for ReturnReplacer {
+impl VisitMut for ReturnReplacer<'_> {
     fn visit_expr_mut(&mut self, node: &mut Expr) {
         if let Expr::Return(ret_expr) = node {
             let ret_expr_expr = ret_expr.expr.clone();
-            *node = syn::parse_quote!(break 'run #ret_expr_expr);
+            let label = self.label;
+            *node = syn::parse_quote!(break #label #ret_expr_expr);
         }
 
         visit_expr_mut(self, node);
