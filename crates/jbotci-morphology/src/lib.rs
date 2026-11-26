@@ -3400,17 +3400,15 @@ pub fn is_valid_phoneme(value: char) -> bool {
 
 /// Return whether `value` can participate in a morphology word spelling.
 ///
-/// This deliberately follows the same script- and diacritic-aware source
-/// normalization as segmentation. Digits are excluded because they form PA
-/// words but are not identifier-style word characters for editor queries.
+/// The converter answers, under the active scripts. A character can need a
+/// partner and still take part in a word: a combining breve marks a glide on
+/// the vowel before it, and the Zbalermorna shorthand mark U+ED8B takes the
+/// vowel after it. Digits are excluded because they form PA words but are not
+/// identifier-style word characters for editor queries.
 #[requires(true)]
 #[ensures(!ret || !value.is_ascii_digit())]
 pub fn is_word_forming_character_with_options(value: char, options: &MorphologyOptions) -> bool {
-    if value.is_ascii_digit() {
-        return false;
-    }
-    let mut encoded = [0_u8; 4];
-    segment::normalize_word_checked_with_options(value.encode_utf8(&mut encoded), options).is_some()
+    !value.is_ascii_digit() && segment::converter_can_spell_with(value, options)
 }
 
 /// Return whether `value` can participate in a default-dialect word spelling.
@@ -5063,6 +5061,27 @@ mod tests {
             .collect()
         }
 
+        // The parse of a word and the next word: phonemes, the kind of each
+        // word, and where each word ends, counted from the end of the text.
+        #[requires(true)]
+        #[ensures(true)]
+        fn parse(input: &str) -> Option<Vec<(String, usize)>> {
+            let text = format!("{input} klama");
+            let length = text.chars().count();
+            segment_words_with_modifiers(&text).ok().map(|words| {
+                words
+                    .iter()
+                    .filter_map(base_word)
+                    .map(|word| {
+                        (
+                            word.phonemes().as_str().to_owned(),
+                            length - word.span().char_end,
+                        )
+                    })
+                    .collect()
+            })
+        }
+
         let options = MorphologyOptions::default();
         let strict = |text: &str| {
             segment::normalize_source_chars_checked(text.chars().enumerate(), &options)
@@ -5129,6 +5148,7 @@ mod tests {
                     }
                     for other in [backward.clone(), forward.nfc().collect::<String>()] {
                         assert_eq!(kept(&forward), kept(&other), "{forward:?} {other:?}");
+                        assert_eq!(parse(&forward), parse(&other), "{forward:?} {other:?}");
                         assert_eq!(strict(&forward), strict(&other), "{forward:?} {other:?}");
                     }
                     pairs += 1;
@@ -5162,6 +5182,116 @@ mod tests {
         // A non-stress mark stays an unread character in either spelling.
         assert_eq!(normalize_lojban_input_text("klâma"), None);
         assert_eq!(normalize_lojban_input_text("kla\u{0302}ma"), None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_character_that_needs_a_partner_forms_words() {
+        // The breve marks a glide on the vowel before it, and U+ED8B takes the
+        // vowel after it. Each takes part in a word under its scripts.
+        assert!(is_word_forming_character('\u{0306}'));
+        assert!(is_word_forming_character('\u{ed8b}'));
+        assert!(is_word_forming_character('\u{0301}'));
+        assert!(is_word_forming_character('ś'));
+        let no_scripts = MorphologyOptions {
+            accept_latin: false,
+            accept_cyrillic: false,
+            accept_zbalermorna: false,
+            ..MorphologyOptions::default()
+        };
+        for value in ['\u{0306}', '\u{ed8b}', '\u{0301}', '\u{0300}', 'a'] {
+            assert!(
+                !is_word_forming_character_with_options(value, &no_scripts),
+                "{value:?}"
+            );
+        }
+        let latin_only = MorphologyOptions {
+            accept_cyrillic: false,
+            accept_zbalermorna: false,
+            ..MorphologyOptions::default()
+        };
+        assert!(is_word_forming_character_with_options(
+            '\u{0306}',
+            &latin_only
+        ));
+        assert!(!is_word_forming_character_with_options(
+            '\u{ed8b}',
+            &latin_only
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_postfix_stress_mark_belongs_to_its_word() {
+        // Each stress mark stays in the source span of the word it stresses,
+        // so the next word, and the digit run after `li`, start after it.
+        #[requires(true)]
+        #[ensures(true)]
+        fn words(text: &str) -> Vec<(String, usize, usize)> {
+            segment_words_with_modifiers(text)
+                .unwrap_or_else(|error| panic!("{text}: {error}"))
+                .iter()
+                .map(|word| {
+                    let word = base_word(word).expect("plain word");
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        word.span().char_start,
+                        word.span().char_end,
+                    )
+                })
+                .collect()
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn phonemes(text: &str) -> Vec<String> {
+            words(text)
+                .into_iter()
+                .map(|(phonemes, _, _)| phonemes)
+                .collect()
+        }
+
+        let latin = phonemes("lí1.2");
+        assert!(latin.iter().any(|word| word == "pi"), "{latin:?}");
+        for text in [
+            "лѝ1.2",
+            "ли\u{0300}1.2",
+            "ли\u{0301}1.2",
+            "lí\u{0301}1.2",
+            "\u{ed84}\u{eda2}\u{ed98}1.2",
+        ] {
+            assert_eq!(phonemes(text), latin, "{text}");
+        }
+        assert_eq!(phonemes("лѐ1.2"), phonemes("ле\u{0300}1.2"));
+        let glide = phonemes("coĭ\u{0301}1.2");
+        assert!(glide.iter().any(|word| word == "pi"), "{glide:?}");
+        for (text, first_end) in [
+            ("ми\u{0300}до клама", 3),
+            ("ми\u{0301}до клама", 3),
+            ("мѝдо клама", 2),
+            ("mí\u{0301}do klama", 3),
+            ("\u{ed87}\u{eda2}\u{ed98}\u{ed91}\u{eda3}", 3),
+        ] {
+            let words = words(text);
+            assert_eq!(words[0].2, first_end, "{text}: {words:?}");
+            assert_eq!(words[1].1, first_end, "{text}: {words:?}");
+        }
+        // A violation range covers the stress mark on its last letter.
+        let Err(MorphologyError::Invalid {
+            char_start,
+            char_end,
+            ..
+        }) = segment_words_with_modifiers("klamm\u{0301}a")
+        else {
+            panic!("geminated consonants are an error");
+        };
+        assert_eq!((char_start, char_end), (3, 6));
+        // An ignored Zbalermorna mark is a prefix, not a postfix, so it still
+        // starts the next word.
+        let carrier = words("\u{ed8c}\u{eda4}\u{edaa}\u{ed8c}\u{eda6}");
+        assert_eq!(carrier[1].1, 2, "{carrier:?}");
     }
 
     #[test]

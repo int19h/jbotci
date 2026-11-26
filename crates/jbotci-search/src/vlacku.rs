@@ -2075,6 +2075,7 @@ fn decompose_query<'a>(
         Err(
             error @ (JvozbaError::RequiresAtLeastTwoInputs
             | JvozbaError::FixedRafsiEmpty
+            | JvozbaError::WordEmpty
             | JvozbaError::NonFinalUniversalLongRafsi { .. }
             | JvozbaError::FinalConsonant { .. }
             | JvozbaError::NoRafsiAvailable { .. }

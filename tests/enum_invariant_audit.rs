@@ -1252,10 +1252,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a wildcard carries the caller token unchanged. The text part already requires a non-empty string",
     ),
     (
-        "crates/jbotci-morphology/src/segment.rs:ConverterStep::Stress",
-        "a stress step carries only which letter it marks, and both choices are valid",
-    ),
-    (
         "crates/jbotci-morphology/src/segment.rs:ConverterStep::Unread",
         "an unread step carries any source character and its index, as the user wrote it",
     ),
@@ -1777,6 +1773,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::FixedRafsiEmpty",
+        "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::WordEmpty",
         "jvozba error variant carries no payload beyond the discriminant",
     ),
     (

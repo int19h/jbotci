@@ -1256,6 +1256,65 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn completion_treats_canonically_equivalent_spellings_alike() {
+        // A breve after a vowel and a Zbalermorna shorthand mark take part in
+        // the word, so completion replaces the whole word in each spelling.
+        #[requires(true)]
+        #[ensures(true)]
+        fn replaced_words(source: &str) -> Vec<(String, usize, usize)> {
+            let mut items = completions_at_marker(source)
+                .into_iter()
+                .map(|item| {
+                    (
+                        item.label.clone(),
+                        item.replacement_span.char_start,
+                        item.replacement_span.char_end,
+                    )
+                })
+                .collect::<Vec<_>>();
+            items.sort();
+            items
+        }
+
+        let composed = replaced_words("coĭ|");
+        assert!(!composed.is_empty());
+        assert!(
+            composed
+                .iter()
+                .any(|(_, start, end)| (*start, *end) == (0, 3))
+        );
+        let decomposed = replaced_words("coi\u{0306}|");
+        assert!(
+            decomposed
+                .iter()
+                .any(|(_, start, end)| (*start, *end) == (0, 4)),
+            "{decomposed:?}"
+        );
+        assert_eq!(
+            composed.iter().map(|(label, ..)| label).collect::<Vec<_>>(),
+            decomposed
+                .iter()
+                .map(|(label, ..)| label)
+                .collect::<Vec<_>>()
+        );
+        let cyrillic = replaced_words("шои\u{0306}|");
+        assert!(
+            cyrillic
+                .iter()
+                .any(|(_, start, end)| (*start, *end) == (0, 4)),
+            "{cyrillic:?}"
+        );
+        // Inside `\u{ed8b}\u{eda2}` the replacement covers the shorthand mark too.
+        let shorthand = replaced_words("\u{ed8b}|\u{eda2}");
+        assert!(
+            shorthand.iter().all(|(_, start, _)| *start == 0),
+            "{shorthand:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn current_canonical_word_is_the_only_preselected_candidate() {
         let mid_word = completions_at_marker("mi klama le zar|ci");
         assert_eq!(preselected_count(&mid_word), 1);

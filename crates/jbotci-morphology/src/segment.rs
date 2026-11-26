@@ -129,8 +129,10 @@ impl LookupTranscript {
     #[ensures(self.run.is_empty())]
     pub fn finish(&mut self, mut on_char: impl FnMut(char)) {
         let run = std::mem::take(&mut self.run);
-        let units = canonical_converter_units(run.chars().enumerate());
+        // A lookup key is defined over every script, so it uses the default
+        // options, as the index and the query keys must agree.
         let options = MorphologyOptions::default();
+        let units = canonical_converter_units(run.chars().enumerate(), &options);
         let _ = walk_converter_units::<std::convert::Infallible>(&units, &options, true, |step| {
             match step.into_data() {
                 data!(ConverterStep::Letter { value, .. }) => on_char(value),
@@ -190,6 +192,7 @@ pub(crate) struct ConverterUnit {
 #[bityzba::expensive_ensures(ret.iter().all(|unit| !is_separator(unit.value) || unit.value == unit.source_value), "a decomposition never creates a separator")]
 pub(crate) fn canonical_converter_units(
     chars: impl IntoIterator<Item = (usize, char)>,
+    options: &MorphologyOptions,
 ) -> Vec<ConverterUnit> {
     use unicode_normalization::char::{
         canonical_combining_class, compose, decompose_canonical, is_combining_mark,
@@ -232,7 +235,6 @@ pub(crate) fn canonical_converter_units(
         pieces[run_start..run_end].sort_by_key(|piece| canonical_combining_class(piece.value));
         run_start = run_end;
     }
-    let options = MorphologyOptions::default();
     let mut units = Vec::with_capacity(pieces.len());
     let mut cursor = 0;
     while cursor < pieces.len() {
@@ -251,7 +253,7 @@ pub(crate) fn canonical_converter_units(
             let blocked = !kept.is_empty() && last_kept_class >= class;
             if !blocked
                 && let Some(composed) = compose(base.value, mark.value)
-                && converter_reads(composed, &options)
+                && converter_reads(composed, options)
             {
                 base = new!(ConverterUnit {
                     start: base.start.min(mark.start),
@@ -274,6 +276,22 @@ pub(crate) fn canonical_converter_units(
     units
 }
 
+/// True when `value` can take part in a word under the active scripts.
+///
+/// A character counts by itself when the converter reads it, after its
+/// canonical decomposition, as in a word (`ś` is `s` and a stress mark). Two
+/// characters count only with a partner: the combining breve U+0306 marks a
+/// glide on the Latin or Cyrillic vowel before it, and the Zbalermorna
+/// shorthand mark U+ED8B takes the vowel after it.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn converter_can_spell_with(value: char, options: &MorphologyOptions) -> bool {
+    let mut encoded = [0_u8; 4];
+    normalize_word_checked_with_options(value.encode_utf8(&mut encoded), options).is_some()
+        || (value == '\u{0306}' && (options.accept_latin || options.accept_cyrillic))
+        || (options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value))
+}
+
 /// True when the converter reads `value` as a letter.
 #[requires(true)]
 #[ensures(true)]
@@ -286,7 +304,7 @@ fn converter_reads(value: char, options: &MorphologyOptions) -> bool {
 
 /// One step of the shared converter walk.
 #[invariant(::Letter { source_start, source_end, value, .. } => source_start <= source_end && is_valid_normalized_char(*value))]
-#[invariant(::Stress { .. } => true)]
+#[invariant(::Stress { source_start, source_end, .. } => source_start < source_end)]
 #[invariant(::Separator { value } => is_separator(*value))]
 #[invariant(::Unread { .. } => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -299,9 +317,14 @@ pub(crate) enum ConverterStep {
         source_value: char,
         value: char,
     },
-    /// A stress mark. `vowel` is true when the mark stresses the last vowel
-    /// rather than the last letter.
-    Stress { vowel: bool },
+    /// A stress mark at `source_start..source_end`. `vowel` is true when the
+    /// mark stresses the last vowel rather than the last letter. The mark is
+    /// part of its word, so the word's source range covers it.
+    Stress {
+        vowel: bool,
+        source_start: usize,
+        source_end: usize,
+    },
     /// A separator, when the walk passes separators through.
     Separator { value: char },
     /// A character that the converter cannot read, as the user wrote it.
@@ -421,10 +444,18 @@ pub(crate) fn walk_converter_units<E>(
                 }
             }
             Some(data!(NormalizedCharEvent::StressPrevious)) => {
-                on_step(new!(ConverterStep::Stress { vowel: false }))?;
+                on_step(new!(ConverterStep::Stress {
+                    vowel: false,
+                    source_start: unit.start,
+                    source_end: unit.end,
+                }))?;
             }
             Some(data!(NormalizedCharEvent::StressPreviousVowel)) => {
-                on_step(new!(ConverterStep::Stress { vowel: true }))?;
+                on_step(new!(ConverterStep::Stress {
+                    vowel: true,
+                    source_start: unit.start,
+                    source_end: unit.end,
+                }))?;
             }
             Some(data!(NormalizedCharEvent::Ignore)) => {
                 previous_implicit_apostrophe_vowel = false;
@@ -537,7 +568,7 @@ fn normalize_source_chars_with_mode(
     options: &MorphologyOptions,
     checked: bool,
 ) -> Result<Vec<NormalizedSourceChar>, NormalizationError> {
-    let units = canonical_converter_units(chars);
+    let units = canonical_converter_units(chars, options);
     let mut normalized = Vec::new();
     walk_converter_units(&units, options, false, |step| {
         match step.into_data() {
@@ -552,11 +583,20 @@ fn normalize_source_chars_with_mode(
                 source_value: source_value,
                 value: value,
             })),
-            data!(ConverterStep::Stress { vowel: false }) => {
-                stress_last_normalized_char(&mut normalized)
-            }
-            data!(ConverterStep::Stress { vowel: true }) => {
-                stress_last_normalized_vowel_char(&mut normalized)
+            data!(ConverterStep::Stress {
+                vowel,
+                source_end,
+                ..
+            }) => {
+                if vowel {
+                    stress_last_normalized_vowel_char(&mut normalized);
+                } else {
+                    stress_last_normalized_char(&mut normalized);
+                }
+                // A postfix stress mark belongs to its word: the last letter's
+                // range covers it, so the word ends after the mark, in every
+                // canonically equivalent spelling.
+                extend_last_normalized_source_end(&mut normalized, source_end);
             }
             data!(ConverterStep::Separator { .. }) => {}
             data!(ConverterStep::Unread { index, value }) => {
@@ -1726,7 +1766,9 @@ enum NormalizedCharEvent {
 #[requires(true)]
 #[ensures(true)]
 fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<NormalizedCharEvent> {
-    if is_combining_stress_mark(value) {
+    if (options.accept_latin || options.accept_cyrillic || options.accept_zbalermorna)
+        && is_combining_stress_mark(value)
+    {
         return Some(new!(NormalizedCharEvent::StressPrevious));
     }
     if options.accept_zbalermorna && is_zbalermorna_stress_mark(value) {
@@ -1975,6 +2017,22 @@ fn is_zbalermorna_stress_mark(value: char) -> bool {
 #[ensures(true)]
 fn is_zbalermorna_ignored_mark(value: char) -> bool {
     matches!(value, '\u{ed8c}' | '\u{ed99}' | '\u{ed9b}')
+}
+
+/// Extend the last letter's source range to `source_end`.
+#[requires(true)]
+#[ensures(chars.last().is_none_or(|last| last.source_end >= source_end))]
+fn extend_last_normalized_source_end(chars: &mut [NormalizedSourceChar], source_end: usize) {
+    if let Some(last) = chars.last_mut()
+        && last.source_end < source_end
+    {
+        *last = new!(NormalizedSourceChar {
+            source_start: last.source_start,
+            source_end: source_end,
+            source_value: last.source_value,
+            value: last.value,
+        });
+    }
 }
 
 #[requires(true)]
