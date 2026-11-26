@@ -1,7 +1,6 @@
 //! Language Server Protocol adapter for the `jbotci lsp` stdio subcommand.
 
 use std::collections::HashMap;
-use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
 use std::sync::{
     Arc, Mutex,
@@ -48,11 +47,13 @@ use tokio::sync::watch;
 use tokio::task::AbortHandle;
 use tower::ServiceBuilder;
 
+#[path = "lsp_admission.rs"]
+mod lsp_admission;
+
 const DIAGNOSTIC_IDENTIFIER: &str = "jbotci";
 const SERVER_NAME: &str = "jbotci";
 const COMPLETION_DATA_WORD: &str = "jbotciWord";
 const DEBOUNCE_DELAY: Duration = Duration::from_millis(200);
-const MIN_LSP_REQUEST_CONCURRENCY: NonZeroUsize = NonZeroUsize::new(2).unwrap();
 const LEGACY_STRUCTURE_INLAYS_WARNING: &str = "initializationOptions.structureInlays is deprecated; use initializationOptions.inlays.structureBrackets instead";
 
 type DiagnosticsPublisher = Arc<dyn Fn(Url, i32, Arc<DiagnosticSnapshot>) + Send + Sync + 'static>;
@@ -788,14 +789,10 @@ async fn run_server() -> Result<()> {
         ServiceBuilder::new()
             .layer(LifecycleLayer::default())
             .layer(async_lsp::panic::CatchUnwindLayer::default())
-            // One blocking analysis request must never consume the only
-            // request slot and prevent shutdown on single-core hosts.
-            .layer(async_lsp::concurrency::ConcurrencyLayer::new(
-                std::thread::available_parallelism()
-                    .unwrap_or(MIN_LSP_REQUEST_CONCURRENCY)
-                    .max(MIN_LSP_REQUEST_CONCURRENCY),
-            ))
-            .service(router)
+            // Admission leaves poll_ready ready after the worker pool is full.
+            // The main loop can read the next message and write a finished response.
+            // The worker pool size is at least two.
+            .service(lsp_admission::request_admission(router))
     });
 
     // Editors wire server stdio through pipes, but also through socket pairs,
