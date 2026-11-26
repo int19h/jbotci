@@ -3,6 +3,7 @@
 extern crate proc_macro;
 
 mod view;
+mod visit_iter;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -42,7 +43,7 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
         false,
         options.generate_with_free_modifiers,
     )?;
-    let trait_impls = tree_node_trait_impls(&items, &node_names)?;
+    let trait_impls = tree_node_trait_impls(&items, &aliases, None)?;
     let atom_impls = atom_trait_impls(&atom_types);
     let wrapper_impls = wrapper_trait_impls(false, options.generate_with_free_modifiers);
     let valid_state_impls = valid_field_state_impls(&items)?;
@@ -222,7 +223,11 @@ fn recovered_module(
         true,
         has_with_free_modifiers,
     )?;
-    let trait_impls = tree_node_trait_impls(&recovered_items, node_names)?;
+    let trait_impls = tree_node_trait_impls(
+        &recovered_items,
+        &recovered_aliases,
+        Some(quote!(super::RecoveryTreeItem)),
+    )?;
     let atom_impls = atom_trait_impls(&recovered_atom_types);
     let wrapper_impls = wrapper_trait_impls(true, has_with_free_modifiers);
     let with_free_modifiers = recovered_with_free_modifiers(has_with_free_modifiers);
@@ -509,6 +514,7 @@ const WRAPPER_TYPES: &[&str] = &[
     "WithFreeModifiers",
     "Recovered",
     "Chain",
+    "TreeSlot",
 ];
 
 #[requires(true)]
@@ -4051,9 +4057,12 @@ fn camel_case_to_snake_case(text: &str) -> String {
 #[ensures(true)]
 fn tree_node_trait_impls(
     items: &[Item],
-    node_names: &BTreeSet<String>,
+    aliases: &BTreeMap<String, Type>,
+    recovered_error: Option<proc_macro2::TokenStream>,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    let _ = node_names;
+    let node_names = collect_node_names(items)?;
+    let atom_types = collect_atom_types(items, &node_names, aliases)?;
+    let drive = visit_iter::expand(items, &node_names, aliases, &atom_types, recovered_error)?;
     let impls = items
         .iter()
         .map(|item| match item {
@@ -4066,43 +4075,16 @@ fn tree_node_trait_impls(
             )),
         })
         .collect::<syn::Result<Vec<_>>>()?;
-    Ok(quote!(#(#impls)*))
+    Ok(quote! {
+        #drive
+        #(#impls)*
+    })
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStream> {
     let ident = &item.ident;
-    let visits = field_visits(&item.fields, |index, field| {
-        field
-            .ident
-            .as_ref()
-            .map(|ident| quote!(&self.#ident))
-            .unwrap_or_else(|| {
-                let index = syn::Index::from(index);
-                quote!(&self.#index)
-            })
-    })?;
-    let paths = field_paths(&item.fields, |index, field| {
-        field
-            .ident
-            .as_ref()
-            .map(|ident| quote!(&self.#ident))
-            .unwrap_or_else(|| {
-                let index = syn::Index::from(index);
-                quote!(&self.#index)
-            })
-    })?;
-    let child_lookups = field_child_lookups(&item.fields, |index, field| {
-        field
-            .ident
-            .as_ref()
-            .map(|ident| quote!(&self.#ident))
-            .unwrap_or_else(|| {
-                let index = syn::Index::from(index);
-                quote!(&self.#index)
-            })
-    })?;
     Ok(quote! {
         impl TreeNode for #ident {
             fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
@@ -4113,10 +4095,7 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
-                let node = NodeRef::#ident(self);
-                visitor.enter_node(node);
-                #(#visits)*
-                visitor.exit_node(node);
+                jbotci_drive_visit(NodeRef::#ident(self), visitor);
             }
 
             fn path_to_node_from<'tree>(
@@ -4124,23 +4103,14 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
-                let node = NodeRef::#ident(self);
-                if node == target {
-                    return true;
-                }
-                #(#paths)*
-                false
+                jbotci_drive_path(NodeRef::#ident(self), target, path)
             }
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
-                if steps.is_empty() {
-                    return Some(NodeRef::#ident(self));
-                }
-                #(#child_lookups)*
-                None
+                jbotci_drive_node_at(NodeRef::#ident(self), steps)
             }
         }
     })
@@ -4150,157 +4120,6 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
 #[ensures(true)]
 fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
-    let uses_data_patterns = enum_uses_data_patterns(item);
-    let arms = item
-        .variants
-        .iter()
-        .map(|variant| {
-            let variant_ident = &variant.ident;
-            let node_ref_variant = node_ref_variant_ident(enum_ident, variant_ident);
-            match &variant.fields {
-                Fields::Named(fields) => {
-                    let bindings = fields
-                        .named
-                        .iter()
-                        .map(|field| field.ident.as_ref().unwrap());
-                    let pattern_bindings = bindings.clone();
-                    let visits = field_visits(&variant.fields, |_index, field| {
-                        let ident = field.ident.as_ref().unwrap();
-                        quote!(#ident)
-                    })?;
-                    let paths = field_paths(&variant.fields, |_index, field| {
-                        let ident = field.ident.as_ref().unwrap();
-                        quote!(#ident)
-                    })?;
-                    let child_lookups = field_child_lookups(&variant.fields, |_index, field| {
-                        let ident = field.ident.as_ref().unwrap();
-                        quote!(#ident)
-                    })?;
-                    let pattern = if uses_data_patterns {
-                        quote!(
-                            ::bityzba::data!(#enum_ident::#variant_ident { #(#pattern_bindings,)* })
-                        )
-                    } else {
-                        quote!(#enum_ident::#variant_ident { #(#pattern_bindings,)* })
-                    };
-                    let visit_arm = quote! {
-                        #pattern => {
-                            let node = NodeRef::#node_ref_variant(self);
-                            visitor.enter_node(node);
-                            #(#visits)*
-                            visitor.exit_node(node);
-                        }
-                    };
-                    let path_arm = quote! {
-                        #pattern => {
-                            let node = NodeRef::#node_ref_variant(self);
-                            if node == target {
-                                return true;
-                            }
-                            #(#paths)*
-                            false
-                        }
-                    };
-                    let child_lookup_arm = quote! {
-                        #pattern => {
-                            if steps.is_empty() {
-                                return Some(NodeRef::#node_ref_variant(self));
-                            }
-                            #(#child_lookups)*
-                            None
-                        }
-                    };
-                    Ok((visit_arm, path_arm, child_lookup_arm))
-                }
-                Fields::Unnamed(fields) => {
-                    let bindings = (0..fields.unnamed.len())
-                        .map(|index| format_ident!("field_{index}"))
-                        .collect::<Vec<_>>();
-                    let pattern_bindings = bindings.clone();
-                    let visits = field_visits(&variant.fields, |index, _field| {
-                        let ident = &bindings[index];
-                        quote!(#ident)
-                    })?;
-                    let paths = field_paths(&variant.fields, |index, _field| {
-                        let ident = &bindings[index];
-                        quote!(#ident)
-                    })?;
-                    let child_lookups = field_child_lookups(&variant.fields, |index, _field| {
-                        let ident = &bindings[index];
-                        quote!(#ident)
-                    })?;
-                    let pattern = if uses_data_patterns {
-                        quote!(
-                            ::bityzba::data!(#enum_ident::#variant_ident(#(#pattern_bindings,)*))
-                        )
-                    } else {
-                        quote!(#enum_ident::#variant_ident(#(#pattern_bindings,)*))
-                    };
-                    let visit_arm = quote! {
-                        #pattern => {
-                            let node = NodeRef::#node_ref_variant(self);
-                            visitor.enter_node(node);
-                            #(#visits)*
-                            visitor.exit_node(node);
-                        }
-                    };
-                    let path_arm = quote! {
-                        #pattern => {
-                            let node = NodeRef::#node_ref_variant(self);
-                            if node == target {
-                                return true;
-                            }
-                            #(#paths)*
-                            false
-                        }
-                    };
-                    let child_lookup_arm = quote! {
-                        #pattern => {
-                            if steps.is_empty() {
-                                return Some(NodeRef::#node_ref_variant(self));
-                            }
-                            #(#child_lookups)*
-                            None
-                        }
-                    };
-                    Ok((visit_arm, path_arm, child_lookup_arm))
-                }
-                Fields::Unit => {
-                    let pattern = if uses_data_patterns {
-                        quote!(::bityzba::data!(#enum_ident::#variant_ident))
-                    } else {
-                        quote!(#enum_ident::#variant_ident)
-                    };
-                    let visit_arm = quote! {
-                        #pattern => {
-                            let node = NodeRef::#node_ref_variant(self);
-                            visitor.enter_node(node);
-                            visitor.exit_node(node);
-                        }
-                    };
-                    let path_arm = quote! {
-                        #pattern => {
-                            NodeRef::#node_ref_variant(self) == target
-                        }
-                    };
-                    let child_lookup_arm = quote! {
-                        #pattern => {
-                            steps.is_empty().then_some(NodeRef::#node_ref_variant(self))
-                        }
-                    };
-                    Ok((visit_arm, path_arm, child_lookup_arm))
-                }
-            }
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
-    let visit_arms = arms.iter().map(|(visit_arm, _, _)| visit_arm);
-    let path_arms = arms.iter().map(|(_, path_arm, _)| path_arm);
-    let child_lookup_arms = arms.iter().map(|(_, _, child_lookup_arm)| child_lookup_arm);
-    let match_value = if uses_data_patterns {
-        quote!(self.as_data())
-    } else {
-        quote!(self)
-    };
     Ok(quote! {
         impl TreeNode for #enum_ident {
             fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
@@ -4311,9 +4130,7 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
-                match #match_value {
-                    #(#visit_arms)*
-                }
+                jbotci_drive_visit(NodeRef::from(self), visitor);
             }
 
             fn path_to_node_from<'tree>(
@@ -4321,18 +4138,14 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
                 target: NodeRef<'tree>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> bool {
-                match #match_value {
-                    #(#path_arms)*
-                }
+                jbotci_drive_path(NodeRef::from(self), target, path)
             }
 
             fn node_at_path_steps<'tree>(
                 &'tree self,
                 steps: &[::jbotci_tree::TreePathStep],
             ) -> Option<NodeRef<'tree>> {
-                match #match_value {
-                    #(#child_lookup_arms)*
-                }
+                jbotci_drive_node_at(NodeRef::from(self), steps)
             }
         }
     })
@@ -4360,47 +4173,6 @@ fn attr_is_true_contract_marker(attr: &Attribute) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn field_visits<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
-where
-    F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
-{
-    fields
-        .iter()
-        .enumerate()
-        .filter_map(|(index, field)| match tree_child_flags(&field.attrs) {
-            Ok(flags) if flags.skip => None,
-            Ok(flags) => {
-                let name = field.ident.as_ref().map(Ident::to_string);
-                let name = match name {
-                    Some(name) => quote!(Some(#name)),
-                    None => quote!(None),
-                };
-                let primary = flags.primary;
-                let access = access(index, field);
-                let absent_visit = if field_is_option(&field.ty) {
-                    quote! {
-                        if (#access).is_none() {
-                            visitor.visit_absent_optional_field(field_ref);
-                        }
-                    }
-                } else {
-                    quote!()
-                };
-                Some(Ok(quote! {
-                    let field_ref = ::jbotci_tree::FieldRef::new(#name, #index, #primary);
-                    visitor.enter_field(field_ref);
-                    #absent_visit
-                    TreeNode::visit_in_order(#access, visitor);
-                    visitor.exit_field(field_ref);
-                }))
-            }
-            Err(error) => Some(Err(error)),
-        })
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn field_is_option(ty: &Type) -> bool {
     let Type::Path(path) = ty else {
         return false;
@@ -4411,60 +4183,6 @@ fn field_is_option(ty: &Type) -> bool {
             .segments
             .last()
             .is_some_and(|segment| segment.ident == "Option")
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn field_paths<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
-where
-    F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
-{
-    fields
-        .iter()
-        .enumerate()
-        .filter_map(|(index, field)| match tree_child_flags(&field.attrs) {
-            Ok(flags) if flags.skip => None,
-            Ok(_) => {
-                let name = field_name_tokens(field);
-                let access = access(index, field);
-                Some(Ok(quote! {
-                    path.push(::jbotci_tree::TreePathStep::field(#name, #index));
-                    if TreeNode::path_to_node_from(#access, target, path) {
-                        return true;
-                    }
-                    path.pop();
-                }))
-            }
-            Err(error) => Some(Err(error)),
-        })
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn field_child_lookups<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
-where
-    F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
-{
-    fields
-        .iter()
-        .enumerate()
-        .filter_map(|(index, field)| match tree_child_flags(&field.attrs) {
-            Ok(flags) if flags.skip => None,
-            Ok(_) => {
-                let name = field_name_tokens(field);
-                let access = access(index, field);
-                Some(Ok(quote! {
-                    if let Some((step, rest)) = steps.split_first()
-                        && step.is_field(#name, #index)
-                    {
-                        return TreeNode::node_at_path_steps(#access, rest);
-                    }
-                }))
-            }
-            Err(error) => Some(Err(error)),
-        })
-        .collect()
 }
 
 #[requires(true)]
