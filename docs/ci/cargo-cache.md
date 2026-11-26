@@ -1,10 +1,13 @@
 # Cargo target cache
 
 A Cargo unit is one target, profile, feature set, and compilation mode.
+A fingerprint is the Cargo record for a build unit.
 Each unit keeps a SHA-256 input record in its fingerprint directory.
 When later jobs select different units, the record still describes the content that produced that unit.
 CI uses Rust 1.100.0 and one target directory for each cached job.
 The CLI release workflow never restores a target cache.
+
+## CI setup
 
 Both cached jobs export `JBOTCI_INPUT_SESSION` through `GITHUB_ENV` before their first Cargo step.
 Every later step receives the session path under `RUNNER_TEMP`.
@@ -19,20 +22,34 @@ The trust step exercises recursive file listing and Git metadata reads before Ca
 The CLI release tooling job installs actionlint 1.7.12 and compares the archive with its pinned SHA-256 before extraction.
 It runs actionlint on every workflow with ShellCheck enabled.
 When actionlint is installed, the local Python workflow tests run the same command.
-Install ShellCheck too before you run those tests.
+Install ShellCheck before you run the actionlint tests.
+Install `python3-markdown-it` before you run the drift tests.
+The CLI release tooling job pins the Debian package to `2.1.0-5`. [Test workflow](../../.github/workflows/test.yml)
+
+## Completed and unfinished units
 
 Each cached job writes a time marker before its first Cargo call.
-Cargo 1.99 and Cargo 1.100 leave the committed fingerprint mtime unchanged for fresh units.
-Both versions write a new fingerprint mtime for rebuilt compile units, build-script binaries, and build-script runs.
+Cargo 1.100.0 keeps the modification time of the hash file for a reused unit.
+A rebuild of a compile unit, a build-script binary, or a build-script run writes a new hash.
+
+An interrupted rebuild can leave an empty hash file beside metadata from the last build.
+If the first build stops during the hash write, the empty hash can precede the metadata.
+Inventory treats both units as unfinished.
+Restore and save remove the fingerprint and artifacts of each unfinished unit.
+The scanner accepts only a Cargo hash name for the pinned layout.
+The same metadata rules apply to empty and non-empty hashes.
+A malformed non-empty hash, invalid metadata, or multiple metadata files still cause an error.
+
 Before a successful save, CI records each unit whose committed fingerprint is newer than that marker.
-It preserves the records of fresh units and deletes units without valid records.
-This also covers units built by nested Cargo commands and by dx.
-It does not require Cargo JSON messages or a selected-unit set.
+It preserves the records of reused units and deletes units without valid records.
+The trace also covers units built by nested Cargo commands and by `dx`.
+The trace works without Cargo JSON messages or a list of selected units.
+
+## Inputs and dependencies
 
 Compile records include every path in rustc's `.d` file and Cargo's implicit manifests and configuration.
-Cargo 1.100 writes compile `.d` files under `build/<package>/<unit id>/out/`.
-Cargo 1.99 writes build-script `.d` files under `build/<pkg>-<hash>`.
-Cargo 1.99 writes other compile `.d` files under `deps` or `examples`.
+Cargo 1.100.0 writes compile `.d` files under `build/<package>/<unit id>/out/`.
+The cache tool supports this layout.
 Cargo's encoded dep-info omits immutable registry package sources, so it cannot replace the full rustc path list.
 The record also preserves rustc's environment dependencies and Cargo's filtered environment dependencies.
 Environment values use SHA-256 in the record, so the record does not expose secret values.
@@ -47,6 +64,8 @@ Dependency changes invalidate every affected variant, including variants that th
 If several profiles share the same Cargo fingerprint, the record binds every match.
 This conservative dependency set avoids a guess about the producing profile.
 
+## Restore
+
 Each record has a format version and an integrity hash.
 Workspace input paths are relative to the checkout.
 Cargo home input paths remain absolute.
@@ -57,7 +76,9 @@ Only then does it set tracked checkout files and directories to one fixed old ti
 It never invalidates changed content through a comparison between two runners' clocks.
 There is no source commit stamp.
 
-CI traces its existing builds rather than adding another cold build.
+## Build tracing
+
+CI traces the builds that it already runs.
 `strace -f --seccomp-bpf` follows build scripts, compiler processes, and nested Cargo or dx commands.
 The kernel filter stops the tracer only for the requested system calls.
 It avoids tracing every read, write, and memory mapping during compilation and linking.
@@ -69,8 +90,10 @@ The trace parser retains file paths, unit metadata, and process identities.
 It records the executable, parent PID, and argument count without argument values or environment values.
 When the executable is inside the traced target, a rejected operation also records that path.
 The trace decides a candidate from the operation position in the traced target.
-When its name starts with `build-script-` or `build_script_`, an executable under a profile `build` directory is a build-script candidate.
-When that executable is in the Cargo 1.100 unit place, the trace reads its fingerprint first.
+Cargo 1.100.0 runs a build script as `build_script_<stem>`.
+An executable with that name under a profile `build` directory is a build-script candidate.
+The trace does not treat a name that starts with `build-script-` as a build script.
+When that executable is in the Cargo 1.100.0 unit place, the trace reads its fingerprint first.
 When the fingerprint has an exact test or bench marker, the trace does not make the execution a unit.
 The exact markers are `test-lib-`, `test-bin-`, `test-integration-test-`, `test-example-`, and `test-bench-`.
 `test-bench-` is the bench marker.
@@ -83,14 +106,18 @@ When the marker name is a directory, the trace rejects the execution.
 When the marker name is another entry that is not a regular file, the trace rejects the execution.
 A `rustc` call with Cargo metadata is a unit candidate.
 The trace does not use environment values for that candidate decision.
-When a candidate differs from a known Cargo layout, the trace rejects the operation.
+When a candidate differs from the Cargo 1.100.0 layout, the trace rejects the operation.
 A missing environment value, a malformed id, or an unknown shape is a rejection.
 When an operation is outside those positions, the trace does not make it a unit.
+
+## Threat model
 
 The cache tool protects an honest build in the CI image.
 It protects that build against configuration drift and against a layout change.
 A traced build that deliberately places a fake `rustup` first on `PATH` is outside this tool.
 A traced build that swaps the rustup home through a symlink during the trace is outside this tool.
+
+## Compiler selection
 
 The supported compiler is the real path of the pinned toolchain `rustc`.
 Before the trace starts, the trace resolves that path from the traced workspace.
@@ -105,7 +132,9 @@ When `rustup` is absent, the trace uses `rustc` on `PATH` and takes that real pa
 When the exec name is `rustc` or `rustc.exe`, that exec is a compiler exec.
 When the real path name is `rustc` or `rustc.exe`, that exec is a compiler exec.
 When the exec carries `--crate-name` and `-C metadata=`, that exec is a compiler exec.
-When the exec name has no slash, the trace resolves that name through `PATH`.
+A caller such as Cargo can search `PATH` before it calls `execve`.
+The `execve` syscall uses the path that its caller supplies.
+The trace uses `PATH` to resolve a bare program name.
 When the loaded file is the rustup proxy, the trace runs `rustup which rustc` in that process directory.
 The selected file must be the supported compiler.
 When a bare `rustc` name loads the rustup proxy, the resolved compiler file is the compile unit.
@@ -120,6 +149,8 @@ Cargo sets `RUSTC` on a build script after it resolves the compiler.
 When a process sets `RUSTC_WRAPPER`, the trace rejects the build.
 When `RUSTC_WRAPPER` is empty, the trace accepts the command.
 When `RUSTC_WORKSPACE_WRAPPER` is empty, the trace accepts the command.
+
+## Environment and workflow pins
 
 Before the trace starts, the trace sets `RUSTUP_AUTO_INSTALL` to `0`.
 Every `rustup` call in the trace uses that same value.
@@ -136,11 +167,10 @@ The compiler configuration is not supported.
 When the pinned home exists, the Cargo cache integration tests use that home.
 When the pinned home is absent, those tests use `RUSTUP_HOME` from the environment.
 When that variable is absent, those tests use the `.rustup` directory in the home directory.
-The trace reads declarations with PyYAML.
+The trace reads workflow declarations at startup with PyYAML.
 The Debian package `python3-yaml` provides PyYAML.
 CI installs that package in each job that runs the trace.
-A local machine uses that same package.
-That read covers declarations only.
+The `begin`, `restore`, and `save` commands use only the Python standard library.
 `RUSTUP_HOME` has one declaration in the Test workflow.
 It has one declaration in the Render image workflow.
 The two values are the same path.
@@ -148,7 +178,24 @@ A second declaration is an error.
 A flow mapping is a declaration.
 A quoted key is a declaration.
 An inline comment is not part of the value.
-Each Rust image tag must name the channel in `rust-toolchain.toml`.
+The drift tests compare Rust pins with the channel in `rust-toolchain.toml`.
+The image check is a cheap guard. It is not a complete Dockerfile parser.
+They read job container images and workflow or job `env` values.
+They accept registry prefixes and tags such as `1.100.0-slim-bookworm`.
+The repository name is the last path component before the tag or the digest.
+They read the image word on a one-line `FROM` instruction.
+The build configuration names those Dockerfiles.
+`render.yaml` names one Dockerfile through `dockerfilePath`.
+A workflow names a Dockerfile through the `file` input of `docker/build-push-action`.
+The tests compare a Rust image from that word with the channel.
+A continued line, a build argument, a stage name, and copied text stay unread.
+The tests do not read Rust image references in shell commands.
+If a container needs a digest, use the resolver output.
+The resolver reads the tag and obtains the matching digest.
+The tests compare the version text in this guide and `README.md` after they read Markdown formatting.
+
+## Release compiler checks
+
 The release workflow calls the tool `tools.release_compiler`.
 The tool reads `rust-toolchain.toml` with `tomllib`.
 `tomllib` is the Python reader for TOML.
@@ -162,6 +209,9 @@ On Windows, the build step uses PowerShell.
 When `$LASTEXITCODE` is not zero after `cargo build`, the Windows build step fails.
 The CI job for a pull request runs the unit tests for the tool.
 Those tests use toolchain files with Unix line endings (LF) and Windows line endings (CRLF).
+
+## Dioxus wrapper
+
 `dx` is the Dioxus command.
 Before the traced command starts, the trace looks up `dx` on `PATH`.
 The trace reads the Dioxus CLI version from the Render image workflow.
@@ -196,12 +246,18 @@ A nightly compile is rejected.
 Cargo reads `.cargo/config.toml`, `.cargo/config`, and `config.toml` under `CARGO_HOME`.
 When one of those files contains `build.rustc`, `build.rustc-wrapper`, or `build.rustc-workspace-wrapper`, the trace rejects the build.
 The path rule rejects a compiler that those file checks do not name.
+
+## Build scripts for an explicit target
+
 When Cargo passes `--target`, the build-script binary stays in the profile for the host.
 `OUT_DIR` is under the `TARGET` value from that build script.
 When `TARGET` is absent, the trace rejects that split layout.
 When `TARGET` differs from that directory, the trace rejects the script.
 The trace records the run unit next to `OUT_DIR`.
-When the executable matches the Cargo 1.100 build-script place, a missing compile fingerprint is an error.
+When the executable matches the Cargo 1.100.0 build-script place, a missing compile fingerprint is an error.
+
+## Process diagnostics
+
 Strace's `-Y` option supplies process names, including names for short-lived threads.
 For an unknown PID, the reader also attempts a live `/proc` snapshot for diagnostics.
 Unavailable identity fields remain null. These snapshots never determine a Cargo unit's ownership.
@@ -220,6 +276,8 @@ When the tests pass, an undeclared read must still fail the input contract.
 Missing coverage cannot establish that contract, so CI does not replace this failure with a cache warning.
 Each job also requires the checkout's tracked content to stay unchanged while it builds.
 
+## Project build inputs
+
 The native script declares the full C++ tree, patches, shim, wrapper, and build helper.
 Each native script rerun replaces copied sources and native outputs.
 Bindgen tracks original and system headers.
@@ -234,6 +292,8 @@ The contract scanner declares the source trees that it scans.
 `option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL")` already appears in rustc's environment dependencies.
 The regression proves that changing its value rebuilds the unit.
 
+## Cache keys and saved output
+
 The `target-v5` keys reject every earlier cache design.
 The key includes the full `rustc -vV`, runner OS, immutable container image digest, and installed system package hash.
 An image resolution job pins the manifest before the cached job starts.
@@ -241,4 +301,12 @@ Every restore prefix also requires the same lockfile hash.
 Only successful jobs save target caches.
 DX state and other generated state stay out of the cache.
 CI disables and removes incremental directories because their session hashes do not identify Cargo units.
-Cargo recreates unhashed uplifted outputs from retained hashed artifacts after a restore.
+Cargo recreates uplifted outputs, which are copies outside the unit directory.
+Save and restore remove the entire `examples` directory for that profile.
+The original examples stay in the retained unit directories.
+Save and restore keep the profile `build` directory.
+They also keep `.cargo-lock`, `.cargo-artifact-lock`, and `.cargo-build-lock`.
+Cargo 1.100.0 writes those three lock files.
+
+Save and restore remove every other entry in the profile.
+That removal includes a `deps` directory.

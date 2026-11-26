@@ -16,7 +16,7 @@ from uuid import uuid4
 
 
 from tools import cargo_inputs
-from tools.cargo_inputs_trace import RUSTUP_HOME_PIN
+from tools.cargo_inputs_trace import shared_rustup_home
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -51,8 +51,9 @@ class CargoCacheTests(unittest.TestCase):
         global_config = self.case / "gitconfig"
         global_config.write_text("", encoding="utf-8")
         # CI has the pinned home. A local run uses the rustup home on this machine.
-        if Path(RUSTUP_HOME_PIN).is_dir():
-            rustup_home = RUSTUP_HOME_PIN
+        pinned_home = shared_rustup_home()
+        if Path(pinned_home).is_dir():
+            rustup_home = pinned_home
         else:
             rustup_home = os.environ.get("RUSTUP_HOME") or str(Path.home() / ".rustup")
         self.assertTrue(Path(rustup_home).is_dir(), rustup_home)
@@ -115,18 +116,20 @@ class CargoCacheTests(unittest.TestCase):
         self.states.append(state)
         cargo_inputs.begin(self.layout, state)
         cargo_inputs.restore(self.layout)
-        environment = dict(self.env, PYTHONPATH=str(ROOT))
-        result = subprocess.run(
-            [sys.executable, "-m", "tools.cargo_inputs", "--workspace", str(self.repo),
-             "--target", str(self.target), "--session", str(state), "trace", "--",
-             "cargo", subcommand, "--offline", "--verbose", "--profile", self.profile, "-j", "8", *selection],
-            cwd=self.repo, env=environment, capture_output=True, text=True,
-        )
+        result = self._trace_build(state, subcommand, *selection)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         marker = json.loads((state / "session.json").read_text())["marker_ns"]
         self.last_detection = {key: unit.built_after(marker) for key, unit in cargo_inputs.inventory(self.layout).items()}
         cargo_inputs.save(self.layout, state, scrub=False)
         return result.stdout + result.stderr
+
+    def _trace_build(self, state: Path, subcommand: str, *selection: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, "-m", "tools.cargo_inputs", "--workspace", str(self.repo),
+             "--target", str(self.target), "--session", str(state), "trace", "--",
+             "cargo", subcommand, "--offline", "--verbose", "--profile", self.profile, "-j", "8", *selection],
+            cwd=self.repo, env=dict(self.env, PYTHONPATH=str(ROOT)), capture_output=True, text=True,
+        )
 
     def _binary(self) -> str:
         return self._run([str(self.profile_dir / "cache-audit")]).stdout.strip()
@@ -157,6 +160,63 @@ class CargoCacheTests(unittest.TestCase):
         self.assertIn('println!("version-A")', (self.repo / "src/main.rs").read_text())
         self.assertIn("Fresh cache-audit", build)
         self.assertEqual(self._binary(), Version.A.value)
+
+    def test_failed_rebuild_leaves_an_uncommitted_fingerprint(self) -> None:
+        other = self.repo / "src/bin/other.rs"
+        other.parent.mkdir()
+        other.write_text("fn main() {}\n")
+        self._commit(Version.A)
+        self._build()
+        by_stem = {unit.stem: unit for unit in cargo_inputs.inventory(self.layout).values()}
+        broken = by_stem["bin-cache-audit"]
+        fresh = by_stem["bin-other"]
+        self.assertTrue((broken.directory / cargo_inputs.RECORD).is_file())
+
+        (self.repo / "src/main.rs").write_text('compile_error!("rebuild failed");\n')
+        state = self.case / "failed-rebuild"
+        cargo_inputs.begin(self.layout, state)
+        result = self._trace_build(state, "build", "--bin", "cache-audit")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("rebuild failed", result.stderr)
+        self.assertEqual((broken.directory / broken.stem).read_bytes(), b"")
+        self.assertTrue((broken.directory / f"{broken.stem}.json").is_file())
+        self.assertEqual(set(cargo_inputs.inventory(self.layout)), {fresh.key})
+        descriptors, _, _ = cargo_inputs.journals(state)
+        self.assertEqual(set(descriptors), {broken.key})
+
+        snapshot = self._snapshot()
+        for operation in ("save", "restore"):
+            with self.subTest(operation=operation):
+                self._restore(snapshot)
+                if operation == "save":
+                    stats = cargo_inputs.save(self.layout, state)
+                else:
+                    stats = cargo_inputs.restore(self.layout, normalize=False)
+                self.assertEqual(stats["retained"], 1)
+                self.assertFalse(broken.directory.parent.exists())
+                self.assertTrue((fresh.directory / cargo_inputs.RECORD).is_file())
+
+    def test_cargo_recreates_example_copies_after_cache_cleanup(self) -> None:
+        example = self.repo / "examples/demo.rs"
+        example.parent.mkdir()
+        example.write_text("fn main() {}\n")
+        self._commit(Version.A)
+        state = self.case / "example"
+        cargo_inputs.begin(self.layout, state)
+        result = self._trace_build(state, "build", "--example", "demo")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        copy = self.profile_dir / "examples/demo"
+        self.assertTrue(copy.is_file())
+
+        stats = cargo_inputs.save(self.layout, state)
+        self.assertEqual(stats["retained"], 1)
+        self.assertFalse(copy.exists())
+        stats = cargo_inputs.restore(self.layout, normalize=False)
+        self.assertEqual(stats["retained"], 1)
+
+        result = self._run(["cargo", "build", "--offline", "--verbose", "--profile", self.profile, "--example", "demo"])
+        self.assertIn("Fresh cache-audit", result.stderr)
+        self.assertTrue(copy.is_file())
 
     def test_three_successful_builds_keep_the_selected_feature_current(self) -> None:
         manifest = self.repo / "Cargo.toml"

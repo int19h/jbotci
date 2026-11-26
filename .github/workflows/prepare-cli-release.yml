@@ -134,6 +134,8 @@ jobs:
             uname: aarch64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
+    env:
+      RUST_BUILD_IMAGE: rust:1.100.0-alpine3.24
     permissions:
       contents: read
     steps:
@@ -175,7 +177,7 @@ jobs:
             --volume "${GITHUB_WORKSPACE}:/work:ro" \
             --volume "${build_root}:/out" \
             --workdir /work \
-            rust:1.100.0-alpine3.24 \
+            "${RUST_BUILD_IMAGE}" \
             sh -euc '
               test "$(uname -m)" = "${EXPECTED_UNAME}"
               apk add --no-cache \

@@ -14,7 +14,11 @@ import threading
 import tomllib
 from typing import Callable
 
-from tools.workflow_pins import PinError, exactly_one
+from tools.cargo_unit_layout import (
+    EXACT_TEST_MARKERS, UNIT_ID, fingerprint_from_out, fingerprint_profile, inside_unit_out,
+    is_auxiliary_fingerprint_entry, profile_inside_target,
+)
+from tools.release_compiler import CompilerPinError, toolchain_channel
 
 
 LINE = re.compile(r"\s*(\d+)(?:<([^>]*)>)?\s+(.*)")
@@ -129,10 +133,6 @@ def extra_filename(arguments: list[str]) -> str | None:
     return None
 
 
-UNIT_ID = re.compile(r"[0-9a-f]{16}")
-CLASSIC_DIR = re.compile(r"-[0-9a-f]{16}$")
-
-
 def cargo_rustc_metadata(arguments: list[str]) -> bool:
     """Return true when rustc arguments carry Cargo's unit metadata hash."""
     return any(re.fullmatch(r"(?:-C)?metadata=[0-9a-f]{16}", argument) for argument in arguments)
@@ -149,13 +149,6 @@ RUSTC_NAMES = ("rustc", "rustc.exe")
 COMPILER_WRAPPER_ENV = ("RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER")
 COMPILER_CONFIG_KEYS = {"rustc", "rustc-wrapper", "rustc-workspace-wrapper"}
 UNSUPPORTED_COMPILER = "The compiler configuration is not supported."
-EXACT_TEST_MARKERS = (
-    "test-lib-",
-    "test-bin-",
-    "test-integration-test-",
-    "test-example-",
-    "test-bench-",
-)
 
 
 def has_flag(arguments: list[str], name: str) -> bool:
@@ -200,15 +193,13 @@ def search_path(name: str, path_value: str, cwd: str) -> Path | None:
     return None
 
 
-def executed_file(executable: str, cwd: str, env: dict[str, str]) -> Path:
-    """Return the real file an execve loads.
+def resolve_program(executable: str, cwd: str, env: dict[str, str]) -> Path:
+    """Resolve a program path or a configured command name.
 
-    A name with no slash is resolved through PATH, as execve does.
-    A path with a slash is relative to the process directory.
+    Callers can search PATH before they call execve. The syscall itself uses
+    a path. For a bare program name, this helper uses the supplied PATH.
     """
     if "/" not in executable:
-        # execve searches PATH before it installs the new environment.
-        # Cargo and Command::new copy the caller PATH into that environment.
         found = search_path(executable, env.get("PATH", ""), cwd)
         if found is None:
             return normalized_path(executable, cwd)
@@ -272,14 +263,9 @@ def pinned_channel(workspace: Path) -> str:
     """Return the toolchain channel from `rust-toolchain.toml` in `workspace`."""
     path = workspace / "rust-toolchain.toml"
     try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+        return toolchain_channel(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, CompilerPinError) as error:
         raise TraceError("The pinned compiler is unavailable.") from error
-    toolchain = data.get("toolchain")
-    channel = toolchain.get("channel") if isinstance(toolchain, dict) else None
-    if not isinstance(channel, str) or not channel or channel != channel.strip():
-        raise TraceError("The pinned compiler is unavailable.")
-    return channel
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -289,58 +275,47 @@ DIOXUS_CLI_VERSION_VALUE = re.compile(r"[0-9]+(?:\.[0-9]+)+")
 RUSTUP_HOME_VALUE = re.compile(r"/[^\s]+")
 
 
-def dioxus_cli_version(workflow: Path | None = None) -> str:
-    """Return the one Dioxus CLI version in the Render image workflow.
-
-    That workflow is the only pin.
-    A block entry, a flow entry, and a quoted key all count.
-    A missing pin, a second pin, or a malformed pin is an error.
-    """
-    path = RENDER_IMAGE_WORKFLOW if workflow is None else workflow
+def workflow_pin(path: Path, key: str, pattern: re.Pattern[str], error_message: str) -> str:
+    # Only a trace needs workflow declarations and their YAML reader.
     try:
-        return exactly_one(
-            path.read_text(encoding="utf-8"),
-            "DIOXUS_CLI_VERSION",
-            DIOXUS_CLI_VERSION_VALUE,
-        )
+        from tools.workflow_pins import PinError, exactly_one
+    except ModuleNotFoundError as error:
+        if error.name != "yaml":
+            raise
+        raise TraceError("The input trace requires PyYAML.") from error
+    try:
+        return exactly_one(path.read_text(encoding="utf-8"), key, pattern)
     except (OSError, UnicodeError, PinError) as error:
-        raise TraceError("The Dioxus CLI version pin is unavailable.") from error
+        raise TraceError(error_message) from error
+
+
+def dioxus_cli_version(workflow: Path = RENDER_IMAGE_WORKFLOW) -> str:
+    """Return the one Dioxus CLI version in the Render image workflow."""
+    return workflow_pin(workflow, "DIOXUS_CLI_VERSION", DIOXUS_CLI_VERSION_VALUE,
+                        "The Dioxus CLI version pin is unavailable.")
 
 
 def shared_rustup_home() -> str:
-    """Return the one `RUSTUP_HOME` shared by the identity step and the trace.
-
-    The Test workflow and the Render image workflow each have one declaration.
-    The two values must match.
-    A second declaration in either file is an error.
-    """
-    try:
-        homes = [
-            exactly_one(path.read_text(encoding="utf-8"), "RUSTUP_HOME", RUSTUP_HOME_VALUE)
-            for path in (TEST_WORKFLOW, RENDER_IMAGE_WORKFLOW)
-        ]
-    except (OSError, UnicodeError, PinError) as error:
-        raise TraceError("The Rustup home pin is unavailable.") from error
-    if len(set(homes)) != 1:
-        raise TraceError("The Rustup home pin is unavailable.")
-    return homes[0]
+    """Read the matching Rustup home declarations from the two workflows."""
+    message = "The Rustup home pin is unavailable."
+    test_home = workflow_pin(TEST_WORKFLOW, "RUSTUP_HOME", RUSTUP_HOME_VALUE, message)
+    render_home = workflow_pin(RENDER_IMAGE_WORKFLOW, "RUSTUP_HOME", RUSTUP_HOME_VALUE, message)
+    if test_home != render_home:
+        raise TraceError(message)
+    return test_home
 
 
-DX_VERSION = dioxus_cli_version()
-RUSTUP_HOME_PIN = shared_rustup_home()
-
-
-def dx_version_line_matches(line: str) -> bool:
+def dx_version_line_matches(line: str, version: str) -> bool:
     """Return true for an exact pinned `dioxus` version line.
 
     The line is `dioxus <version>`.
     One hex hash can follow inside parentheses after one space.
     """
-    prefix = re.escape(f"dioxus {DX_VERSION}")
+    prefix = re.escape(f"dioxus {version}")
     return re.fullmatch(rf"{prefix}(?: \([0-9A-Fa-f]+\))?", line) is not None
 
 
-def pinned_dx(env: dict[str, str], cwd: str) -> Path | None:
+def pinned_dx(env: dict[str, str], cwd: str, version: str) -> Path | None:
     """Return the real path of the pinned `dx` on `PATH`.
 
     When that file is absent, return None.
@@ -363,7 +338,7 @@ def pinned_dx(env: dict[str, str], cwd: str) -> Path | None:
     )
     if result.returncode != 0 or not result.stdout:
         return None
-    if not dx_version_line_matches(result.stdout.splitlines()[0]):
+    if not dx_version_line_matches(result.stdout.splitlines()[0], version):
         return None
     return path
 
@@ -446,50 +421,12 @@ def supported_compiler(workspace: Path) -> Path:
     return accept_pinned_compiler(path, workspace)
 
 
-def build_unit_fingerprint(out_dir: Path) -> Path | None:
-    """Return the fingerprint directory for `<profile>/build/<package>/<16 hex>/out`."""
-    if out_dir.name != "out" or not UNIT_ID.fullmatch(out_dir.parent.name):
-        return None
-    if len(out_dir.parents) < 3 or out_dir.parents[2].name != "build":
-        return None
-    return out_dir.parent / "fingerprint"
-
-
-def classic_fingerprint(target: Path, out_dir: Path, package: str, suffix: str) -> Path | None:
-    if out_dir.name in ("deps", "examples"):
-        profile = out_dir.parent
-    elif out_dir.parent.name == "build":
-        profile = out_dir.parent.parent
-        named = classic_package_dir(out_dir.name)
-        if named is not None and named[0] != package:
-            raise TraceError(f"The target package {named[0]} does not match CARGO_PKG_NAME {package}")
-    else:
-        return None
-    if not profile_inside_target(target, profile):
-        return None
-    return profile / ".fingerprint" / f"{package}-{suffix}"
-
-
 def normalized_path(value: str, cwd: str) -> Path:
     """Join a trace path to the process directory without following a symlink."""
     path = Path(value)
     if not path.is_absolute():
         path = Path(cwd) / path
     return Path(os.path.normpath(path))
-
-
-def classic_package_dir(name: str) -> tuple[str, str] | None:
-    match = CLASSIC_DIR.search(name)
-    if match is None:
-        return None
-    package = name[:match.start()]
-    if not package:
-        return None
-    return package, name[match.start() + 1:]
-
-
-def profile_inside_target(target: Path, profile: Path) -> bool:
-    return profile.is_relative_to(target) and profile != target
 
 
 def under_profile_build(target: Path, executable: Path) -> bool:
@@ -527,46 +464,6 @@ def profiles_match(host_profile: Path, out_profile: Path, requested_target: str 
     return requested_target is not None and inserted.name == requested_target
 
 
-def classic_build_script_fingerprint(target: Path, executable: Path, out_dir: Path,
-                                      cargo_package: str, requested_target: str | None) -> Path | None:
-    """Return the classic run fingerprint for one build-script executable.
-
-    Cargo 1.99 runs `<profile>/build/<package>-<16 hex>/build-script-<stem>`.
-    `OUT_DIR` is `<profile>/build/<package>-<16 hex>/out` for the run unit.
-    Those two suffixes are different directories of one package.
-    With `--target`, the script profile is `<root>/<profile>` and `OUT_DIR`
-    is under `<root>/<TARGET>/<profile>`. The run fingerprint follows `OUT_DIR`.
-    The package name in that path must equal CARGO_PKG_NAME.
-    Return None when `executable` is not in that place.
-    """
-    if not executable.name.startswith("build-script-") or executable.name == "build-script-":
-        return None
-    script_dir = executable.parent
-    parsed = classic_package_dir(script_dir.name)
-    if parsed is None or script_dir.parent.name != "build":
-        return None
-    package, _compile_hash = parsed
-    profile = script_dir.parent.parent
-    if not profile_inside_target(target, profile):
-        raise TraceError("Unknown build script unit layout")
-    out_package = classic_package_dir(out_dir.parent.name)
-    out_build = out_dir.parent.parent
-    out_profile = out_build.parent
-    if (
-        out_dir.name != "out"
-        or out_package is None
-        or out_package[0] != package
-        or out_build.name != "build"
-        or not profiles_match(profile, out_profile, requested_target)
-        or not profile_inside_target(target, out_profile)
-        or not out_dir.is_relative_to(target)
-    ):
-        raise TraceError("Unknown build script unit layout")
-    if package != cargo_package:
-        raise TraceError(f"The target package {package} does not match CARGO_PKG_NAME {cargo_package}")
-    return out_profile / ".fingerprint" / out_dir.parent.name
-
-
 def fingerprint_names(fingerprint: Path, prefix: str) -> bool:
     if not fingerprint.is_dir():
         return False
@@ -579,18 +476,10 @@ def build_unit_executable_fingerprint(target: Path, executable: Path) -> Path | 
     The place is `<profile>/build/<package>/<16 hex>/out/<name>`.
     Return None when `executable` is not in that place.
     """
-    if executable.parent.name != "out":
+    fingerprint = fingerprint_from_out(executable.parent)
+    if fingerprint is None or not profile_inside_target(target, fingerprint_profile(fingerprint)):
         return None
-    compile_dir = executable.parent.parent
-    if not UNIT_ID.fullmatch(compile_dir.name):
-        return None
-    package_dir = compile_dir.parent
-    if package_dir.parent.name != "build":
-        return None
-    profile = package_dir.parent.parent
-    if not profile_inside_target(target, profile):
-        return None
-    return compile_dir / "fingerprint"
+    return fingerprint
 
 
 def regular_file(entry: Path) -> bool:
@@ -634,39 +523,6 @@ def test_marker_kind(fingerprint: Path) -> str:
     return "absent"
 
 
-def has_unit_id_child(path: Path) -> bool:
-    """If a direct child is a 16-hex unit directory, return true."""
-    return any(child.is_dir() and UNIT_ID.fullmatch(child.name) for child in path.iterdir())
-
-
-def is_unit_out_directory(path: Path) -> bool:
-    """Return true for one Cargo unit `out` directory.
-
-    A package name can end in 16 hex characters.
-    A 16-hex child makes that directory a 1.100 package, not a 1.99 output directory.
-    """
-    if path.name != "out":
-        return False
-    parent = path.parent
-    if parent.parent.name == "build" and classic_package_dir(parent.name) is not None:
-        return not has_unit_id_child(parent)
-    return bool(UNIT_ID.fullmatch(parent.name) and parent.parent.parent.name == "build")
-
-
-def inside_unit_out(root: Path, path: Path) -> bool:
-    """If `path` is strictly inside a unit `out` directory under `root`, return true."""
-    if not path.is_relative_to(root) or path == root:
-        return False
-    current = path.parent
-    while current.is_relative_to(root) and current != root:
-        if is_unit_out_directory(current):
-            return True
-        if current.parent == current:
-            break
-        current = current.parent
-    return False
-
-
 def fingerprint_ready(path: Path, run: bool) -> None:
     """If `path` cannot be the claimed unit, raise TraceError.
 
@@ -680,7 +536,7 @@ def fingerprint_ready(path: Path, run: bool) -> None:
         raise TraceError(reason)
     for entry in path.iterdir():
         name = entry.name
-        if name in ("invoked.timestamp", "jbotci-inputs-v1.json") or name.startswith(("dep-", "output-")):
+        if is_auxiliary_fingerprint_entry(name):
             continue
         if run and not name.startswith("run-build-script-"):
             raise TraceError(reason)
@@ -703,47 +559,42 @@ def build_unit_build_script_fingerprint(target: Path, executable: Path, out_dir:
     """
     if not executable.name.startswith("build_script_") or executable.name == "build_script_":
         return None
-    if executable.parent.name != "out":
+    compile_fingerprint = fingerprint_from_out(executable.parent)
+    if compile_fingerprint is None:
         return None
-    compile_dir = executable.parent.parent
-    if not UNIT_ID.fullmatch(compile_dir.name):
-        return None
+    compile_dir = compile_fingerprint.parent
     package_dir = compile_dir.parent
-    build_dir = package_dir.parent
-    # The package name can end in 16 hex characters. The `out/<id>` shape is the layout.
-    if build_dir.name != "build":
-        return None
-    profile = build_dir.parent
+    profile = fingerprint_profile(compile_fingerprint)
     if not profile_inside_target(target, profile):
         raise TraceError("Unknown build script unit layout")
-    compile_fingerprint = compile_dir / "fingerprint"
     if not fingerprint_names(compile_fingerprint, "build-script-"):
         raise TraceError("Unknown build script unit layout")
-    run_id = out_dir.parent.name
-    out_package = out_dir.parent.parent
-    out_build = out_package.parent
-    out_profile = out_build.parent
+    run_fingerprint = fingerprint_from_out(out_dir)
+    # The package name can end in 16 hex characters. The `out/<id>` shape is the layout.
     if (
-        out_dir.name != "out"
-        or not UNIT_ID.fullmatch(run_id)
-        or run_id == compile_dir.name
-        or out_build.name != "build"
-        or out_package.name != package_dir.name
+        run_fingerprint is None
+        or run_fingerprint.parent.name == compile_dir.name
+        or not out_dir.is_relative_to(target)
+    ):
+        raise TraceError("Unknown build script unit layout")
+    out_package = run_fingerprint.parents[1]
+    out_profile = fingerprint_profile(run_fingerprint)
+    if (
+        out_package.name != package_dir.name
         or not profiles_match(profile, out_profile, requested_target)
         or not profile_inside_target(target, out_profile)
-        or not out_dir.is_relative_to(target)
     ):
         raise TraceError("Unknown build script unit layout")
     if package_dir.name != cargo_package:
         raise TraceError(
             f"The target package {package_dir.name} does not match CARGO_PKG_NAME {cargo_package}")
-    return out_dir.parent / "fingerprint"
+    return run_fingerprint
 
 
 class Parser:
-    def __init__(self, workspace: Path, target: Path, output,
+    def __init__(self, workspace: Path, target: Path, output, *,
+                 compiler: Path,
                  inspect_process: Callable[[int], dict] | None = None,
-                 compiler: Path = Path("/usr/bin/rustc"),
                  rustup: Path | None = None,
                  dx: Path | None = None):
         self.workspace = workspace
@@ -759,16 +610,14 @@ class Parser:
         self.errors = 0
         self.root_pid: int | None = None
         self.cargo_home: Path | None = None
-        # Unit traces use `/usr/bin/rustc` unless the caller passes the resolved compiler.
         self.compiler = Path(os.path.realpath(compiler))
         self.rustup = rustup
-        # None means this trace has no dx 0.7.9 exception.
         self.dx = None if dx is None else Path(os.path.realpath(dx))
         self.proxy_cache: dict[tuple[str, str | None, str | None], Path | None] = {}
 
     def resolves_compiler(self, value: str, cwd: str, env: dict[str, str]) -> bool:
         """Return true when `value` loads the supported compiler."""
-        return self.resolved_compiler(executed_file(value, cwd, env), cwd, env) == self.compiler
+        return self.resolved_compiler(resolve_program(value, cwd, env), cwd, env) == self.compiler
 
     def resolved_compiler(self, loaded: Path, cwd: str, env: dict[str, str]) -> Path:
         """Return the compiler a loaded file will run.
@@ -874,171 +723,7 @@ class Parser:
             process.cwd = str(Path(process.cwd) / directory)
             return
         if body.startswith("execve(") and body.endswith("= 0"):
-            executable, end = string_at(body)
-            arguments, end = array_at(body, end)
-            environment, _ = array_at(body, end)
-            process.exe = executable
-            process.argument_count = max(0, len(arguments) - 1)
-            identity.update(process.identity(), source="journal")
-            self.emit({"event": "process", "pid": pid, **identity})
-            # Never retain the raw environment or arguments in the journal.
-            env = dict(item.split("=", 1) for item in environment if "=" in item)
-            if pid == self.root_pid:
-                cargo_home = env.get("CARGO_HOME")
-                if cargo_home:
-                    self.cargo_home = normalized_path(cargo_home, process.cwd)
-            # An empty value clears a wrapper. Cargo uses that form to keep the default compiler.
-            # RUSTC_WRAPPER has no dx exception.
-            # RUSTC_WORKSPACE_WRAPPER can name only the recorded dx 0.7.9 file.
-            rustc_wrapper_name, workspace_wrapper_name = COMPILER_WRAPPER_ENV
-            if env.get(rustc_wrapper_name):
-                raise TraceError(UNSUPPORTED_COMPILER)
-            workspace_wrapper = env.get(workspace_wrapper_name) or ""
-            wrapper_file = None
-            if workspace_wrapper:
-                wrapper_file = executed_file(workspace_wrapper, process.cwd, env)
-                if self.dx is None or wrapper_file != self.dx:
-                    raise TraceError(UNSUPPORTED_COMPILER)
-            # Cargo sets RUSTC on a build script to the compiler it resolved.
-            # A bare name or the rustup proxy must resolve to the supported compiler.
-            rustc_value = env.get("RUSTC")
-            if rustc_value and not self.resolves_compiler(rustc_value, process.cwd, env):
-                raise TraceError(UNSUPPORTED_COMPILER)
-            executable_name = Path(executable).name
-            resolved = normalized_path(executable, process.cwd)
-            # A bare name is resolved through PATH. The loaded file can be the rustup proxy.
-            real_exec = executed_file(executable, process.cwd, env)
-            if self.dx is not None and real_exec == self.dx:
-                process.from_pinned_dx = True
-            if executable_name == "dx" or process.from_pinned_dx:
-                process.via_dx = True
-            compiler_file = self.resolved_compiler(real_exec, process.cwd, env)
-            # Cargo runs the pinned dx file as `dx <compiler> <arguments>`.
-            # The child rustc records the unit. This exec must not.
-            if wrapper_file is not None and real_exec == self.dx:
-                if len(arguments) < 2 or not self.resolves_compiler(arguments[1], process.cwd, env):
-                    raise TraceError(UNSUPPORTED_COMPILER)
-                return
-            # A compiler exec must use the supported compiler path.
-            # A rustc name, a real path named rustc, or Cargo compiler arguments selects that exec.
-            # A metadata-free nightly probe under the pinned dx is not a compile.
-            if is_compiler_exec(Path(executable), real_exec, arguments) and compiler_file != self.compiler:
-                if not (process.from_pinned_dx and metadata_free_probe(arguments)):
-                    raise TraceError(UNSUPPORTED_COMPILER)
-            package = env.get("CARGO_PKG_NAME")
-            manifest = env.get("CARGO_MANIFEST_DIR")
-            out = env.get("OUT_DIR")
-            requested_target = env.get("TARGET") or None
-            unit = None
-            kind = None
-            dep_info = None
-            # A candidate comes from the operation position in the traced target.
-            # When its name starts with `build-script-` or `build_script_`, an executable
-            # under a profile `build` directory is a build-script candidate.
-            # When that executable is in the Cargo 1.100 unit place, read its fingerprint first.
-            # An exact marker is `test-lib-`, `test-bin-`, `test-integration-test-`,
-            # `test-example-`, or `test-bench-`. That execution is not a unit.
-            # Another `test-` or `bench-` name is an unknown shape.
-            # A missing fingerprint is an error.
-            # A rustc call with Cargo metadata is a unit candidate.
-            # The environment does not make the candidate decision.
-            # When a candidate differs from a known Cargo layout, raise TraceError.
-            # A missing environment value, a malformed id, or an unknown shape is that difference.
-            # An operation outside those positions is not a unit.
-            script_name = resolved.name.startswith(("build-script-", "build_script_"))
-            if under_profile_build(self.target, resolved) and script_name:
-                compile_fingerprint = build_unit_executable_fingerprint(self.target, resolved)
-                marker = "absent" if compile_fingerprint is None else test_marker_kind(compile_fingerprint)
-                # Another test or bench name is an unknown shape. It is not test execution.
-                if marker == "unknown":
-                    raise TraceError("Unknown build script unit layout")
-                # An exact test or bench marker is test execution. It is not a build-script unit.
-                if marker != "test":
-                    if not package or not manifest or not out:
-                        raise TraceError("Unknown build script unit layout")
-                    out_dir = normalized_path(out, process.cwd)
-                    # A nested Cargo target lives inside the outer run unit's OUT_DIR.
-                    # The 1.100 build-script executable also sits in a compile unit `out`
-                    # directory, so the executable path alone is not the nested check.
-                    if inside_unit_out(self.target, out_dir):
-                        if process.unit is None:
-                            raise TraceError("A nested build has no outer unit")
-                    else:
-                        fingerprint = classic_build_script_fingerprint(
-                            self.target, resolved, out_dir, package, requested_target)
-                        if fingerprint is None:
-                            fingerprint = build_unit_build_script_fingerprint(
-                                self.target, resolved, out_dir, package, requested_target)
-                        if fingerprint is None:
-                            raise TraceError("Unknown build script unit layout")
-                        if inside_unit_out(self.target, fingerprint):
-                            if process.unit is None:
-                                raise TraceError("A nested build has no outer unit")
-                        elif not fingerprint.is_relative_to(self.target):
-                            raise TraceError("Unknown build script unit layout")
-                        else:
-                            fingerprint_ready(fingerprint, run=True)
-                            unit = fingerprint
-                            kind = "run"
-            # The rustup proxy is not the compiler file. The resolved file is the unit.
-            if compiler_file == self.compiler and cargo_rustc_metadata(arguments):
-                if not package or not manifest:
-                    raise TraceError("Unknown rustc unit layout")
-                destination = flag(arguments, "--out-dir")
-                suffix = extra_filename(arguments)
-                crate = flag(arguments, "--crate-name")
-                hashed_suffix = bool(suffix and UNIT_ID.fullmatch(suffix))
-                if not destination or not crate:
-                    raise TraceError("Unknown rustc unit layout")
-                directory = normalized_path(destination, process.cwd)
-                if inside_unit_out(self.target, directory):
-                    if process.unit is None:
-                        raise TraceError("A nested build has no outer unit")
-                else:
-                    fingerprint = build_unit_fingerprint(directory)
-                    if fingerprint is not None:
-                        path_package = directory.parents[1].name
-                        if path_package != package:
-                            raise TraceError(
-                                f"The target package {path_package} does not match CARGO_PKG_NAME {package}")
-                        if not profile_inside_target(self.target, fingerprint.parents[3]):
-                            raise TraceError("Unknown rustc unit layout")
-                        relative = fingerprint.relative_to(self.target).as_posix() if fingerprint.is_relative_to(self.target) else None
-                        # dx execs the rustup proxy. The proxy execs the real compiler in this process.
-                        # Both execs are one compile. Keep the record from the first.
-                        if relative is not None and process.unit == relative and process.unit_kind == "compile":
-                            return
-                        if relative is None or (suffix is not None and not hashed_suffix) or process.unit == relative:
-                            raise TraceError("Unknown rustc unit layout")
-                        fingerprint_ready(fingerprint, run=False)
-                        unit = fingerprint
-                        kind = "compile"
-                        dep_name = f"{crate}-{suffix}.d" if hashed_suffix else f"{crate}.d"
-                        dep_info = str(directory / dep_name)
-                    elif hashed_suffix:
-                        fingerprint = classic_fingerprint(self.target, directory, package, suffix)
-                        if fingerprint is not None and inside_unit_out(self.target, fingerprint):
-                            if process.unit is None:
-                                raise TraceError("A nested build has no outer unit")
-                        elif fingerprint is None or not fingerprint.is_relative_to(self.target):
-                            raise TraceError("Unknown rustc unit layout")
-                        else:
-                            relative = fingerprint.relative_to(self.target).as_posix()
-                            # The rustup proxy and the real compiler share this process.
-                            if process.unit == relative and process.unit_kind == "compile":
-                                return
-                            fingerprint_ready(fingerprint, run=False)
-                            unit = fingerprint
-                            kind = "compile"
-                            dep_info = str(directory / f"{crate}-{suffix}.d")
-                    else:
-                        raise TraceError("Unknown rustc unit layout")
-            if unit is not None:
-                process.unit = unit.relative_to(self.target).as_posix()
-                process.unit_kind = kind
-                self.emit({"event": "unit", "unit": process.unit, "kind": kind,
-                           "package": manifest, "cwd": process.cwd, "dep_info": dep_info,
-                           "via_dx": process.via_dx})
+            self.consume_exec(pid, process, identity, body)
             return
         if not body.startswith(("open(", "openat(", "openat2(")):
             return
@@ -1065,6 +750,123 @@ class Parser:
             return
         self.emit({"event": "open", "unit": process.unit, "path": opened,
                    "write": writing, "read": access[1] != "WRONLY"})
+
+    def consume_exec(self, pid: int, process: Process, identity: dict, body: str) -> None:
+        executable, end = string_at(body)
+        arguments, end = array_at(body, end)
+        environment, _ = array_at(body, end)
+        process.exe = executable
+        process.argument_count = max(0, len(arguments) - 1)
+        identity.update(process.identity(), source="journal")
+        self.emit({"event": "process", "pid": pid, **identity})
+
+        env = dict(item.split("=", 1) for item in environment if "=" in item)
+        if pid == self.root_pid and env.get("CARGO_HOME"):
+            self.cargo_home = normalized_path(env["CARGO_HOME"], process.cwd)
+        wrapper = self.compiler_wrapper(process.cwd, env)
+        path = normalized_path(executable, process.cwd)
+        loaded = resolve_program(executable, process.cwd, env)
+        if self.dx is not None and loaded == self.dx:
+            process.from_pinned_dx = True
+        if path.name == "dx" or process.from_pinned_dx:
+            process.via_dx = True
+        compiler = self.resolved_compiler(loaded, process.cwd, env)
+        if wrapper is not None and loaded == wrapper:
+            # The child rustc records the unit after dx runs the compiler.
+            if len(arguments) < 2 or not self.resolves_compiler(arguments[1], process.cwd, env):
+                raise TraceError(UNSUPPORTED_COMPILER)
+            return
+        if is_compiler_exec(Path(executable), loaded, arguments) and compiler != self.compiler:
+            if not (process.from_pinned_dx and metadata_free_probe(arguments)):
+                raise TraceError(UNSUPPORTED_COMPILER)
+
+        # Cargo 1.100.0 runs `build_script_<stem>`. A `build-script-` name is not a script.
+        if path.name.startswith("build_script_") and under_profile_build(self.target, path):
+            self.record_build_script(process, path, env)
+        if compiler == self.compiler and cargo_rustc_metadata(arguments):
+            self.record_compile(process, arguments, env)
+
+    def compiler_wrapper(self, cwd: str, env: dict[str, str]) -> Path | None:
+        """Return the workspace wrapper after checking Cargo compiler settings."""
+        rustc_wrapper_name, workspace_wrapper_name = COMPILER_WRAPPER_ENV
+        if env.get(rustc_wrapper_name):
+            raise TraceError(UNSUPPORTED_COMPILER)
+        workspace_wrapper = env.get(workspace_wrapper_name)
+        wrapper = None
+        if workspace_wrapper:
+            wrapper = resolve_program(workspace_wrapper, cwd, env)
+            if wrapper != self.dx:
+                raise TraceError(UNSUPPORTED_COMPILER)
+        # Cargo sets RUSTC on a build script after it resolves the compiler.
+        rustc = env.get("RUSTC")
+        if rustc and not self.resolves_compiler(rustc, cwd, env):
+            raise TraceError(UNSUPPORTED_COMPILER)
+        return wrapper
+
+    def record_build_script(self, process: Process, executable: Path, env: dict[str, str]) -> None:
+        compile_fingerprint = build_unit_executable_fingerprint(self.target, executable)
+        marker = "absent" if compile_fingerprint is None else test_marker_kind(compile_fingerprint)
+        if marker == "test":
+            return
+        if marker == "unknown":
+            raise TraceError("Unknown build script unit layout")
+
+        package = env.get("CARGO_PKG_NAME")
+        manifest = env.get("CARGO_MANIFEST_DIR")
+        out = env.get("OUT_DIR")
+        if not package or not manifest or not out:
+            raise TraceError("Unknown build script unit layout")
+        out_dir = normalized_path(out, process.cwd)
+        # A nested build's OUT_DIR is inside the parent run's output.
+        if self.nested_output(process, out_dir):
+            return
+        fingerprint = build_unit_build_script_fingerprint(
+            self.target, executable, out_dir, package, env.get("TARGET") or None)
+        if fingerprint is None:
+            raise TraceError("Unknown build script unit layout")
+        fingerprint_ready(fingerprint, run=True)
+        self.record_unit(process, fingerprint.relative_to(self.target).as_posix(), "run", manifest)
+
+    def record_compile(self, process: Process, arguments: list[str], env: dict[str, str]) -> None:
+        package = env.get("CARGO_PKG_NAME")
+        manifest = env.get("CARGO_MANIFEST_DIR")
+        destination = flag(arguments, "--out-dir")
+        crate = flag(arguments, "--crate-name")
+        if not package or not manifest or not destination or not crate:
+            raise TraceError("Unknown rustc unit layout")
+        directory = normalized_path(destination, process.cwd)
+        if self.nested_output(process, directory):
+            return
+        fingerprint = fingerprint_from_out(directory)
+        if fingerprint is None or not profile_inside_target(self.target, fingerprint_profile(fingerprint)):
+            raise TraceError("Unknown rustc unit layout")
+        path_package = fingerprint.parents[1].name
+        if path_package != package:
+            raise TraceError(f"The target package {path_package} does not match CARGO_PKG_NAME {package}")
+        key = fingerprint.relative_to(self.target).as_posix()
+        # The proxy and the real compiler can exec in the same process.
+        if process.unit == key and process.unit_kind == "compile":
+            return
+        suffix = extra_filename(arguments)
+        if process.unit == key or (suffix is not None and not UNIT_ID.fullmatch(suffix)):
+            raise TraceError("Unknown rustc unit layout")
+        fingerprint_ready(fingerprint, run=False)
+        dep_name = f"{crate}-{suffix}.d" if suffix is not None else f"{crate}.d"
+        self.record_unit(process, key, "compile", manifest, str(directory / dep_name))
+
+    def nested_output(self, process: Process, directory: Path) -> bool:
+        if not inside_unit_out(self.target, directory):
+            return False
+        if process.unit is None:
+            raise TraceError("A nested build has no outer unit")
+        return True
+
+    def record_unit(self, process: Process, key: str, kind: str, manifest: str, dep_info: str | None = None) -> None:
+        process.unit = key
+        process.unit_kind = kind
+        self.emit({"event": "unit", "unit": key, "kind": kind,
+                   "package": manifest, "cwd": process.cwd, "dep_info": dep_info,
+                   "via_dx": process.via_dx})
 
     def is_cargo_config(self, path: Path) -> bool:
         """Return true for a Cargo config path the build can read.
@@ -1142,7 +944,7 @@ class Parser:
         self.emit({"event": "complete", "errors": self.errors})
 
 
-def require_trace_environment(env: dict[str, str], workspace: Path, target: Path) -> None:
+def require_trace_environment(env: dict[str, str], workspace: Path, target: Path, rustup_home: str) -> None:
     """Stop when the trace environment does not match the pins.
 
     On GitHub Actions, `RUSTUP_HOME` must equal the pinned home.
@@ -1153,7 +955,7 @@ def require_trace_environment(env: dict[str, str], workspace: Path, target: Path
     """
     home = env.get("RUSTUP_HOME")
     if env.get("GITHUB_ACTIONS") == "true":
-        if home is None or Path(home).resolve() != Path(RUSTUP_HOME_PIN).resolve():
+        if home is None or Path(home).resolve() != Path(rustup_home).resolve():
             raise TraceError(UNSUPPORTED_COMPILER)
     elif not home or not Path(home).is_dir():
         raise TraceError(UNSUPPORTED_COMPILER)
@@ -1168,15 +970,18 @@ def require_trace_environment(env: dict[str, str], workspace: Path, target: Path
 def trace(workspace: Path, target: Path, journal: Path, command: list[str]) -> int:
     # Reject a bad pin before the first compiler query. dx probes nightly before it builds.
     env = rustup_environment()
-    require_trace_environment(env, workspace, target)
+    require_trace_environment(env, workspace, target, shared_rustup_home())
+    dx_version = dioxus_cli_version()
+    compiler = supported_compiler(workspace)
+    dx = pinned_dx(env, str(workspace), dx_version)
     read_fd, write_fd = os.pipe()
     journal.parent.mkdir(parents=True, exist_ok=True)
     with journal.open("w") as output, os.fdopen(read_fd, "rb") as stream:
         parser = Parser(
             workspace, target, output, inspect_process=process_snapshot,
-            compiler=supported_compiler(workspace),
+            compiler=compiler,
             rustup=rustup_binary(),
-            dx=pinned_dx(env, str(workspace)),
+            dx=dx,
         )
         reader = threading.Thread(target=parser.feed, args=(stream,))
         reader.start()
