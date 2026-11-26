@@ -497,68 +497,78 @@ pub(crate) fn with_indicators_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    match word.as_data() {
-        data!(WithIndicators::Plain(word_like)) => {
-            morphology_tree_value(word_like, source, options)
-        }
-        data!(WithIndicators::Emphasized {
-            bahe,
-            extra_bahe,
-            word_like,
-        }) => {
-            let mut entries = vec![TreeEntry {
-                label: Some("bahe"),
-                value: word_tree_value(bahe, source, options),
-            }];
-            if !extra_bahe.is_empty() {
+    let mut layers = Vec::new();
+    let mut current = word;
+    let mut value = loop {
+        match current.as_data() {
+            data!(WithIndicators::WithIndicator { base, .. }) => {
+                layers.push(current);
+                current = base.as_ref();
+            }
+            data!(WithIndicators::Plain(word_like)) => {
+                break morphology_tree_value(word_like, source, options);
+            }
+            data!(WithIndicators::Emphasized {
+                bahe,
+                extra_bahe,
+                word_like,
+            }) => {
+                let mut entries = vec![TreeEntry {
+                    label: Some("bahe"),
+                    value: word_tree_value(bahe, source, options),
+                }];
+                if !extra_bahe.is_empty() {
+                    entries.push(TreeEntry {
+                        label: Some("extra_bahe"),
+                        value: TreeValue::Collection(
+                            extra_bahe
+                                .iter()
+                                .map(|bahe| word_tree_value(bahe, source, options))
+                                .collect(),
+                        ),
+                    });
+                }
                 entries.push(TreeEntry {
-                    label: Some("extra_bahe"),
-                    value: TreeValue::Collection(
-                        extra_bahe
-                            .iter()
-                            .map(|bahe| word_tree_value(bahe, source, options))
-                            .collect(),
-                    ),
+                    label: None,
+                    value: morphology_tree_value(word_like, source, options),
+                });
+                break TreeValue::Node(TreeNode {
+                    constructor: "Emphasized",
+                    entries,
                 });
             }
-            entries.push(TreeEntry {
-                label: None,
-                value: morphology_tree_value(word_like, source, options),
-            });
-            TreeValue::Node(TreeNode {
-                constructor: "Emphasized",
-                entries,
-            })
         }
-        data!(WithIndicators::WithIndicator {
-            base,
+    };
+    for layer in layers.into_iter().rev() {
+        let data!(WithIndicators::WithIndicator {
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        }) => {
-            let mut entries = vec![
-                TreeEntry {
-                    label: None,
-                    value: with_indicators_tree_value(base, source, options),
-                },
-                TreeEntry {
-                    label: Some("indicator"),
-                    value: modified_word_tree_value(indicator_bahe, indicator, source, options),
-                },
-            ];
-            if let Some(nai) = nai {
-                entries.push(TreeEntry {
-                    label: Some("nai"),
-                    value: modified_word_tree_value(nai_bahe, nai, source, options),
-                });
-            }
-            TreeValue::Node(TreeNode {
-                constructor: "WithIndicator",
-                entries,
-            })
+            ..
+        }) = layer.as_data()
+        else {
+            continue;
+        };
+        let mut entries = vec![
+            TreeEntry { label: None, value },
+            TreeEntry {
+                label: Some("indicator"),
+                value: modified_word_tree_value(indicator_bahe, indicator, source, options),
+            },
+        ];
+        if let Some(nai) = nai {
+            entries.push(TreeEntry {
+                label: Some("nai"),
+                value: modified_word_tree_value(nai_bahe, nai, source, options),
+            });
         }
+        value = TreeValue::Node(TreeNode {
+            constructor: "WithIndicator",
+            entries,
+        });
     }
+    value
 }
 
 #[requires(true)]

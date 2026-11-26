@@ -1,4 +1,4 @@
-use bityzba::{data, invariant, requires};
+use bityzba::{data, invariant, new, requires};
 pub use jbotci_morphology::LujvoFragmentError as LujvoFragmentRenderError;
 use jbotci_morphology::{
     GlideMark, LeadingPauseContext, LeadingPauseVowelMode, LujvoPart, MorphologyError,
@@ -14,10 +14,9 @@ pub enum LujvoFragmentKind {
     BondingHyphen,
 }
 
+#[invariant(::LojbanWord { byte_start, byte_end, .. } => *byte_start <= *byte_end)]
+#[invariant(::VerbatimText { byte_start, byte_end } => *byte_start <= *byte_end)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::LojbanWord { .. } => true)]
-#[invariant(::VerbatimText { .. } => true)]
 enum DisplaySpan {
     LojbanWord {
         kind: WordKind,
@@ -35,16 +34,16 @@ impl DisplaySpan {
     #[requires(true)]
     #[ensures(ret.start <= ret.end)]
     fn byte_range(&self) -> std::ops::Range<usize> {
-        match self {
-            Self::LojbanWord {
+        match self.as_data() {
+            data!(DisplaySpan::LojbanWord {
                 byte_start,
                 byte_end,
                 ..
-            } => *byte_start..*byte_end,
-            Self::VerbatimText {
+            }) => *byte_start..*byte_end,
+            data!(DisplaySpan::VerbatimText {
                 byte_start,
                 byte_end,
-            } => *byte_start..*byte_end,
+            }) => *byte_start..*byte_end,
         }
     }
 }
@@ -157,13 +156,13 @@ fn render_display_words_for_script(
             script,
             source.get(cursor..range.start).unwrap_or_default(),
         ));
-        match span {
-            DisplaySpan::LojbanWord { kind, phonemes, .. } => {
+        match span.into_data() {
+            DisplaySpanData::LojbanWord { kind, phonemes, .. } => {
                 let latin =
                     render_word_phonemes_without_pause_with_options(kind, &phonemes, options);
                 output.push_str(&render_latin_word_surface_for_script(script, kind, &latin));
             }
-            DisplaySpan::VerbatimText {
+            DisplaySpanData::VerbatimText {
                 byte_start,
                 byte_end,
             } => output.push_str(source.get(byte_start..byte_end).unwrap_or_default()),
@@ -185,71 +184,96 @@ fn collect_display_spans(words: &[WordLike], spans: &mut Vec<DisplaySpan>) {
     }
 }
 
+/// A display walk stores a node, a word, or a verbatim byte span.
+/// The byte span is ordered. The job does not store the source text.
+/// A character boundary stays on the quote span that produced the job.
+#[invariant(::Node(_) => true)]
+#[invariant(::Word(_) => true)]
+#[invariant(::Verbatim { byte_start, byte_end } => *byte_start <= *byte_end)]
+enum SpanJob<'a> {
+    Node(&'a WordLike),
+    Word(&'a Word),
+    Verbatim { byte_start: usize, byte_end: usize },
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn collect_word_like_display_spans(word_like: &WordLike, spans: &mut Vec<DisplaySpan>) {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => push_word_display_span(spans, word),
-        data!(WordLike::QuotedWord { zo, word }) => {
-            push_word_display_span(spans, zo);
-            push_word_display_span(spans, word);
-        }
-        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-            push_word_display_span(spans, mahoi);
-            push_word_display_span(spans, word);
-        }
-        data!(WordLike::DelimitedNonLojbanQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter,
-        }) => {
-            push_word_display_span(spans, zoi);
-            push_word_display_span(spans, opening_delimiter);
-            spans.push(DisplaySpan::VerbatimText {
-                byte_start: quoted_text.span.byte_start,
-                byte_end: quoted_text.span.byte_end,
-            });
-            push_word_display_span(spans, closing_delimiter);
-        }
-        data!(WordLike::QuotedWords {
-            lohu,
-            quoted_words,
-            lehu,
-        }) => {
-            push_word_display_span(spans, lohu);
-            for word in quoted_words {
-                push_word_display_span(spans, word);
-            }
-            push_word_display_span(spans, lehu);
-        }
-        data!(WordLike::DelimitedWordQuote {
-            marker,
-            quoted_text,
-        }) => {
-            push_word_display_span(spans, marker);
-            spans.push(DisplaySpan::VerbatimText {
-                byte_start: quoted_text.span.byte_start,
-                byte_end: quoted_text.span.byte_end,
-            });
-        }
-        data!(WordLike::ReplacementQuote { runs, lehai }) => {
-            for run in runs {
-                push_word_display_span(spans, &run.marker);
-                for word in &run.words {
-                    collect_word_like_display_spans(&word.word, spans);
+    let mut jobs = vec![new!(SpanJob::Node(word_like))];
+    while let Some(job) = jobs.pop() {
+        match job.into_data() {
+            SpanJobData::Word(word) => push_word_display_span(spans, word),
+            SpanJobData::Verbatim {
+                byte_start,
+                byte_end,
+            } => spans.push(new!(DisplaySpan::VerbatimText {
+                byte_start,
+                byte_end,
+            })),
+            SpanJobData::Node(word_like) => match word_like.as_data() {
+                data!(WordLike::PlainWord(word)) => push_word_display_span(spans, word),
+                data!(WordLike::QuotedWord { zo, word }) => {
+                    jobs.push(new!(SpanJob::Word(word)));
+                    jobs.push(new!(SpanJob::Word(zo)));
                 }
-            }
-            push_word_display_span(spans, lehai);
-        }
-        data!(WordLike::LerfuWord { base, bu }) => {
-            collect_word_like_display_spans(base, spans);
-            push_word_display_span(spans, bu);
-        }
-        data!(WordLike::ZeiCompound { left, zei, right }) => {
-            collect_word_like_display_spans(left, spans);
-            push_word_display_span(spans, zei);
-            push_word_display_span(spans, right);
+                data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                    jobs.push(new!(SpanJob::Word(word)));
+                    jobs.push(new!(SpanJob::Word(mahoi)));
+                }
+                data!(WordLike::DelimitedNonLojbanQuote {
+                    zoi,
+                    opening_delimiter,
+                    quoted_text,
+                    closing_delimiter,
+                }) => {
+                    jobs.push(new!(SpanJob::Word(closing_delimiter)));
+                    jobs.push(new!(SpanJob::Verbatim {
+                        byte_start: quoted_text.span.byte_start,
+                        byte_end: quoted_text.span.byte_end,
+                    }));
+                    jobs.push(new!(SpanJob::Word(opening_delimiter)));
+                    jobs.push(new!(SpanJob::Word(zoi)));
+                }
+                data!(WordLike::QuotedWords {
+                    lohu,
+                    quoted_words,
+                    lehu,
+                }) => {
+                    jobs.push(new!(SpanJob::Word(lehu)));
+                    for word in quoted_words.iter().rev() {
+                        jobs.push(new!(SpanJob::Word(word)));
+                    }
+                    jobs.push(new!(SpanJob::Word(lohu)));
+                }
+                data!(WordLike::DelimitedWordQuote {
+                    marker,
+                    quoted_text,
+                }) => {
+                    jobs.push(new!(SpanJob::Verbatim {
+                        byte_start: quoted_text.span.byte_start,
+                        byte_end: quoted_text.span.byte_end,
+                    }));
+                    jobs.push(new!(SpanJob::Word(marker)));
+                }
+                data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                    jobs.push(new!(SpanJob::Word(lehai)));
+                    for run in runs.iter().rev() {
+                        for word in run.words.iter().rev() {
+                            jobs.push(new!(SpanJob::Node(&word.word)));
+                        }
+                        jobs.push(new!(SpanJob::Word(&run.marker)));
+                    }
+                }
+                data!(WordLike::LerfuWord { base, bu }) => {
+                    jobs.push(new!(SpanJob::Word(bu)));
+                    jobs.push(new!(SpanJob::Node(base)));
+                }
+                data!(WordLike::ZeiCompound { left, zei, right }) => {
+                    jobs.push(new!(SpanJob::Word(right)));
+                    jobs.push(new!(SpanJob::Word(zei)));
+                    jobs.push(new!(SpanJob::Node(left)));
+                }
+            },
         }
     }
 }
@@ -257,12 +281,12 @@ fn collect_word_like_display_spans(word_like: &WordLike, spans: &mut Vec<Display
 #[requires(true)]
 #[ensures(true)]
 fn push_word_display_span(spans: &mut Vec<DisplaySpan>, word: &Word) {
-    spans.push(DisplaySpan::LojbanWord {
+    spans.push(new!(DisplaySpan::LojbanWord {
         kind: word.kind(),
         phonemes: word.phonemes().clone(),
         byte_start: word.span().byte_start,
         byte_end: word.span().byte_end,
-    });
+    }));
 }
 
 #[requires(true)]
@@ -316,12 +340,54 @@ fn render_visible_word_surface(
 mod tests {
     #[allow(unused_imports)]
     use bityzba::ensures;
-    use bityzba::requires;
+    use bityzba::{requires, try_new};
 
     use super::*;
     use jbotci_dictionary::{RafsiSource, WordType, universal_gismu_rafsi_forms};
     use jbotci_jvozba::decompose_lujvo_like;
     use jbotci_morphology::{GlideMark, StressMark};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_reversed_verbatim_job_is_rejected() {
+        assert!(
+            try_new!(SpanJob::Verbatim {
+                byte_start: 2,
+                byte_end: 1,
+            })
+            .is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_reversed_verbatim_display_span_is_rejected() {
+        assert!(
+            try_new!(DisplaySpan::VerbatimText {
+                byte_start: 2,
+                byte_end: 1,
+            })
+            .is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_reversed_lojban_display_span_is_rejected() {
+        let phonemes = Phonemes::from_canonical("bu".to_owned()).expect("phonemes");
+        assert!(
+            try_new!(DisplaySpan::LojbanWord {
+                kind: WordKind::Cmavo,
+                phonemes,
+                byte_start: 2,
+                byte_end: 1,
+            })
+            .is_err()
+        );
+    }
 
     #[requires(true)]
     #[ensures(true)]
@@ -666,6 +732,62 @@ mod tests {
                 !rendered.contains("⟨invalid "),
                 "decomposition part {text:?} of dictionary lujvo {word:?} produced an error marker in {script:?}: {rendered:?}"
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod deep_links {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::{WordLike, segment_words_with_modifiers};
+
+    use super::collect_word_like_display_spans;
+
+    #[requires(links > 0)]
+    #[ensures(true)]
+    fn parse_chain(kind: &str, links: usize) -> WordLike {
+        let mut text = if kind == "bu" {
+            String::from("a")
+        } else {
+            String::from("broda")
+        };
+        let piece = if kind == "bu" { " bu" } else { " zei broda" };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        let kind = kind.to_owned();
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let words = segment_words_with_modifiers(&text)
+                    .unwrap_or_else(|error| panic!("{kind} {links} parse {error}"));
+                assert_eq!(words.len(), 1);
+                words.into_iter().next().expect("one word")
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn display_spans_fit_in_160kib() {
+        for (kind, links, least) in [("bu", 2666usize, 2667usize), ("zei", 799, 1599)] {
+            let word = parse_chain(kind, links);
+            let count = thread::Builder::new()
+                .stack_size(160 * 1024)
+                .spawn(move || {
+                    let mut spans = Vec::new();
+                    collect_word_like_display_spans(&word, &mut spans);
+                    spans.len()
+                })
+                .expect("span thread")
+                .join()
+                .expect("span join");
+            assert!(count >= least, "{kind} spans {count}");
         }
     }
 }

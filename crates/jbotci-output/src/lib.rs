@@ -113,6 +113,32 @@ pub enum BracketSourceFragment {
     },
 }
 
+/// Drops a nested fragment on the heap.
+///
+/// A derived drop walks each child on the call stack. A bracket span of 2,666 links overflows a 160 KiB stack.
+impl Drop for BracketSourceFragment {
+    #[requires(true)]
+    #[ensures(match self {
+        Self::Span { children, .. } => children.is_empty(),
+        Self::Text { .. } => true,
+    })]
+    fn drop(&mut self) {
+        let mut pending = Vec::new();
+        detach_fragment(self, &mut pending);
+        while let Some(mut fragment) = pending.pop() {
+            detach_fragment(&mut fragment, &mut pending);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn detach_fragment(fragment: &mut BracketSourceFragment, pending: &mut Vec<BracketSourceFragment>) {
+    if let BracketSourceFragment::Span { children, .. } = fragment {
+        pending.extend(std::mem::take(children));
+    }
+}
+
 /// Grammar constructs whose boundaries survive bracket-tree flattening.
 ///
 /// This metadata is deliberately independent of any decoration glyphs. Editor
@@ -863,7 +889,7 @@ pub fn pretty_morphology_brackets_with_options(
 
 #[cfg(test)]
 mod tests {
-    use bityzba::{data, requires};
+    use bityzba::{data, invariant, requires};
     use jbotci_dictionary::WordType;
     use jbotci_morphology::{
         Word, WordKind, WordLike, WordLikeData, pronunciation_syllables,
@@ -1241,20 +1267,26 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn contains_lerfu_word(word: &WordLike) -> bool {
-        match word.as_data() {
-            data!(WordLike::LerfuWord { .. }) => true,
-            data!(WordLike::ZeiCompound { left, .. }) => contains_lerfu_word(left),
-            _ => false,
+        let mut current = word;
+        loop {
+            match current.as_data() {
+                data!(WordLike::LerfuWord { .. }) => return true,
+                data!(WordLike::ZeiCompound { left, .. }) => current = left,
+                _ => return false,
+            }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn contains_zei_compound(word: &WordLike) -> bool {
-        match word.as_data() {
-            data!(WordLike::ZeiCompound { .. }) => true,
-            data!(WordLike::LerfuWord { base, .. }) => contains_zei_compound(base),
-            _ => false,
+        let mut current = word;
+        loop {
+            match current.as_data() {
+                data!(WordLike::ZeiCompound { .. }) => return true,
+                data!(WordLike::LerfuWord { base, .. }) => current = base,
+                _ => return false,
+            }
         }
     }
 
@@ -1271,53 +1303,68 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn append_plain_words<'word>(word: &'word WordLike, plain: &mut Vec<&'word Word>) {
-        match word.as_data() {
-            data!(WordLike::PlainWord(word)) => plain.push(word),
-            data!(WordLike::QuotedWord { zo, word }) => {
-                plain.push(zo);
-                plain.push(word);
-            }
-            data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-                plain.push(mahoi);
-                plain.push(word);
-            }
-            data!(WordLike::DelimitedNonLojbanQuote {
-                zoi,
-                opening_delimiter,
-                closing_delimiter,
-                ..
-            }) => {
-                plain.push(zoi);
-                plain.push(opening_delimiter);
-                plain.push(closing_delimiter);
-            }
-            data!(WordLike::QuotedWords {
-                lohu,
-                quoted_words,
-                lehu,
-            }) => {
-                plain.push(lohu);
-                plain.extend(quoted_words.iter());
-                plain.push(lehu);
-            }
-            data!(WordLike::ReplacementQuote { runs, lehai }) => {
-                for run in runs {
-                    plain.push(&run.marker);
-                    for word in &run.words {
-                        append_plain_words(&word.word, plain);
+        #[invariant(true)]
+        #[invariant(::Node(_) => true)]
+        #[invariant(::Word(_) => true)]
+        enum PlainJob<'word> {
+            Node(&'word WordLike),
+            Word(&'word Word),
+        }
+        let mut jobs = vec![PlainJob::Node(word)];
+        while let Some(job) = jobs.pop() {
+            match job {
+                PlainJob::Word(word) => plain.push(word),
+                PlainJob::Node(word) => match word.as_data() {
+                    data!(WordLike::PlainWord(word)) => plain.push(word),
+                    data!(WordLike::QuotedWord { zo, word }) => {
+                        jobs.push(PlainJob::Word(word));
+                        jobs.push(PlainJob::Word(zo));
                     }
-                }
-                plain.push(lehai);
-            }
-            data!(WordLike::DelimitedWordQuote { marker, .. }) => plain.push(marker),
-            data!(WordLike::LerfuWord { base, bu }) => {
-                append_plain_words(base, plain);
-                plain.push(bu);
-            }
-            data!(WordLike::ZeiCompound { left, zei, right }) => {
-                append_plain_words(left, plain);
-                plain.push(zei);
-                plain.push(right);
+                    data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                        jobs.push(PlainJob::Word(word));
+                        jobs.push(PlainJob::Word(mahoi));
+                    }
+                    data!(WordLike::DelimitedNonLojbanQuote {
+                        zoi,
+                        opening_delimiter,
+                        closing_delimiter,
+                        ..
+                    }) => {
+                        jobs.push(PlainJob::Word(closing_delimiter));
+                        jobs.push(PlainJob::Word(opening_delimiter));
+                        jobs.push(PlainJob::Word(zoi));
+                    }
+                    data!(WordLike::QuotedWords {
+                        lohu,
+                        quoted_words,
+                        lehu,
+                    }) => {
+                        jobs.push(PlainJob::Word(lehu));
+                        for word in quoted_words.iter().rev() {
+                            jobs.push(PlainJob::Word(word));
+                        }
+                        jobs.push(PlainJob::Word(lohu));
+                    }
+                    data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                        jobs.push(PlainJob::Word(lehai));
+                        for run in runs.iter().rev() {
+                            for word in run.words.iter().rev() {
+                                jobs.push(PlainJob::Node(&word.word));
+                            }
+                            jobs.push(PlainJob::Word(&run.marker));
+                        }
+                    }
+                    data!(WordLike::DelimitedWordQuote { marker, .. }) => plain.push(marker),
+                    data!(WordLike::LerfuWord { base, bu }) => {
+                        jobs.push(PlainJob::Word(bu));
+                        jobs.push(PlainJob::Node(base));
+                    }
+                    data!(WordLike::ZeiCompound { left, zei, right }) => {
+                        jobs.push(PlainJob::Word(right));
+                        jobs.push(PlainJob::Word(zei));
+                        jobs.push(PlainJob::Node(left));
+                    }
+                },
             }
         }
     }
@@ -1707,6 +1754,113 @@ mod tests {
         items.len() == 2
             && items[0].as_u64() == Some(span[0] as u64)
             && items[1].as_u64() == Some(span[1] as u64)
+    }
+
+    #[requires(links > 0)]
+    #[ensures(true)]
+    fn parse_chain(kind: &str, links: usize) -> WordLike {
+        let mut text = if kind == "bu" {
+            String::from("a")
+        } else {
+            String::from("broda")
+        };
+        let piece = if kind == "bu" { " bu" } else { " zei broda" };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        let kind = kind.to_owned();
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let words = segment_words_with_modifiers(&text)
+                    .unwrap_or_else(|error| panic!("{kind} {links} parse {error}"));
+                assert_eq!(words.len(), 1, "{kind} {links}");
+                words.into_iter().next().expect("one word")
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn on_small<T: Send + 'static>(
+        label: &'static str,
+        work: impl FnOnce() -> T + Send + 'static,
+    ) -> T {
+        std::thread::Builder::new()
+            .name(label.into())
+            .stack_size(160 * 1024)
+            .spawn(work)
+            .unwrap_or_else(|error| panic!("spawn {label}: {error}"))
+            .join()
+            .unwrap_or_else(|_| panic!("{label} failed"))
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_chains_fit_in_160kib() {
+        let bu = parse_chain("bu", 2666);
+        let zei = parse_chain("zei", 799);
+        let bu_has_lerfu = on_small("lerfu-bu", {
+            let word = bu.clone();
+            move || contains_lerfu_word(&word)
+        });
+        let zei_has_lerfu = on_small("lerfu-zei", {
+            let word = zei.clone();
+            move || contains_lerfu_word(&word)
+        });
+        let bu_has_zei = on_small("zei-flag-bu", {
+            let word = bu.clone();
+            move || contains_zei_compound(&word)
+        });
+        let zei_has_zei = on_small("zei-flag-zei", {
+            let word = zei.clone();
+            move || contains_zei_compound(&word)
+        });
+        assert!(bu_has_lerfu);
+        assert!(!zei_has_lerfu);
+        assert!(!bu_has_zei);
+        assert!(zei_has_zei);
+        let bu_plain = on_small("plain-bu", {
+            let word = bu.clone();
+            move || {
+                let mut plain = Vec::new();
+                append_plain_words(&word, &mut plain);
+                plain.len()
+            }
+        });
+        let zei_plain = on_small("plain-zei", {
+            let word = zei.clone();
+            move || {
+                let mut plain = Vec::new();
+                append_plain_words(&word, &mut plain);
+                plain.len()
+            }
+        });
+        assert_eq!(bu_plain, 2667);
+        assert_eq!(zei_plain, 1599);
+        let fragment = nested_fragments(2666);
+        on_small("fragment-drop", move || drop(fragment));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_fragments(depth: usize) -> BracketSourceFragment {
+        let mut fragment = BracketSourceFragment::Text {
+            text: "a".to_owned(),
+            range: None,
+            role: BracketSourceFragmentRole::Normal,
+        };
+        for _ in 0..depth {
+            fragment = BracketSourceFragment::Span {
+                range: None,
+                constructs: Vec::new(),
+                children: vec![fragment],
+            };
+        }
+        fragment
     }
 }
 

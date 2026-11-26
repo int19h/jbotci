@@ -1,4 +1,6 @@
 use crate::budget::ByteLimit;
+#[cfg(test)]
+use bityzba::try_new;
 use bityzba::{data, new};
 #[allow(unused_imports)]
 use bityzba::{ensures, expensive_ensures};
@@ -366,35 +368,50 @@ fn with_indicators_brackets(
     word: &WithIndicators<WordLike>,
     source: &BracketContext,
 ) -> sexpr::SExpr {
-    match word.as_data() {
-        data!(WithIndicators::Plain(word_like)) => word_like_brackets(word_like, source),
-        data!(WithIndicators::Emphasized {
-            bahe,
-            extra_bahe,
-            word_like,
-        }) => {
-            let mut children = vec![word_leaf(bahe, source)];
-            children.extend(extra_bahe.iter().map(|bahe| word_leaf(bahe, source)));
-            children.push(word_like_brackets(word_like, source));
-            sexpr::node(children)
+    let mut layers = Vec::new();
+    let mut current = word;
+    let mut expr = loop {
+        match current.as_data() {
+            data!(WithIndicators::WithIndicator { base, .. }) => {
+                layers.push(current);
+                current = base.as_ref();
+            }
+            data!(WithIndicators::Plain(word_like)) => {
+                break word_like_brackets(word_like, source);
+            }
+            data!(WithIndicators::Emphasized {
+                bahe,
+                extra_bahe,
+                word_like,
+            }) => {
+                let mut children = vec![word_leaf(bahe, source)];
+                children.extend(extra_bahe.iter().map(|bahe| word_leaf(bahe, source)));
+                children.push(word_like_brackets(word_like, source));
+                break sexpr::node(children);
+            }
         }
-        data!(WithIndicators::WithIndicator {
-            base,
+    };
+    for layer in layers.into_iter().rev() {
+        let data!(WithIndicators::WithIndicator {
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        }) => {
-            let mut children = vec![with_indicators_brackets(base, source)];
-            children.extend(indicator_bahe.iter().map(|bahe| word_leaf(bahe, source)));
-            children.push(word_leaf(indicator, source));
-            if let Some(nai) = nai {
-                children.extend(nai_bahe.iter().map(|bahe| word_leaf(bahe, source)));
-                children.push(word_leaf(nai, source));
-            }
-            sexpr::node(children)
+            ..
+        }) = layer.as_data()
+        else {
+            continue;
+        };
+        let mut children = vec![expr];
+        children.extend(indicator_bahe.iter().map(|bahe| word_leaf(bahe, source)));
+        children.push(word_leaf(indicator, source));
+        if let Some(nai) = nai {
+            children.extend(nai_bahe.iter().map(|bahe| word_leaf(bahe, source)));
+            children.push(word_leaf(nai, source));
         }
+        expr = sexpr::node(children);
     }
+    expr
 }
 
 #[requires(true)]
@@ -410,64 +427,156 @@ fn word_like_brackets_in_context(
     source: &BracketContext,
     context: LeadingPauseContext,
 ) -> sexpr::SExpr {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => word_leaf_in_context(word, source, context),
-        data!(WordLike::QuotedWord { zo, word }) => {
-            sexpr::node(vec![word_leaf(zo, source), word_leaf(word, source)])
-        }
-        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-            sexpr::node(vec![word_leaf(mahoi, source), word_leaf(word, source)])
-        }
-        data!(WordLike::DelimitedNonLojbanQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter,
-        }) => sexpr::node(vec![
-            word_leaf(zoi, source),
-            word_leaf(opening_delimiter, source),
-            quoted_text_leaf(quoted_text),
-            word_leaf(closing_delimiter, source),
-        ]),
-        data!(WordLike::QuotedWords {
-            lohu,
-            quoted_words,
-            lehu,
-        }) => {
-            let mut children = vec![word_leaf(lohu, source)];
-            children.extend(quoted_words.iter().map(|word| word_leaf(word, source)));
-            children.push(word_leaf(lehu, source));
-            sexpr::node(children)
-        }
-        data!(WordLike::DelimitedWordQuote {
-            marker,
-            quoted_text,
-        }) => sexpr::node(vec![
-            word_leaf(marker, source),
-            quoted_text_leaf(quoted_text),
-        ]),
-        data!(WordLike::ReplacementQuote { runs, lehai }) => {
-            let mut children = Vec::new();
-            for run in runs {
-                children.push(word_leaf(&run.marker, source));
-                children.extend(
-                    run.words
-                        .iter()
-                        .map(|word| word_like_brackets(&word.word, source)),
-                );
+    let mut tasks = vec![new!(BrTask::Enter(word_like, context))];
+    let mut open = Vec::new();
+    let mut built = Vec::new();
+    while let Some(task) = tasks.pop() {
+        match task.into_data() {
+            BrTaskData::Leaf(expr) => deliver_bracket(&mut tasks, &mut open, &mut built, expr),
+            BrTaskData::Glue { got, .. } => {
+                deliver_bracket(&mut tasks, &mut open, &mut built, sexpr::node(got))
             }
-            children.push(word_leaf(lehai, source));
-            sexpr::node(children)
+            BrTaskData::Enter(word_like, context) => match word_like.as_data() {
+                data!(WordLike::PlainWord(word)) => {
+                    deliver_bracket(
+                        &mut tasks,
+                        &mut open,
+                        &mut built,
+                        word_leaf_in_context(word, source, context),
+                    );
+                }
+                data!(WordLike::QuotedWord { zo, word }) => {
+                    push_bracket_glue(&mut tasks, &mut open, 2);
+                    tasks.push(new!(BrTask::Leaf(word_leaf(word, source))));
+                    tasks.push(new!(BrTask::Leaf(word_leaf(zo, source))));
+                }
+                data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                    push_bracket_glue(&mut tasks, &mut open, 2);
+                    tasks.push(new!(BrTask::Leaf(word_leaf(word, source))));
+                    tasks.push(new!(BrTask::Leaf(word_leaf(mahoi, source))));
+                }
+                data!(WordLike::DelimitedNonLojbanQuote {
+                    zoi,
+                    opening_delimiter,
+                    quoted_text,
+                    closing_delimiter,
+                }) => {
+                    push_bracket_glue(&mut tasks, &mut open, 4);
+                    tasks.push(new!(BrTask::Leaf(word_leaf(closing_delimiter, source))));
+                    tasks.push(new!(BrTask::Leaf(quoted_text_leaf(quoted_text))));
+                    tasks.push(new!(BrTask::Leaf(word_leaf(opening_delimiter, source))));
+                    tasks.push(new!(BrTask::Leaf(word_leaf(zoi, source))));
+                }
+                data!(WordLike::QuotedWords {
+                    lohu,
+                    quoted_words,
+                    lehu,
+                }) => {
+                    push_bracket_glue(&mut tasks, &mut open, quoted_words.len() + 2);
+                    tasks.push(new!(BrTask::Leaf(word_leaf(lehu, source))));
+                    for word in quoted_words.iter().rev() {
+                        tasks.push(new!(BrTask::Leaf(word_leaf(word, source))));
+                    }
+                    tasks.push(new!(BrTask::Leaf(word_leaf(lohu, source))));
+                }
+                data!(WordLike::DelimitedWordQuote {
+                    marker,
+                    quoted_text,
+                }) => {
+                    push_bracket_glue(&mut tasks, &mut open, 2);
+                    tasks.push(new!(BrTask::Leaf(quoted_text_leaf(quoted_text))));
+                    tasks.push(new!(BrTask::Leaf(word_leaf(marker, source))));
+                }
+                data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                    let count = runs
+                        .iter()
+                        .map(|run| run.words.len().saturating_add(1))
+                        .sum::<usize>()
+                        .saturating_add(1);
+                    push_bracket_glue(&mut tasks, &mut open, count);
+                    tasks.push(new!(BrTask::Leaf(word_leaf(lehai, source))));
+                    for run in runs.iter().rev() {
+                        for word in run.words.iter().rev() {
+                            tasks.push(new!(BrTask::Enter(
+                                &word.word,
+                                LeadingPauseContext::IndependentWord,
+                            )));
+                        }
+                        tasks.push(new!(BrTask::Leaf(word_leaf(&run.marker, source))));
+                    }
+                }
+                data!(WordLike::LerfuWord { base, bu }) => {
+                    push_bracket_glue(&mut tasks, &mut open, 2);
+                    tasks.push(new!(BrTask::Leaf(word_leaf(bu, source))));
+                    tasks.push(new!(BrTask::Enter(base, LeadingPauseContext::BuLetterBase)));
+                }
+                data!(WordLike::ZeiCompound { left, zei, right }) => {
+                    push_bracket_glue(&mut tasks, &mut open, 3);
+                    tasks.push(new!(BrTask::Leaf(word_leaf(right, source))));
+                    tasks.push(new!(BrTask::Leaf(word_leaf(zei, source))));
+                    tasks.push(new!(BrTask::Enter(
+                        left,
+                        LeadingPauseContext::IndependentWord
+                    )));
+                }
+            },
         }
-        data!(WordLike::LerfuWord { base, bu }) => sexpr::node(vec![
-            word_like_brackets_in_context(base, source, LeadingPauseContext::BuLetterBase),
-            word_leaf(bu, source),
-        ]),
-        data!(WordLike::ZeiCompound { left, zei, right }) => sexpr::node(vec![
-            word_like_brackets(left, source),
-            word_leaf(zei, source),
-            word_leaf(right, source),
-        ]),
+    }
+    built.pop().expect("bracket tree")
+}
+
+/// A glue frame owns the children it has received.
+/// `got` stays at most `need`. The walker fills `got` before the frame runs.
+#[invariant(true)]
+#[invariant(::Enter(_, _) => true)]
+#[invariant(::Leaf(_) => true)]
+#[invariant(::Glue { need, got } => got.len() <= *need)]
+enum BrTask<'a> {
+    Enter(&'a WordLike, LeadingPauseContext),
+    Leaf(sexpr::SExpr),
+    Glue { need: usize, got: Vec<sexpr::SExpr> },
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_bracket_glue<'a>(tasks: &mut Vec<BrTask<'a>>, open: &mut Vec<usize>, need: usize) {
+    tasks.push(new!(BrTask::Glue {
+        need,
+        got: Vec::new(),
+    }));
+    if need > 0 {
+        open.push(tasks.len() - 1);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn deliver_bracket<'a>(
+    tasks: &mut Vec<BrTask<'a>>,
+    open: &mut Vec<usize>,
+    built: &mut Vec<sexpr::SExpr>,
+    expr: sexpr::SExpr,
+) {
+    let Some(&index) = open.last() else {
+        built.push(expr);
+        return;
+    };
+    let dummy = new!(BrTask::Glue {
+        need: 0,
+        got: Vec::new(),
+    });
+    let task = std::mem::replace(&mut tasks[index], dummy);
+    let (task, full) = match task.into_data() {
+        BrTaskData::Glue { need, mut got } => {
+            got.push(expr);
+            let full = got.len() == need;
+            (new!(BrTask::Glue { need, got }), full)
+        }
+        other => (BrTask::from_data(other), false),
+    };
+    tasks[index] = task;
+    if full {
+        open.pop();
     }
 }
 
@@ -563,4 +672,18 @@ fn elided_cmavo_text(cmavo: Cmavo, options: jbotci_morphology::PhonemeRenderOpti
     Phonemes::from_canonical(cmavo.canonical_text().to_owned())
         .expect("cmavo canonical text is valid phoneme text")
         .render(options)
+}
+
+#[cfg(test)]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_glue_frame_with_too_many_children_is_rejected() {
+    assert!(
+        try_new!(BrTask::Glue {
+            need: 0,
+            got: vec![sexpr::leaf("bu".to_owned())],
+        })
+        .is_err()
+    );
 }

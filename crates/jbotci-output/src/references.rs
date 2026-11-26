@@ -1062,24 +1062,35 @@ fn first_word_label_for_word_like(
     word_like: &WordLike,
     options: TreeRenderOptions,
 ) -> Option<TreeWordLabel> {
-    Some(match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => word_label_for_word(word, options),
-        data!(WordLike::QuotedWord { zo, .. }) => word_label_for_word(zo, options),
-        data!(WordLike::SelmahoQuotedWord { mahoi, .. }) => word_label_for_word(mahoi, options),
-        data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => word_label_for_word(zoi, options),
-        data!(WordLike::QuotedWords { lohu, .. }) => word_label_for_word(lohu, options),
-        data!(WordLike::ReplacementQuote { runs, lehai }) => word_label_for_word(
-            runs.first().map_or(lehai.as_ref(), |run| &run.marker),
-            options,
-        ),
-        data!(WordLike::DelimitedWordQuote { marker, .. }) => word_label_for_word(marker, options),
-        data!(WordLike::LerfuWord { base, .. }) => {
-            return first_word_label_for_word_like(base, options);
+    let mut current = word_like;
+    loop {
+        match current.as_data() {
+            data!(WordLike::LerfuWord { base, .. }) => current = base,
+            data!(WordLike::ZeiCompound { left, .. }) => current = left,
+            data!(WordLike::PlainWord(word)) => return Some(word_label_for_word(word, options)),
+            data!(WordLike::QuotedWord { zo, .. }) => {
+                return Some(word_label_for_word(zo, options));
+            }
+            data!(WordLike::SelmahoQuotedWord { mahoi, .. }) => {
+                return Some(word_label_for_word(mahoi, options));
+            }
+            data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => {
+                return Some(word_label_for_word(zoi, options));
+            }
+            data!(WordLike::QuotedWords { lohu, .. }) => {
+                return Some(word_label_for_word(lohu, options));
+            }
+            data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                return Some(word_label_for_word(
+                    runs.first().map_or(lehai.as_ref(), |run| &run.marker),
+                    options,
+                ));
+            }
+            data!(WordLike::DelimitedWordQuote { marker, .. }) => {
+                return Some(word_label_for_word(marker, options));
+            }
         }
-        data!(WordLike::ZeiCompound { left, .. }) => {
-            return first_word_label_for_word_like(left, options);
-        }
-    })
+    }
 }
 
 #[requires(true)]
@@ -1236,7 +1247,7 @@ fn tree_word_label(tree: &TreeValue) -> Option<TreeWordLabel> {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use bityzba::{ensures, requires};
+    use bityzba::requires;
 
     #[test]
     #[requires(true)]
@@ -1293,5 +1304,65 @@ mod tests {
             pro_cmavo,
             preorder,
         }
+    }
+}
+
+#[cfg(test)]
+mod deep_links {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::{WordLike, segment_words_with_modifiers};
+
+    use super::first_word_label_for_word_like;
+    use crate::TreeRenderOptions;
+
+    #[requires(links > 0)]
+    #[ensures(true)]
+    fn parse_chain(kind: &str, links: usize) -> WordLike {
+        let mut text = if kind == "bu" {
+            String::from("a")
+        } else {
+            String::from("broda")
+        };
+        let piece = if kind == "bu" { " bu" } else { " zei broda" };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        let kind = kind.to_owned();
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let words = segment_words_with_modifiers(&text)
+                    .unwrap_or_else(|error| panic!("{kind} {links} parse {error}"));
+                assert_eq!(words.len(), 1);
+                words.into_iter().next().expect("one word")
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn first_word_label_fits_in_160kib() {
+        let bu = parse_chain("bu", 2666);
+        let zei = parse_chain("zei", 799);
+        let options = TreeRenderOptions::default();
+        let bu_label = thread::Builder::new()
+            .stack_size(160 * 1024)
+            .spawn(move || first_word_label_for_word_like(&bu, options))
+            .expect("label thread")
+            .join()
+            .expect("label join");
+        let zei_label = thread::Builder::new()
+            .stack_size(160 * 1024)
+            .spawn(move || first_word_label_for_word_like(&zei, options))
+            .expect("label thread")
+            .join()
+            .expect("label join");
+        assert_eq!(bu_label.expect("bu label").text, "a");
+        assert_eq!(zei_label.expect("zei label").text, "bróda");
     }
 }
