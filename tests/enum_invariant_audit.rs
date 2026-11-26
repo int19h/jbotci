@@ -1900,6 +1900,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "heap step stores one pending bracket node and its depth",
     ),
     (
+        "crates/jbotci-output/src/sexpr.rs:BracketWriteStep::Siblings",
+        "heap step stores the unread tail of one open bracket group",
+    ),
+    (
         "crates/jbotci-output/src/sexpr.rs:BracketWriteStep::Space",
         "unit heap step writes one space between bracket nodes",
     ),
@@ -1952,6 +1956,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit heap step writes the closing bracket of an inline collection",
     ),
     (
+        "crates/jbotci-output/src/tree.rs:RenderStep::CollectionItems",
+        "heap step stores the unread tail of one open tree collection",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:RenderStep::CollectionSuffix",
         "heap step writes the indented close of a collection after its items",
     ),
@@ -1974,6 +1982,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/tree.rs:RenderStep::ItemPrefix",
         "heap step stores the indent written before one collection item",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::NodeEntries",
+        "heap step stores the unread tail of one open tree node",
     ),
     (
         "crates/jbotci-output/src/tree.rs:RenderStep::NodeSuffix",
@@ -2694,6 +2706,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:WrappedNode::Tuple",
         "tree macro test wrapper delegates validity to the wrapped payload",
+    ),
+    (
+        "crates/jbotci-tree/src/node_drop.rs:Tls::Busy",
+        "Busy stores the address of the drain queue. That queue belongs to the active drain",
     ),
     (
         "crates/jbotci-tree-macros/src/view.rs:::Recovered",

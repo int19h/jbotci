@@ -1352,6 +1352,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word labels are copied from already rendered tree word values",
     ),
     (
+        "crates/jbotci-output/src/sexpr.rs:ChildCursor",
+        "the cursor walks one sibling at a time and has no second field",
+    ),
+    (
         "crates/jbotci-output/src/sexpr.rs:FlattenFrame",
         "private S-expression flatten traversal frame; stack sequencing controls pending and flattened child flow",
     ),
@@ -2028,6 +2032,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "parse options are independent caller-selected controls",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:ParserWork",
+        "parser work counts are three independent totals read by tests",
+    ),
+    (
         "crates/jbotci-syntax/src/lib.rs:RecoveredSyntaxErrorIndexVisitor",
         "recovered syntax error-index visitor carries independent traversal state and error count",
     ),
@@ -2112,6 +2120,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the test root accepts every child sequence and optional child",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:ArcLink",
+        "the test link stores one optional next node. Every value is a valid chain",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:BoxLink",
+        "the test link stores one optional boxed next node. Every value is a valid chain",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:Chain",
         "structural head/links pair generic over both components, so every combination is valid by construction; chain traversal is audited by the jbotci-tree walker tests and the chain-link split tests in the Gentufa and output renderers",
     ),
@@ -2120,12 +2136,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree field metadata is generated from static model definitions",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:FreeModifierSyntax",
+        "the test marker has no fields",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:LeafNode",
         "tree macro test fixture intentionally has no extra field invariant",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:MissingRecoveryMarker",
         "projection keys accept every source position and diagnostic index",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:ModifierLink",
+        "the test link stores one optional modifier wrapper. Every value is a valid chain",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:NodeKindVisitor",
@@ -2162,6 +2186,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:TreePath",
         "tree paths are any ordered sequence of validated path steps; tree-relative validity is checked during lookup",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:WithFreeModifiers",
+        "the test wrapper stores one value and a list of modifiers. Every combination is valid",
+    ),
+    (
+        "crates/jbotci-tree/src/node_drop.rs:DropQueue",
+        "the queue holds nodes that the active drop will release",
+    ),
+    (
+        "crates/jbotci-tree/src/node_drop.rs:Pending",
+        "one queued node drop pairs a function pointer with the owned node address",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/node_drop_gen.rs:Release",
+        "the generator stores the release code and a flag for a moved child",
     ),
     (
         "crates/jbotci-ui/src/cukta.rs:CuktaPageSnapshot",

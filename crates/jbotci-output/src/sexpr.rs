@@ -215,20 +215,33 @@ fn attach_constructs(mut expr: SExpr, inherited: Vec<BracketSourceConstruct>) ->
 
 /// Whether any leaf in the expression marks a recovery error (‼…‼).
 ///
-/// Pending nodes sit on a heap stack. One native frame per nesting level
-/// overflows the default thread on a deep `lo nu` chain.
+/// One cursor per open group. A wide row does not allocate a slot per child.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn contains_error_leaf(expr: &SExpr) -> bool {
-    let mut pending = vec![expr];
-    while let Some(expr) = pending.pop() {
+    let mut nodes = vec![expr];
+    let mut groups: Vec<ChildCursor<'_>> = Vec::new();
+    while let Some(expr) = nodes.pop() {
         match expr {
             SExpr::Leaf { role, .. } => {
                 if *role == LeafRole::Error {
                     return true;
                 }
             }
-            SExpr::Node { children, .. } => pending.extend(children.iter().rev()),
+            SExpr::Node { children, .. } => groups.push(ChildCursor {
+                rest: children.iter(),
+            }),
+        }
+        while nodes.is_empty() {
+            let Some(group) = groups.last_mut() else {
+                break;
+            };
+            let Some(child) = group.rest.next() else {
+                groups.pop();
+                continue;
+            };
+            nodes.push(child);
+            break;
         }
     }
     false
@@ -256,31 +269,127 @@ pub(crate) fn render_bracketed_with_limit(
     Ok(output.into_string().expect("bracket output is UTF-8"))
 }
 
+/// The next child that renders at least one byte.
+///
+/// Empty children stay in the cursor. Cancellation is read on every child.
 #[requires(true)]
 #[ensures(true)]
-fn has_text(expr: &SExpr) -> bool {
-    let mut pending = vec![expr];
-    while let Some(expr) = pending.pop() {
+fn next_nonempty<'a>(
+    children: &mut std::slice::Iter<'a, SExpr>,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> std::io::Result<Option<&'a SExpr>> {
+    for child in children {
+        note_sibling_scan();
+        if cancellation.is_cancelled() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                jbotci_interrupt::Interrupted,
+            ));
+        }
+        if has_text(child, cancellation)? {
+            return Ok(Some(child));
+        }
+    }
+    Ok(None)
+}
+
+/// Whether the expression renders at least one byte.
+///
+/// One cursor per open group. The scan stops at the first visible leaf.
+#[requires(true)]
+#[ensures(true)]
+fn has_text(
+    expr: &SExpr,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> std::io::Result<bool> {
+    let mut nodes = vec![expr];
+    let mut groups: Vec<ChildCursor<'_>> = Vec::new();
+    while let Some(expr) = nodes.pop() {
+        if cancellation.is_cancelled() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                jbotci_interrupt::Interrupted,
+            ));
+        }
         match expr {
             SExpr::Leaf { text, role, .. } => {
                 if !text.is_empty() || *role == LeafRole::Error {
-                    return true;
+                    return Ok(true);
                 }
             }
-            SExpr::Node { children, .. } => pending.extend(children.iter().rev()),
+            SExpr::Node { children, .. } => groups.push(ChildCursor {
+                rest: children.iter(),
+            }),
+        }
+        while nodes.is_empty() {
+            let Some(group) = groups.last_mut() else {
+                break;
+            };
+            let Some(child) = group.rest.next() else {
+                groups.pop();
+                continue;
+            };
+            note_sibling_scan();
+            if cancellation.is_cancelled() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    jbotci_interrupt::Interrupted,
+                ));
+            }
+            nodes.push(child);
+            break;
         }
     }
-    false
+    Ok(false)
+}
+
+/// One unread tail of a bracket group.
+///
+/// The writer advances the tail after it emits a child.
+#[invariant(true)]
+struct ChildCursor<'a> {
+    rest: std::slice::Iter<'a, SExpr>,
+}
+
+#[cfg(test)]
+thread_local! {
+    static SIBLING_SCANS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Children examined by the bracket writer since the last read.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn take_sibling_scans() -> u64 {
+    SIBLING_SCANS.with(|count| count.replace(0))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn note_sibling_scan() {
+    #[cfg(test)]
+    SIBLING_SCANS.with(|count| count.set(count.get().saturating_add(1)));
 }
 
 #[invariant(true)]
 #[invariant(::Node { .. } => true)]
 #[invariant(::Space => true)]
 #[invariant(::Close { .. } => true)]
+#[invariant(::Siblings { .. } => true)]
 enum BracketWriteStep<'a> {
-    Node { depth: usize, expr: &'a SExpr },
+    Node {
+        depth: usize,
+        expr: &'a SExpr,
+    },
     Space,
-    Close { depth: usize },
+    Close {
+        depth: usize,
+    },
+    /// The open bracket is already written. The cursor is the unread tail.
+    Siblings {
+        depth: usize,
+        rest: std::slice::Iter<'a, SExpr>,
+    },
 }
 
 #[requires(true)]
@@ -298,6 +407,17 @@ fn write_bracketed(
     while let Some(step) = steps.pop() {
         match step {
             BracketWriteStep::Space => output.write_all(b" ")?,
+            BracketWriteStep::Siblings { depth, mut rest } => {
+                let Some(next) = next_nonempty(&mut rest, cancellation)? else {
+                    continue;
+                };
+                steps.push(BracketWriteStep::Siblings { depth, rest });
+                steps.push(BracketWriteStep::Node {
+                    depth: depth + 1,
+                    expr: next,
+                });
+                steps.push(BracketWriteStep::Space);
+            }
             BracketWriteStep::Close { depth } => {
                 if options.insert_hair_space {
                     output.write_all("\u{200a}".as_bytes())?;
@@ -325,17 +445,18 @@ fn write_bracketed(
                         write_style_close(output, depth, options, *role)?;
                     }
                     SExpr::Node { children, .. } => {
-                        let kids = children
-                            .iter()
-                            .filter(|child| has_text(child))
-                            .collect::<Vec<_>>();
-                        let Some((first, rest)) = kids.split_first() else {
+                        // One cursor for this group. The first two visible
+                        // children decide whether the group needs brackets.
+                        // Later children stay unread until this child is emitted.
+                        let mut rest = children.iter();
+                        let Some(first) = next_nonempty(&mut rest, cancellation)? else {
                             continue;
                         };
-                        if rest.is_empty() {
+                        let mut probe = rest.clone();
+                        if next_nonempty(&mut probe, cancellation)?.is_none() {
                             steps.push(BracketWriteStep::Node {
                                 depth: depth + 1,
-                                expr: *first,
+                                expr: first,
                             });
                             continue;
                         }
@@ -346,16 +467,10 @@ fn write_bracketed(
                             output.write_all("\u{200a}".as_bytes())?;
                         }
                         steps.push(BracketWriteStep::Close { depth });
-                        for child in rest.iter().rev() {
-                            steps.push(BracketWriteStep::Node {
-                                depth: depth + 1,
-                                expr: *child,
-                            });
-                            steps.push(BracketWriteStep::Space);
-                        }
+                        steps.push(BracketWriteStep::Siblings { depth, rest });
                         steps.push(BracketWriteStep::Node {
                             depth: depth + 1,
-                            expr: *first,
+                            expr: first,
                         });
                     }
                 }
@@ -697,6 +812,86 @@ mod tests {
         assert_eq!(
             render_bracketed_with_options(&expr, BracketRenderOptions::default()),
             "foo"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wide_row_stops_at_one_byte_after_the_first_leaf() {
+        let _ = take_sibling_scans();
+        let expr = node(
+            (0..1_000_000)
+                .map(|_| leaf(String::from("a")))
+                .collect::<Vec<_>>(),
+        );
+        let options = BracketRenderOptions {
+            color: false,
+            insert_hair_space: false,
+            ..BracketRenderOptions::default()
+        };
+        let result = render_bracketed_with_limit(
+            &expr,
+            options,
+            ByteLimit::new(1).expect("positive limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        );
+        assert!(matches!(result, Err(crate::OutputError::Limit { .. })));
+        assert_eq!(take_sibling_scans(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_single_child_row_still_renders_the_leaf() {
+        let mut expr = leaf(String::from("foo"));
+        for _ in 0..64 {
+            expr = node(vec![expr]);
+        }
+        assert_eq!(
+            render_bracketed_with_options(
+                &expr,
+                BracketRenderOptions {
+                    color: false,
+                    insert_hair_space: false,
+                    ..BracketRenderOptions::default()
+                },
+            ),
+            "foo"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wide_empty_prefix_stops_when_the_flag_trips() {
+        let _ = take_sibling_scans();
+        let mut children = Vec::new();
+        for _ in 0..1_000 {
+            children.push(empty_node());
+        }
+        children.push(leaf(String::from("a")));
+        let expr = SExpr::Node {
+            children,
+            range: None,
+            constructs: Vec::new(),
+        };
+        let result = render_bracketed_with_limit(
+            &expr,
+            BracketRenderOptions {
+                color: false,
+                insert_hair_space: false,
+                ..BracketRenderOptions::default()
+            },
+            ByteLimit::new(usize::MAX).expect("positive limit"),
+            &jbotci_interrupt::CancellationToken::trip_after_checks(5),
+        );
+        assert!(matches!(result, Err(crate::OutputError::Interrupted)));
+        let scans = take_sibling_scans();
+        assert!(scans > 0, "the scan reads the cancellation flag");
+        assert!(
+            scans < 64,
+            "a tripped flag stops the sibling cursor, scans {scans}"
         );
     }
 

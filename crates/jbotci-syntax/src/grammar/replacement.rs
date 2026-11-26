@@ -353,8 +353,10 @@ mod tests {
         let mut words = jbotci_morphology::segment_words_with_modifiers("lo'ai mi sa'ai do le'ai")
             .expect("quote");
         let quote = Token::bare(words.remove(0));
-        let model::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(node) =
-            project(&quote)
+        let projected = project(&quote);
+        // The syntax node drops its children on a heap queue. This test reads the fields.
+        let model::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(ref node) =
+            projected
         else {
             panic!("full replacement")
         };
@@ -393,8 +395,10 @@ mod tests {
             .expect("raw UI")
             .clone();
         let token = Token::with_indicator(Token::emphasized(bahe, quote), ui, None);
-        let model::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(node) =
-            project(&token)
+        let projected = project(&token);
+        // The syntax node drops its children on a heap queue. This test reads the fields.
+        let model::TextReplacementFreeModifierSyntax::FullTextReplacementFreeModifier(ref node) =
+            projected
         else {
             panic!("full replacement")
         };
@@ -414,16 +418,21 @@ mod tests {
     fn projection_retains_new_only_and_close_only_forms() {
         let words = jbotci_morphology::segment_words_with_modifiers("sa'ai mi le'ai le'ai")
             .expect("quotes");
-        let model::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(node) =
-            project(&Token::bare(words[0].clone()))
+        let projected = project(&Token::bare(words[0].clone()));
+        // The syntax node drops its children on a heap queue. This test reads the fields.
+        let model::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(ref node) =
+            projected
         else {
             panic!("new-only replacement")
         };
         assert!(node.sahai.is_cmavo(Cmavo::Sahai));
         assert_eq!(node.new_words.len(), 1);
         assert!(node.new_words[0].is_cmavo(Cmavo::Mi));
-        let model::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(node) =
-            project(&Token::bare(words[1].clone()))
+        let projected = project(&Token::bare(words[1].clone()));
+        // The syntax node drops its children on a heap queue. This test reads the fields.
+        let model::TextReplacementFreeModifierSyntax::CloseOnlyTextReplacementFreeModifier(
+            ref node,
+        ) = projected
         else {
             panic!("close-only replacement")
         };

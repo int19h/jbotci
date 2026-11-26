@@ -2,6 +2,7 @@
 
 extern crate proc_macro;
 
+mod node_drop_gen;
 mod view;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -61,9 +62,12 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
         .iter_mut()
         .map(strip_tree_attrs_from_item)
         .collect::<syn::Result<Vec<_>>>()?;
+    let node_drop_impls = node_drop_gen::node_drop_impls(&items, &node_names, &aliases);
 
     Ok(quote! {
         #(#cleaned_items)*
+
+        #node_drop_impls
 
         #view_module
 
@@ -237,6 +241,8 @@ fn recovered_module(
         .iter_mut()
         .map(strip_tree_attrs_from_item)
         .collect::<syn::Result<Vec<_>>>()?;
+    let node_drop_impls =
+        node_drop_gen::node_drop_impls(&recovered_items, node_names, &recovered_aliases);
 
     Ok(quote! {
         pub mod recovered {
@@ -252,6 +258,8 @@ fn recovered_module(
             #with_free_modifiers
 
             #(#cleaned_items)*
+
+            #node_drop_impls
 
             #node_ref
             #atom_ref
@@ -1306,18 +1314,77 @@ fn recovered_struct_conversion_destructure(
     item: &ItemStruct,
     bindings: &[Ident],
 ) -> proc_macro2::TokenStream {
-    match &item.fields {
-        Fields::Named(fields) => {
-            let names = fields
-                .named
-                .iter()
-                .map(|field| field.ident.as_ref().unwrap())
-                .collect::<Vec<_>>();
-            quote!(let Self { #(#names: #bindings,)* } = *self;)
-        }
-        Fields::Unnamed(_) => quote!(let Self(#(#bindings,)*) = *self;),
-        Fields::Unit => quote!(let _ = self;),
+    if matches!(item.fields, Fields::Unit) {
+        return quote!(let _ = self;);
     }
+    let reads = read_struct_fields(&item.fields, bindings);
+    quote! {
+        let __jbotci_owned = ::std::mem::ManuallyDrop::new(*self);
+        #reads
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn read_struct_fields(fields: &Fields, bindings: &[Ident]) -> proc_macro2::TokenStream {
+    let owner = format_ident!("__jbotci_owned");
+    let reads = fields
+        .iter()
+        .zip(bindings)
+        .enumerate()
+        .map(|(index, (field, binding))| {
+            let place = match &field.ident {
+                Some(name) => quote!(&#owner.#name),
+                None => {
+                    let index = syn::Index::from(index);
+                    quote!(&#owner.#index)
+                }
+            };
+            quote! {
+                // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+                let #binding = unsafe { ::std::ptr::read(#place) };
+            }
+        });
+    quote!(#(#reads)*)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn owned_enum_match(
+    value: proc_macro2::TokenStream,
+    arms: &[proc_macro2::TokenStream],
+    detach: bool,
+) -> proc_macro2::TokenStream {
+    if detach {
+        quote! {
+            {
+                let __jbotci_owned = ::std::mem::ManuallyDrop::new(#value);
+                match &*__jbotci_owned {
+                    #(#arms,)*
+                }
+            }
+        }
+    } else {
+        quote! {
+            match #value {
+                #(#arms,)*
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn read_pattern_bindings<'a>(
+    bindings: impl IntoIterator<Item = &'a Ident>,
+) -> proc_macro2::TokenStream {
+    let reads = bindings.into_iter().map(|binding| {
+        quote! {
+            // SAFETY: The matched value is ManuallyDrop. This read takes the field once.
+            let #binding = unsafe { ::std::ptr::read(#binding) };
+        }
+    });
+    quote!(#(#reads)*)
 }
 
 #[requires(true)]
@@ -1362,8 +1429,10 @@ fn recovered_enum_conversion_impl(
                     } else {
                         quote!(#valid_ty::#variant_ident { #(#field_values,)* })
                     };
+                    let reads = read_pattern_bindings(bindings.iter().copied());
                     Ok(quote! {
                         Self::#variant_ident { #(#bindings,)* } => {
+                            #reads
                             #(#field_conversions)*
                             Ok(#construct)
                         }
@@ -1393,8 +1462,10 @@ fn recovered_enum_conversion_impl(
                     } else {
                         quote!(#valid_ty::#variant_ident(#(#field_values,)*))
                     };
+                    let reads = read_pattern_bindings(&bindings);
                     Ok(quote! {
                         Self::#variant_ident(#(#bindings,)*) => {
+                            #reads
                             #(#field_conversions)*
                             Ok(#construct)
                         }
@@ -1431,7 +1502,8 @@ fn recovered_enum_conversion_impl(
                 self: Box<Self>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> Result<#valid_ty, RecoveryError> {
-                match *self {
+                let __jbotci_owned = ::std::mem::ManuallyDrop::new(*self);
+                match &*__jbotci_owned {
                     #(#arms,)*
                 }
             }
@@ -1530,8 +1602,10 @@ fn struct_from_valid_destructure(
                     let ::bityzba::data!(#valid_ty { #(#names: #bindings,)* }) = value.into_data();
                 }
             } else {
+                let reads = read_struct_fields(&item.fields, bindings);
                 quote! {
-                    let #valid_ty { #(#names: #bindings,)* } = value;
+                    let __jbotci_owned = ::std::mem::ManuallyDrop::new(value);
+                    #reads
                 }
             }
         }
@@ -1541,8 +1615,10 @@ fn struct_from_valid_destructure(
                     let ::bityzba::data!(#valid_ty(#(#bindings,)*)) = value.into_data();
                 }
             } else {
+                let reads = read_struct_fields(&item.fields, bindings);
                 quote! {
-                    let #valid_ty(#(#bindings,)*) = value;
+                    let __jbotci_owned = ::std::mem::ManuallyDrop::new(value);
+                    #reads
                 }
             }
         }
@@ -1572,8 +1648,10 @@ fn struct_from_valid_boxed_destructure(
                     let ::bityzba::data!(#valid_ty { #(#names: #bindings,)* }) = (*value).into_data();
                 }
             } else {
+                let reads = read_struct_fields(&item.fields, bindings);
                 quote! {
-                    let #valid_ty { #(#names: #bindings,)* } = *value;
+                    let __jbotci_owned = ::std::mem::ManuallyDrop::new(*value);
+                    #reads
                 }
             }
         }
@@ -1583,8 +1661,10 @@ fn struct_from_valid_boxed_destructure(
                     let ::bityzba::data!(#valid_ty(#(#bindings,)*)) = (*value).into_data();
                 }
             } else {
+                let reads = read_struct_fields(&item.fields, bindings);
                 quote! {
-                    let #valid_ty(#(#bindings,)*) = *value;
+                    let __jbotci_owned = ::std::mem::ManuallyDrop::new(*value);
+                    #reads
                 }
             }
         }
@@ -1640,8 +1720,14 @@ fn recovered_enum_from_valid_impl(
                     } else {
                         quote!(#valid_ty::#variant_ident { #(#pattern_bindings,)* })
                     };
+                    let reads = if uses_data_patterns {
+                        quote!()
+                    } else {
+                        read_pattern_bindings(&bindings)
+                    };
                     Ok(quote! {
                         #pattern => {
+                            #reads
                             #(#conversions)*
                             Self::#variant_ident { #(#field_values,)* }
                         }
@@ -1672,8 +1758,14 @@ fn recovered_enum_from_valid_impl(
                     } else {
                         quote!(#valid_ty::#variant_ident(#(#pattern_bindings,)*))
                     };
+                    let reads = if uses_data_patterns {
+                        quote!()
+                    } else {
+                        read_pattern_bindings(&bindings)
+                    };
                     Ok(quote! {
                         #pattern => {
+                            #reads
                             #(#conversions)*
                             Self::#variant_ident(#(#bindings,)*)
                         }
@@ -1700,6 +1792,8 @@ fn recovered_enum_from_valid_impl(
     } else {
         quote!(*value)
     };
+    let plain_body = owned_enum_match(match_value, &arms, !uses_data_patterns);
+    let boxed_body = owned_enum_match(boxed_match_value, &arms, !uses_data_patterns);
     Ok(quote! {
         impl #enum_ident {
             pub fn from_valid(value: #valid_ty) -> Self {
@@ -1708,17 +1802,13 @@ fn recovered_enum_from_valid_impl(
 
             pub fn from_valid_boxed(value: Box<#valid_ty>) -> Box<Self> {
                 ::jbotci_tree::with_tree_stack(|| {
-                    Box::new(match #boxed_match_value {
-                        #(#arms,)*
-                    })
+                    Box::new(#boxed_body)
                 })
             }
 
             pub(crate) fn from_valid_unboxed(value: #valid_ty) -> Self {
                 ::jbotci_tree::with_tree_stack(|| {
-                    match #match_value {
-                        #(#arms,)*
-                    }
+                    #plain_body
                 })
             }
         }
@@ -2690,6 +2780,15 @@ fn node_ref_variant_ident(enum_ident: &Ident, variant_ident: &Ident) -> Ident {
 #[requires(true)]
 #[ensures(true)]
 fn atom_ref_enum(atom_types: &BTreeMap<String, Type>) -> proc_macro2::TokenStream {
+    if atom_types.is_empty() {
+        return quote! {
+            #[derive(Clone, Copy, Debug)]
+            pub enum AtomRef<'tree> {
+                #[doc(hidden)]
+                Lifetime(::std::marker::PhantomData<&'tree ()>),
+            }
+        };
+    }
     let variants = atom_types.values().map(|ty| {
         let ident = atom_variant_ident(ty);
         quote!(#ident(&'tree #ty))

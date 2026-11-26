@@ -360,7 +360,11 @@ fn generate_struct(
             where
                 F: ::std::ops::FnOnce(#update_builder_ident #ty_generics) -> #update_builder_ident #ty_generics,
             {
-                Self::from_data(data(#update_builder_ident::from_data(self.0)).build())
+                let this = ::std::mem::ManuallyDrop::new(self);
+                // SAFETY: `self` owns the inner value. `ManuallyDrop` skips the
+                // wrapper destructor, so the read value is not dropped twice.
+                let inner = unsafe { ::std::ptr::read(&this.0) };
+                Self::from_data(data(#update_builder_ident::from_data(inner)).build())
             }
 
             pub fn as_data(&self) -> &#data_ident #ty_generics {
@@ -368,7 +372,13 @@ fn generate_struct(
             }
 
             pub fn into_data(self) -> #data_ident #ty_generics {
-                self.0
+                // A wrapper may implement Drop. Moving the field out is rejected
+                // in that case. The caller takes the inner value. The wrapper
+                // destructor must not drop that value a second time.
+                let this = ::std::mem::ManuallyDrop::new(self);
+                // SAFETY: `self` owns the inner value. `ManuallyDrop` skips the
+                // wrapper destructor, so the read value is not dropped twice.
+                unsafe { ::std::ptr::read(&this.0) }
             }
 
             fn __bityzba_invariant(&self) -> bool {
@@ -496,7 +506,11 @@ fn generate_tuple_newtype_struct(
             where
                 F: ::std::ops::FnOnce(#data_ident #ty_generics) -> #data_ident #ty_generics,
             {
-                Self::from_data(data(self.0))
+                let this = ::std::mem::ManuallyDrop::new(self);
+                // SAFETY: `self` owns the inner value. `ManuallyDrop` skips the
+                // wrapper destructor, so the read value is not dropped twice.
+                let inner = unsafe { ::std::ptr::read(&this.0) };
+                Self::from_data(data(inner))
             }
 
             pub fn as_data(&self) -> &#data_ident #ty_generics {
@@ -504,7 +518,13 @@ fn generate_tuple_newtype_struct(
             }
 
             pub fn into_data(self) -> #data_ident #ty_generics {
-                self.0
+                // A wrapper may implement Drop. Moving the field out is rejected
+                // in that case. The caller takes the inner value. The wrapper
+                // destructor must not drop that value a second time.
+                let this = ::std::mem::ManuallyDrop::new(self);
+                // SAFETY: `self` owns the inner value. `ManuallyDrop` skips the
+                // wrapper destructor, so the read value is not dropped twice.
+                unsafe { ::std::ptr::read(&this.0) }
             }
 
             fn __bityzba_invariant(&self) -> bool {
@@ -629,7 +649,13 @@ fn generate_enum(
             }
 
             pub fn into_data(self) -> #data_ident #ty_generics {
-                self.0
+                // A wrapper may implement Drop. Moving the field out is rejected
+                // in that case. The caller takes the inner value. The wrapper
+                // destructor must not drop that value a second time.
+                let this = ::std::mem::ManuallyDrop::new(self);
+                // SAFETY: `self` owns the inner value. `ManuallyDrop` skips the
+                // wrapper destructor, so the read value is not dropped twice.
+                unsafe { ::std::ptr::read(&this.0) }
             }
 
             fn __bityzba_invariant(&self) -> bool {

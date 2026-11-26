@@ -236,6 +236,28 @@ impl<T> Default for SharedStack<T> {
     }
 }
 
+/// The parent chain is one link per parser frame.
+///
+/// Drop follows unique links on a heap loop. A shared tail stays for its last
+/// owner. That owner walks the rest of the chain the same way.
+impl<T> Drop for SharedStack<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        let data = std::mem::replace(&mut self.0, SharedStackData { head: None, len: 0 });
+        let mut head = data.head;
+        while let Some(node) = head {
+            match Rc::try_unwrap(node) {
+                Ok(mut data) => head = data.parent.take(),
+                Err(shared) => {
+                    drop(shared);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 impl<'a, T> Iterator for SharedStackIter<'a, T> {
     type Item = &'a T;
 
@@ -1575,6 +1597,18 @@ mod tests {
     use bityzba::{ensures, requires};
 
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_shared_stack_drops_on_the_default_test_stack() {
+        let mut stack = SharedStack::<usize>::empty();
+        for index in 0..512 {
+            stack = stack.pushed(index);
+        }
+        assert_eq!(stack.len(), 512);
+        drop(stack);
+    }
 
     #[test]
     #[requires(true)]

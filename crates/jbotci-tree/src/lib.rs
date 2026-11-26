@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use vec1::Vec1;
 
 pub use jbotci_tree_macros::tree_model;
+pub mod node_drop;
 pub mod view;
 
 /// Run one tree step on a stack that can hold the next frame.
@@ -1784,5 +1785,132 @@ mod tests {
 
         let round_trip: TreePath = serde_json::from_value(value).expect("path deserializes");
         assert_eq!(round_trip, path);
+    }
+}
+
+#[cfg(test)]
+mod deep_drop {
+    use super::{Arc, Deserialize, RecoveryItemKind, RecoveryItemState, Serialize};
+    use crate::tree_model;
+
+    use bityzba::{contract_trait, invariant, requires};
+
+    #[invariant(true)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) enum DeepRecoveryItem {
+        Missing,
+    }
+
+    #[contract_trait]
+    impl RecoveryItemState for DeepRecoveryItem {
+        #[requires(true)]
+        #[bityzba::ensures(ret == RecoveryItemKind::Missing)]
+        fn recovery_item_kind(&self) -> RecoveryItemKind {
+            RecoveryItemKind::Missing
+        }
+    }
+
+    // The recovered module names its error parameter `RecoveryTreeItem`.
+    type RecoveryTreeItem = DeepRecoveryItem;
+
+    tree_model! {
+        #![tree_recovered]
+        #![tree_with_free_modifiers]
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[allow(dead_code)]
+        #[invariant(true)]
+        pub struct FreeModifierSyntax;
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[invariant(true)]
+        pub struct ArcLink {
+            pub next: Option<Arc<ArcLink>>,
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[allow(dead_code)]
+        #[invariant(true)]
+        pub struct BoxLink {
+            pub next: Option<Box<BoxLink>>,
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[allow(dead_code)]
+        #[invariant(true)]
+        pub struct ModifierLink {
+            pub next: Option<WithFreeModifiers<Arc<ModifierLink>, Arc<ModifierLink>>>,
+        }
+    }
+
+    // The field is `Vec<F>`. The type argument is the element, not the field.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[invariant(true)]
+    pub(crate) struct WithFreeModifiers<T, F> {
+        value: T,
+        free_modifiers: Vec<F>,
+    }
+
+    const DEEP_LINKS: usize = 16_384;
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn arc_chain_drops_on_the_default_test_stack() {
+        let mut next = None;
+        for _ in 0..DEEP_LINKS {
+            next = Some(Arc::new(ArcLink { next }));
+        }
+        drop(next);
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn box_chain_drops_on_the_default_test_stack() {
+        let mut next = None;
+        for _ in 0..DEEP_LINKS {
+            next = Some(Box::new(BoxLink { next }));
+        }
+        drop(next);
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn shared_arc_tail_stays_alive() {
+        let shared = Arc::new(ArcLink { next: None });
+        let parent = Arc::new(ArcLink {
+            next: Some(Arc::clone(&shared)),
+        });
+        drop(parent);
+        assert_eq!(Arc::strong_count(&shared), 1);
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn modifier_chain_drops_on_the_default_test_stack() {
+        let mut next = None;
+        for _ in 0..DEEP_LINKS {
+            next = Some(WithFreeModifiers {
+                value: Arc::new(ModifierLink { next }),
+                free_modifiers: vec![Arc::new(ModifierLink { next: None })],
+            });
+        }
+        drop(next);
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_arc_chain_drops_on_the_default_test_stack() {
+        let mut next = None;
+        for _ in 0..DEEP_LINKS {
+            next = Some(Arc::new(recovered::Recovered::Valid(Box::new(
+                recovered::ArcLink { next },
+            ))));
+        }
+        drop(next);
     }
 }

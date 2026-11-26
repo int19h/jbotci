@@ -78,6 +78,34 @@ impl Drop for ContinuationTestClock {
     }
 }
 
+/// Parser work since the last read.
+///
+/// `trials` counts recovery trials. `recovery_memo_stores` counts stores into
+/// the recovery memo. `syntax_memo_stores` counts syntax-memo stores. The next
+/// read starts at zero. A normal build does not compile the counters.
+#[cfg(any(test, feature = "parser_work_counters"))]
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub struct ParserWork {
+    pub trials: u64,
+    pub recovery_memo_stores: u64,
+    pub syntax_memo_stores: u64,
+}
+
+#[cfg(any(test, feature = "parser_work_counters"))]
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(true)]
+pub fn take_parser_work() -> ParserWork {
+    let (trials, recovery_memo_stores) = grammar::take_recovery_work();
+    ParserWork {
+        trials,
+        recovery_memo_stores,
+        syntax_memo_stores: grammar::take_syntax_memo_stores(),
+    }
+}
+
 pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "text",
     "statement",
@@ -4448,16 +4476,16 @@ mod tests {
         assert_eq!(probe.recovery_spans, [(6, 8), (8, 10), (10, 13)]);
     }
 
-    /// Nested syntax and the `cadga` sentence stay inside the default test stack.
+    /// Nested syntax and the cadga sentence stay on the default test stack.
     ///
     /// The thread is the libtest thread. A debug build and a release build both
-    /// parse 32 and 128 copies. Strict `cadga` returns an error. Recovered
-    /// `cadga` returns a tree.
+    /// parse 32, 128, and 512 copies. Strict cadga returns an error. Recovered
+    /// cadga returns a tree.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn deep_syntax_parses_on_the_default_test_stack() {
-        for copies in [32usize, 128] {
+        for copies in [32usize, 128, 512] {
             let mut source = String::from("mi klama ");
             for _ in 0..copies {
                 source.push_str("lo nu mi klama ");
