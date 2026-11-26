@@ -2741,6 +2741,33 @@ pub struct VlackuCompositionPiece {
     pub sources: Vec<VlackuCompositionSource>,
 }
 
+impl VlackuCompositionPiece {
+    /// The sources that the page shows with their own label, in display
+    /// order.
+    ///
+    /// The renderer and page find both read this rule, so the page find
+    /// index has one entry for each label on the page. A fu'ivla rafsi piece
+    /// shows every source next to its surface, also when the source has the
+    /// same spelling (`spageti` in `spageti'ykukte`). An ordinary rafsi piece
+    /// shows its first source, and only when the source differs from the
+    /// surface: a rafsi that is a whole word is one combined label. A hyphen
+    /// shows no source.
+    #[requires(true)]
+    #[ensures(ret.len() <= self.sources.len())]
+    #[ensures(self.kind == VlackuCompositionPieceKind::FuivlaRafsi -> ret.len() == self.sources.len())]
+    #[ensures(self.kind != VlackuCompositionPieceKind::FuivlaRafsi -> ret.iter().all(|source| !source.is_surface) && ret.len() <= 1)]
+    pub fn separately_shown_sources(&self) -> &[VlackuCompositionSource] {
+        match self.kind {
+            VlackuCompositionPieceKind::FuivlaRafsi => &self.sources,
+            VlackuCompositionPieceKind::Rafsi => match self.sources.first() {
+                Some(source) if !source.is_surface => &self.sources[..1],
+                _ => &[],
+            },
+            VlackuCompositionPieceKind::Hyphen => &[],
+        }
+    }
+}
+
 #[invariant(!word.is_empty() && !href.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

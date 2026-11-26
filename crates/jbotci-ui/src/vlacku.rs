@@ -1859,7 +1859,7 @@ pub(super) fn render_composition_piece(
                         }
                         small { { render_page_find_text(page_find, "fu'ivla rafsi") } }
                     }
-                    for source in &piece.sources {
+                    for source in piece.separately_shown_sources() {
                         span { class: "rafsi-split-right",
                             { render_vlacku_word_action(
                                 jvozba_pane,
@@ -1900,7 +1900,7 @@ pub(super) fn render_composition_piece(
                         word_types: Vec::new(),
                     },
                 );
-                if origin.is_surface {
+                if piece.separately_shown_sources().is_empty() {
                     rsx! {
                         { render_vlacku_word_action(
                             jvozba_pane,
