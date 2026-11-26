@@ -1796,6 +1796,58 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "WordLike validates the complete word unit. The stream wrapper adds no fields.",
     ),
     (
+        "crates/jbotci-morphology/src/segment/drive.rs:CmavoResume::PostWordFrom",
+        "The cursor is the post-word end. The frame checks that the cursor stays inside the key.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:CvcyResume::AfterCore",
+        "The ordinal is the next core start. The frame checks that the ordinal stays inside the key.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:LujvoFromResume::AtOrdinal",
+        "The ordinal is the next rafsi start. The frame checks that the ordinal stays inside the key.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:LujvoPartsResume::AtOrdinal",
+        "The arm stores the next ordinal and the best failure from finished ordinals. The frame checks the ordinal. The failure type checks its own fields.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:Open::Hit",
+        "The arm stores one memoized answer. That answer type checks its own fields.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:PrefixLojbanResume::BrivlaPost",
+        "The ordinal is the post-brivla cursor. The frame checks that the ordinal stays inside the key.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:PrefixLojbanResume::BrivlaShaped",
+        "The ordinal is the brivla shape cursor. The frame checks that the ordinal stays inside the key.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:PrefixLojbanResume::CmavoAt",
+        "The cursor is the cmavo end. The frame checks that the cursor stays inside the key.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:Resume::Cmavo",
+        "The arm stores one cmavo resume. That resume type checks its cursor.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:Resume::Cvcy",
+        "The arm stores one cvcy resume. That resume type checks its ordinal.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:Resume::LujvoFrom",
+        "The arm stores one lujvo-from resume. That resume type checks its ordinal.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:Resume::LujvoParts",
+        "The arm stores one lujvo-part resume. That resume type checks its ordinal and its failure.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:Resume::PrefixLojban",
+        "The arm stores one prefix-lojban resume. That resume type checks its cursor.",
+    ),
+    (
         "crates/jbotci-morphology/src/lib.rs:MorphologyError::DialectExpansion",
         "DialectExpansionFailure validates the source span and the structured expansion violation.",
     ),
@@ -1892,6 +1944,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "reference display slot is projected from validated semantic PlaceSlot values",
     ),
     (
+        "crates/jbotci-output/src/sexpr.rs:Job::Finish",
+        "The fragment finish stores one depth, one borrowed s-expression, and the child count for that node. Those values are the open frame.",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:Job::Visit",
+        "The fragment visit stores one depth and one borrowed s-expression. The expression type owns the checked node.",
+    ),
+    (
         "crates/jbotci-output/src/sexpr.rs:LeafRole::Elided",
         "unit leaf role is a closed renderer style selector with no payload",
     ),
@@ -1912,12 +1972,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "empty render nodes are meaningful intermediate values",
     ),
     (
-        "crates/jbotci-output/src/surface.rs:DisplaySpan::LojbanWord",
-        "display spans are private renderer ranges produced from validated word spans before source-bound clipping",
+        "crates/jbotci-output/src/sexpr.rs:Step::Close",
+        "The bracket close stores the depth of the bracket that the enter step opened.",
     ),
     (
-        "crates/jbotci-output/src/surface.rs:DisplaySpan::VerbatimText",
-        "verbatim display spans are private renderer ranges produced from validated quote spans before source-bound clipping",
+        "crates/jbotci-output/src/sexpr.rs:Step::Enter",
+        "The bracket step stores one depth and one borrowed s-expression. The expression type owns the checked node.",
     ),
     (
         "crates/jbotci-output/src/tree.rs:MorphologyFrame::Field",
@@ -3154,6 +3214,206 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId::Strict",
         "identity of one observing frame; the nonzero counters are unique by construction within the state that issues them and no combination of them is invalid",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/hover.rs:HeadTask::Enter",
+        "The headword job stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/hover.rs:HeadTask::Lerfu",
+        "The headword finish stores the bu text and a waiting base. Any string is a legal finish record. The missing base is the waiting state.",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/hover.rs:HeadTask::Text",
+        "The headword finish stores one finished text. Any string is a legal finish record.",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/hover.rs:HeadTask::Zei",
+        "The headword finish stores the right text and a waiting left side. Any string is a legal finish record. The missing left side is the waiting state.",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/hover.rs:HoverJob::Like",
+        "The hover job stores one borrowed word-like node and one hover semantics value. Those types own the checked values.",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/hover.rs:HoverJob::Word",
+        "The hover job stores one borrowed word and one hover semantics value. Those types own the checked values.",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:FormatPiece::DebugText",
+        "The format piece stores one borrowed debug text. The formatter writes that text.",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:FormatPiece::Node",
+        "The format piece stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:FormatPiece::Text",
+        "The format piece stores one static text. The formatter writes that text.",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:FormatPiece::Word",
+        "The format piece stores one borrowed word. That type owns the checked spelling.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:CloneTask::Enter",
+        "The clone job stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:MapTask::Enter",
+        "The map job stores one owned word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:PendingWord::Closing",
+        "The drop piece stores one owned closing word. That type owns the checked spelling.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:PendingWord::Marker",
+        "The drop piece stores one owned marker word. That type owns the checked spelling.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:PendingWord::Node",
+        "The drop piece stores one owned word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:SpanJob::Node",
+        "The span job stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:SpanJob::Span",
+        "The span job stores one borrowed source span. That type owns the checked range.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:Step::Leaf",
+        "The step stores one borrowed debug value. That value owns its text.",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:Step::Node",
+        "The step stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-morphology/src/valsi_glue.rs:ClassStep::Leaf",
+        "The step stores one borrowed debug value. That value owns its text.",
+    ),
+    (
+        "crates/jbotci-morphology/src/valsi_glue.rs:ClassStep::Node",
+        "The step stores one borrowed classification. That type owns the checked word class.",
+    ),
+    (
+        "crates/jbotci-morphology/src/valsi_glue.rs:ClassPiece::Hole",
+        "The unit variant marks an empty class hole. The walker fills that hole from a built child.",
+    ),
+    (
+        "crates/jbotci-morphology/src/valsi_glue.rs:ClassPiece::Ready",
+        "The class piece stores one owned classification. That type owns the checked word class.",
+    ),
+    (
+        "crates/jbotci-morphology/src/valsi_glue.rs:ClassTask::Enter",
+        "The class job stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-morphology/src/valsi_glue.rs:OwnTask::Enter",
+        "The owned-class job stores one borrowed classification. That type owns the checked word class.",
+    ),
+    (
+        "crates/jbotci-output/src/brackets.rs:BrTask::Enter",
+        "The bracket job stores one borrowed word-like node and one leading-pause context. Those types own the checked values.",
+    ),
+    (
+        "crates/jbotci-output/src/brackets.rs:BrTask::Leaf",
+        "The bracket finish stores one built s-expression. That type owns the checked node.",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:PlainJob::Node",
+        "The plain-word job stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:PlainJob::Word",
+        "The plain-word job stores one borrowed word. That type owns the checked spelling.",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:SpanJob::Node",
+        "The display-span job stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:SpanJob::Word",
+        "The display-span job stores one borrowed word. That type owns the checked spelling.",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:IpaJob::Chunk",
+        "The phonetic job stores one built surface chunk. That type owns the checked piece.",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:IpaJob::Node",
+        "The phonetic job stores one borrowed word-like node and one leading-pause context. Those types own the checked values.",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:LookupJob::Like",
+        "The lookup job stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:LookupJob::Word",
+        "The lookup job stores one borrowed word. That type owns the checked spelling.",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:LookupLayer::Zei",
+        "The lookup layer stores the borrowed right word of a zei link. That type owns the checked spelling.",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:PhoneJob::Node",
+        "The phoneme job stores one borrowed word-like node. That type owns the checked shape.",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:PhoneJob::Text",
+        "The phoneme job stores one owned text. The walker appends that text.",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:PhoneJob::Word",
+        "The phoneme job stores one borrowed word. That type owns the checked spelling.",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:LetterJob::Letter",
+        "The letter job stores one borrowed letter-token node. That type owns the checked letter shape.",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:LetterJob::Token",
+        "The letter job stores one borrowed token. That type owns the checked token.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Atom",
+        "The visit shape stores one borrowed Rust type. The macro emits the atom arm for that type.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Chain",
+        "The visit shape stores the two borrowed types of a chain. The macro emits the chain arm for that pair.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Free",
+        "The visit shape stores the value type and the modifier type. The macro emits the free arm for that pair.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Node",
+        "The visit shape names a tree node and stores no type. The macro emits the node arm.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Option",
+        "The visit shape stores one borrowed option type. The macro emits the option arm for that type.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Recovered",
+        "The visit shape stores one borrowed recovered type. The macro emits the recovered arm for that type.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Sequence",
+        "The visit shape stores one borrowed sequence type. The macro emits the sequence arm for that type.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Transparent",
+        "The visit shape stores one borrowed inner type. The macro emits the transparent arm for that type.",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/visit_iter.rs:Shape::Tuple",
+        "The visit shape stores the borrowed field types of a tuple. The macro emits the tuple arm for those types.",
     ),
 ];
 

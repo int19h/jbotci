@@ -1268,8 +1268,56 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "test-only guard stores the previous body-count cap, and every u64 is a valid saved cap",
     ),
     (
+        "crates/jbotci-morphology/src/grammar.rs:GrammarWorkFrame",
+        "one word-start frame stores a source index and a region-hold count, and every pair of those values is a stored frame",
+    ),
+    (
+        "crates/jbotci-morphology/src/recog_state.rs:CharTables",
+        "keeping this cache struct un-wrapped avoids an O(words) bitset scan on each cell write",
+    ),
+    (
+        "crates/jbotci-morphology/src/recog_state.rs:CmavoGrid",
+        "keeping this cache struct un-wrapped avoids an O(words) bitset scan on each cell write",
+    ),
+    (
+        "crates/jbotci-morphology/src/recog_state.rs:CmavoFormCache",
+        "keeping this cache struct un-wrapped avoids an O(words) bitset scan on each cell write",
+    ),
+    (
+        "crates/jbotci-morphology/src/recog_state.rs:ParseFlags",
+        "one parse stores the depth, the eval cursor, the block cursor, two word-start tables, and the region-hold count, and a nested parse builds a new value",
+    ),
+    (
+        "crates/jbotci-morphology/src/grammar.rs:GrammarDriveGuard",
+        "grammar guard stores the parse flags and the saved norm list, and drop clears the driver flags and restores the norm list",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:Blocked",
+        "The value has no fields. It names one recognition answer that is waiting on another key.",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/drive.rs:DriveGuard",
+        "driver guard stores the driver state, and drop releases the driver",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree.rs:EventWalker",
+        "test walker stores one nested tree, a prune flag, and the events of one walk, and every stored string is an event the test asserts",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree.rs:PanicWalker",
+        "test walker stores the events of one walk and one flag that arms a nested walk, and every stored string is an event the test asserts",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree.rs:QuoteWalker",
+        "test walker stores the events of one quote walk, and every stored string is an event the test asserts",
+    ),
+    (
         "crates/jbotci-morphology/src/segment/recognition_cache.rs:SyllableStepCount",
         "test-only guard stores the previous syllable-step cap, and every u64 is a valid saved cap",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/recognition_cache.rs:NucleusStepCount",
+        "test-only guard stores the previous nucleus-step cap, and every u64 is a valid saved cap",
     ),
     (
         "crates/jbotci-morphology/src/segment/recognition_cache.rs:RecognitionSlotPeak",
@@ -2108,6 +2156,54 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the test root accepts every child sequence and optional child",
     ),
     (
+        "crates/jbotci-tree/src/debug_emit.rs:Frame",
+        "Every frame kind and every field flag is a legal open frame. Emit methods constrain the caller order.",
+    ),
+    (
+        "crates/jbotci-tree/src/debug_emit.rs:EmptyLeaf",
+        "the test value writes no text and the struct holds no data",
+    ),
+    (
+        "crates/jbotci-tree/src/debug_emit.rs:HeldEmpty",
+        "the test tuple holds one empty leaf and adds no field constraint",
+    ),
+    (
+        "crates/jbotci-tree/src/debug_emit.rs:HeldNewline",
+        "the test tuple holds one newline leaf and adds no field constraint",
+    ),
+    (
+        "crates/jbotci-tree/src/debug_emit.rs:Pair",
+        "the test tuple accepts every pair of numbers",
+    ),
+    (
+        "crates/jbotci-tree/src/debug_emit.rs:Sample",
+        "the test struct accepts every name string",
+    ),
+    (
+        "crates/jbotci-tree/src/debug_emit.rs:TrailingNewlineLeaf",
+        "the test value writes one fixed line and the struct holds no data",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/word_like_glue.rs:StdView",
+        "the view only borrows a checked word and a standard debug painter",
+    ),
+    (
+        "crates/jbotci-morphology/src/valsi_glue.rs:StdView",
+        "the view only borrows a checked classification and a standard debug painter",
+    ),
+    (
+        "crates/jbotci-syntax/src/raw_debug_pin.rs:EmptyLeaf",
+        "the test value writes no text and the struct holds no data",
+    ),
+    (
+        "crates/jbotci-syntax/src/raw_debug_pin.rs:StdView",
+        "the view only borrows a checked value and a standard debug painter",
+    ),
+    (
+        "crates/jbotci-syntax/src/raw_debug_pin.rs:TrailingNewlineLeaf",
+        "the test value writes one fixed line and the struct holds no data",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:Chain",
         "structural head/links pair generic over both components, so every combination is valid by construction; chain traversal is audited by the jbotci-tree walker tests and the chain-link split tests in the Gentufa and output renderers",
     ),
@@ -2758,6 +2854,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:ServeWebReleaseArgs",
         "xtask release web server args delegate validation to clap defaults and command code",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/slot.rs:ClassWords",
+        "class-word owner stores the classification list, and each classification owns its checked class",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree/slot.rs:TreeSlot",
+        "tree slot stores one optional child, and an empty slot is a legal owner",
     ),
 ];
 

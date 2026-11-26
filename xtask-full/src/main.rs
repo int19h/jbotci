@@ -82,7 +82,7 @@ const DEFAULT_WASM_STACK_SIZE_KB: usize = 160;
 /// `tests/wasm/gentufa_compute_stack_probe.mjs`. The probe rejects an unknown
 /// name, so a drift between the two lists fails the gate rather than silently
 /// skipping a case.
-const WASM_STACK_TEST_CASES: [&str; 7] = [
+const WASM_STACK_TEST_CASES: [&str; 13] = [
     "default-input",
     "simple-valid",
     "recovered-input",
@@ -90,6 +90,12 @@ const WASM_STACK_TEST_CASES: [&str; 7] = [
     "issue-913-reported",
     "issue-913-default-settings",
     "nesting-depth-3",
+    "recognizer-lo",
+    "recognizer-mi",
+    "recognizer-kany",
+    "recognizer-kanykla",
+    "recognizer-apostrophe",
+    "recognizer-rl",
 ];
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
 const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";

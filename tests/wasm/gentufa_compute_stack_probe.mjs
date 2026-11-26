@@ -44,6 +44,20 @@ const CASES = new Map(
     { name: "issue-913-reported", text: ISSUE_913_TEXT, dialect: "(jboponei)", showGlosses: true },
     { name: "issue-913-default-settings", text: ISSUE_913_TEXT },
     { name: "nesting-depth-3", text: nestingLadder(3) },
+    // Release guests at Node `--stack-size=160` on aarch64.
+    // Main returns a page for `lo` x 69 and overflows at 70.
+    // The product returns a page for `lo` x 74 and overflows at 75.
+    // 37 is half of the product page. Main still returns a page at 37.
+    { name: "recognizer-lo", text: "lo".repeat(37) },
+    // Unspaced `mi` x 256 overflows the main release guest. That guest returns
+    // a page through 231 and overflows at 232. The product release guest
+    // returns a page. `mi` does not nest sumti, so this row is the cmavo chain.
+    // `lo` is a syntax ladder.
+    { name: "recognizer-mi", text: "mi".repeat(256) },
+    { name: "recognizer-kany", text: `${"kany".repeat(512)}klama` },
+    { name: "recognizer-kanykla", text: `${"kánykla".repeat(384)}klama` },
+    { name: "recognizer-apostrophe", text: `${"a'".repeat(1280)}a` },
+    { name: "recognizer-rl", text: `bá${"rl".repeat(1280)}ba` },
   ].map((entry) => [entry.name, entry]),
 );
 
