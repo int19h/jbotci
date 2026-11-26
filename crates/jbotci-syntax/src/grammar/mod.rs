@@ -1065,28 +1065,17 @@ fn drain_diagnostic_ownership<'a>(
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn shallow_observation_data<'tokens>() -> SyntaxDiagnosticObservationData<'tokens> {
-    SyntaxDiagnosticObservationData::Preserved(SyntaxParseError::unexpected_found(
-        Span { start: 0, end: 0 },
-        new!(SyntaxFound::EndOfInput),
-    ))
-}
-
 /// A nested `lo nu` chain links each observation to the next through `Rc`.
 ///
-/// The compiler drop glue used one native frame per link and aborted on the
-/// default thread after the parser had built the tree. Each link is detached
-/// onto a heap stack first, so the glue only drops a shallow value.
-impl Drop for SyntaxDiagnosticObservation<'_> {
+/// The destructor is on the data. A move of the data keeps that destructor.
+/// The walk puts each link on a heap stack. The compiler then drops a shallow value.
+impl Drop for SyntaxDiagnosticObservationData<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn drop(&mut self) {
-        let mut data = std::mem::replace(&mut self.0, shallow_observation_data());
         let mut groups = Vec::new();
         let mut slices = Vec::new();
-        detach_diagnostic_observation(&mut data, &mut groups, &mut slices);
+        detach_diagnostic_observation(self, &mut groups, &mut slices);
         drain_diagnostic_ownership(&mut groups, &mut slices);
     }
 }
@@ -1205,34 +1194,26 @@ fn take_checkpoint_children(
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn empty_checkpoint_data() -> SyntaxRecoveryCheckpointObservationsData {
-    SyntaxRecoveryCheckpointObservationsData {
-        checkpoints: Rc::from([]),
-        children: Rc::from([]),
-    }
-}
-
 /// Checkpoint trees nest with the rule that recorded them.
 ///
-/// Drop moves each child list onto a heap stack before it drops the parent.
-/// A shared tail stays for its last owner. That owner walks the rest the same way.
-impl Drop for SyntaxRecoveryCheckpointObservations {
+/// The destructor is on the data. A move of the data keeps that destructor.
+/// The walk puts each child list on a heap stack. A shared list stays with its other owners.
+/// The last owner walks the rest the same way.
+impl Drop for SyntaxRecoveryCheckpointObservationsData {
     #[requires(true)]
     #[ensures(true)]
     fn drop(&mut self) {
-        let mut data = std::mem::replace(&mut self.0, empty_checkpoint_data());
-        let children = std::mem::replace(&mut data.children, Rc::from([]));
-        drop(data);
+        let children = std::mem::replace(&mut self.children, Rc::from([]));
         let mut pending = Vec::new();
         take_checkpoint_children(children, &mut pending);
         while let Some(child) = pending.pop() {
-            let Ok(mut wrapper) = Rc::try_unwrap(child) else {
+            let Ok(wrapper) = Rc::try_unwrap(child) else {
                 continue;
             };
-            let mut child_data = std::mem::replace(&mut wrapper.0, empty_checkpoint_data());
+            let mut child_data = wrapper.into_data();
             let child_children = std::mem::replace(&mut child_data.children, Rc::from([]));
+            // The child list is empty. The destructor returns at once.
+            // The compiler then drops the checkpoints and that empty list.
             drop(child_data);
             take_checkpoint_children(child_children, &mut pending);
         }

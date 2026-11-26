@@ -1324,6 +1324,9 @@ fn recovered_struct_conversion_destructure(
     }
 }
 
+// The node destructor only releases owned children.
+// The caller stores the node in ManuallyDrop.
+// This read moves each child once and stops a second release.
 #[requires(true)]
 #[ensures(true)]
 fn read_struct_fields(fields: &Fields, bindings: &[Ident]) -> proc_macro2::TokenStream {
@@ -1348,6 +1351,8 @@ fn read_struct_fields(fields: &Fields, bindings: &[Ident]) -> proc_macro2::Token
     quote!(#(#reads)*)
 }
 
+// The node destructor only releases owned children.
+// ManuallyDrop moves those children once and stops a second release.
 #[requires(true)]
 #[ensures(true)]
 fn owned_enum_match(
@@ -1373,6 +1378,9 @@ fn owned_enum_match(
     }
 }
 
+// The matched value is ManuallyDrop.
+// The node destructor only releases owned children.
+// This read moves each child once.
 #[requires(true)]
 #[ensures(true)]
 fn read_pattern_bindings<'a>(
