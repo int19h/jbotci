@@ -183,12 +183,20 @@ The image check is a cheap guard. It is not a complete Dockerfile parser.
 They read job container images and workflow or job `env` values.
 They accept registry prefixes and tags such as `1.100.0-slim-bookworm`.
 The repository name is the last path component before the tag or the digest.
-They read the image word on a one-line `FROM` instruction.
-The build configuration names those Dockerfiles.
+The build configuration names the Dockerfiles that the check reads.
 `render.yaml` names one Dockerfile through `dockerfilePath`.
 A workflow names a Dockerfile through the `file` input of `docker/build-push-action`.
-The tests compare a Rust image from that word with the channel.
-A continued line, a build argument, a stage name, and copied text stay unread.
+The check reads each line of a Dockerfile alone.
+It reads the second word of each line whose first word is `FROM`, in any letter case.
+It does not join a continued line, and it does not know a heredoc.
+A continuation line or a heredoc line that starts with `FROM` is read as an instruction.
+If a `FROM` instruction has a flag such as `--platform=`, the flag is the second word. The image stays unread.
+If a `FROM` instruction continues on the next line, the image on that line stays unread.
+A stage name, or an image that is only a build argument, is not a Rust image unless its repository name is `rust`.
+If it is not a Rust image, the tests compare nothing.
+If its repository name is `rust`, the check raises `PinError`. Two forms are `FROM rust AS final` and `FROM ${BASE:-docker.io/library/rust:1.99.0-bookworm}`.
+A build argument in the tag of a Rust image raises `PinError`. One form is `FROM rust:${RUST_VERSION}-bookworm`.
+The tests compare each Rust image that the check finds with the channel.
 The tests do not read Rust image references in shell commands.
 If a container needs a digest, use the resolver output.
 The resolver reads the tag and obtains the matching digest.

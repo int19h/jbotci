@@ -537,9 +537,9 @@ class CargoUnitTests(unittest.TestCase):
         out = run.parent / "out"
         environment = f'["CARGO_PKG_NAME=demo", "CARGO_MANIFEST_DIR=/src/demo", "OUT_DIR={out}"]'
         cases = [
-            "/tmp/build-script-build",
-            str(target / "debug/build-script-build"),
-            str(target / "debug/examples/build-script-build-0123456789abcdef"),
+            "/tmp/build_script_build",
+            str(target / "debug/build_script_build"),
+            str(target / "debug/examples/build_script_build-0123456789abcdef"),
         ]
         for executable in cases:
             with self.subTest(executable=executable):
@@ -556,7 +556,7 @@ class CargoUnitTests(unittest.TestCase):
         parser.feed([
             f'1 chdir("{target}") = 0\n'.encode(),
             (
-                f'1 execve("../build-script-build", ["../build-script-build"], {environment}) = 0\n'
+                f'1 execve("../build_script_build", ["../build_script_build"], {environment}) = 0\n'
             ).encode(),
         ])
         events = [json.loads(line) for line in output.getvalue().splitlines()]
@@ -580,6 +580,11 @@ class CargoUnitTests(unittest.TestCase):
         events = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual(events[-1]["errors"], 0)
         self.assertFalse(any(event["event"] == "unit" for event in events))
+        nested = out / "sub/build_script_build"
+        self.assert_trace_layout_error(
+            f'1 execve("{nested}", ["{nested}"], {environment}) = 0\n',
+            "Unknown build script unit layout",
+        )
 
     def test_trace_rejects_a_build_script_candidate_without_its_environment(self) -> None:
         target = self.layout.target
