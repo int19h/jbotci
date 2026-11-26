@@ -5026,6 +5026,55 @@ mod tests {
         assert_eq!(transcript_state.push_str("\u{0301}"), Some('\u{0301}'));
     }
 
+    /// Check that no source prefix of `text` ends inside a converter unit.
+    ///
+    /// A unit is one converter input character, or a Zbalermorna shorthand
+    /// and its payload, with the stress marks after it. Its letters with a
+    /// nonempty source range end where the unit ends, and every prefix that
+    /// a word candidate can take ends after a whole unit.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_prefixes_end_at_unit_ends(text: &str) {
+        let count = text.chars().count();
+        if count == 0 {
+            return;
+        }
+        let chars = segment::normalize_source_chars(
+            text.chars().enumerate(),
+            &MorphologyOptions::default(),
+        );
+        if let Some(last) = chars.last() {
+            assert!(last.ends_unit, "{text:?}: the last letter ends a unit");
+        }
+        for (index, source_char) in chars.iter().enumerate() {
+            if !source_char.ends_unit && source_char.source_start < source_char.source_end {
+                assert_eq!(
+                    source_char.source_end,
+                    chars[index + 1].source_end,
+                    "{text:?}: letter {index} ends inside its unit"
+                );
+            }
+        }
+        let unit_ends = std::iter::once(0)
+            .chain(
+                chars
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, source_char)| source_char.ends_unit)
+                    .map(|(index, _)| index + 1),
+            )
+            .collect::<std::collections::BTreeSet<_>>();
+        for (end, letters) in grammar::normalized_prefix_letter_counts(count, chars)
+            .into_iter()
+            .enumerate()
+        {
+            assert!(
+                unit_ends.contains(&letters),
+                "{text:?}: the prefix to {end} ends inside a unit, after {letters} letters"
+            );
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -5115,6 +5164,8 @@ mod tests {
                 assert_eq!(transcript(&composed_text), composed_text, "{composed:?}");
                 continue;
             }
+            assert_prefixes_end_at_unit_ends(&composed_text);
+            assert_prefixes_end_at_unit_ends(&decomposed);
             // The index uses the transcript even where both strict spellings
             // fail, so the transcripts must agree in every case.
             assert_eq!(
@@ -5146,7 +5197,9 @@ mod tests {
                     if forward.nfd().ne(backward.nfd()) {
                         continue;
                     }
+                    assert_prefixes_end_at_unit_ends(&forward);
                     for other in [backward.clone(), forward.nfc().collect::<String>()] {
+                        assert_prefixes_end_at_unit_ends(&other);
                         assert_eq!(kept(&forward), kept(&other), "{forward:?} {other:?}");
                         assert_eq!(parse(&forward), parse(&other), "{forward:?} {other:?}");
                         assert_eq!(strict(&forward), strict(&other), "{forward:?} {other:?}");
@@ -5179,6 +5232,25 @@ mod tests {
             );
             assert_eq!(transcript(composed), transcript(decomposed), "{composed}");
         }
+        // Units of several letters, with each stress mark after them: the
+        // four Zbalermorna diphthongs, the shorthand and its payload, and a
+        // Cyrillic vowel with an implicit apostrophe.
+        for unit in [
+            "\u{eda6}",
+            "\u{eda7}",
+            "\u{eda8}",
+            "\u{eda9}",
+            "\u{ed8b}\u{eda2}",
+            "\u{ed8b}\u{eda6}",
+        ] {
+            for mark in ['\u{0301}', '\u{0300}', '\u{ed98}'] {
+                assert_prefixes_end_at_unit_ends(&format!("\u{ed82}{unit}{mark}\u{ed91}\u{eda3}"));
+            }
+        }
+        for text in ["уаѝ", "уаи\u{0300}", "уаи\u{0301}", "уаи\u{0300}до"] {
+            assert_prefixes_end_at_unit_ends(text);
+        }
+        assert_eq!(parse("уаѝ"), parse("уаи\u{0300}"));
         // A non-stress mark stays an unread character in either spelling.
         assert_eq!(normalize_lojban_input_text("klâma"), None);
         assert_eq!(normalize_lojban_input_text("kla\u{0302}ma"), None);
@@ -5292,6 +5364,92 @@ mod tests {
         // starts the next word.
         let carrier = words("\u{ed8c}\u{eda4}\u{edaa}\u{ed8c}\u{eda6}");
         assert_eq!(carrier[1].1, 2, "{carrier:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_stress_mark_keeps_each_converter_unit_whole() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn words(text: &str) -> Vec<(String, usize, usize)> {
+            segment_words_with_modifiers(text)
+                .unwrap_or_else(|error| panic!("{text:?}: {error}"))
+                .iter()
+                .map(|word| {
+                    let word = base_word(word).expect("plain word");
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        word.span().char_start,
+                        word.span().char_end,
+                    )
+                })
+                .collect()
+        }
+
+        // A Zbalermorna diphthong glyph is one unit. A stress mark after it
+        // stays in its word, and the glide stays too. The phonemes match main
+        // and the spelling with no mark (`klamau do` reads `klámaŭ do`).
+        for (word, phonemes) in [
+            ("\u{ed80}\u{eda2}\u{ed98}\u{ed84}\u{ed82}\u{eda6}", "pílkaĭ"),
+            ("\u{ed82}\u{eda0}\u{ed98}\u{ed97}\u{ed80}\u{eda7}", "kánpeĭ"),
+            ("\u{ed81}\u{eda0}\u{ed98}\u{ed97}\u{ed82}\u{eda8}", "tánkoĭ"),
+            ("\u{ed82}\u{ed84}\u{eda0}\u{ed98}\u{ed87}\u{eda9}", "klámaŭ"),
+        ] {
+            let plain = words(&format!("{word}\u{ed91}\u{eda3}"));
+            assert_eq!(
+                plain,
+                [(phonemes.to_owned(), 0, 6), ("do".to_owned(), 6, 8)],
+                "{word:?}"
+            );
+            for mark in ['\u{0301}', '\u{0300}'] {
+                assert_eq!(
+                    words(&format!("{word}{mark}\u{ed91}\u{eda3}")),
+                    [(phonemes.to_owned(), 0, 7), ("do".to_owned(), 7, 9)],
+                    "{word:?} {mark:?}"
+                );
+            }
+        }
+        // The shorthand and its payload are one unit, and the apostrophe is
+        // part of it. A mark after the payload keeps the apostrophe, as on
+        // main: `í'a` and `i'a` are cmavo.
+        assert_eq!(
+            words("\u{ed8b}\u{eda2}\u{ed98}\u{eda0}"),
+            [("í'a".to_owned(), 0, 4)]
+        );
+        assert_eq!(
+            words("\u{ed8b}\u{eda2}\u{0301}\u{eda0}"),
+            [("i'a".to_owned(), 0, 4)]
+        );
+        // An apostrophe before a consonant or a digit is still an error, as on
+        // main. Main marks the shorthand and its payload (`0..2`). The range
+        // now also covers the stress mark, as for a mark on any last letter.
+        for text in [
+            "\u{ed8b}\u{eda2}\u{ed98}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+            "\u{ed8b}\u{eda2}\u{0301}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+            "\u{ed8b}\u{eda6}\u{ed98}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+            "\u{ed8b}\u{eda6}\u{ed98}1.2",
+        ] {
+            let Err(MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                ..
+            }) = segment_words_with_modifiers(text)
+            else {
+                panic!("{text:?} has an apostrophe before a consonant or digit");
+            };
+            assert_eq!(kind, MorphologyErrorKind::InvalidApostrophe, "{text:?}");
+            assert_eq!((char_start, char_end), (0, 3), "{text:?}");
+        }
+        // The implicit Cyrillic apostrophe belongs to its vowel: `уаи` and a
+        // grave mark read as `уаѝ` reads, one cmavo over the whole text.
+        assert_eq!(words("уаи\u{0300}"), [("u'a'í".to_owned(), 0, 4)]);
+        assert_eq!(words("уаѝ"), [("u'a'í".to_owned(), 0, 3)]);
+        assert_eq!(
+            words("уаи\u{0300} do"),
+            [("u'a'í".to_owned(), 0, 4), ("do".to_owned(), 5, 7)]
+        );
     }
 
     #[test]

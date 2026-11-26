@@ -303,7 +303,7 @@ fn converter_reads(value: char, options: &MorphologyOptions) -> bool {
 }
 
 /// One step of the shared converter walk.
-#[invariant(::Letter { source_start, source_end, value, .. } => source_start <= source_end && is_valid_normalized_char(*value))]
+#[invariant(::Letter { source_start, source_end, value, ends_unit, .. } => source_start <= source_end && is_valid_normalized_char(*value) && (*ends_unit -> source_start < source_end))]
 #[invariant(::Stress { source_start, source_end, .. } => source_start < source_end)]
 #[invariant(::Separator { value } => is_separator(*value))]
 #[invariant(::Unread { .. } => true)]
@@ -311,11 +311,17 @@ fn converter_reads(value: char, options: &MorphologyOptions) -> bool {
 pub(crate) enum ConverterStep {
     /// A Lojban letter for `source_start..source_end`. An implicit apostrophe
     /// has an empty range.
+    ///
+    /// One converter unit, or one Zbalermorna shorthand and its payload, is
+    /// atomic: no word can end inside it. Its letters come in a row, and
+    /// `ends_unit` is true on the last one only. Every letter of the unit
+    /// with a nonempty range ends where the unit ends.
     Letter {
         source_start: usize,
         source_end: usize,
         source_value: char,
         value: char,
+        ends_unit: bool,
     },
     /// A stress mark at `source_start..source_end`. `vowel` is true when the
     /// mark stresses the last vowel rather than the last letter. The mark is
@@ -350,16 +356,20 @@ pub(crate) fn walk_converter_units<E>(
                       end: usize,
                       source_value: char,
                       value: char,
+                      ends_unit: bool,
                       implicit_apostrophe_vowel: bool,
                       previous: &mut bool,
                       on_step: &mut dyn FnMut(ConverterStep) -> Result<(), E>|
      -> Result<(), E> {
         if *previous && implicit_apostrophe_vowel {
+            // The implicit apostrophe belongs to the vowel's unit, so it never
+            // ends a unit.
             on_step(new!(ConverterStep::Letter {
                 source_start: start,
                 source_end: start,
                 source_value: '\'',
                 value: '\'',
+                ends_unit: false,
             }))?;
         }
         on_step(new!(ConverterStep::Letter {
@@ -367,6 +377,7 @@ pub(crate) fn walk_converter_units<E>(
             source_end: end,
             source_value: source_value,
             value: value,
+            ends_unit: ends_unit,
         }))?;
         *previous = implicit_apostrophe_vowel;
         Ok(())
@@ -384,12 +395,15 @@ pub(crate) fn walk_converter_units<E>(
             if let Some(payload_unit) = units.get(cursor + 1).copied()
                 && let Some(payload) = normalize_zbalermorna_shorthand_payload(payload_unit.value)
             {
+                // The shorthand and its payload are one atomic unit with one
+                // source range, and the apostrophe is its last letter.
                 for value in payload.chars() {
                     letter(
-                        payload_unit.start,
+                        unit.start,
                         payload_unit.end,
                         payload_unit.source_value,
                         value,
+                        false,
                         false,
                         &mut previous_implicit_apostrophe_vowel,
                         &mut on_step,
@@ -400,6 +414,7 @@ pub(crate) fn walk_converter_units<E>(
                     payload_unit.end,
                     unit.source_value,
                     '\'',
+                    true,
                     false,
                     &mut previous_implicit_apostrophe_vowel,
                     &mut on_step,
@@ -426,17 +441,21 @@ pub(crate) fn walk_converter_units<E>(
                 unit.end,
                 unit.source_value,
                 value,
+                true,
                 implicit_apostrophe_vowel,
                 &mut previous_implicit_apostrophe_vowel,
                 &mut on_step,
             )?,
             Some(data!(NormalizedCharEvent::EmitText { text })) => {
-                for value in text.chars() {
+                // A Zbalermorna diphthong glyph is one unit of two letters.
+                let mut values = text.chars().peekable();
+                while let Some(value) = values.next() {
                     letter(
                         unit.start,
                         unit.end,
                         unit.source_value,
                         value,
+                        values.peek().is_none(),
                         false,
                         &mut previous_implicit_apostrophe_vowel,
                         &mut on_step,
@@ -484,14 +503,20 @@ pub(crate) fn first_unnormalizable_word_char(
         .map(|error| (error.source_index, error.source_value))
 }
 
+/// One normalized letter and its source range.
+///
+/// `ends_unit` marks the last letter of an atomic converter unit (see
+/// [`ConverterStep::Letter`]). A word can end only after such a letter.
 #[invariant(self.source_start <= self.source_end)]
 #[invariant(is_valid_normalized_char(self.value))]
+#[invariant(self.ends_unit -> self.source_start < self.source_end, "a unit ends after a source character")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NormalizedSourceChar {
     pub source_start: usize,
     pub source_end: usize,
     pub source_value: char,
     pub value: char,
+    pub ends_unit: bool,
 }
 
 #[invariant(true)]
@@ -563,6 +588,15 @@ pub(crate) fn normalize_source_chars_checked(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|chars| chars.iter().all(|item| is_valid_normalized_char(item.value))) || ret.is_err())]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|chars| chars.last().is_none_or(|last| last.ends_unit)), "the last letter ends a unit")]
+#[bityzba::expensive_ensures(
+    ret.as_ref().is_err() || ret.as_ref().is_ok_and(|chars| chars.windows(2).all(|pair| {
+        pair[0].ends_unit
+            || pair[0].source_start == pair[0].source_end
+            || pair[0].source_end == pair[1].source_end
+    })),
+    "every letter of a unit with a nonempty range ends where the unit ends"
+)]
 fn normalize_source_chars_with_mode(
     chars: impl IntoIterator<Item = (usize, char)>,
     options: &MorphologyOptions,
@@ -577,11 +611,13 @@ fn normalize_source_chars_with_mode(
                 source_end,
                 source_value,
                 value,
+                ends_unit,
             }) => normalized.push(new!(NormalizedSourceChar {
                 source_start: source_start,
                 source_end: source_end,
                 source_value: source_value,
                 value: value,
+                ends_unit: ends_unit,
             })),
             data!(ConverterStep::Stress {
                 vowel,
@@ -593,10 +629,10 @@ fn normalize_source_chars_with_mode(
                 } else {
                     stress_last_normalized_char(&mut normalized);
                 }
-                // A postfix stress mark belongs to its word: the last letter's
+                // A postfix stress mark belongs to its word: the last unit's
                 // range covers it, so the word ends after the mark, in every
                 // canonically equivalent spelling.
-                extend_last_normalized_source_end(&mut normalized, source_end);
+                extend_last_normalized_unit_end(&mut normalized, source_end);
             }
             data!(ConverterStep::Separator { .. }) => {}
             data!(ConverterStep::Unread { index, value }) => {
@@ -2019,19 +2055,36 @@ fn is_zbalermorna_ignored_mark(value: char) -> bool {
     matches!(value, '\u{ed8c}' | '\u{ed99}' | '\u{ed9b}')
 }
 
-/// Extend the last letter's source range to `source_end`.
-#[requires(true)]
+/// Extend the last unit's source range to `source_end`.
+///
+/// Every letter of the unit that ends where the unit ends moves with it, so
+/// the unit stays atomic: a Zbalermorna diphthong keeps its glide, and a
+/// shorthand keeps its apostrophe. An implicit apostrophe keeps its empty
+/// range.
+#[requires(chars.last().is_none_or(|last| last.ends_unit))]
 #[ensures(chars.last().is_none_or(|last| last.source_end >= source_end))]
-fn extend_last_normalized_source_end(chars: &mut [NormalizedSourceChar], source_end: usize) {
-    if let Some(last) = chars.last_mut()
-        && last.source_end < source_end
-    {
-        *last = new!(NormalizedSourceChar {
-            source_start: last.source_start,
-            source_end: source_end,
-            source_value: last.source_value,
-            value: last.value,
-        });
+fn extend_last_normalized_unit_end(chars: &mut [NormalizedSourceChar], source_end: usize) {
+    let Some(old_end) = chars
+        .last()
+        .map(|last| last.source_end)
+        .filter(|old_end| *old_end < source_end)
+    else {
+        return;
+    };
+    let unit_start = chars[..chars.len() - 1]
+        .iter()
+        .rposition(|source_char| source_char.ends_unit)
+        .map_or(0, |index| index + 1);
+    for source_char in &mut chars[unit_start..] {
+        if source_char.source_end == old_end {
+            *source_char = new!(NormalizedSourceChar {
+                source_start: source_char.source_start,
+                source_end: source_end,
+                source_value: source_char.source_value,
+                value: source_char.value,
+                ends_unit: source_char.ends_unit,
+            });
+        }
     }
 }
 
@@ -2046,6 +2099,7 @@ fn stress_last_normalized_char(chars: &mut [NormalizedSourceChar]) {
             source_end: last.source_end,
             source_value: last.source_value,
             value: stressed,
+            ends_unit: last.ends_unit,
         });
     }
 }
@@ -2064,6 +2118,7 @@ fn stress_last_normalized_vowel_char(chars: &mut [NormalizedSourceChar]) {
             source_end: last.source_end,
             source_value: last.source_value,
             value: stressed,
+            ends_unit: last.ends_unit,
         });
     }
 }

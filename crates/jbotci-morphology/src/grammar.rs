@@ -3480,20 +3480,19 @@ impl NormalizedCandidate {
         source_stripped_char_ends[0] = Some(0);
 
         for source_char in chars {
-            let required_prefix = if source_char.source_start == source_char.source_end {
-                source_char.source_start + 1
-            } else {
-                source_char.source_end
-            };
             text.push(source_char.value);
             normalized_chars.push(source_char.value);
             if source_char.value != ',' {
                 stripped_chars.push(source_char.value);
             }
-            if required_prefix <= source_char_count {
-                source_text_byte_ends[required_prefix] = Some(text.len());
-                source_normalized_char_ends[required_prefix] = Some(normalized_chars.len());
-                source_stripped_char_ends[required_prefix] = Some(stripped_chars.len());
+            // A word can end only after the last letter of a converter unit.
+            // A prefix that ended inside one would split a Zbalermorna
+            // diphthong, a shorthand and its payload, or an implicit
+            // apostrophe and its vowel.
+            if source_char.ends_unit && source_char.source_end <= source_char_count {
+                source_text_byte_ends[source_char.source_end] = Some(text.len());
+                source_normalized_char_ends[source_char.source_end] = Some(normalized_chars.len());
+                source_stripped_char_ends[source_char.source_end] = Some(stripped_chars.len());
             }
         }
 
@@ -3573,6 +3572,21 @@ impl NormalizedCandidate {
             self.stripped_chars.len(),
         )
     }
+}
+
+/// The number of normalized letters before each source prefix end, as the
+/// word candidates see them. Tests use it to check that no prefix ends
+/// inside a converter unit.
+#[cfg(test)]
+#[requires(source_char_count > 0)]
+#[ensures(ret.len() == source_char_count + 1)]
+pub(crate) fn normalized_prefix_letter_counts(
+    source_char_count: usize,
+    chars: Vec<NormalizedSourceChar>,
+) -> Vec<usize> {
+    NormalizedCandidate::from_normalized_source_chars(source_char_count, chars)
+        .source_normalized_char_ends
+        .clone()
 }
 
 #[requires(!ends.is_empty())]
