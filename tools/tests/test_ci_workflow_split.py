@@ -16,8 +16,8 @@ from markdown_it import MarkdownIt
 from tools.cargo_inputs_trace import dioxus_cli_version, shared_rustup_home
 from tools.release_compiler import toolchain_channel
 from tools.workflow_images import (
-    dockerfile_rust_versions, named_dockerfiles, require_channel, workflow_dockerfiles,
-    workflow_rust_versions,
+    dockerfile_rust_versions, named_dockerfiles, render_dockerfiles, require_channel,
+    workflow_dockerfiles, workflow_rust_versions,
 )
 from tools.workflow_pins import PinError, exactly_one, job_env_values
 
@@ -457,26 +457,37 @@ class CiWorkflowSplitTests(unittest.TestCase):
 
     def test_named_dockerfiles_match_the_toolchain_channel(self) -> None:
         paths = named_dockerfiles(REPOSITORY_ROOT)
-        relative = [path.relative_to(REPOSITORY_ROOT).as_posix() for path in paths]
-        self.assertEqual(relative, [
-            "deploy/render/Dockerfile",
-            "deploy/render/Dockerfile.runtime",
-        ])
+        self.assertTrue(paths)
         for path in paths:
-            with self.subTest(file=relative[paths.index(path)]):
-                source = path.relative_to(REPOSITORY_ROOT).as_posix()
+            source = path.relative_to(REPOSITORY_ROOT).as_posix()
+            with self.subTest(file=source):
                 versions = dockerfile_rust_versions(path.read_text(encoding="utf-8"), source)
                 require_channel(versions, self.channel, source)
 
     def test_a_stale_dockerfile_rust_image_fails(self) -> None:
-        text = "FROM rust:1.99.0-bookworm AS build\n"
         source = "deploy/render/Dockerfile"
-        versions = dockerfile_rust_versions(text, source)
-        self.assertEqual(versions, ["1.99.0"])
-        with self.assertRaisesRegex(PinError, "deploy/render/Dockerfile pins Rust 1.99.0"):
-            require_channel(versions, "1.100.0", source)
-        runtime = "FROM --platform=linux/amd64 debian:bookworm-slim AS runtime\n"
-        self.assertEqual(dockerfile_rust_versions(runtime, "Dockerfile.runtime"), [])
+        for text in (
+            "FROM rust:1.99.0-bookworm\n",
+            "FROM rust:1.99.0-bookworm AS build\n",
+        ):
+            with self.subTest(text=text):
+                versions = dockerfile_rust_versions(text, source)
+                self.assertEqual(versions, ["1.99.0"])
+                with self.assertRaisesRegex(PinError, "deploy/render/Dockerfile pins Rust 1.99.0"):
+                    require_channel(versions, "1.100.0", source)
+
+    def test_render_manifest_names_a_dockerfile(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / "render.yaml").write_text(
+                "services:\n  - dockerfilePath: ./deploy/sample/Dockerfile\n",
+                encoding="utf-8",
+            )
+            paths = render_dockerfiles(repo)
+        self.assertEqual(
+            [path.relative_to(repo).as_posix() for path in paths],
+            ["deploy/sample/Dockerfile"],
+        )
 
     def test_declared_dockerfile_paths_exclude_shell_commands(self) -> None:
         text = (

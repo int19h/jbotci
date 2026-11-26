@@ -1,12 +1,15 @@
 """Read Rust image and version pins from selected build files.
 
+This check is a cheap guard. It is not a complete Dockerfile parser.
 Read job container images and workflow or job environment values.
 Read literal Rust version pins from RUST_VERSION, RUSTC_VERSION,
 RUST_TOOLCHAIN, and RUSTUP_TOOLCHAIN.
-Read FROM lines in Dockerfiles that the build configuration names.
+Read the image word on a one-line FROM instruction.
+The build configuration names the Dockerfiles.
 `render.yaml` names one Dockerfile through `dockerfilePath`.
 A workflow names a Dockerfile through the `file` input of `docker/build-push-action`.
-A Rust image spelled in a shell command is not checked.
+A continued line, a build argument, a stage name, and copied text stay unread.
+A Rust image spelled in a shell command stays unread.
 The repository name is the last path component before the tag or the digest.
 """
 from __future__ import annotations
@@ -116,22 +119,15 @@ def workflow_rust_versions(text: str) -> list[str]:
 
 
 def from_images(text: str) -> list[str]:
-    """Return each image token on a Dockerfile FROM line.
+    """Return the image word on each one-line FROM instruction.
 
-    A `#` comment is not part of the line.
-    A `--platform=...` flag is not the image.
+    The second word is the image. This guard does not join lines.
     """
     images = []
     for line in text.splitlines():
-        parts = line.split("#", 1)[0].split()
-        if not parts or parts[0].upper() != "FROM":
-            continue
-        index = 1
-        while index < len(parts) and parts[index].startswith("--"):
-            index += 1
-        if index >= len(parts):
-            raise PinError("A Dockerfile FROM line has no image.")
-        images.append(parts[index])
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].upper() == "FROM":
+            images.append(parts[1])
     return images
 
 

@@ -179,14 +179,16 @@ A flow mapping is a declaration.
 A quoted key is a declaration.
 An inline comment is not part of the value.
 The drift tests compare Rust pins with the channel in `rust-toolchain.toml`.
+The image check is a cheap guard. It is not a complete Dockerfile parser.
 They read job container images and workflow or job `env` values.
 They accept registry prefixes and tags such as `1.100.0-slim-bookworm`.
 The repository name is the last path component before the tag or the digest.
-They read `FROM` lines in Dockerfiles that the build configuration names.
+They read the image word on a one-line `FROM` instruction.
+The build configuration names those Dockerfiles.
 `render.yaml` names one Dockerfile through `dockerfilePath`.
-
 A workflow names a Dockerfile through the `file` input of `docker/build-push-action`.
-The tests compare each Rust image on those lines with the channel.
+The tests compare a Rust image from that word with the channel.
+A continued line, a build argument, a stage name, and copied text stay unread.
 The tests do not read Rust image references in shell commands.
 If a container needs a digest, use the resolver output.
 The resolver reads the tag and obtains the matching digest.
