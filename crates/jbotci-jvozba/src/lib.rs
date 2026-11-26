@@ -582,7 +582,7 @@ fn plan_expansion<'input, 'dictionary>(
         if let Some(segment) = decomposition.segments.iter().find(|segment| {
             segment.kind == DictionaryLujvoSegmentKind::FuivlaRafsi
                 && !segment.sources.is_empty()
-                && fuivla_rafsi_word_key(dictionary, segment.segment.phonemes().as_str()).is_none()
+                && single_word_key(&segment.sources).is_none()
         }) {
             return Err(JvozbaError::AmbiguousFuivlaRafsi {
                 stem: canonicalize_text(segment.segment.phonemes().as_str()),
@@ -1090,38 +1090,41 @@ fn primary_rafsi_source<'a>(
 
 /// The fu'ivla that a fu'ivla rafsi part comes from, in index order.
 ///
-/// CLL 4.16 gives two forms. The short form is a derived stem in the rafsi
-/// index (`ierx` from `ierxi`, `actce` from `actce'o`). The full form is the
-/// fu'ivla itself before `'y` (`actce` from `actce`), so its sources are the
-/// fu'ivla entries with that lookup key. One part can come from both forms.
+/// CLL 4.16 gives two forms. The full form is a fu'ivla itself before `'y`,
+/// and it names that fu'ivla alone (owner rule, #1136): when fu'ivla entries
+/// have the part's lookup key, they are the sources. Otherwise the sources
+/// are the short forms, the derived stems in the rafsi index (`ierx` from
+/// `ierxi`, `actce` from `actce'o`). Two short forms can still share a part,
+/// and then the part names no single word.
 #[requires(true)]
 #[ensures(ret.iter().all(|source| source.entry_index.0 < dictionary.entries().len()))]
 fn fuivla_rafsi_source_set<'a>(
     dictionary: &Dictionary<'a>,
     part: &str,
 ) -> Vec<DictionaryLujvoSource<'a>> {
-    let mut sources = dictionary
+    let full_forms = dictionary
+        .lookup_words(part)
+        .filter(|entry| entry.word_type.is_fuivla_like())
+        .filter_map(|entry| {
+            dictionary
+                .entry_index_for_entry(entry)
+                .map(|entry_index| DictionaryLujvoSource {
+                    entry_index,
+                    word: entry.word,
+                })
+        })
+        .collect::<Vec<_>>();
+    if !full_forms.is_empty() {
+        return full_forms;
+    }
+    dictionary
         .lookup_rafsi(part)
         .filter(|matched| matched.source == RafsiSource::FuivlaStem)
         .map(|matched| DictionaryLujvoSource {
             entry_index: matched.entry_index,
             word: matched.entry.word,
         })
-        .collect::<Vec<_>>();
-    for entry in dictionary.lookup_words(part) {
-        if entry.word_type.is_fuivla_like()
-            && let Some(entry_index) = dictionary.entry_index_for_entry(entry)
-            && !sources
-                .iter()
-                .any(|source| source.entry_index == entry_index)
-        {
-            sources.push(DictionaryLujvoSource {
-                entry_index,
-                word: entry.word,
-            });
-        }
-    }
-    sources
+        .collect()
 }
 
 /// The sources of a fu'ivla rafsi part, ranked by score for display.
@@ -1160,13 +1163,6 @@ fn single_word_key(sources: &[DictionaryLujvoSource<'_>]) -> Option<String> {
         .map(|source| normalize_lookup_query(source.word));
     let first = keys.next().filter(|key| !key.is_empty())?;
     keys.all(|key| key == first).then_some(first)
-}
-
-/// The lookup key of the one word that a fu'ivla rafsi part names.
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
-fn fuivla_rafsi_word_key(dictionary: &Dictionary<'_>, part: &str) -> Option<String> {
-    single_word_key(&fuivla_rafsi_source_set(dictionary, part))
 }
 
 /// True when the fu'ivla rafsi part names exactly the word of `expected`.
@@ -1669,8 +1665,9 @@ mod tests {
         let token = CancellationToken::never();
         for (lujvo, part, sources) in [
             ("spageti'ykukte", "spageti", &["spageti"][..]),
-            // `enrio` reads as `énrĭo`, so its short form is `enri` too.
-            ("enri'ykukte", "enri", &["enri", "enrio"][..]),
+            // The full form names `enri` alone. `enrio` would shorten to
+            // `enri`, which is that full form, so it has no short form.
+            ("enri'ykukte", "enri", &["enri"][..]),
             ("enrykukte", "enr", &["enri"][..]),
             ("actce'ybau", "actce", &["actce'o"][..]),
             ("adzau'ybau", "adzau", &["adzau"][..]),
@@ -1706,6 +1703,139 @@ mod tests {
             ("enri", "kukte", "enrykukte"),
             ("actce'o", "bangu", "actce'ybau"),
             ("adzau", "bangu", "adzau'ybau"),
+        ] {
+            let result = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::Word(first.to_owned()),
+                    JvozbaInput::Word(second.to_owned()),
+                ],
+                &token,
+            )
+            .unwrap_or_else(|error| panic!("{first} {second}: {error}"));
+            assert_eq!(result.word, expected, "{first} {second}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_string_of_ordinary_rafsi_before_y_is_not_a_fuivla_rafsi() {
+        // These parts are ordinary rafsi strings or known lujvo, as on main
+        // (#1139 review). They keep their ordinary sources.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        for (lujvo, part, sources) in [
+            ("velski'y'esku", "velski", &["velski"][..]),
+            ("jbobau'ybra", "jbobau", &["jbobau"][..]),
+            ("jbokla'ybangu", "jbokla", &[][..]),
+        ] {
+            let decomposition = decompose_lujvo_like(dictionary, lujvo, &token)
+                .unwrap()
+                .unwrap_or_else(|| panic!("{lujvo} decomposes"));
+            let first = &decomposition.segments[0];
+            assert_eq!(
+                canonicalize_text(first.segment.phonemes().as_str()),
+                part,
+                "{lujvo}"
+            );
+            assert_eq!(first.kind, DictionaryLujvoSegmentKind::Rafsi, "{lujvo}");
+            assert_eq!(
+                first
+                    .sources
+                    .iter()
+                    .map(|source| source.word)
+                    .collect::<Vec<_>>(),
+                sources,
+                "{lujvo}"
+            );
+        }
+        let shipped = decompose_lujvo_like(
+            dictionary,
+            "facyborselkaizilkanpyborselkaimau'yraunzu",
+            &token,
+        )
+        .unwrap()
+        .unwrap();
+        assert!(
+            shipped
+                .segments
+                .iter()
+                .all(|segment| segment.kind != DictionaryLujvoSegmentKind::FuivlaRafsi),
+            "{shipped:?}"
+        );
+        // `bancu'e` is a string of ordinary rafsi, so `bancu'e'a` keeps its
+        // full form, and a literal `jbobau` stays refused before `bratu`.
+        let build = |inputs: &[JvozbaInput]| {
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, inputs, &token)
+                .map(|result| result.word.clone())
+        };
+        assert_eq!(
+            build(&[
+                JvozbaInput::Word("bancu'e'a".to_owned()),
+                JvozbaInput::Word("bangu".to_owned()),
+            ])
+            .as_deref(),
+            Ok("bancu'e'a'ybau")
+        );
+        assert!(
+            build(&[
+                JvozbaInput::FixedRafsi("jbobau".to_owned()),
+                JvozbaInput::Word("bratu".to_owned()),
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_full_form_names_its_fuivla_alone() {
+        // Owner rules for round 8: F + `'y` names F alone, a short form that
+        // equals a full form does not exist, and a short form with the
+        // experimental CgV warning is refused.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        for (lujvo, sources) in [
+            ("esku'ykukte", &["esku"][..]),
+            ("enri'ykukte", &["enri"][..]),
+            ("bolviia'ybau", &["bolviia"][..]),
+        ] {
+            let decomposition = decompose_lujvo_like(dictionary, lujvo, &token)
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                decomposition.segments[0]
+                    .sources
+                    .iter()
+                    .map(|source| source.word)
+                    .collect::<Vec<_>>(),
+                sources,
+                "{lujvo}"
+            );
+        }
+        // Two short forms that collide still list both, and neither is used.
+        let esky = decompose_lujvo_like(dictionary, "eskykukte", &token)
+            .unwrap()
+            .unwrap();
+        let mut esky_sources = esky.segments[0]
+            .sources
+            .iter()
+            .map(|source| source.word)
+            .collect::<Vec<_>>();
+        esky_sources.sort_unstable();
+        assert_eq!(esky_sources, ["eska", "esku"]);
+        for (first, second, expected) in [
+            ("esku", "kukte", "esku'ykukte"),
+            ("eskua", "kukte", "eskua'ykukte"),
+            ("eska", "kukte", "eska'ykukte"),
+            ("enri", "kukte", "enrykukte"),
+            ("enrio", "kukte", "enrio'ykukte"),
+            ("bolviia", "bangu", "bolviia'ybau"),
+            ("burjuia", "bangu", "burjuia'ybau"),
+            ("cpikiui", "bangu", "cpikiui'ybau"),
+            ("bantuuo", "bangu", "bantuuo'ybau"),
         ] {
             let result = build_best_jvozba_detailed(
                 JvozbaMode::Lujvo,
@@ -1803,12 +1933,14 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn a_part_with_sources_from_both_forms_lists_both_and_names_neither() {
+    fn a_full_form_shadows_an_equal_short_form() {
         use jbotci_dictionary::DictionaryEntry;
 
-        // `actce` is the full form of a fu'ivla `actce` and the short form of
-        // `actce'o`. Decomposition lists both. jvozba offers a form only when
-        // it names one fu'ivla, so neither build uses `actce'y`.
+        // `actce` is the full form of a fu'ivla `actce`, and `actce'o` would
+        // shorten to it. The full form names `actce` alone, so `actce'o` has
+        // no short form (owner rules for round 8). Decomposition lists only
+        // `actce`. `actce` builds with its own shorter form `actc`, and
+        // `actce'o` keeps its full form.
         let english = jbotci_dictionary_data::english();
         let actceho = *english.lookup_word("actce'o").unwrap();
         let actce = DictionaryEntry {
@@ -1821,14 +1953,17 @@ mod tests {
             let decomposition = decompose_lujvo_like(dictionary, "actce'ybau", &token)
                 .unwrap()
                 .unwrap();
-            let mut words = decomposition.segments[0]
-                .sources
-                .iter()
-                .map(|source| source.word)
-                .collect::<Vec<_>>();
-            words.sort_unstable();
-            assert_eq!(words, ["actce", "actce'o"]);
-            for (index, word) in [(0, "actce'o"), (1, "actce")] {
+            assert_eq!(
+                decomposition.segments[0]
+                    .sources
+                    .iter()
+                    .map(|source| source.word)
+                    .collect::<Vec<_>>(),
+                ["actce"]
+            );
+            for (index, word, expected) in
+                [(0, "actce'o", "actce'o'ybau"), (1, "actce", "actcybau")]
+            {
                 let result = build_best_jvozba_detailed(
                     JvozbaMode::Lujvo,
                     dictionary,
@@ -1840,13 +1975,9 @@ mod tests {
                         JvozbaInput::Word("bangu".to_owned()),
                     ],
                     &token,
-                );
-                assert!(
-                    result
-                        .as_ref()
-                        .map_or(true, |result| !result.word.starts_with("actce'y")),
-                    "{word}: {result:?}"
-                );
+                )
+                .unwrap_or_else(|error| panic!("{word}: {error}"));
+                assert_eq!(result.word, expected, "{word}");
             }
         });
     }

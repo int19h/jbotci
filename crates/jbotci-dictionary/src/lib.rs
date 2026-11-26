@@ -15,10 +15,11 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    MorphologyOptions, ShortRafsiShape, canonicalize_text, fold_lojban_diacritic,
-    is_fuhivla_rafsi_form, normalize_latin_apostrophe, normalize_lojban_input_text,
-    possible_short_rafsi_forms, segment_words_with_modifiers_with_options_and_source_id,
-    strip_lojban_diacritic,
+    MorphologyOptions, MorphologyWarningKind, ShortRafsiShape, canonicalize_text, ends_with_vowel,
+    fold_lojban_diacritic, is_fuhivla_rafsi_form, normalize_latin_apostrophe,
+    normalize_lojban_input_text, possible_short_rafsi_forms,
+    segment_words_with_modifiers_with_options_and_source_id,
+    segment_words_with_modifiers_with_options_and_source_id_attempt, strip_lojban_diacritic,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -1085,6 +1086,14 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
     let mut rafsi_map: BTreeMap<String, Vec<RafsiIndexTarget>> = BTreeMap::new();
     let mut pattern_index = Vec::with_capacity(entries.len());
     let mut cmavo_map: BTreeMap<Vec<String>, Vec<EntryIndex>> = BTreeMap::new();
+    // Every fu'ivla F has the full form F + `'y`, which names F alone. A short
+    // form equal to a full form would name a second word, so it is not
+    // indexed (`eskua` would shorten to `esku`).
+    let fuivla_full_forms = entries
+        .iter()
+        .filter(|entry| entry.word_type.is_fuivla_like())
+        .map(|entry| normalize_lookup_query(entry.word))
+        .collect::<std::collections::BTreeSet<_>>();
 
     for (index, entry) in entries.iter().enumerate() {
         let entry_index = EntryIndex(index);
@@ -1124,6 +1133,7 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
 
         if entry.word_type.is_fuivla_like()
             && let Some(stem) = fuivla_stem_rafsi(entry.word)
+            && !fuivla_full_forms.contains(&normalize_lookup_query(&stem))
         {
             // A derived stem is in the exact rafsi index only. Wildcard rafsi
             // search keeps to listed and universal forms, because nearly every
@@ -1264,7 +1274,30 @@ pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
     let normalized = normalize_lojban_input_text(word)?;
     let phonemes = single_word_phonemes(normalized.trim_matches('.'))?;
     let stem = short_form_of_phonemes(&phonemes)?;
-    is_fuhivla_rafsi_form(&stem).then_some(stem)
+    (is_fuhivla_rafsi_form(&stem) && !short_form_has_experimental_cgv(&stem)).then_some(stem)
+}
+
+/// True when a word built with the short form gets the experimental CgV
+/// warning from the morphology.
+///
+/// The owner refuses such a short form (`bolviia` keeps `bolviia'y`, not
+/// `bolvii'y`). The check builds `stem` + its hyphen + `kla` and reads the
+/// morphology's own warnings, because a glide cluster inside the stem is the
+/// same in every compound.
+#[requires(!stem.is_empty())]
+#[ensures(true)]
+fn short_form_has_experimental_cgv(stem: &str) -> bool {
+    let hyphen = if ends_with_vowel(stem) { "'y" } else { "y" };
+    let probe = format!("{stem}{hyphen}kla");
+    segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &probe,
+        &MorphologyOptions::default(),
+        None,
+    )
+    .into_data()
+    .warnings
+    .iter()
+    .any(|warning| warning.kind == MorphologyWarningKind::ExperimentalCgv)
 }
 
 /// The phonemes that the morphology reads for `text`, when `text` is exactly

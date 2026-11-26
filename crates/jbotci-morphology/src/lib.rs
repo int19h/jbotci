@@ -3418,22 +3418,30 @@ fn canonical_text_chars(text: &str) -> impl Iterator<Item = char> + '_ {
         .map(normalize_latin_apostrophe)
 }
 
-/// Return whether a canonical stem satisfies the fu'ivla rafsi rule before `y`.
+/// Return whether a stem satisfies the fu'ivla rafsi rule before `y`.
+///
+/// The text may carry stress and glide marks or another apostrophe
+/// spelling. The rule reads its canonical letters.
 #[requires(true)]
 #[ensures(ret -> !stem.is_empty())]
 pub fn is_fuhivla_rafsi_stem(stem: &str) -> bool {
     segment::is_fuhivla_rafsi_stem(stem)
 }
 
-/// Return whether a canonical part is a fu'ivla rafsi with the hyphen that
-/// its last letter takes: `y` after a consonant, `'y` after a vowel.
+/// Return whether a part is a fu'ivla rafsi with the hyphen that its last
+/// letter takes: `y` after a consonant, `'y` after a vowel (CLL 4.16).
+///
+/// The part is not a fu'ivla rafsi when the morphology reads it as an
+/// ordinary rafsi, a string of rafsi, or a gismu. The rule reads the
+/// canonical letters of `part`.
 #[requires(true)]
 #[ensures(ret -> !part.is_empty())]
 pub fn is_fuhivla_rafsi_form(part: &str) -> bool {
-    if part.chars().last().is_some_and(segment::is_vowel) {
-        segment::is_fuhivla_rafsi_head_before_apostrophe_y(part)
+    let canonical = canonicalize_text(part);
+    if canonical.chars().last().is_some_and(segment::is_vowel) {
+        segment::is_fuhivla_rafsi_head_before_apostrophe_y(&canonical)
     } else {
-        segment::is_fuhivla_rafsi_stem(part)
+        segment::is_fuhivla_rafsi_stem(&canonical)
     }
 }
 
@@ -3935,6 +3943,42 @@ mod tests {
         assert!(is_fuhivla_rafsi_form("ierx"));
         assert!(!is_fuhivla_rafsi_form("kla"));
         assert!(!is_fuhivla_rafsi_form("klama"));
+        // A string of ordinary rafsi before `y` or `'y` is not a fu'ivla
+        // rafsi, as on main. The classifiers read canonical letters, so marked
+        // text gets the same answer.
+        for (lujvo, part, kind) in [
+            ("velski'y'esku", 0, ValsiLujvoRafsiKind::Extended),
+            ("jbobau'ybra", 0, ValsiLujvoRafsiKind::Extended),
+            ("jbokla'ybangu", 0, ValsiLujvoRafsiKind::Extended),
+            (
+                "facyborselkaizilkanpyborselkaimau'yraunzu",
+                8,
+                ValsiLujvoRafsiKind::Extended,
+            ),
+        ] {
+            let word = analyze_valsi(lujvo);
+            let word = word
+                .result
+                .classification
+                .as_ref()
+                .and_then(ValsiClassification::word)
+                .expect("plain word classification");
+            assert_eq!(word.parts[part].rafsi_kind, Some(kind), "{lujvo}");
+        }
+        for (marked, plain) in [("jbobáŭ", "jbobau"), ("ĭérx", "ierx"), ("áctce", "actce")] {
+            assert_eq!(
+                is_fuhivla_rafsi_form(marked),
+                is_fuhivla_rafsi_form(plain),
+                "{marked}"
+            );
+            assert_eq!(
+                is_fuhivla_rafsi_stem(marked),
+                is_fuhivla_rafsi_stem(plain),
+                "{marked}"
+            );
+        }
+        assert!(!is_fuhivla_rafsi_form("jbobau"));
+        assert!(!is_fuhivla_rafsi_form("velski"));
     }
 
     #[test]
