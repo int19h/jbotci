@@ -56,10 +56,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The plan carries one expanded input.",
     ),
     (
-        "crates/jbotci-jvozba/src/lib.rs:ExpansionPlan::Decomposed",
-        "The plan owns an already validated decomposition.",
-    ),
-    (
         "crates/jbotci-output/src/lib.rs:OutputError::Limit",
         "The error carries an already validated byte limit.",
     ),
@@ -1746,6 +1742,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::Interrupted",
         "unit marker: compound morphology stopped because the cancellation flag was set, and no partial word is returned",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::LujvoPartWithoutSource",
+        "the error reports the input word and a rafsi from its decomposition that has no source entry",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NoDictionaryEntry",

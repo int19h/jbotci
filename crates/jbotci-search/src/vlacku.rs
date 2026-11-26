@@ -2054,6 +2054,7 @@ fn decompose_query<'a>(
             | JvozbaError::NoRafsiAvailable { .. }
             | JvozbaError::NoDictionaryEntry { .. }
             | JvozbaError::AmbiguousFuivlaRafsi { .. }
+            | JvozbaError::LujvoPartWithoutSource { .. }
             | JvozbaError::TooMuchWork { .. }
             | JvozbaError::CouldNotBuildLujvo
             | JvozbaError::CouldNotBuildCompound),
