@@ -1256,6 +1256,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent booleans with no cross-field invariant",
     ),
     (
+        "crates/jbotci-morphology/src/segment.rs:LookupTranscript",
+        "lookup transcript buffers the raw text of one literal run, and any text is a valid run",
+    ),
+    (
         "crates/jbotci-morphology/src/segment.rs:NormalizationError",
         "normalization error records an arbitrary rejected source character and its source index",
     ),
