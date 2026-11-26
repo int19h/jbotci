@@ -535,6 +535,75 @@ pub(crate) fn escape_terminal_controls(text: &str) -> std::borrow::Cow<'_, str> 
     std::borrow::Cow::Owned(output)
 }
 
+/// Escape one terminal field. CR and LF become `\u{hex}` too.
+///
+/// Styled text keeps those bytes as line breaks. A single-line field does not.
+#[requires(true)]
+#[ensures(!ret.contains('\n') && !ret.contains('\r'))]
+pub(crate) fn escape_terminal_field(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.chars().any(is_single_line_control) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut output = String::new();
+    for character in text.chars() {
+        if is_single_line_control(character) {
+            push_control_escape(&mut output, character);
+        } else {
+            output.push(character);
+        }
+    }
+    std::borrow::Cow::Owned(output)
+}
+
+/// Turn CR LF and a lone CR into LF. Escape every other terminal control.
+///
+/// Use this for a plain note. A styled note already has color bytes.
+#[requires(true)]
+#[ensures(!ret.contains('\r'))]
+pub(crate) fn escape_terminal_note(text: &str) -> std::borrow::Cow<'_, str> {
+    let normalized = normalize_note_breaks(text);
+    match escape_terminal_controls(normalized.as_ref()) {
+        std::borrow::Cow::Borrowed(_) => normalized,
+        std::borrow::Cow::Owned(escaped) => std::borrow::Cow::Owned(escaped),
+    }
+}
+
+/// Turn CR LF and a lone CR into LF. Keep every other byte.
+///
+/// A styled note already escaped its controls. This pass keeps the color bytes.
+#[requires(true)]
+#[ensures(!ret.contains('\r'))]
+pub(crate) fn normalize_terminal_breaks(text: &str) -> std::borrow::Cow<'_, str> {
+    normalize_note_breaks(text)
+}
+
+#[requires(true)]
+#[ensures(ret == (is_raw_terminal_control(character) || character == '\n' || character == '\r'))]
+fn is_single_line_control(character: char) -> bool {
+    character == '\n' || character == '\r' || is_raw_terminal_control(character)
+}
+
+#[requires(true)]
+#[ensures(!ret.contains('\r'))]
+fn normalize_note_breaks(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.chars().any(|character| character == '\r') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut output = String::with_capacity(text.len());
+    let mut characters = text.chars().peekable();
+    while let Some(character) = characters.next() {
+        if character == '\r' {
+            if characters.peek() == Some(&'\n') {
+                characters.next();
+            }
+            output.push('\n');
+        } else {
+            output.push(character);
+        }
+    }
+    std::borrow::Cow::Owned(output)
+}
+
 /// Escaped excerpt text and a map from each original byte to an escaped byte.
 ///
 /// An empty map means the text has no escaped control, so every original

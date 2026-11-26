@@ -44,7 +44,7 @@ enum RecoveredMorphologySequenceItem<'tree> {
     },
 }
 
-#[requires(max_bytes > 0)]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn recovery_item_from_span(
     error_index: usize,
@@ -53,23 +53,20 @@ fn recovery_item_from_span(
     expected: Vec<String>,
     span: SourceSpan,
     source: &str,
-    max_bytes: usize,
+    max_bytes: &crate::budget::LeafCopy,
 ) -> Result<RecoveryRenderItem, OutputError> {
-    let Some(limit) = ByteLimit::new(max_bytes) else {
-        return Err(OutputError::Recovery(
-            "recovery byte budget must be positive".to_owned(),
-        ));
-    };
     // The original span is still a borrow here. An oversized span copies nothing.
-    let mut budget = crate::budget::SpanBudget::new(limit);
+    let mut budget = crate::budget::SpanBudget::new(
+        ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+    );
     let Some(borrowed) = budget.slice(source, span.byte_start, span.byte_end) else {
         return Err(OutputError::Recovery(format!(
             "recovery span {}..{} is outside the source text",
             span.byte_start, span.byte_end
         )));
     };
-    let text = budget
-        .copy(borrowed)
+    let text = max_bytes
+        .copy_exact(borrowed)
         .map_err(|error| OutputError::Limit { limit: error.limit })?;
     if error_index >= diagnostic_count {
         return Err(OutputError::Recovery(format!(
@@ -91,14 +88,14 @@ fn recovery_item_from_span(
     }))
 }
 
-#[requires(error_index < errors.len() && max_bytes > 0)]
+#[requires(error_index < errors.len())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn morphology_recovery_item(
     error_index: usize,
     errors: &[MorphologyError],
     span: &SourceSpan,
     source: &str,
-    max_bytes: usize,
+    max_bytes: &crate::budget::LeafCopy,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let (diagnostic_code, expected) = match &errors[error_index] {
         MorphologyError::Invalid { kind, .. } => (
@@ -130,13 +127,13 @@ fn morphology_recovery_item(
     )
 }
 
-#[requires(max_bytes > 0)]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
     item: &E,
     errors: &[SyntaxError],
     source: &str,
-    max_bytes: usize,
+    max_bytes: &crate::budget::LeafCopy,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let error_index = item.recovery_error_index().ok_or_else(|| {
         OutputError::Recovery("syntax recovery item has no diagnostic index".to_owned())
@@ -199,12 +196,12 @@ fn recovery_item_span(item: &impl RecoveryItemState) -> Option<SourceSpan> {
     result
 }
 
-#[requires(recovered.errors.len() == recovered.error_regions.len() && max_bytes > 0)]
+#[requires(recovered.errors.len() == recovered.error_regions.len())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn recovered_morphology_sequence<'tree>(
     recovered: &'tree RecoveredMorphologySegmentation,
     source: &str,
-    max_bytes: usize,
+    max_bytes: &crate::budget::LeafCopy,
 ) -> Result<Vec<RecoveredMorphologySequenceItem<'tree>>, OutputError> {
     let mut words = recovered.words.iter().peekable();
     let mut errors = recovered.error_regions.iter().enumerate().peekable();
@@ -271,12 +268,13 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
             cancellation,
         );
     }
-    let scope = crate::budget::LimitScope::enter();
+    let leaves = crate::budget::LeafCopy::reject_limit(limit);
+    let scope = leaves.enter();
     let context = brackets::BracketContext {
         options,
-        max_leaf_bytes: limit.get(),
+        max_leaf_bytes: leaves.clone(),
     };
-    let children = recovered_morphology_sequence(recovered, source, limit.get())?
+    let children = recovered_morphology_sequence(recovered, source, &leaves)?
         .into_iter()
         .map(|item| match item.into_data() {
             data!(RecoveredMorphologySequenceItem::Valid { word }) => {
@@ -324,11 +322,12 @@ pub fn pretty_recovered_morphology_tree_with_limit(
             cancellation,
         );
     }
+    let leaves = crate::budget::LeafCopy::reject_limit(limit);
     let mut values = Vec::new();
-    for item in recovered_morphology_sequence(recovered, source, limit.get())? {
+    for item in recovered_morphology_sequence(recovered, source, &leaves)? {
         values.push(match item.into_data() {
             data!(RecoveredMorphologySequenceItem::Valid { word }) => {
-                tree::morphology_tree_value(word, source, options, limit.get())?
+                tree::morphology_tree_value(word, source, options, &leaves)?
             }
             data!(RecoveredMorphologySequenceItem::Error { item }) => {
                 recovery_error_tree_value(&item)
@@ -532,7 +531,7 @@ pub fn pretty_recovered_morphology_raw(
         return Ok(debug_output(&recovered.words, indent));
     }
     Ok(debug_output(
-        &recovered_morphology_sequence(recovered, source, usize::MAX)?,
+        &recovered_morphology_sequence(recovered, source, &crate::budget::LeafCopy::unlimited())?,
         indent,
     ))
 }
@@ -624,12 +623,12 @@ impl<'source, 'errors> RecoveredBracketBuilder<'source, 'errors> {
         source: &'source str,
         errors: &'errors [SyntaxError],
         options: BracketRenderOptions,
-        max_leaf_bytes: usize,
+        max_leaf_bytes: &crate::budget::LeafCopy,
     ) -> Self {
         Self {
             context: brackets::BracketContext {
                 options,
-                max_leaf_bytes,
+                max_leaf_bytes: max_leaf_bytes.clone(),
             },
             source,
             errors,
@@ -742,7 +741,7 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
         if !self.recovery_projection.include(item) {
             return;
         }
-        match syntax_recovery_item(item, self.errors, self.source, self.context.max_leaf_bytes) {
+        match syntax_recovery_item(item, self.errors, self.source, &self.context.max_leaf_bytes) {
             Ok(item) => self.push(recovery_error_sexpr(&item)),
             Err(error) => self.render_error = Some(error),
         }
@@ -794,8 +793,9 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
             cancellation,
         );
     }
-    let scope = crate::budget::LimitScope::enter();
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, limit.get());
+    let leaves = crate::budget::LeafCopy::reject_limit(limit);
+    let scope = leaves.enter();
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, &leaves);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -886,22 +886,20 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
+        let leaves =
+            crate::budget::LeafCopy::preview(max_chars).expect("character budget is positive");
         let sexpr = brackets::generated_model_bracket_sexpr(
             &valid,
             source,
             options,
-            max_chars.saturating_mul(4).saturating_add(4),
+            &leaves,
             &jbotci_interrupt::CancellationToken::never(),
         )?;
         let document = sexpr::bracket_document(&sexpr::flatten(sexpr), options);
         return Ok(document.within_char_budget(max_chars, options.color));
     }
-    let mut visitor = RecoveredBracketBuilder::new(
-        source,
-        &recovered.errors,
-        options,
-        max_chars.saturating_mul(4).saturating_add(4),
-    );
+    let leaves = crate::budget::LeafCopy::preview(max_chars).expect("character budget is positive");
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, &leaves);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -1067,7 +1065,8 @@ pub fn pretty_recovered_syntax_bracket_source_fragments_with_options(
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
         return crate::pretty_bracket_source_fragments_with_options(&valid, source, options);
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, usize::MAX);
+    let leaves = crate::budget::LeafCopy::unlimited();
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, &leaves);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -1091,7 +1090,8 @@ pub fn pretty_recovered_syntax_plain_source_fragments_with_options(
             &valid, source, options,
         );
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, usize::MAX);
+    let leaves = crate::budget::LeafCopy::unlimited();
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, &leaves);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -1125,8 +1125,9 @@ pub fn pretty_recovered_syntax_plain_with_limit(
             cancellation,
         );
     }
-    let scope = crate::budget::LimitScope::enter();
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, limit.get());
+    let leaves = crate::budget::LeafCopy::reject_limit(limit);
+    let scope = leaves.enter();
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, &leaves);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -1212,7 +1213,7 @@ pub fn compact_recovered_syntax_json_string_with_limits(
         recovered,
         source,
         tree_options,
-        projection_limit.get(),
+        &crate::budget::LeafCopy::reject_limit(projection_limit),
     )?;
     // Quote spans are byte ranges. The work counter grows by each span's length.
     record_recovered_source_slices(&tree, source);
@@ -1788,24 +1789,21 @@ mod tests {
         let cancel = jbotci_interrupt::CancellationToken::never();
         let options = BracketRenderOptions::default();
         let tree_options = crate::TreeRenderOptions::default();
+        let leaves = crate::budget::LeafCopy::reject_limit(limit);
         let projections = [
             crate::brackets::generated_model_bracket_sexpr(
-                &generated,
-                &source,
-                options,
-                limit.get(),
-                &cancel,
+                &generated, &source, options, &leaves, &cancel,
             )
             .map(|_| ()),
             crate::tree::projected_generated_syntax_tree_value_with_index(
                 &generated,
                 &source,
                 tree_options,
-                limit.get(),
+                &leaves,
                 None,
             )
             .map(|_| ()),
-            crate::tree::morphology_tree_value(&words[0], &source, tree_options, limit.get())
+            crate::tree::morphology_tree_value(&words[0], &source, tree_options, &leaves)
                 .map(|_| ()),
         ];
         for projection in projections {
@@ -1986,7 +1984,7 @@ mod tests {
             &recovered,
             source,
             TreeRenderOptions::default(),
-            16,
+            &crate::budget::LeafCopy::reject(16).expect("positive leaf budget"),
         );
         assert!(tree.is_ok(), "{tree:?}");
         let json = compact_recovered_syntax_json_string_with_limits(
@@ -2166,6 +2164,62 @@ mod tests {
         .expect("colored budget cut");
         assert!(cut.chars().count() <= 5, "{cut:?}");
         assert_ansi_sequences_are_complete(&cut);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_long_valid_quote_preview_truncates() {
+        let source = format!("zoi gy {} gy", "a".repeat(200));
+        let recovered = parse_recovered_syntax(&source);
+        assert!(recovered.errors.is_empty(), "{:?}", recovered.errors);
+        let preview = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            &source,
+            20,
+            BracketRenderOptions::default(),
+        )
+        .expect("a valid quote preview truncates");
+        assert_eq!(preview, "(zo\u{12d} gy aaaaaaaaaaa\u{2026}");
+        assert!(!preview.contains("[zoi gy gy]"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_long_recovered_quote_stays_in_the_preview() {
+        let source = format!("zoi gy {} gy .i mi ku", "a".repeat(200));
+        let recovered = parse_recovered_syntax(&source);
+        assert!(!recovered.errors.is_empty());
+        let preview = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            &source,
+            40,
+            BracketRenderOptions::default(),
+        )
+        .expect("a recovered quote preview truncates");
+        assert_eq!(preview, "\u{2026}\n[.i {mi \u{203c}ku\u{203c}}]");
+        assert!(!preview.contains("[zoi gy gy]"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_long_error_span_preview_truncates() {
+        let source = format!("mi ku{}ku .i do klama", "\n".repeat(1_000));
+        let recovered = parse_recovered_syntax(&source);
+        assert!(!recovered.errors.is_empty());
+        let preview = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            &source,
+            40,
+            BracketRenderOptions::default(),
+        )
+        .expect("a long error span truncates");
+        assert_eq!(
+            preview,
+            format!("[mi \u{203c}ku{}\u{2026}", "\n".repeat(32))
+        );
     }
 
     #[requires(true)]
@@ -2483,11 +2537,12 @@ mod tests {
         .expect("brackets");
         assert_eq!(brackets, "([mi ‼ku‼] [.i do])");
 
+        let leaves = crate::budget::LeafCopy::unlimited();
         let mut bracket_builder = RecoveredBracketBuilder::new(
             source,
             &recovered.errors,
             BracketRenderOptions::default(),
-            usize::MAX,
+            &leaves,
         );
         jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
             recovered.parse_tree.as_ref(),
@@ -3175,7 +3230,11 @@ pub fn pretty_recovered_morphology_raw_with_limit(
         raw_with_limit(&recovered.words, indent, limit)?
     } else {
         raw_with_limit(
-            &recovered_morphology_sequence(recovered, source, limit.get())?,
+            &recovered_morphology_sequence(
+                recovered,
+                source,
+                &crate::budget::LeafCopy::reject_limit(limit),
+            )?,
             indent,
             limit,
         )?
@@ -3207,7 +3266,7 @@ pub(crate) fn recovered_morphology_sequence_for_json_test(
     source: &str,
 ) -> Value {
     Value::Array(
-        recovered_morphology_sequence(recovered, source, usize::MAX)
+        recovered_morphology_sequence(recovered, source, &crate::budget::LeafCopy::unlimited())
             .unwrap()
             .into_iter()
             .map(|item| match item.into_data() {

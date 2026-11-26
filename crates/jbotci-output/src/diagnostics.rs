@@ -72,21 +72,21 @@ pub fn render_diagnostics_with_limit(
     }
     let renderer = diagnostic_renderer(options);
     let mut output = OutputBudget::new(limit).writer();
-    let source_label = crate::styled::escape_terminal_controls(source_label);
+    let source_label = crate::styled::escape_terminal_field(source_label);
     for diagnostic in diagnostics {
         let remaining =
             ByteLimit::new(output.remaining()).ok_or_else(|| OutputError::Limit { limit })?;
-        let message = crate::styled::escape_terminal_controls(&diagnostic.message);
-        let code = crate::styled::escape_terminal_controls(&diagnostic.code);
+        let message = crate::styled::escape_terminal_field(&diagnostic.message);
+        let code = crate::styled::escape_terminal_field(&diagnostic.code);
         let notes = diagnostic
             .notes
             .iter()
-            .map(|note| crate::styled::escape_terminal_controls(note))
+            .map(|note| crate::styled::escape_terminal_note(note))
             .collect::<Vec<_>>();
         let label_messages = diagnostic
             .labels
             .iter()
-            .map(|label| crate::styled::escape_terminal_controls(&label.message))
+            .map(|label| crate::styled::escape_terminal_field(&label.message))
             .collect::<Vec<_>>();
         let excerpt = diagnostic_source_excerpt(
             source,
@@ -594,7 +594,7 @@ fn label_window(source: &str, start: usize, end: usize, share: usize) -> RawWind
     let start = start.min(source.len());
     let end = end.min(source.len()).max(start);
     let line_start = line_start_at(source, start);
-    let line_end = line_end_at(source, end);
+    let line_end = line_end_at(source, start);
     if line_end.saturating_sub(line_start) <= share {
         return new!(RawWindow {
             source_start: line_start,
@@ -755,6 +755,7 @@ fn diagnostic_group<'diagnostic>(
                 ByteLimit::new(remaining).ok_or_else(|| OutputError::Limit { limit })?;
             let rendered = render_styled_note_with_limit(note, options, note_limit)
                 .map_err(|error| OutputError::from_render_io(error, limit))?;
+            let rendered = crate::styled::normalize_terminal_breaks(&rendered).into_owned();
             remaining -= rendered.len();
             group = group.element(Level::NOTE.message(rendered));
         }
@@ -786,11 +787,14 @@ fn mapped_label_span(
     excerpt: &DiagnosticSourceExcerpt<'_>,
 ) -> Range<usize> {
     let span = label_span(label);
-    apply_escape_map(
-        span.start.saturating_sub(excerpt.origin),
-        span.end.saturating_sub(excerpt.origin),
-        &excerpt.escaped.map,
-        excerpt.escaped.text.len(),
+    clamp_span_to_anchor_line(
+        apply_escape_map(
+            span.start.saturating_sub(excerpt.origin),
+            span.end.saturating_sub(excerpt.origin),
+            &excerpt.escaped.map,
+            excerpt.escaped.text.len(),
+        ),
+        excerpt.escaped.text.as_ref(),
     )
 }
 
@@ -798,12 +802,28 @@ fn mapped_label_span(
 #[ensures(ret.start <= ret.end)]
 fn window_label_span(label: &DiagnosticLabel, window: &RetainedWindow<'_>) -> Range<usize> {
     let span = label_span(label);
-    apply_escape_map(
-        span.start.saturating_sub(window.source_start),
-        span.end.max(span.start).saturating_sub(window.source_start),
-        &window.escaped.map,
-        window.escaped.text.len(),
+    clamp_span_to_anchor_line(
+        apply_escape_map(
+            span.start.saturating_sub(window.source_start),
+            span.end.max(span.start).saturating_sub(window.source_start),
+            &window.escaped.map,
+            window.escaped.text.len(),
+        ),
+        window.escaped.text.as_ref(),
     )
+}
+
+/// A multiline label ends on the anchor line inside this text.
+#[requires(true)]
+#[ensures(ret.start <= ret.end && ret.end <= text.len())]
+fn clamp_span_to_anchor_line(span: Range<usize>, text: &str) -> Range<usize> {
+    let anchor = span.start.min(text.len());
+    let line_end = text[anchor..]
+        .find('\n')
+        .map(|offset| anchor + offset)
+        .unwrap_or(text.len());
+    let end = span.end.min(line_end).max(anchor);
+    anchor..end
 }
 
 #[requires(true)]
@@ -1620,6 +1640,59 @@ mod tests {
         assert_eq!(rendered.matches("far").count(), 1, "{rendered}");
         assert!(source_line_shows(&rendered, 1, "NEAR"), "{rendered}");
         assert!(source_line_shows(&rendered, far_line, "FAR"), "{rendered}");
+        assert_eq!(caret_row(&rendered, "near"), Some(1), "{rendered}");
+        assert_eq!(caret_row(&rendered, "far"), Some(far_line), "{rendered}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn single_line_fields_escape_breaks_and_notes_keep_both_words() {
+        let source = "mi";
+        let span = source_span_from_byte_offsets(
+            Some(SourceId("<input>".to_owned())),
+            source,
+            0,
+            source.len(),
+        )
+        .expect("span on mi");
+        let diagnostic = Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Syntax,
+            "code\rX".to_owned(),
+            "msg\nY".to_owned(),
+            vec![DiagnosticLabel::new(span, "lab\rel".to_owned(), true)],
+            vec!["note\rline".to_owned()],
+            None,
+        )
+        .with_styled_notes(vec![DiagnosticStyledNote::new(
+            DiagnosticNoteMode::Summary,
+            vec![DiagnosticTextSegment::new(
+                DiagnosticTextRole::Plain,
+                "wide\rpart".to_owned(),
+            )],
+        )]);
+        let rendered = render_diagnostics(
+            "bad\r\nFAKE.loj",
+            source,
+            &[diagnostic],
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::Ascii,
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            }),
+        )
+        .expect("escaped diagnostic");
+        assert!(!rendered.contains('\r'), "{rendered:?}");
+        assert!(rendered.contains("bad\\u{d}\\u{a}FAKE.loj"), "{rendered:?}");
+        assert!(rendered.contains("code\\u{d}X"), "{rendered:?}");
+        assert!(rendered.contains("msg\\u{a}Y"), "{rendered:?}");
+        assert!(rendered.contains("lab\\u{d}el"), "{rendered:?}");
+        assert!(rendered.contains("note"), "{rendered:?}");
+        assert!(rendered.contains("line"), "{rendered:?}");
+        assert!(rendered.contains("wide"), "{rendered:?}");
+        assert!(rendered.contains("part"), "{rendered:?}");
     }
 
     #[test]
@@ -1812,6 +1885,8 @@ mod tests {
     /// Widths are 80, 40, and 4.
     /// The invariant run uses a byte limit of 65536.
     /// A second run uses a byte limit of 64.
+    /// Shape 0 is one multiline span on a short source.
+    /// Shape 6 is one multiline span on a clipped source.
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1822,6 +1897,8 @@ mod tests {
         let mut rng = LabelRng { state: SEED };
         let mut uncut = 0usize;
         let mut clipped = 0usize;
+        let mut multiline_uncut = 0usize;
+        let mut multiline_clipped = 0usize;
         let mut saw_eof = false;
         let mut saw_empty_line = false;
         let mut saw_overlap = false;
@@ -1835,10 +1912,21 @@ mod tests {
             let set = random_label_set(&mut rng, case);
             let cap = excerpt_copy_cap(set.width, usize::MAX);
             let (bound_start, bound_end) = label_bound(&set.source, &set.labels);
+            let multiline = set.labels.iter().any(|(start, end, _, _)| {
+                set.source
+                    .get(*start..*end)
+                    .is_some_and(|text| text.contains('\n'))
+            });
             if bound_end.saturating_sub(bound_start) > cap {
                 clipped += 1;
+                if multiline {
+                    multiline_clipped += 1;
+                }
             } else {
                 uncut += 1;
+                if multiline {
+                    multiline_uncut += 1;
+                }
             }
             saw_eof |= set.eof_point;
             saw_empty_line |= set.empty_line;
@@ -1890,6 +1978,10 @@ mod tests {
             }
         }
         assert!(uncut > 0 && clipped > 0, "uncut {uncut} clipped {clipped}");
+        assert!(
+            multiline_uncut > 0 && multiline_clipped > 0,
+            "multiline uncut {multiline_uncut} clipped {multiline_clipped}"
+        );
         assert!(saw_eof && saw_empty_line && saw_overlap && saw_distant);
         assert!(saw_control && saw_long_line && saw_final_newline && saw_no_final_newline);
         assert!(saw_location_only);
@@ -1959,11 +2051,13 @@ mod tests {
                 for _ in 0..len {
                     source.push(['a', 'b', ' ', '\n'][rng.below(4)]);
                 }
-                if rng.below(2) == 0 {
+                if !source.contains('\n') {
                     source.push('\n');
                 }
-                let count = 1 + rng.below(3);
-                push_scattered_labels(rng, &source, &mut labels, count);
+                if source.starts_with('\n') || source.is_empty() {
+                    source.insert(0, 'a');
+                }
+                labels.push((0, source.len(), "@@0@@".to_owned(), true));
             }
             1 => {
                 source.push_str("zoi gy");
@@ -2019,7 +2113,7 @@ mod tests {
                     let tail = source.len() - 4;
                     labels.push((tail, source.len(), "@@2@@".to_owned(), true));
                 }
-                labels.insert(0, (0, 4, "@@0@@".to_owned(), false));
+                labels.insert(0, (0, source.len(), "@@0@@".to_owned(), false));
                 labels.insert(1, (5, 5, "@@1@@".to_owned(), false));
                 empty_line = true;
                 distant = true;

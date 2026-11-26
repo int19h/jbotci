@@ -311,6 +311,28 @@ fn starts_with_line_break(expr: &SExpr) -> bool {
     }
 }
 
+/// A bracketed node emits its bracket before the first child.
+///
+/// The node starts with a line break only for one text child. That child is
+/// checked with the same rule. Plain rendering keeps [`starts_with_line_break`].
+#[requires(true)]
+#[ensures(true)]
+fn bracketed_starts_with_line_break(expr: &SExpr) -> bool {
+    match expr {
+        SExpr::Node { children, .. } => {
+            let mut with_text = children.iter().filter(|child| has_text(child));
+            let Some(only) = with_text.next() else {
+                return false;
+            };
+            if with_text.next().is_some() {
+                return false;
+            }
+            bracketed_starts_with_line_break(only)
+        }
+        other => starts_with_line_break(other),
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.italic == (role == LeafRole::Elided))]
 #[ensures(ret.strikethrough == (role == LeafRole::Error))]
@@ -453,7 +475,7 @@ fn append_bracketed(
             builder.check_budget()?;
             for (index, child) in children.iter().enumerate() {
                 if index > 0 {
-                    builder.push_separator(starts_with_line_break(child));
+                    builder.push_separator(bracketed_starts_with_line_break(child));
                     builder.check_budget()?;
                 }
                 append_bracketed(builder, depth + 1, child, options, cancellation)?;
@@ -781,6 +803,34 @@ mod tests {
         assert_eq!(
             render_bracketed_with_options(&flattened, BracketRenderOptions::default()),
             "foo"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_multi_child_node_keeps_the_space_before_its_bracket() {
+        let expr = node(vec![
+            leaf("a".to_owned()),
+            node(vec![leaf("\nb".to_owned()), leaf("c".to_owned())]),
+        ]);
+        assert_eq!(
+            render_bracketed_with_options(&expr, BracketRenderOptions::default()),
+            "(a [\nb c])"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_single_child_break_still_starts_the_parent() {
+        let expr = node(vec![
+            leaf("a".to_owned()),
+            node(vec![leaf("\nb".to_owned())]),
+        ]);
+        assert_eq!(
+            render_bracketed_with_options(&expr, BracketRenderOptions::default()),
+            "(a\nb)"
         );
     }
 

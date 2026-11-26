@@ -6,6 +6,7 @@
 use crate::{ByteLimit, OutputLimitError, bounded_json, bounded_json_size};
 use bityzba::{data, invariant, new, requires};
 use std::cell::Cell;
+use std::rc::Rc;
 
 #[invariant(*charged <= limit.get())]
 #[derive(Debug)]
@@ -185,8 +186,6 @@ impl SpanBudget {
 
 thread_local! {
     static SLICE_WORK: Cell<usize> = const { Cell::new(0) };
-    static NOTED_LIMIT: Cell<Option<usize>> = const { Cell::new(None) };
-    static BUILD_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
 #[requires(true)]
@@ -208,42 +207,190 @@ pub fn reset_slice_work() {
     SLICE_WORK.with(|work| work.set(0));
 }
 
-/// Remember the first overflow so an outer build can report it.
-#[requires(true)]
-#[ensures(true)]
-pub fn note_limit(limit: ByteLimit) {
-    NOTED_LIMIT.with(|noted| {
-        if noted.get().is_none() {
-            noted.set(Some(limit.get()));
-        }
-    });
+/// Reject a leaf that does not fit, or copy a short preview prefix.
+#[invariant(::Reject { max_bytes } => *max_bytes > 0)]
+#[invariant(::Preview { max_chars } => *max_chars > 0)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LeafCopyPolicy {
+    /// The leaf must fit in this many bytes. A longer leaf stops the render.
+    Reject { max_bytes: usize },
+    /// Copy at most this many characters plus one. The copy does not stop the render.
+    Preview { max_chars: usize },
+}
+
+#[invariant(noted.get().is_none_or(|bytes| bytes > 0))]
+#[derive(Debug)]
+struct LeafLedger {
+    noted: Cell<Option<usize>>,
+    depth: Cell<usize>,
+}
+
+/// One leaf policy and the overflow note for the builds that share it.
+///
+/// A preview value keeps a separate note.
+#[invariant(matches!(*policy.as_data(), LeafCopyPolicyData::Reject { max_bytes } if max_bytes > 0) || matches!(*policy.as_data(), LeafCopyPolicyData::Preview { max_chars } if max_chars > 0))]
+#[invariant(ledger.noted.get().is_none_or(|bytes| bytes > 0))]
+#[derive(Debug, Clone)]
+pub struct LeafCopy {
+    policy: LeafCopyPolicy,
+    ledger: Rc<LeafLedger>,
 }
 
 /// The outermost build reports a noted overflow. An inner build leaves it.
+///
+/// This guard is a tuple. A named field needs an invariant.
+/// Drop on that wrapper does not compile.
 #[derive(Debug)]
-pub struct LimitScope;
+pub struct LimitScope(Rc<LeafLedger>);
+
+impl LeafCopy {
+    #[requires(true)]
+    #[ensures(ret.is_some())]
+    fn fresh(policy: LeafCopyPolicy) -> Option<Self> {
+        Some(new!(Self {
+            policy,
+            ledger: Rc::new(new!(LeafLedger {
+                noted: Cell::new(None),
+                depth: Cell::new(0),
+            })),
+        }))
+    }
+
+    /// A reject policy for `max_bytes`. Zero is not a budget.
+    #[requires(true)]
+    #[ensures(ret.is_some() == (max_bytes > 0))]
+    pub fn reject(max_bytes: usize) -> Option<Self> {
+        let limit = ByteLimit::new(max_bytes)?;
+        let policy = new!(LeafCopyPolicy::Reject {
+            max_bytes: limit.get(),
+        });
+        Self::fresh(policy)
+    }
+
+    /// The reject policy for an existing byte budget.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn reject_limit(limit: ByteLimit) -> Self {
+        Self::reject(limit.get()).expect("a byte limit is positive")
+    }
+
+    /// A reject policy that accepts every leaf.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn unlimited() -> Self {
+        Self::reject(usize::MAX).expect("the maximum byte count is positive")
+    }
+
+    /// A preview policy for `max_chars`. Zero is not a budget.
+    #[requires(true)]
+    #[ensures(ret.is_some() == (max_chars > 0))]
+    pub fn preview(max_chars: usize) -> Option<Self> {
+        let limit = ByteLimit::new(max_chars)?;
+        let policy = new!(LeafCopyPolicy::Preview {
+            max_chars: limit.get(),
+        });
+        Self::fresh(policy)
+    }
+
+    /// Start one build on this shared note.
+    ///
+    /// The first build clears an old note. A nested build keeps it.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn enter(&self) -> LimitScope {
+        let depth = self.ledger.depth.get();
+        if depth == 0 {
+            self.ledger.noted.set(None);
+        }
+        self.ledger.depth.set(depth + 1);
+        LimitScope(Rc::clone(&self.ledger))
+    }
+
+    /// Record the first reject overflow. A preview records nothing.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn note(&self, limit: ByteLimit) {
+        if !matches!(*self.policy.as_data(), LeafCopyPolicyData::Reject { .. }) {
+            return;
+        }
+        if self.ledger.noted.get().is_none() {
+            self.ledger.noted.set(Some(limit.get()));
+        }
+    }
+
+    /// Copy `text` after edge whitespace is removed.
+    ///
+    /// A reject copy is the whole trimmed span, or an error. A preview copy is
+    /// a prefix of the trimmed span. The prefix is one character past the budget.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || matches!(*self.policy.as_data(), LeafCopyPolicyData::Reject { .. }))]
+    #[ensures(match (self.policy.as_data(), &ret) {
+        (LeafCopyPolicyData::Preview { max_chars }, Ok(copied)) => {
+            copied.chars().count() <= max_chars.saturating_add(1)
+        }
+        (LeafCopyPolicyData::Reject { .. }, Ok(copied)) => copied.len() <= text.trim().len(),
+        (_, Err(_)) => true,
+    })]
+    pub fn copy_trimmed(&self, text: &str) -> Result<String, OutputLimitError> {
+        let trimmed = text.trim();
+        match *self.policy.as_data() {
+            LeafCopyPolicyData::Preview { max_chars } => {
+                Ok(char_prefix(trimmed, max_chars.saturating_add(1)))
+            }
+            LeafCopyPolicyData::Reject { .. } => self.copy_reject(trimmed),
+        }
+    }
+
+    /// Copy `text` with no trim.
+    ///
+    /// A preview keeps line breaks in the prefix. The prefix length is the
+    /// character budget plus one.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || matches!(*self.policy.as_data(), LeafCopyPolicyData::Reject { .. }))]
+    #[ensures(match (self.policy.as_data(), &ret) {
+        (LeafCopyPolicyData::Preview { max_chars }, Ok(copied)) => {
+            copied.chars().count() <= max_chars.saturating_add(1)
+        }
+        (LeafCopyPolicyData::Reject { .. }, Ok(copied)) => copied.len() == text.len(),
+        (_, Err(_)) => true,
+    })]
+    pub fn copy_exact(&self, text: &str) -> Result<String, OutputLimitError> {
+        match *self.policy.as_data() {
+            LeafCopyPolicyData::Preview { max_chars } => {
+                Ok(char_prefix(text, max_chars.saturating_add(1)))
+            }
+            LeafCopyPolicyData::Reject { .. } => self.copy_reject(text),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|copied| copied.len() == text.len()) || ret.is_err())]
+    fn copy_reject(&self, text: &str) -> Result<String, OutputLimitError> {
+        let LeafCopyPolicyData::Reject { max_bytes } = *self.policy.as_data() else {
+            return Err(OutputLimitError {
+                limit: ByteLimit::new(usize::MAX).expect("the maximum byte count is positive"),
+            });
+        };
+        let limit = ByteLimit::new(max_bytes).expect("a reject budget is positive");
+        let mut budget = SpanBudget::new(limit);
+        match budget.copy(text) {
+            Ok(copied) => Ok(copied),
+            Err(error) => {
+                self.note(error.limit);
+                Err(error)
+            }
+        }
+    }
+}
 
 impl LimitScope {
     #[requires(true)]
     #[ensures(true)]
-    pub fn enter() -> Self {
-        BUILD_DEPTH.with(|depth| {
-            if depth.get() == 0 {
-                NOTED_LIMIT.with(|noted| noted.set(None));
-            }
-            depth.set(depth.get() + 1);
-        });
-        Self
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     pub fn failure(&self) -> Option<OutputLimitError> {
-        let depth = BUILD_DEPTH.with(|depth| depth.get());
-        if depth != 1 {
+        if self.0.depth.get() != 1 {
             return None;
         }
-        let bytes = NOTED_LIMIT.with(|noted| noted.take())?;
+        let bytes = self.0.noted.take()?;
         ByteLimit::new(bytes).map(|limit| OutputLimitError { limit })
     }
 }
@@ -252,8 +399,19 @@ impl Drop for LimitScope {
     #[requires(true)]
     #[ensures(true)]
     fn drop(&mut self) {
-        BUILD_DEPTH.with(|depth| depth.set(depth.get().saturating_sub(1)));
+        let depth = self.0.depth.get();
+        self.0.depth.set(depth.saturating_sub(1));
     }
+}
+
+#[requires(true)]
+#[ensures(ret.chars().count() <= max_chars)]
+fn char_prefix(text: &str, max_chars: usize) -> String {
+    let mut output = String::new();
+    for character in text.chars().take(max_chars) {
+        output.push(character);
+    }
+    output
 }
 
 #[cfg(test)]
@@ -334,6 +492,39 @@ mod tests {
         assert!(copied.len() <= 1, "{copied}");
         assert_eq!(budget.charged(), 1);
         assert_eq!(budget.slice("abcdef", 1, 4), Some("bcd"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_preview_prefix_does_not_mark_a_reject_build() {
+        let reject = LeafCopy::reject(4).expect("positive reject budget");
+        {
+            let outer = reject.enter();
+            {
+                let inner = reject.enter();
+                assert!(reject.copy_exact("abcdef").is_err());
+                assert!(inner.failure().is_none());
+            }
+            let error = outer
+                .failure()
+                .expect("the outer build reports the overflow");
+            assert_eq!(error.limit.get(), 4);
+        }
+
+        let again = reject.enter();
+        let preview = LeafCopy::preview(3).expect("positive preview budget");
+        let copied = preview
+            .copy_trimmed(&"a".repeat(200))
+            .expect("a preview copies a prefix");
+        assert_eq!(copied, "a".repeat(4));
+        assert_eq!(
+            preview.copy_exact("\n\n\n\n").expect("a span keeps breaks"),
+            "\n\n\n\n"
+        );
+        assert!(again.failure().is_none());
+        assert!(LeafCopy::reject(0).is_none());
+        assert!(LeafCopy::preview(0).is_none());
     }
 
     #[test]

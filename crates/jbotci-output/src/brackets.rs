@@ -19,13 +19,12 @@ use crate::{
     OutputError, sexpr, surface,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[invariant(true)]
 pub(crate) struct BracketContext {
     pub(crate) options: BracketRenderOptions,
-    /// A quote is copied only when its trimmed text fits in this many bytes.
-    /// `usize::MAX` keeps the whole quote.
-    pub(crate) max_leaf_bytes: usize,
+    /// Reject policy or preview prefix for quotes and error spans.
+    pub(crate) max_leaf_bytes: crate::budget::LeafCopy,
 }
 
 #[requires(true)]
@@ -54,10 +53,11 @@ pub fn pretty_morphology_brackets_with_limit(
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     let _ = source;
-    let scope = crate::budget::LimitScope::enter();
+    let leaves = crate::budget::LeafCopy::reject_limit(limit);
+    let scope = leaves.enter();
     let context = BracketContext {
         options,
-        max_leaf_bytes: limit.get(),
+        max_leaf_bytes: leaves,
     };
     let mut children = Vec::with_capacity(words.len());
     for word_like in words {
@@ -96,7 +96,8 @@ pub fn pretty_generated_model_brackets_with_limit(
     limit: ByteLimit,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    let sexpr = generated_model_bracket_sexpr(tree, source, options, limit.get(), cancellation)?;
+    let leaves = crate::budget::LeafCopy::reject_limit(limit);
+    let sexpr = generated_model_bracket_sexpr(tree, source, options, &leaves, cancellation)?;
     sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
 }
 
@@ -108,11 +109,12 @@ pub(crate) fn pretty_generated_model_bracket_source_fragments_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<Vec<BracketSourceFragment>, OutputError> {
+    let leaves = crate::budget::LeafCopy::unlimited();
     let sexpr = generated_model_bracket_sexpr(
         tree,
         source,
         options,
-        usize::MAX,
+        &leaves,
         &jbotci_interrupt::CancellationToken::never(),
     )?;
     Ok(sexpr::render_bracketed_source_fragments_with_options(
@@ -131,7 +133,8 @@ pub fn pretty_generated_model_plain_with_limit(
     limit: ByteLimit,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    let sexpr = generated_model_bracket_sexpr(tree, source, options, limit.get(), cancellation)?;
+    let leaves = crate::budget::LeafCopy::reject_limit(limit);
+    let sexpr = generated_model_bracket_sexpr(tree, source, options, &leaves, cancellation)?;
     sexpr::render_plain_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
 }
 
@@ -143,11 +146,12 @@ pub fn pretty_generated_model_plain_source_fragments_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<Vec<BracketSourceFragment>, OutputError> {
+    let leaves = crate::budget::LeafCopy::unlimited();
     let sexpr = generated_model_bracket_sexpr(
         tree,
         source,
         options,
-        usize::MAX,
+        &leaves,
         &jbotci_interrupt::CancellationToken::never(),
     )?;
     Ok(sexpr::render_plain_source_fragments_with_options(
@@ -181,14 +185,14 @@ pub(crate) fn generated_model_bracket_sexpr(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: BracketRenderOptions,
-    max_leaf_bytes: usize,
+    max_leaf_bytes: &crate::budget::LeafCopy,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<sexpr::SExpr, OutputError> {
     let _ = source;
-    let scope = crate::budget::LimitScope::enter();
+    let scope = max_leaf_bytes.enter();
     let context = BracketContext {
         options,
-        max_leaf_bytes,
+        max_leaf_bytes: max_leaf_bytes.clone(),
     };
     let mut visitor = GeneratedBracketVisitor::with_cancellation(&context, cancellation);
     tree.visit_in_order(&mut visitor);
@@ -476,7 +480,7 @@ fn word_like_brackets_in_context(
         }) => sexpr::node(vec![
             word_leaf(zoi, source),
             word_leaf(opening_delimiter, source),
-            quoted_text_leaf(quoted_text, source.max_leaf_bytes),
+            quoted_text_leaf(quoted_text, &source.max_leaf_bytes),
             word_leaf(closing_delimiter, source),
         ]),
         data!(WordLike::QuotedWords {
@@ -494,7 +498,7 @@ fn word_like_brackets_in_context(
             quoted_text,
         }) => sexpr::node(vec![
             word_leaf(marker, source),
-            quoted_text_leaf(quoted_text, source.max_leaf_bytes),
+            quoted_text_leaf(quoted_text, &source.max_leaf_bytes),
         ]),
         data!(WordLike::ReplacementQuote { runs, lehai }) => {
             let mut children = Vec::new();
@@ -553,24 +557,13 @@ fn word_leaf_in_context(
 
 #[requires(true)]
 #[ensures(true)]
-fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim, max_leaf_bytes: usize) -> sexpr::SExpr {
-    let text = match crate::budget::ByteLimit::new(max_leaf_bytes) {
-        Some(limit) => {
-            let mut budget = crate::budget::SpanBudget::new(limit);
-            match budget.copy_trimmed(&verbatim.text) {
-                Ok(copied) => copied,
-                Err(error) => {
-                    crate::budget::note_limit(error.limit);
-                    String::new()
-                }
-            }
-        }
-        None => {
-            crate::budget::note_limit(
-                crate::budget::ByteLimit::new(1).expect("one byte is a positive limit"),
-            );
-            String::new()
-        }
+fn quoted_text_leaf(
+    verbatim: &jbotci_morphology::Verbatim,
+    max_leaf_bytes: &crate::budget::LeafCopy,
+) -> sexpr::SExpr {
+    let text = match max_leaf_bytes.copy_trimmed(&verbatim.text) {
+        Ok(copied) => copied,
+        Err(_) => String::new(),
     };
     sexpr::leaf_with_range(
         text,
