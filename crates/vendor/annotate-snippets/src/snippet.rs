@@ -228,6 +228,10 @@ pub struct Snippet<'a, T> {
     pub(crate) source: Cow<'a, str>,
     pub(crate) markers: Vec<T>,
     pub(crate) fold: bool,
+    /// Original file line for the location header. `None` keeps the rendered line.
+    pub(crate) origin_line: Option<usize>,
+    /// Original file column for the location header. `None` keeps the rendered column.
+    pub(crate) origin_column: Option<usize>,
 }
 
 impl<'a, T: Clone> Snippet<'a, T> {
@@ -247,6 +251,8 @@ impl<'a, T: Clone> Snippet<'a, T> {
             source: source.into(),
             markers: vec![],
             fold: true,
+            origin_line: None,
+            origin_column: None,
         }
     }
 
@@ -254,6 +260,16 @@ impl<'a, T: Clone> Snippet<'a, T> {
     /// the [`source`][Self::source]s line offset from the original start
     pub fn line_start(mut self, line_start: usize) -> Self {
         self.line_start = line_start;
+        self
+    }
+
+    /// Put this file position in the location header.
+    ///
+    /// `line` and `column` start at 1. They are the position in the original file.
+    /// A clipped window uses them. Omitted text does not change them.
+    pub fn origin_position(mut self, line: usize, column: usize) -> Self {
+        self.origin_line = Some(line);
+        self.origin_column = Some(column);
         self
     }
 

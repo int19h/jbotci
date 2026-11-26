@@ -120,10 +120,14 @@ pub fn render_diagnostics_with_limit(
 }
 
 #[invariant(*source_start <= *source_end)]
-struct ExcerptWindow {
+#[invariant(*line_number >= 1 && *header_line >= 1 && *header_column >= 1)]
+struct RetainedWindow<'source> {
+    escaped: crate::styled::TerminalExcerpt<'source>,
+    line_number: usize,
+    header_line: usize,
+    header_column: usize,
     source_start: usize,
     source_end: usize,
-    excerpt_start: usize,
 }
 
 #[invariant(*line_start >= 1)]
@@ -131,7 +135,8 @@ struct DiagnosticSourceExcerpt<'source> {
     escaped: crate::styled::TerminalExcerpt<'source>,
     origin: usize,
     line_start: usize,
-    windows: Vec<ExcerptWindow>,
+    /// Retained pieces of a clipped excerpt. Empty means the excerpt is whole.
+    retained: Vec<RetainedWindow<'source>>,
 }
 
 #[requires(terminal_width > 0)]
@@ -155,20 +160,23 @@ fn diagnostic_source_excerpt<'source>(
             escaped: crate::styled::escape_terminal_source(slice),
             origin,
             line_start,
-            windows: Vec::new(),
+            retained: Vec::new(),
         });
     }
-    let (clipped, windows, origin, line_start) =
-        clip_annotated_excerpt(source, diagnostic, cap, terminal_width);
-    let escaped = crate::styled::escape_terminal_source(&clipped);
-    let text = std::borrow::Cow::Owned(escaped.text.clone().into_owned());
-    let map = escaped.map.clone();
-    let escaped = new!(crate::styled::TerminalExcerpt { text, map });
+    let retained = retain_annotated_windows(source, diagnostic, cap, terminal_width);
+    let origin = retained
+        .first()
+        .map(|window| window.source_start)
+        .unwrap_or(origin);
+    let line_start = retained
+        .first()
+        .map(|window| window.line_number)
+        .unwrap_or(line_start);
     new!(DiagnosticSourceExcerpt {
-        escaped,
+        escaped: crate::styled::escape_terminal_source(""),
         origin,
         line_start,
-        windows,
+        retained,
     })
 }
 
@@ -235,25 +243,150 @@ struct RawWindow {
     source_end: usize,
 }
 
+/// Keep a bounded piece of each labelled region.
+///
+/// Each piece records the file line and the file column of its header.
+/// Omitted text stays out of the snippet, so it does not change those numbers.
 #[requires(cap > 0 && terminal_width > 0)]
-#[ensures(ret.2 <= source.len() && ret.3 >= 1)]
-fn clip_annotated_excerpt(
-    source: &str,
+#[ensures(ret.iter().all(|window| window.line_number >= 1 && window.header_column >= 1))]
+fn retain_annotated_windows<'source>(
+    source: &'source str,
     diagnostic: &Diagnostic,
     cap: usize,
     terminal_width: usize,
-) -> (String, Vec<ExcerptWindow>, usize, usize) {
+) -> Vec<RetainedWindow<'source>> {
     let windows = clipped_windows(source, diagnostic, cap, terminal_width);
-    let (text, mapped) = join_windows(source, &windows, cap);
-    let origin = mapped
-        .first()
-        .map(|window| window.source_start)
-        .unwrap_or(0);
-    let line_start = 1 + source[..origin]
+    let Some(limit) = crate::budget::ByteLimit::new(cap) else {
+        return Vec::new();
+    };
+    let mut budget = crate::budget::SpanBudget::new(limit);
+    let mut retained = Vec::new();
+    for window in windows {
+        if window.source_end > source.len()
+            || window.source_start > window.source_end
+            || !source.is_char_boundary(window.source_start)
+            || !source.is_char_boundary(window.source_end)
+        {
+            continue;
+        }
+        let borrowed = &source[window.source_start..window.source_end];
+        let room = budget.remaining();
+        if room == 0 {
+            break;
+        }
+        let take = if borrowed.len() <= room {
+            borrowed.len()
+        } else {
+            bounded_end(borrowed, 0, room)
+        };
+        if take == 0 {
+            break;
+        }
+        budget
+            .charge(take)
+            .expect("the retained excerpt fits in the budget");
+        let source_end = window.source_start + take;
+        let line_number = source_line_column(source, window.source_start).0;
+        let (header_line, header_column) = window_header_position(
+            source,
+            window.source_start,
+            source_end,
+            line_number,
+            diagnostic,
+            retained.is_empty(),
+        );
+        retained.push(new!(RetainedWindow {
+            escaped: crate::styled::escape_terminal_source(
+                &source[window.source_start..source_end]
+            ),
+            line_number,
+            header_line,
+            header_column,
+            source_start: window.source_start,
+            source_end,
+        }));
+        if take < borrowed.len() {
+            break;
+        }
+    }
+    retained
+}
+
+#[requires(true)]
+#[ensures(ret.0 >= 1 && ret.1 >= 1)]
+fn source_line_column(source: &str, index: usize) -> (usize, usize) {
+    let index = char_boundary_at(source, index.min(source.len()));
+    let start = line_start_at(source, index);
+    let line = 1 + source[..start]
         .bytes()
         .filter(|byte| *byte == b'\n')
         .count();
-    (text, mapped, origin, line_start.max(1))
+    let column = 1 + source[start..index].chars().count();
+    (line.max(1), column.max(1))
+}
+
+#[requires(source_start <= source_end && line_number >= 1)]
+#[ensures(ret.0 >= 1 && ret.1 >= 1)]
+fn window_header_position(
+    source: &str,
+    source_start: usize,
+    source_end: usize,
+    line_number: usize,
+    diagnostic: &Diagnostic,
+    primary_snippet: bool,
+) -> (usize, usize) {
+    let mut saw_primary = false;
+    if primary_snippet {
+        for label in &diagnostic.labels {
+            let span = label_span(label);
+            if label.primary && span_overlaps_window(&span, source_start, source_end) {
+                saw_primary = true;
+                break;
+            }
+        }
+    }
+    let mut best: Option<(usize, usize, usize, usize)> = None;
+    for label in &diagnostic.labels {
+        if saw_primary && !label.primary {
+            continue;
+        }
+        let span = label_span(label);
+        if !span_overlaps_window(&span, source_start, source_end) {
+            continue;
+        }
+        let upper = source_end.min(source.len());
+        let mut anchor = span.start.clamp(source_start, upper);
+        anchor = char_boundary_at(source, anchor);
+        if anchor < source_start {
+            anchor = source_start;
+        }
+        let snippet_line = line_number
+            + source[source_start..anchor]
+                .bytes()
+                .filter(|byte| *byte == b'\n')
+                .count();
+        let (line, column) = source_line_column(source, anchor);
+        let replace = match best {
+            None => true,
+            Some((best_line, best_start, _, _)) => {
+                (snippet_line, span.start) < (best_line, best_start)
+            }
+        };
+        if replace {
+            best = Some((snippet_line, span.start, line, column));
+        }
+    }
+    best.map(|(_, _, line, column)| (line, column))
+        .unwrap_or_else(|| source_line_column(source, source_start))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn span_overlaps_window(span: &Range<usize>, source_start: usize, source_end: usize) -> bool {
+    if span.start == span.end {
+        return span.start >= source_start && span.start <= source_end;
+    }
+    span.start < source_end && span.end > source_start
 }
 
 #[requires(cap > 0 && terminal_width > 0)]
@@ -365,67 +498,6 @@ fn merge_windows(mut windows: Vec<RawWindow>) -> Vec<RawWindow> {
     merged
 }
 
-#[requires(cap > 0)]
-#[ensures(ret.0.len() <= cap)]
-fn join_windows(source: &str, windows: &[RawWindow], cap: usize) -> (String, Vec<ExcerptWindow>) {
-    let Some(limit) = crate::budget::ByteLimit::new(cap) else {
-        return (String::new(), Vec::new());
-    };
-    let mut budget = crate::budget::SpanBudget::new(limit);
-    let mut text = String::new();
-    let mut mapped: Vec<ExcerptWindow> = Vec::new();
-    for (index, window) in windows.iter().enumerate() {
-        if window.source_end > source.len()
-            || !source.is_char_boundary(window.source_start)
-            || !source.is_char_boundary(window.source_end)
-        {
-            continue;
-        }
-        let separator = if index == 0 || mapped.is_empty() {
-            ""
-        } else {
-            let previous = mapped.last().expect("mapped window");
-            let same_line = line_start_at(source, previous.source_start)
-                == line_start_at(source, window.source_start);
-            if same_line { "…" } else { "\n…\n" }
-        };
-        if !separator.is_empty() && !budget.fits(separator) {
-            break;
-        }
-        let borrowed = &source[window.source_start..window.source_end];
-        let room = budget.remaining() - separator.len();
-        let take = if borrowed.len() <= room {
-            borrowed.len()
-        } else {
-            bounded_end(borrowed, 0, room)
-        };
-        if take == 0 {
-            break;
-        }
-        if !separator.is_empty() {
-            budget
-                .charge(separator.len())
-                .expect("the separator fits in the excerpt budget");
-            text.push_str(separator);
-        }
-        let copied = &borrowed[..take];
-        budget
-            .charge(copied.len())
-            .expect("the retained excerpt fits in the budget");
-        let excerpt_start = text.len();
-        text.push_str(copied);
-        mapped.push(new!(ExcerptWindow {
-            source_start: window.source_start,
-            source_end: window.source_start + take,
-            excerpt_start,
-        }));
-        if take < borrowed.len() {
-            break;
-        }
-    }
-    (text, mapped)
-}
-
 #[requires(!source_label.is_empty())]
 #[ensures(true)]
 fn diagnostic_group<'diagnostic>(
@@ -439,26 +511,52 @@ fn diagnostic_group<'diagnostic>(
     options: DiagnosticRenderOptions,
     limit: ByteLimit,
 ) -> Result<Group<'diagnostic>, OutputError> {
-    let annotations = diagnostic
-        .labels
-        .iter()
-        .zip(label_messages)
-        .map(|(label, label_message)| {
-            annotation_kind(label.primary)
-                .span(mapped_label_span(label, excerpt))
-                .label(label_message.as_ref())
-        })
-        .collect::<Vec<_>>();
-    let snippet = Snippet::source(excerpt.escaped.text.as_ref())
-        .line_start(excerpt.line_start)
-        .path(source_label)
-        .annotations(annotations);
     let mut group = Group::with_title(
         severity_level(diagnostic.severity)
             .primary_title(message)
             .id(code),
-    )
-    .element(snippet);
+    );
+    if excerpt.retained.is_empty() {
+        let annotations = diagnostic
+            .labels
+            .iter()
+            .zip(label_messages)
+            .map(|(label, label_message)| {
+                annotation_kind(label.primary)
+                    .span(mapped_label_span(label, excerpt))
+                    .label(label_message.as_ref())
+            })
+            .collect::<Vec<_>>();
+        group = group.element(
+            Snippet::source(excerpt.escaped.text.as_ref())
+                .line_start(excerpt.line_start)
+                .path(source_label)
+                .annotations(annotations),
+        );
+    } else {
+        for window in &excerpt.retained {
+            let annotations = diagnostic
+                .labels
+                .iter()
+                .zip(label_messages)
+                .filter(|(label, _)| {
+                    span_overlaps_window(&label_span(label), window.source_start, window.source_end)
+                })
+                .map(|(label, label_message)| {
+                    annotation_kind(label.primary)
+                        .span(window_label_span(label, window))
+                        .label(label_message.as_ref())
+                })
+                .collect::<Vec<_>>();
+            group = group.element(
+                Snippet::source(window.escaped.text.as_ref())
+                    .line_start(window.line_number)
+                    .origin_position(window.header_line, window.header_column)
+                    .path(source_label)
+                    .annotations(annotations),
+            );
+        }
+    }
 
     for note in notes {
         group = group.element(Level::NOTE.message(note.as_ref()));
@@ -501,41 +599,24 @@ fn mapped_label_span(
     excerpt: &DiagnosticSourceExcerpt<'_>,
 ) -> Range<usize> {
     let span = label_span(label);
-    let (start, end) = if excerpt.windows.is_empty() {
-        (
-            span.start.saturating_sub(excerpt.origin),
-            span.end.saturating_sub(excerpt.origin),
-        )
-    } else {
-        (
-            map_excerpt_byte(span.start, &excerpt.windows),
-            map_excerpt_byte(span.end, &excerpt.windows),
-        )
-    };
     apply_escape_map(
-        start,
-        end.max(start),
+        span.start.saturating_sub(excerpt.origin),
+        span.end.saturating_sub(excerpt.origin),
         &excerpt.escaped.map,
         excerpt.escaped.text.len(),
     )
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn map_excerpt_byte(byte: usize, windows: &[ExcerptWindow]) -> usize {
-    let Some(first) = windows.first() else {
-        return 0;
-    };
-    for window in windows {
-        if byte < window.source_start {
-            return window.excerpt_start;
-        }
-        if byte <= window.source_end {
-            return window.excerpt_start + byte - window.source_start;
-        }
-    }
-    let last = windows.last().unwrap_or(first);
-    last.excerpt_start + last.source_end - last.source_start
+#[ensures(ret.start <= ret.end)]
+fn window_label_span(label: &DiagnosticLabel, window: &RetainedWindow<'_>) -> Range<usize> {
+    let span = label_span(label);
+    apply_escape_map(
+        span.start.saturating_sub(window.source_start),
+        span.end.max(span.start).saturating_sub(window.source_start),
+        &window.escaped.map,
+        window.escaped.text.len(),
+    )
 }
 
 #[requires(true)]
@@ -1155,12 +1236,22 @@ mod tests {
         let map_len = crate::styled::excerpt_map_len();
         assert!(copied < 1_000, "{copied}");
         assert!(copied * 10 < source.len(), "{copied}");
-        assert_eq!(map_len, copied + 1, "{map_len} {copied}");
+        assert!(map_len < 1_000, "{map_len}");
+        assert!(map_len <= copied + 4, "{map_len} {copied}");
         assert!(rendered.contains("\\u{85}"), "{rendered}");
         assert!(rendered.contains("near"), "{rendered}");
         assert!(rendered.contains("far"), "{rendered}");
         assert!(rendered.contains("do"), "{rendered}");
         assert!(!rendered.contains(&" ".repeat(200)), "{rendered}");
+        let far_column = 1 + source[..far_start].chars().count();
+        assert!(location_shows(&rendered, "--> ", 1, 1), "{rendered}");
+        assert!(
+            location_shows(&rendered, "::: ", 1, far_column),
+            "{rendered}"
+        );
+        assert!(source_line_shows(&rendered, 1, "mi klama"), "{rendered}");
+        assert!(source_line_shows(&rendered, 1, "do"), "{rendered}");
+        assert!(!source_line_shows(&rendered, 3, "do"), "{rendered}");
 
         crate::styled::reset_excerpt_account();
         let limited = render_diagnostics_with_limit(
@@ -1177,7 +1268,134 @@ mod tests {
         let limited_copy = crate::styled::excerpt_copy_bytes();
         let limited_map = crate::styled::excerpt_map_len();
         assert!(limited_copy <= 33, "{limited_copy}");
-        assert_eq!(limited_map, limited_copy + 1, "{limited_map}");
+        assert!(limited_map <= limited_copy + 4, "{limited_map}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_clipped_tail_keeps_the_source_column() {
+        let mut source = String::from("mi klama");
+        source.push_str(&" ".repeat(100_000));
+        source.push('#');
+        let mark = source.len();
+        source.push('\u{0085}');
+        let column = 1 + source[..mark].chars().count();
+        assert_eq!(column, 100_010);
+        let span = source_span_from_byte_offsets(
+            Some(SourceId("<input>".to_owned())),
+            &source,
+            mark,
+            source.len(),
+        )
+        .expect("span on the control");
+        let diagnostic = Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Syntax,
+            "syntax.sample".to_owned(),
+            "sample".to_owned(),
+            vec![DiagnosticLabel::new(span, "here".to_owned(), true)],
+            Vec::new(),
+            None,
+        );
+        let rendered = render_diagnostics(
+            "<input>",
+            &source,
+            &[diagnostic],
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::Ascii,
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            }),
+        )
+        .expect("clipped tail");
+        assert!(location_shows(&rendered, "--> ", 1, column), "{rendered}");
+        assert!(!location_shows(&rendered, "--> ", 1, 78), "{rendered}");
+        assert!(source_line_shows(&rendered, 1, "\\u{85}"), "{rendered}");
+        assert!(!rendered.contains(&" ".repeat(200)), "{rendered}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn clipped_windows_keep_each_source_line() {
+        let mut source = String::from("NEAR\n");
+        for _ in 0..9_999 {
+            source.push_str("pad\n");
+        }
+        let far_start = source.len();
+        source.push_str("FAR");
+        let far_line = 1 + source[..far_start]
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count();
+        assert_eq!(far_line, 10_001);
+        let near =
+            source_span_from_byte_offsets(Some(SourceId("<input>".to_owned())), &source, 0, 4)
+                .expect("span on NEAR");
+        let far = source_span_from_byte_offsets(
+            Some(SourceId("<input>".to_owned())),
+            &source,
+            far_start,
+            source.len(),
+        )
+        .expect("span on FAR");
+        let diagnostic = Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Syntax,
+            "syntax.sample".to_owned(),
+            "sample".to_owned(),
+            vec![
+                DiagnosticLabel::new(near, "near".to_owned(), true),
+                DiagnosticLabel::new(far, "far".to_owned(), false),
+            ],
+            Vec::new(),
+            None,
+        );
+        let rendered = render_diagnostics(
+            "<input>",
+            &source,
+            &[diagnostic],
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::Ascii,
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            }),
+        )
+        .expect("two distant lines");
+        assert!(location_shows(&rendered, "--> ", 1, 1), "{rendered}");
+        assert!(location_shows(&rendered, "::: ", far_line, 1), "{rendered}");
+        assert!(source_line_shows(&rendered, 1, "NEAR"), "{rendered}");
+        assert!(source_line_shows(&rendered, far_line, "FAR"), "{rendered}");
+        assert!(!source_line_shows(&rendered, 3, "FAR"), "{rendered}");
+        assert!(!rendered.contains("pad"), "{rendered}");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_line_shows(rendered: &str, line_number: usize, text: &str) -> bool {
+        rendered.lines().any(|line| {
+            line.split('|')
+                .next()
+                .is_some_and(|gutter| gutter.trim() == line_number.to_string())
+                && line.contains(text)
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn location_shows(rendered: &str, marker: &str, line_number: usize, column: usize) -> bool {
+        let needle = format!("{marker}<input>:{line_number}:{column}");
+        rendered.lines().any(|line| {
+            line.match_indices(&needle).any(|(index, _)| {
+                line[index + needle.len()..]
+                    .chars()
+                    .next()
+                    .is_none_or(|character| !character.is_ascii_digit())
+            })
+        })
     }
 
     #[test]

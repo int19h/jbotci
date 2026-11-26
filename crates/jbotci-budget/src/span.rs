@@ -170,7 +170,10 @@ impl SpanBudget {
     ) -> Result<Vec<u8>, serde_json::Error> {
         let room = self.remaining();
         let Some(limit) = ByteLimit::new(room) else {
-            return bounded_json(value, self.limit);
+            return Err(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::FileTooLarge,
+                OutputLimitError { limit: self.limit },
+            )));
         };
         let bytes = bounded_json(value, limit)?;
         self.charge(bytes.len()).map_err(|error| {
@@ -292,6 +295,45 @@ mod tests {
         budget.charge(8).unwrap();
         assert!(budget.charge(8).is_err());
         assert_eq!(budget.charged(), 10);
+    }
+
+    struct SerializeProbe<'probe>(&'probe std::cell::Cell<bool>);
+
+    impl serde::Serialize for SerializeProbe<'_> {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            self.0.set(true);
+            0u8.serialize(serializer)
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_exhausted_budget_rejects_json_without_serializing() {
+        let mut budget = SpanBudget::new(ByteLimit::new(1).unwrap());
+        budget.charge(1).unwrap();
+        let error = budget.collect_json(&0).expect_err("no room remains");
+        assert_eq!(
+            error.io_error_kind(),
+            Some(std::io::ErrorKind::FileTooLarge)
+        );
+        assert_eq!(budget.charged(), 1);
+        let saw = std::cell::Cell::new(false);
+        let probe = SerializeProbe(&saw);
+        assert!(budget.collect_json(&probe).is_err());
+        assert!(!saw.get(), "an exhausted budget must not serialize");
+        assert!(budget.charge_json(&probe).is_err());
+        assert!(!saw.get(), "an exhausted budget must not measure JSON");
+        assert!(!budget.fits("a"));
+        assert!(budget.fits(""));
+        assert!(budget.copy("a").is_err());
+        assert!(budget.copy_trimmed(" a ").is_err());
+        assert!(budget.charge(0).is_ok());
+        assert!(budget.charge(1).is_err());
+        let copied = budget.copy_bounded("abcdef");
+        assert!(copied.len() <= 1, "{copied}");
+        assert_eq!(budget.charged(), 1);
+        assert_eq!(budget.slice("abcdef", 1, 4), Some("bcd"));
     }
 
     #[test]

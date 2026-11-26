@@ -297,6 +297,7 @@ fn render_short_message_into(
                     origin.char_column = Some(first_annotation.start.char + 1);
                 }
             }
+            apply_explicit_origin(&mut origin, cause.origin_line, cause.origin_column);
 
             render_origin(renderer, &mut buffer, 0, &origin, true, true, true, 0);
             buffer.append(0, ": ", ElementStyle::LineAndColumn);
@@ -445,6 +446,16 @@ fn render_title(
     }
 }
 
+/// A clipped window stores the file position apart from the visible text.
+fn apply_explicit_origin(origin: &mut Origin<'_>, line: Option<usize>, column: Option<usize>) {
+    if let Some(line) = line {
+        origin.line = Some(line);
+    }
+    if let Some(column) = column {
+        origin.char_column = Some(column);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_origin(
     renderer: &Renderer,
@@ -565,6 +576,7 @@ fn render_snippet_annotations(
                 }
             }
         }
+        apply_explicit_origin(&mut origin, snippet.origin_line, snippet.origin_column);
         let buffer_msg_line_offset = buffer.num_lines();
         render_origin(
             renderer,
