@@ -3810,6 +3810,43 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn a_word_break_between_glob_wildcards_matches_a_space() {
+        // `*!*` means `* *`, in valsi and in rafsi globs (issue #1130).
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default().with_data(data! { count: 50 });
+        let space = compile_glob_pattern("* *").expect("* *").tokens;
+        for pattern in [
+            "*!*",
+            "*-*",
+            "*.*",
+            "*\u{2018}*",
+            "* , *",
+            "*\u{00b7} *",
+            "*\u{2027}-*",
+        ] {
+            assert_eq!(
+                compile_glob_pattern(pattern).map(|pattern| pattern.tokens),
+                Ok(space.clone()),
+                "{pattern}"
+            );
+            for mode in [VlackuRequest::valsi, VlackuRequest::rafsi] {
+                let expected = search(dictionary, &[mode("* *".to_owned())], &options);
+                let actual = search(dictionary, &[mode(pattern.to_owned())], &options);
+                assert_eq!(actual.outcome, expected.outcome, "{pattern}");
+                assert_eq!(actual.cards, expected.cards, "{pattern}");
+            }
+        }
+        assert_eq!(
+            compile_glob_pattern("ca *!*").map(|pattern| pattern.tokens),
+            compile_glob_pattern("ca * *").map(|pattern| pattern.tokens)
+        );
+        let comma = compile_glob_pattern("*,*").expect_err("a comma adds nothing");
+        assert!(comma.contains("has no character"), "{comma}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn lookup_keys_follow_the_gentufa_character_rules() {
         // A word break is a space, in an exact lookup and in a glob.
         assert_eq!(

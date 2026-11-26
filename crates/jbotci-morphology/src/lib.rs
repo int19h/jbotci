@@ -5009,7 +5009,7 @@ mod tests {
         fn transcript(input: &str) -> String {
             let mut transcript = LookupTranscript::new();
             let mut text = String::new();
-            let _ = transcript.push_str(input, |value| text.push(value));
+            let _ = transcript.push_str(input);
             transcript.finish(|value| text.push(value));
             text
         }
@@ -5024,14 +5024,86 @@ mod tests {
         assert_eq!(transcript("\u{0306}"), "\u{0306}");
         assert_eq!(transcript("\u{0301}"), "");
         let mut transcript_state = LookupTranscript::new();
-        assert_eq!(
-            transcript_state.push_str("\u{0306}", |_| {}),
-            Some('\u{0306}')
-        );
-        assert_eq!(
-            transcript_state.push_str("\u{0301}", |_| {}),
-            Some('\u{0301}')
-        );
+        assert_eq!(transcript_state.push_str("\u{0306}"), Some('\u{0306}'));
+        assert_eq!(transcript_state.push_str("\u{0301}"), Some('\u{0301}'));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn canonically_equivalent_spellings_convert_alike() {
+        // Every character that the converter reads, and every character whose
+        // decomposition the converter reads, gives one result in either
+        // spelling, for the parser and for the lookup transcript.
+        #[requires(true)]
+        #[ensures(true)]
+        fn transcript(input: &str) -> String {
+            let mut transcript = LookupTranscript::new();
+            let mut text = String::new();
+            let _ = transcript.push_str(input);
+            transcript.finish(|value| text.push(value));
+            text
+        }
+
+        let options = MorphologyOptions::default();
+        let mut checked = 0;
+        for code in 0..=u32::from(char::MAX) {
+            let Some(composed) = char::from_u32(code) else {
+                continue;
+            };
+            let mut decomposed = String::new();
+            unicode_normalization::char::decompose_canonical(composed, |value| {
+                decomposed.push(value)
+            });
+            if decomposed.chars().eq(std::iter::once(composed)) {
+                continue;
+            }
+            let strict = |text: &str| {
+                segment::normalize_source_chars_checked(text.chars().enumerate(), &options)
+                    .map(|chars| chars.iter().map(|item| item.value).collect::<String>())
+                    .ok()
+            };
+            let composed_text = composed.to_string();
+            let composed_strict = strict(&composed_text);
+            let decomposed_strict = strict(&decomposed);
+            if composed_strict.is_none() && decomposed_strict.is_none() {
+                continue;
+            }
+            assert_eq!(
+                composed_strict, decomposed_strict,
+                "{composed:?} {decomposed:?}"
+            );
+            assert_eq!(
+                transcript(&composed_text),
+                transcript(&decomposed),
+                "{composed:?} {decomposed:?}"
+            );
+            checked += 1;
+        }
+        // The stressed Latin vowels, the four glides in each script and case,
+        // and the Cyrillic grave letters.
+        assert!(checked >= 40, "{checked}");
+        for (composed, decomposed) in [
+            ("coĭ", "coi\u{0306}"),
+            ("aŭ", "au\u{0306}"),
+            ("мѝ", "ми\u{0300}"),
+            ("лѐ", "ле\u{0300}"),
+            ("шой", "шои\u{0306}"),
+        ] {
+            assert_eq!(
+                normalize_lojban_input_text(composed),
+                normalize_lojban_input_text(decomposed),
+                "{composed}"
+            );
+            assert!(
+                normalize_lojban_input_text(composed).is_some(),
+                "{composed}"
+            );
+            assert_eq!(transcript(composed), transcript(decomposed), "{composed}");
+        }
+        // A non-stress mark stays an unread character in either spelling.
+        assert_eq!(normalize_lojban_input_text("klâma"), None);
+        assert_eq!(normalize_lojban_input_text("kla\u{0302}ma"), None);
     }
 
     #[test]
@@ -5044,7 +5116,7 @@ mod tests {
             let mut transcript = LookupTranscript::new();
             let mut text = String::new();
             for part in parts {
-                let _ = transcript.push_str(part, |value| text.push(value));
+                let _ = transcript.push_str(part);
             }
             transcript.finish(|value| text.push(value));
             text
@@ -5080,7 +5152,7 @@ mod tests {
             let mut transcript = LookupTranscript::new();
             let mut text = String::new();
             for part in parts {
-                let _ = transcript.push_str(part, |value| text.push(value));
+                let _ = transcript.push_str(part);
             }
             transcript.finish(|value| text.push(value));
             text
@@ -5104,17 +5176,17 @@ mod tests {
 
         let mut transcript = LookupTranscript::new();
         let mut reset = String::new();
-        let _ = transcript.push_str("шо", |value| reset.push(value));
+        let _ = transcript.push_str("шо");
         transcript.finish(|value| reset.push(value));
-        let _ = transcript.push_str("и", |value| reset.push(value));
+        let _ = transcript.push_str("и");
         transcript.finish(|value| reset.push(value));
         assert_eq!(reset, "coi");
 
         let mut transcript = LookupTranscript::new();
         let mut split_mark = String::new();
-        let _ = transcript.push_str("\u{ed8b}", |value| split_mark.push(value));
+        let _ = transcript.push_str("\u{ed8b}");
         transcript.finish(|value| split_mark.push(value));
-        let _ = transcript.push_str("\u{eda2}", |value| split_mark.push(value));
+        let _ = transcript.push_str("\u{eda2}");
         transcript.finish(|value| split_mark.push(value));
         assert_eq!(split_mark, "\u{ed8b}i");
     }

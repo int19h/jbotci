@@ -1650,18 +1650,30 @@ impl LookupKeyBuilder {
         }
     }
 
-    /// End a literal run. A run with text but no letter is an error.
+    /// End a literal run. A run with text that adds nothing to the key is an
+    /// error.
+    ///
+    /// A run adds to the key when it kept a letter, or when it leaves a space
+    /// between two searchable parts. That space is the pending space of a
+    /// word break after an earlier part, and it survives when a wildcard
+    /// follows (`before_wildcard`). So `*!*` and `* , *` key as `* *`, while
+    /// `*,*`, `!*` and a trailing `*!` add nothing.
     #[requires(true)]
     #[ensures(ret.is_ok() -> (!self.segment_kept && self.segment_text.is_empty()))]
-    fn end_segment(&mut self, mode: LookupKeyMode) -> Result<(), LookupPatternError> {
+    fn end_segment(
+        &mut self,
+        mode: LookupKeyMode,
+        before_wildcard: bool,
+    ) -> Result<(), LookupPatternError> {
         let text = std::mem::take(&mut self.segment_text);
         let kept = std::mem::replace(&mut self.segment_kept, false);
+        let adds_space = before_wildcard && self.pending_space;
         if mode == LookupKeyMode::Lookup {
             if let Some(character) = self.invalid.take() {
                 return Err(new!(LookupPatternError::InvalidCharacter { character }));
             }
             let trimmed = text.trim();
-            if !kept && !trimmed.is_empty() {
+            if !kept && !adds_space && !trimmed.is_empty() {
                 return Err(new!(LookupPatternError::NoLookupCharacter {
                     text: trimmed.to_owned(),
                 }));
@@ -1696,11 +1708,11 @@ fn build_lookup_key<T: Clone>(
         match part {
             LookupPatternPart::Literal(text) => {
                 builder.segment_text.push_str(text);
-                let _ = transcript.push_str(text, |value| builder.push(value));
+                let _ = transcript.push_str(text);
             }
             LookupPatternPart::Wildcard(token) => {
                 transcript.finish(|value| builder.push(value));
-                builder.end_segment(mode)?;
+                builder.end_segment(mode, true)?;
                 if builder.pending_space {
                     builder.current.push(' ');
                     builder.pending_space = false;
@@ -1716,7 +1728,7 @@ fn build_lookup_key<T: Clone>(
         }
     }
     transcript.finish(|value| builder.push(value));
-    builder.end_segment(mode)?;
+    builder.end_segment(mode, false)?;
     if !builder.current.is_empty() {
         keyed.push(new!(LookupKeyPart::Text(builder.current)));
     }
@@ -2106,8 +2118,10 @@ mod tests {
                 text: ", ,".to_owned()
             })
         );
-        // The index key leaves a rejected character out.
-        assert_eq!(normalize_lookup_query("klâma"), "klma");
+        // The index key leaves a rejected character out. `â` is `a` and a
+        // combining circumflex, so only the mark goes.
+        assert_eq!(normalize_lookup_query("klâma"), "klama");
+        assert_eq!(normalize_lookup_query("kla\u{0302}ma"), "klama");
         assert_eq!(normalize_lookup_query("ma;u"), "ma u");
         assert!(whole(" ").expect("blank").is_empty());
 
@@ -2155,6 +2169,74 @@ mod tests {
         .expect("space between stars");
         assert_eq!(key_text_of(&stars), " ");
         assert_eq!(stars.len(), 3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_break_between_wildcards_is_a_space() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn between(text: &str) -> Result<Vec<LookupKeyPart<char>>, LookupPatternError> {
+            normalize_lookup_pattern(&[
+                LookupPatternPart::Wildcard('*'),
+                LookupPatternPart::Literal(text),
+                LookupPatternPart::Wildcard('*'),
+            ])
+        }
+
+        let space = between(" ").expect("a space between stars");
+        let mut breaks = 0;
+        for code in 0..=u32::from(char::MAX) {
+            let Some(value) = char::from_u32(code) else {
+                continue;
+            };
+            if !jbotci_morphology::is_word_break(value) {
+                continue;
+            }
+            assert_eq!(between(&value.to_string()), Ok(space.clone()), "{value:?}");
+            breaks += 1;
+        }
+        assert!(breaks > 30, "{breaks}");
+        // A removed mark next to a break leaves the space.
+        for text in [" , ", ",!", "!,", "\u{00b7}-", "\u{2027} ", ". \u{00b7}"] {
+            assert_eq!(between(text), Ok(space.clone()), "{text:?}");
+        }
+        // A run that adds nothing to the key is still an error.
+        for text in [",", "\u{00b7}", "\u{2027}", ",,"] {
+            assert_eq!(
+                between(text),
+                Err(new!(LookupPatternError::NoLookupCharacter {
+                    text: text.to_owned()
+                })),
+                "{text:?}"
+            );
+        }
+        for parts in [
+            [
+                LookupPatternPart::Literal("!"),
+                LookupPatternPart::Wildcard('*'),
+            ],
+            [
+                LookupPatternPart::Wildcard('*'),
+                LookupPatternPart::Literal("!"),
+            ],
+        ] {
+            assert!(normalize_lookup_pattern(&parts).is_err(), "{parts:?}");
+        }
+        // A letter run keeps its break as before.
+        assert_eq!(
+            key_text_of(
+                &normalize_lookup_pattern(&[
+                    LookupPatternPart::Literal("ca"),
+                    LookupPatternPart::Wildcard('*'),
+                    LookupPatternPart::Literal("!"),
+                    LookupPatternPart::Wildcard('*'),
+                ])
+                .expect("ca *!*")
+            ),
+            "ca "
+        );
     }
 
     #[test]
