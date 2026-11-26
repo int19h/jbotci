@@ -28,6 +28,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The fixture owns socket and thread resources. A missing worker is a valid stopped state, and cleanup accepts it.",
     ),
     (
+        "crates/jbotci-embeddings/src/setup_tests.rs:PackProgress",
+        "The fixture stores accept readiness, requests, response start, write stalls, and the worker result in one record. Any combination is a valid test observation.",
+    ),
+    (
         "crates/jbotci-embeddings/src/setup_tests.rs:AlwaysInterrupt",
         "The reader returns an interrupt on every read. The call count accepts any usize and has no second field.",
     ),
@@ -90,6 +94,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/delivery.rs:ScriptedProbeWrite",
         "The write script, the step cursor, and the captured bytes are test controls. The test checks the captured bytes after the probe.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:PendingAfterByte",
+        "The probe writes one byte into the shared buffer and then stays pending. The test checks that buffer after the time limit.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:PendingAfterRead",
+        "The probe returns its bytes and then stays pending. The started flag and the sent flag are test controls.",
     ),
     (
         "apps/jbotci-server/src/execution.rs:AdmissionCancellation",

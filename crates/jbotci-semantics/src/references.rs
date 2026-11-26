@@ -8396,7 +8396,9 @@ mod tests {
     }
 
     /// Choose the next step for the place-boundary probe.
-    /// An interrupt and a running child use the same deadline.
+    /// The deadline is checked before a result is accepted.
+    /// An exit first observed at the deadline or later is a timeout.
+    /// A failed wait stays a failure.
     #[requires(true)]
     #[ensures(true)]
     fn place_probe_step(
@@ -8404,14 +8406,31 @@ mod tests {
         now: std::time::Instant,
         deadline: std::time::Instant,
     ) -> PlaceProbeStep {
+        if now >= deadline {
+            return match kind {
+                PlaceProbeKind::Failed => PlaceProbeStep::Failed,
+                PlaceProbeKind::Exited | PlaceProbeKind::Running | PlaceProbeKind::Interrupted => {
+                    PlaceProbeStep::TimedOut
+                }
+            };
+        }
         match kind {
             PlaceProbeKind::Exited => PlaceProbeStep::Finished,
             PlaceProbeKind::Failed => PlaceProbeStep::Failed,
-            PlaceProbeKind::Running | PlaceProbeKind::Interrupted if now >= deadline => {
-                PlaceProbeStep::TimedOut
-            }
             PlaceProbeKind::Running | PlaceProbeKind::Interrupted => PlaceProbeStep::Sleep,
         }
+    }
+
+    /// The pause before the next place-boundary poll.
+    /// The pause stops at the remaining time.
+    #[requires(true)]
+    #[ensures(ret <= std::time::Duration::from_millis(10))]
+    #[ensures(ret <= deadline.saturating_duration_since(now))]
+    fn place_probe_pause(
+        now: std::time::Instant,
+        deadline: std::time::Instant,
+    ) -> std::time::Duration {
+        std::time::Duration::from_millis(10).min(deadline.saturating_duration_since(now))
     }
 
     #[test]
@@ -8450,6 +8469,59 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn place_boundary_late_exit_is_a_timeout() {
+        // Interrupts use the capped pause until the deadline.
+        // Success is first observed 5 ms after that deadline.
+        // That exit is a timeout.
+        let start = std::time::Instant::now();
+        let deadline = start + std::time::Duration::from_millis(100);
+        let mut now = start;
+        let mut steps = 0_u32;
+        while now < deadline {
+            assert!(matches!(
+                place_probe_step(PlaceProbeKind::Interrupted, now, deadline),
+                PlaceProbeStep::Sleep
+            ));
+            let pause = place_probe_pause(now, deadline);
+            assert!(pause <= std::time::Duration::from_millis(10));
+            assert!(now + pause <= deadline);
+            now += pause;
+            steps += 1;
+            assert!(steps < 50, "the probe did not reach the deadline");
+        }
+        assert_eq!(now, deadline);
+        let near = deadline
+            .checked_sub(std::time::Duration::from_millis(4))
+            .expect("the clock has a past instant");
+        assert_eq!(
+            place_probe_pause(near, deadline),
+            std::time::Duration::from_millis(4)
+        );
+        let late = deadline + std::time::Duration::from_millis(5);
+        assert!(matches!(
+            place_probe_step(PlaceProbeKind::Exited, late, deadline),
+            PlaceProbeStep::TimedOut
+        ));
+        assert!(matches!(
+            place_probe_step(PlaceProbeKind::Exited, deadline, deadline),
+            PlaceProbeStep::TimedOut
+        ));
+        assert!(matches!(
+            place_probe_step(PlaceProbeKind::Failed, late, deadline),
+            PlaceProbeStep::Failed
+        ));
+        let early = deadline
+            .checked_sub(std::time::Duration::from_millis(5))
+            .expect("the clock has a past instant");
+        assert!(matches!(
+            place_probe_step(PlaceProbeKind::Exited, early, deadline),
+            PlaceProbeStep::Finished
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn numbered_place_boundary_probes_finish_within_the_deadline() {
         const CHILD_FLAG: &str = "JBOTCI_TEST_PLACE_BOUNDARY_CHILD";
         const PROBE_PASSED: i32 = 42;
@@ -8472,10 +8544,10 @@ mod tests {
             .expect("start the place-boundary probe");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         // A signal can interrupt try_wait.
+        // The clock is read after that call returns.
         // That pass uses the same deadline as a running child.
         // Any other error fails this test.
         let status = loop {
-            let now = std::time::Instant::now();
             let (kind, exited, failed) = match child.try_wait() {
                 Ok(Some(status)) => (PlaceProbeKind::Exited, Some(status), None),
                 Ok(None) => (PlaceProbeKind::Running, None, None),
@@ -8484,9 +8556,15 @@ mod tests {
                 }
                 Err(error) => (PlaceProbeKind::Failed, None, Some(error)),
             };
+            let now = std::time::Instant::now();
             match place_probe_step(kind, now, deadline) {
                 PlaceProbeStep::Finished => break exited.expect("the probe exited"),
-                PlaceProbeStep::Sleep => std::thread::sleep(std::time::Duration::from_millis(10)),
+                PlaceProbeStep::Sleep => {
+                    let pause = place_probe_pause(now, deadline);
+                    if !pause.is_zero() {
+                        std::thread::sleep(pause);
+                    }
+                }
                 PlaceProbeStep::TimedOut => {
                     child.kill().expect("stop the stalled place-boundary probe");
                     child.wait().expect("reap the place-boundary probe");

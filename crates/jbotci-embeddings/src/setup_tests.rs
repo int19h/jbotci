@@ -1,4 +1,18 @@
 //! Exercise installed-index updates through the same setup entry point as the CLI and desktop.
+//
+// Deadline, wake, and teardown rules for these tests.
+// A deadline is checked before a result is accepted.
+// Every sleep or wait stops at the remaining time.
+// An exit first observed after the deadline is a timeout.
+// Every pending operation uses that same deadline.
+// An interrupt keeps the byte offset and the bytes already read.
+// A waiter reads the milestone and the worker result under one mutex.
+// That mutex is the mutex of the condition variable.
+// Teardown joins or awaits every task before it reports another error.
+// Cancellation is a normal stop.
+// A panic keeps its message.
+// A receive loop accepts end of file or the expected reset as closure.
+// Any other socket error reports its cause.
 
 use super::*;
 use std::io::{Seek, SeekFrom};
@@ -116,6 +130,36 @@ fn read_pack_line(stream: &mut impl std::io::Read, stop: &AtomicBool) -> PackRea
     }
 }
 
+/// Milestones and the worker result for one pack server.
+/// One mutex holds every value that a waiter tests.
+#[invariant(true)]
+struct PackProgress {
+    accept_ready: bool,
+    requests: Vec<String>,
+    response_started: bool,
+    write_stalled: bool,
+    worker_result: Option<Result<(), String>>,
+}
+
+/// A progress record with no milestones and no worker result.
+#[requires(true)]
+#[ensures(
+    !ret.accept_ready
+        && ret.requests.is_empty()
+        && !ret.response_started
+        && !ret.write_stalled
+        && ret.worker_result.is_none()
+)]
+fn fresh_pack_progress() -> PackProgress {
+    PackProgress {
+        accept_ready: false,
+        requests: Vec::new(),
+        response_started: false,
+        write_stalled: false,
+        worker_result: None,
+    }
+}
+
 /// Write every byte.
 /// The socket timeout is 100 milliseconds.
 /// An interrupt leaves the byte offset unchanged.
@@ -131,8 +175,8 @@ fn write_pack_bytes(
     stream: &mut impl std::io::Write,
     bytes: &[u8],
     stop: &AtomicBool,
-    stalled: &Mutex<bool>,
-    stall_wake: &Condvar,
+    progress: &Mutex<PackProgress>,
+    wake: &Condvar,
 ) -> PackWrite {
     let mut offset = 0;
     let mut progressed = std::time::Instant::now();
@@ -156,7 +200,7 @@ fn write_pack_bytes(
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(error) if pack_io_is_a_stall(&error) => {
                 if !stop.load(AtomicOrdering::Acquire) {
-                    record_pack_write_stall(stalled, stall_wake);
+                    record_pack_write_stall(progress, wake);
                 }
                 continue;
             }
@@ -170,10 +214,10 @@ fn write_pack_bytes(
 /// The first record wakes a test that waits for it.
 #[requires(true)]
 #[ensures(true)]
-fn record_pack_write_stall(stalled: &Mutex<bool>, wake: &Condvar) {
-    let mut guard = stalled.lock().expect("the pack server stall flag is open");
-    if !*guard {
-        *guard = true;
+fn record_pack_write_stall(progress: &Mutex<PackProgress>, wake: &Condvar) {
+    let mut guard = progress.lock().expect("the pack server stall flag is open");
+    if !guard.write_stalled {
+        guard.write_stalled = true;
         wake.notify_all();
     }
 }
@@ -182,12 +226,12 @@ fn record_pack_write_stall(stalled: &Mutex<bool>, wake: &Condvar) {
 /// The first record wakes a test that waits for it.
 #[requires(true)]
 #[ensures(true)]
-fn record_pack_response_start(started: &Mutex<bool>, wake: &Condvar) {
-    let mut guard = started
+fn record_pack_response_start(progress: &Mutex<PackProgress>, wake: &Condvar) {
+    let mut guard = progress
         .lock()
         .expect("the pack server response flag is open");
-    if !*guard {
-        *guard = true;
+    if !guard.response_started {
+        guard.response_started = true;
         wake.notify_all();
     }
 }
@@ -214,8 +258,16 @@ fn read_pack_response_header_for(
             panic!("this limit only stops a hang");
         }
         match std::io::Read::read(stream, &mut buf) {
-            Ok(0) => return String::from_utf8_lossy(&bytes).into_owned(),
+            Ok(0) => {
+                if started.elapsed() >= limit {
+                    panic!("this limit only stops a hang");
+                }
+                return String::from_utf8_lossy(&bytes).into_owned();
+            }
             Ok(_) => {
+                if started.elapsed() >= limit {
+                    panic!("this limit only stops a hang");
+                }
                 bytes.push(buf[0]);
                 if bytes.ends_with(b"\r\n\r\n") {
                     return String::from_utf8_lossy(&bytes).into_owned();
@@ -242,14 +294,22 @@ fn read_pack_response_header(stream: &mut std::net::TcpStream) -> String {
         if started.elapsed() >= PACK_HANG_LIMIT {
             panic!("this limit only stops a hang");
         }
-        match stream.set_read_timeout(Some(PACK_SOCKET_POLL)) {
+        let remaining = PACK_HANG_LIMIT.saturating_sub(started.elapsed());
+        let poll = PACK_SOCKET_POLL.min(remaining);
+        if poll.is_zero() {
+            panic!("this limit only stops a hang");
+        }
+        match stream.set_read_timeout(Some(poll)) {
             Ok(()) => break,
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(error) => panic!("the pack client accepts a read timeout: {error}"),
         }
     }
     let remaining = PACK_HANG_LIMIT.saturating_sub(started.elapsed());
-    read_pack_response_header_for(stream, remaining.max(std::time::Duration::from_millis(1)))
+    if remaining.is_zero() {
+        panic!("this limit only stops a hang");
+    }
+    read_pack_response_header_for(stream, remaining)
 }
 
 /// Read one file chunk.
@@ -518,9 +578,9 @@ fn write_pack_bytes_keeps_the_offset_across_interrupts() {
         written: Vec::new(),
     };
     let stop = AtomicBool::new(false);
-    let stalled = Mutex::new(false);
+    let progress = Mutex::new(fresh_pack_progress());
     let wake = Condvar::new();
-    match write_pack_bytes(&mut writer, b"abcd", &stop, &stalled, &wake).into_data() {
+    match write_pack_bytes(&mut writer, b"abcd", &stop, &progress, &wake).into_data() {
         data!(PackWrite::Done) => {}
         _ => panic!("the pack write finishes"),
     }
@@ -562,9 +622,9 @@ fn write_pack_bytes_returns_to_the_stop_flag_on_persistent_interrupts() {
         stop: Arc::clone(&stop),
         calls: 0,
     };
-    let stalled = Mutex::new(false);
+    let progress = Mutex::new(fresh_pack_progress());
     let wake = Condvar::new();
-    match write_pack_bytes(&mut writer, b"abcd", &stop, &stalled, &wake).into_data() {
+    match write_pack_bytes(&mut writer, b"abcd", &stop, &progress, &wake).into_data() {
         data!(PackWrite::Stopped) => {}
         _ => panic!("the pack write returns to the stop flag"),
     }
@@ -682,16 +742,9 @@ fn read_pack_line_reports_one_reset() {
 #[invariant(true)]
 struct PackServer {
     address: std::net::SocketAddr,
-    requests: Arc<Mutex<Vec<String>>>,
-    request_wake: Arc<Condvar>,
-    accept_ready: Arc<Mutex<bool>>,
-    accept_wake: Arc<Condvar>,
-    response_started: Arc<Mutex<bool>>,
-    response_wake: Arc<Condvar>,
-    write_stalled: Arc<Mutex<bool>>,
-    write_stall_wake: Arc<Condvar>,
+    progress: Arc<Mutex<PackProgress>>,
+    wake: Arc<Condvar>,
     stop: Arc<AtomicBool>,
-    worker_result: Arc<Mutex<Option<Result<(), String>>>>,
     worker: Option<JoinHandle<Result<(), String>>>,
 }
 
@@ -713,26 +766,12 @@ impl PackServer {
         let address = listener
             .local_addr()
             .expect("the pack server has a local address");
-        let requests = Arc::new(Mutex::new(Vec::new()));
-        let request_wake = Arc::new(Condvar::new());
-        let accept_ready = Arc::new(Mutex::new(false));
-        let accept_wake = Arc::new(Condvar::new());
-        let response_started = Arc::new(Mutex::new(false));
-        let response_wake = Arc::new(Condvar::new());
-        let write_stalled = Arc::new(Mutex::new(false));
-        let write_stall_wake = Arc::new(Condvar::new());
+        let progress = Arc::new(Mutex::new(fresh_pack_progress()));
+        let wake = Arc::new(Condvar::new());
         let stop = Arc::new(AtomicBool::new(false));
-        let worker_result = Arc::new(Mutex::new(None));
-        let worker_requests = Arc::clone(&requests);
-        let worker_wake = Arc::clone(&request_wake);
-        let worker_ready = Arc::clone(&accept_ready);
-        let worker_ready_wake = Arc::clone(&accept_wake);
-        let worker_response = Arc::clone(&response_started);
-        let worker_response_wake = Arc::clone(&response_wake);
-        let worker_stalled = Arc::clone(&write_stalled);
-        let worker_stall_wake = Arc::clone(&write_stall_wake);
+        let worker_progress = Arc::clone(&progress);
+        let worker_wake = Arc::clone(&wake);
         let worker_stop = Arc::clone(&stop);
-        let worker_result_slot = Arc::clone(&worker_result);
         let worker = std::thread::spawn(move || -> Result<(), String> {
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
                 || -> Result<(), String> {
@@ -747,12 +786,12 @@ impl PackServer {
                             Ok(connection) => connection,
                             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                                 {
-                                    let mut ready = worker_ready
+                                    let mut progress = worker_progress
                                         .lock()
                                         .expect("the pack server accept flag is open");
-                                    if !*ready {
-                                        *ready = true;
-                                        worker_ready_wake.notify_all();
+                                    if !progress.accept_ready {
+                                        progress.accept_ready = true;
+                                        worker_wake.notify_all();
                                     }
                                 }
                                 std::thread::sleep(std::time::Duration::from_millis(2));
@@ -813,10 +852,12 @@ impl PackServer {
                         };
                         let relative = relative.trim_start_matches('/').to_owned();
                         // Record the request, then wake a test that waits for it.
-                        // The wake uses the same mutex as the request list.
+                        // The request list and the worker result share one mutex.
                         {
-                            let mut recorded = worker_requests.lock().unwrap();
-                            recorded.push(relative.clone());
+                            let mut progress = worker_progress
+                                .lock()
+                                .expect("the pack server request list is open");
+                            progress.requests.push(relative.clone());
                             worker_wake.notify_one();
                         }
                         loop {
@@ -841,8 +882,8 @@ impl PackServer {
                             &mut stream,
                             b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
                             &worker_stop,
-                            &worker_stalled,
-                            &worker_stall_wake,
+                            &worker_progress,
+                            &worker_wake,
                         )
                         .into_data()
                         {
@@ -871,13 +912,13 @@ impl PackServer {
                         // sendfile ignores the write timeout.
                         // Each chunk uses the 100 millisecond timeout.
                         // The record is set immediately before the first header write.
-                        record_pack_response_start(&worker_response, &worker_response_wake);
+                        record_pack_response_start(&worker_progress, &worker_wake);
                         match write_pack_bytes(
                             &mut stream,
                             header.as_bytes(),
                             &worker_stop,
-                            &worker_stalled,
-                            &worker_stall_wake,
+                            &worker_progress,
+                            &worker_wake,
                         )
                         .into_data()
                         {
@@ -899,8 +940,8 @@ impl PackServer {
                                 &mut stream,
                                 &buf[..count],
                                 &worker_stop,
-                                &worker_stalled,
-                                &worker_stall_wake,
+                                &worker_progress,
+                                &worker_wake,
                             )
                             .into_data()
                             {
@@ -919,30 +960,14 @@ impl PackServer {
                 Ok(result) => result,
                 Err(payload) => Err(pack_server_panic_message(payload)),
             };
-            publish_pack_worker_result(
-                &worker_result_slot,
-                &result,
-                &[
-                    &worker_ready_wake,
-                    &worker_wake,
-                    &worker_response_wake,
-                    &worker_stall_wake,
-                ],
-            );
+            publish_pack_worker_result(&worker_progress, &worker_wake, &result);
             result
         });
         Self {
             address,
-            requests,
-            request_wake,
-            accept_ready,
-            accept_wake,
-            response_started,
-            response_wake,
-            write_stalled,
-            write_stall_wake,
+            progress,
+            wake,
             stop,
-            worker_result,
             worker: Some(worker),
         }
     }
@@ -1001,60 +1026,77 @@ fn panic_payload_text(payload: Box<dyn std::any::Any + Send>) -> String {
 }
 
 /// Publish a worker result and wake every pack wait.
+/// The result is stored in the same mutex as the milestones.
 #[requires(true)]
 #[ensures(true)]
 fn publish_pack_worker_result(
-    slot: &Mutex<Option<Result<(), String>>>,
+    progress: &Mutex<PackProgress>,
+    wake: &Condvar,
     result: &Result<(), String>,
-    wakes: &[&Condvar],
 ) {
-    {
-        let mut guard = slot.lock().expect("the pack server worker result is open");
-        *guard = Some(result.clone());
-    }
-    for wake in wakes {
-        wake.notify_all();
+    let mut guard = progress
+        .lock()
+        .expect("the pack server worker result is open");
+    guard.worker_result = Some(result.clone());
+    wake.notify_all();
+}
+
+/// The text for a worker result that ends a wait.
+/// An error uses the worker text.
+/// A clean finish uses the hang text.
+/// The text is not empty.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn pack_wait_failure_text(result: &Result<(), String>) -> String {
+    match result {
+        Err(error) if !error.is_empty() => error.clone(),
+        Err(_) | Ok(()) => "this limit only stops a hang".to_owned(),
     }
 }
 
 /// Wait until a milestone is set.
-/// A worker result wakes the wait at once.
-/// A set milestone returns to the caller.
-/// The caller reads a worker error from shutdown.
+/// The milestone and the worker result share one mutex.
+/// The hook runs after the predicate and before the sleep.
+/// The wait reads both values again before it sleeps.
 /// A worker error fails this wait only while the milestone is unset.
-/// A live worker with no progress still hits the hang limit.
+/// The sleep stops at the remaining time.
 #[requires(!limit.is_zero())]
 #[ensures(true)]
-fn wait_for_pack_milestone<T>(
-    state: &Mutex<T>,
+fn wait_for_pack_milestone(
+    progress: &Mutex<PackProgress>,
     wake: &Condvar,
-    worker_result: &Mutex<Option<Result<(), String>>>,
     limit: std::time::Duration,
-    still_waiting: impl Fn(&T) -> bool,
+    still_waiting: impl Fn(&PackProgress) -> bool,
+    mut before_sleep: impl FnMut(&mut PackProgress),
 ) {
-    let guard = state.lock().expect("the pack server milestone is open");
-    let (guard, _) = wake
-        .wait_timeout_while(guard, limit, |state| {
-            still_waiting(state)
-                && worker_result
-                    .lock()
-                    .expect("the pack server worker result is open")
-                    .is_none()
-        })
-        .expect("the pack server milestone is open");
-    let waiting = still_waiting(&guard);
-    drop(guard);
-    if !waiting {
-        return;
+    let started = std::time::Instant::now();
+    let mut guard = progress.lock().expect("the pack server milestone is open");
+    loop {
+        if !still_waiting(&guard) {
+            return;
+        }
+        if let Some(result) = guard.worker_result.clone() {
+            panic!("{}", pack_wait_failure_text(&result));
+        }
+        if started.elapsed() >= limit {
+            panic!("this limit only stops a hang");
+        }
+        before_sleep(&mut guard);
+        if !still_waiting(&guard) {
+            return;
+        }
+        if let Some(result) = guard.worker_result.clone() {
+            panic!("{}", pack_wait_failure_text(&result));
+        }
+        let remaining = limit.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            panic!("this limit only stops a hang");
+        }
+        let (next, _) = wake
+            .wait_timeout(guard, remaining)
+            .expect("the pack server milestone is open");
+        guard = next;
     }
-    let worker_error = worker_result
-        .lock()
-        .expect("the pack server worker result is open")
-        .clone();
-    if let Some(Err(error)) = worker_error {
-        panic!("{error}");
-    }
-    panic!("this limit only stops a hang");
 }
 
 #[requires(true)]
@@ -1089,27 +1131,24 @@ fn pack_server_shutdown_joins_without_a_client() {
 #[requires(true)]
 #[ensures(true)]
 fn pack_worker_panic_wakes_a_milestone_wait() {
-    let state = Arc::new(Mutex::new(false));
+    let progress = Arc::new(Mutex::new(fresh_pack_progress()));
     let wake = Arc::new(Condvar::new());
-    let slot = Arc::new(Mutex::new(None));
-    let state_worker = Arc::clone(&state);
+    let progress_worker = Arc::clone(&progress);
     let wake_worker = Arc::clone(&wake);
-    let slot_worker = Arc::clone(&slot);
     let publisher = std::thread::spawn(move || {
         let payload = std::panic::catch_unwind(|| panic!("pack worker sentinel"))
             .expect_err("the worker panics");
         let result = Err(pack_server_panic_message(payload));
-        publish_pack_worker_result(&slot_worker, &result, &[&wake_worker]);
-        drop(state_worker);
+        publish_pack_worker_result(&progress_worker, &wake_worker, &result);
     });
     let started = std::time::Instant::now();
     let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         wait_for_pack_milestone(
-            &state,
+            &progress,
             &wake,
-            &slot,
             std::time::Duration::from_secs(5),
-            |ready| !*ready,
+            |state| !state.accept_ready,
+            |_| {},
         );
     }));
     assert!(started.elapsed() < std::time::Duration::from_secs(2));
@@ -1120,6 +1159,36 @@ fn pack_worker_panic_wakes_a_milestone_wait() {
         "{message}"
     );
     publisher.join().expect("the publisher finishes");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_wait_sees_a_result_published_before_sleep() {
+    // The predicate sees an unset milestone and no worker result.
+    // The hook then stores the worker error.
+    // The wait reads that error before it sleeps.
+    let progress = Mutex::new(fresh_pack_progress());
+    let wake = Condvar::new();
+    let started = std::time::Instant::now();
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        wait_for_pack_milestone(
+            &progress,
+            &wake,
+            std::time::Duration::from_secs(60),
+            |state| !state.accept_ready,
+            |state| {
+                state.worker_result = Some(Err("connection reset".to_owned()));
+            },
+        );
+    }));
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    let message = panic_payload_text(caught.expect_err("the wait reports the worker error"));
+    assert!(message.contains("connection reset"), "{message}");
+    assert!(
+        !message.contains("this limit only stops a hang"),
+        "{message}"
+    );
 }
 
 /// Close the socket with a reset.
@@ -1196,6 +1265,87 @@ fn pack_test_euid_is_root() -> bool {
     unsafe { geteuid() == 0 }
 }
 
+/// One step of the pack client receive loop.
+/// `Closed` is end of file or the expected reset.
+/// `Bytes` is a nonempty read.
+/// `Retry` is an interrupt, a timeout, or a would-block result.
+/// `Failed` carries any other socket error.
+/// That text is not empty.
+#[invariant(true)]
+#[invariant(::Bytes(count) => *count > 0)]
+#[invariant(::Failed(message) => !message.is_empty())]
+enum PackReceiveStep {
+    Closed,
+    Bytes(usize),
+    Retry,
+    Failed(String),
+}
+
+/// Classify one pack client read.
+/// End of file and the expected reset are closure.
+/// Any other socket error keeps its cause.
+#[requires(true)]
+#[ensures(true)]
+fn pack_receive_step(read: std::io::Result<usize>) -> PackReceiveStep {
+    match read {
+        Ok(0) => new!(PackReceiveStep::Closed),
+        Ok(count) => new!(PackReceiveStep::Bytes(count)),
+        Err(error)
+            if error.kind() == std::io::ErrorKind::Interrupted || pack_io_is_a_stall(&error) =>
+        {
+            new!(PackReceiveStep::Retry)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {
+            new!(PackReceiveStep::Closed)
+        }
+        Err(error) => new!(PackReceiveStep::Failed(socket_error_text(&error))),
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_receive_reports_a_socket_error_with_its_cause() {
+    match pack_receive_step(Err(std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        "injected permission",
+    )))
+    .into_data()
+    {
+        data!(PackReceiveStep::Failed(message)) => {
+            assert!(message.contains("injected permission"), "{message}");
+        }
+        _ => panic!("the socket error keeps its cause"),
+    }
+    match pack_receive_step(Ok(0)).into_data() {
+        data!(PackReceiveStep::Closed) => {}
+        _ => panic!("end of file is closure"),
+    }
+    match pack_receive_step(Ok(4)).into_data() {
+        data!(PackReceiveStep::Bytes(4)) => {}
+        _ => panic!("a nonempty read keeps its count"),
+    }
+    match pack_receive_step(Err(std::io::Error::new(
+        std::io::ErrorKind::ConnectionReset,
+        "reset",
+    )))
+    .into_data()
+    {
+        data!(PackReceiveStep::Closed) => {}
+        _ => panic!("the expected reset is closure"),
+    }
+    for kind in [
+        std::io::ErrorKind::WouldBlock,
+        std::io::ErrorKind::TimedOut,
+        std::io::ErrorKind::Interrupted,
+    ] {
+        match pack_receive_step(Err(std::io::Error::new(kind, "again"))).into_data() {
+            data!(PackReceiveStep::Retry) => {}
+            _ => panic!("the receive loop retries {kind:?}"),
+        }
+    }
+}
+
 /// Report a file open error that is not a missing file.
 /// A normal user gets that error from a mode of 000.
 /// Root can read a mode of 000.
@@ -1226,22 +1376,35 @@ fn pack_server_reports_an_unreadable_file() {
     // The client reads until the worker closes the socket.
     // That close follows the file open.
     // Shutdown starts after the close, so the stop flag does not skip the open.
-    loop {
-        match client.set_read_timeout(Some(std::time::Duration::from_secs(5))) {
-            Ok(()) => break,
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(error) => panic!("the pack client sets a read timeout: {error}"),
-        }
-    }
+    // The receive loop stops at its deadline.
+    // End of file and the expected reset are closure.
+    // Any other socket error reports its cause.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     let mut buf = [0_u8; 128];
     let count = loop {
-        match std::io::Read::read(&mut client, &mut buf) {
-            Ok(count) => break count,
+        let now = std::time::Instant::now();
+        if now >= deadline {
+            panic!("the pack server did not close the socket");
+        }
+        let remaining = deadline.saturating_duration_since(now);
+        if remaining.is_zero() {
+            panic!("the pack server did not close the socket");
+        }
+        match client.set_read_timeout(Some(remaining)) {
+            Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(error) if error.kind() == std::io::ErrorKind::TimedOut => {
-                panic!("the pack server did not close the socket");
+            Err(error) => panic!(
+                "the pack client sets a read timeout: {}",
+                socket_error_text(&error)
+            ),
+        }
+        match pack_receive_step(std::io::Read::read(&mut client, &mut buf)).into_data() {
+            data!(PackReceiveStep::Closed) => break 0,
+            data!(PackReceiveStep::Bytes(count)) => break count,
+            data!(PackReceiveStep::Retry) => continue,
+            data!(PackReceiveStep::Failed(message)) => {
+                panic!("the pack client read failed: {message}");
             }
-            Err(_) => break 0,
         }
     };
     let text = String::from_utf8_lossy(&buf[..count]);
@@ -1284,11 +1447,11 @@ fn pack_server_returns_404_for_a_missing_file() {
 #[ensures(true)]
 fn wait_until_pack_accept_is_ready(server: &PackServer) {
     wait_for_pack_milestone(
-        &server.accept_ready,
-        &server.accept_wake,
-        &server.worker_result,
+        &server.progress,
+        &server.wake,
         PACK_HANG_LIMIT,
-        |ready| !*ready,
+        |progress| !progress.accept_ready,
+        |_| {},
     );
 }
 
@@ -1301,11 +1464,11 @@ fn wait_until_pack_accept_is_ready(server: &PackServer) {
 #[ensures(true)]
 fn wait_for_pack_request(server: &PackServer) {
     wait_for_pack_milestone(
-        &server.requests,
-        &server.request_wake,
-        &server.worker_result,
+        &server.progress,
+        &server.wake,
         PACK_HANG_LIMIT,
-        |requests| requests.is_empty(),
+        |progress| progress.requests.is_empty(),
+        |_| {},
     );
 }
 
@@ -1318,11 +1481,11 @@ fn wait_for_pack_request(server: &PackServer) {
 #[ensures(true)]
 fn wait_until_pack_response_starts(server: &PackServer) {
     wait_for_pack_milestone(
-        &server.response_started,
-        &server.response_wake,
-        &server.worker_result,
+        &server.progress,
+        &server.wake,
         PACK_HANG_LIMIT,
-        |started| !*started,
+        |progress| !progress.response_started,
+        |_| {},
     );
 }
 
@@ -1335,11 +1498,11 @@ fn wait_until_pack_response_starts(server: &PackServer) {
 #[ensures(true)]
 fn wait_until_pack_write_stalls(server: &PackServer) {
     wait_for_pack_milestone(
-        &server.write_stalled,
-        &server.write_stall_wake,
-        &server.worker_result,
+        &server.progress,
+        &server.wake,
         PACK_HANG_LIMIT,
-        |stalled| !*stalled,
+        |progress| !progress.write_stalled,
+        |_| {},
     );
 }
 
@@ -1582,7 +1745,7 @@ fn public_setup_updates_one_corpus_without_force_and_repairs_damaged_candidates(
                 // A one-bit, same-size change stays near unit length but fails the SHA-256 proof.
                 file.write_all(&[1]).unwrap();
             }
-            server.requests.lock().unwrap().clear();
+            server.progress.lock().unwrap().requests.clear();
             assert!(!pack_root(index.path(), &spec.model_key, &desired.pack_id).exists());
             let options = SetupOptions {
                 force: false,
@@ -1614,7 +1777,10 @@ fn public_setup_updates_one_corpus_without_force_and_repairs_damaged_candidates(
                         fs::remove_file(&manifest_path).unwrap();
                     }
                     assert!(native::setup_embeddings(&options).is_err(), "{corruption}");
-                    assert!(server.requests.lock().unwrap().is_empty(), "{corruption}");
+                    assert!(
+                        server.progress.lock().unwrap().requests.is_empty(),
+                        "{corruption}"
+                    );
                 }
                 write_json_file(&path, &original).unwrap();
                 write_json_file(&old_pack.join("manifest.json"), &old).unwrap();
@@ -1641,7 +1807,7 @@ fn public_setup_updates_one_corpus_without_force_and_repairs_damaged_candidates(
             if damaged {
                 expected.push(format!("{prefix}{}", unchanged.shards[0].url));
             }
-            let mut fetched = server.requests.lock().unwrap().clone();
+            let mut fetched = server.progress.lock().unwrap().requests.clone();
             expected.sort();
             fetched.sort();
             assert_eq!(fetched, expected, "{changed}, damaged={damaged}");

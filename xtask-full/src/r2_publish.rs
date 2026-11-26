@@ -511,6 +511,7 @@ fn run_bounded(command: &mut Command, timeout: Duration) -> Result<()> {
 }
 
 /// One observation from `try_wait`.
+#[derive(Clone, Copy)]
 #[invariant(true)]
 enum ChildPollKind {
     Exited,
@@ -520,6 +521,7 @@ enum ChildPollKind {
 }
 
 /// The next step for a bounded child wait.
+#[derive(Clone, Copy)]
 #[invariant(true)]
 enum WaitStepKind {
     Succeeded,
@@ -528,20 +530,64 @@ enum WaitStepKind {
     Failed,
 }
 
+/// The next step while the parent polls the child and the stderr worker.
+/// `ReportWorker` means the worker already failed.
+/// `Child` is the bounded wait step.
+#[derive(Clone, Copy)]
+#[invariant(true)]
+#[invariant(::Child(_) => true)]
+enum ReadbackStep {
+    ReportWorker,
+    Child(WaitStepKind),
+}
+
 /// Choose the next step for a bounded wait.
-/// An interrupt and a running child use the same deadline.
-/// An exit is success.
+/// The deadline is checked before a result is accepted.
+/// An exit first observed at the deadline or later is a timeout.
+/// A failed wait stays a failure.
 #[requires(!timeout.is_zero())]
 #[ensures(true)]
 fn bounded_wait_step(kind: ChildPollKind, elapsed: Duration, timeout: Duration) -> WaitStepKind {
+    if !timeout.is_zero() && elapsed >= timeout {
+        return match kind {
+            ChildPollKind::Failed => WaitStepKind::Failed,
+            ChildPollKind::Exited | ChildPollKind::Running | ChildPollKind::Interrupted => {
+                WaitStepKind::TimedOut
+            }
+        };
+    }
     match kind {
         ChildPollKind::Exited => WaitStepKind::Succeeded,
         ChildPollKind::Failed => WaitStepKind::Failed,
-        ChildPollKind::Running | ChildPollKind::Interrupted if elapsed < timeout => {
-            WaitStepKind::Continue
-        }
-        ChildPollKind::Running | ChildPollKind::Interrupted => WaitStepKind::TimedOut,
+        ChildPollKind::Running | ChildPollKind::Interrupted => WaitStepKind::Continue,
     }
+}
+
+/// The pause before the next child poll.
+/// The pause stops at the remaining time.
+#[requires(true)]
+#[ensures(ret <= Duration::from_millis(20))]
+#[ensures(ret <= timeout.saturating_sub(elapsed))]
+fn bounded_wait_pause(elapsed: Duration, timeout: Duration) -> Duration {
+    Duration::from_millis(20).min(timeout.saturating_sub(elapsed))
+}
+
+/// Choose the next read-back step.
+/// A failed stderr worker is reported on this pass.
+/// The child deadline still rejects a late exit.
+#[requires(!timeout.is_zero())]
+#[ensures(true)]
+fn readback_step(
+    worker_finished: bool,
+    worker_failed: bool,
+    kind: ChildPollKind,
+    elapsed: Duration,
+    timeout: Duration,
+) -> ReadbackStep {
+    if worker_finished && worker_failed {
+        return ReadbackStep::ReportWorker;
+    }
+    ReadbackStep::Child(bounded_wait_step(kind, elapsed, timeout))
 }
 
 /// Stop the child and its process group.
@@ -556,6 +602,54 @@ fn stop_publisher_child(child: &mut std::process::Child) {
     let _ = child.wait();
 }
 
+/// Read one non-blocking child status.
+/// An interrupt is its own observation.
+#[requires(true)]
+#[ensures(true)]
+fn poll_child(
+    child: &mut std::process::Child,
+) -> (
+    ChildPollKind,
+    Option<std::process::ExitStatus>,
+    Option<std::io::Error>,
+) {
+    match child.try_wait() {
+        Ok(Some(status)) => (ChildPollKind::Exited, Some(status), None),
+        Ok(None) => (ChildPollKind::Running, None, None),
+        Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+            (ChildPollKind::Interrupted, None, None)
+        }
+        Err(error) => (ChildPollKind::Failed, None, Some(error)),
+    }
+}
+
+/// Turn one child observation into the command result.
+/// A running child keeps that fact in the message.
+#[requires(true)]
+#[ensures(true)]
+fn child_status_result(
+    kind: ChildPollKind,
+    status: Option<std::process::ExitStatus>,
+    failure: Option<std::io::Error>,
+) -> Result<()> {
+    match kind {
+        ChildPollKind::Exited => {
+            let status = status.expect("an exited child has a status");
+            if !status.success() {
+                bail!("Publisher command failed with {status}");
+            }
+            Ok(())
+        }
+        ChildPollKind::Running | ChildPollKind::Interrupted => {
+            bail!("Publisher command is still running")
+        }
+        ChildPollKind::Failed => {
+            let error = failure.expect("a failed wait has an error");
+            Err(error.into())
+        }
+    }
+}
+
 #[requires(!timeout.is_zero())]
 #[ensures(true)]
 fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()> {
@@ -563,25 +657,18 @@ fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()
     loop {
         // `try_wait` uses `waitpid`.
         // A signal can interrupt that call.
-        // The deadline is checked on that pass too.
+        // The clock is read after that call returns.
+        // The deadline is checked before the result is accepted.
+        let (kind, status, failure) = poll_child(child);
         let elapsed = start.elapsed();
-        let (kind, status, failure) = match child.try_wait() {
-            Ok(Some(status)) => (ChildPollKind::Exited, Some(status), None),
-            Ok(None) => (ChildPollKind::Running, None, None),
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
-                (ChildPollKind::Interrupted, None, None)
-            }
-            Err(error) => (ChildPollKind::Failed, None, Some(error)),
-        };
         match bounded_wait_step(kind, elapsed, timeout) {
-            WaitStepKind::Succeeded => {
-                let status = status.expect("an exited child has a status");
-                if !status.success() {
-                    bail!("Publisher command failed with {status}");
+            WaitStepKind::Succeeded => return child_status_result(kind, status, failure),
+            WaitStepKind::Continue => {
+                let pause = bounded_wait_pause(elapsed, timeout);
+                if !pause.is_zero() {
+                    std::thread::sleep(pause);
                 }
-                return Ok(());
             }
-            WaitStepKind::Continue => std::thread::sleep(Duration::from_millis(20)),
             WaitStepKind::TimedOut => {
                 stop_publisher_child(child);
                 bail!(
@@ -590,9 +677,8 @@ fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()
                 );
             }
             WaitStepKind::Failed => {
-                let error = failure.expect("a failed wait has an error");
                 stop_publisher_child(child);
-                return Err(error.into());
+                return child_status_result(kind, status, failure);
             }
         }
     }
@@ -744,13 +830,67 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
         };
         ReadbackDrain { bytes, error }
     });
-    let result = wait_bounded(&mut child, timeout);
+    let mut reader = Some(reader);
+    let mut worker_outcome = None;
+    let start = Instant::now();
+    let result = loop {
+        if worker_outcome.is_none() && reader.as_ref().is_some_and(|handle| handle.is_finished()) {
+            worker_outcome = Some(reader.take().expect("the reader handle is present").join());
+        }
+        let worker_failed = worker_outcome
+            .as_ref()
+            .is_some_and(|outcome| match outcome {
+                Ok(drain) => drain.error.is_some(),
+                Err(_) => true,
+            });
+        // The clock is read after the child poll returns.
+        // The deadline is checked before that result is accepted.
+        let (kind, status, failure) = poll_child(&mut child);
+        let elapsed = start.elapsed();
+        match readback_step(
+            worker_outcome.is_some(),
+            worker_failed,
+            kind,
+            elapsed,
+            timeout,
+        ) {
+            ReadbackStep::ReportWorker => {
+                let child_result = child_status_result(kind, status, failure);
+                stop_publisher_child(&mut child);
+                break child_result;
+            }
+            ReadbackStep::Child(WaitStepKind::Succeeded) => {
+                break child_status_result(kind, status, failure);
+            }
+            ReadbackStep::Child(WaitStepKind::Continue) => {
+                let pause = bounded_wait_pause(elapsed, timeout);
+                if !pause.is_zero() {
+                    std::thread::sleep(pause);
+                }
+            }
+            ReadbackStep::Child(WaitStepKind::TimedOut) => {
+                stop_publisher_child(&mut child);
+                break Err(anyhow::anyhow!(
+                    "Publisher command timed out after {} seconds",
+                    timeout.as_secs_f64()
+                ));
+            }
+            ReadbackStep::Child(WaitStepKind::Failed) => {
+                stop_publisher_child(&mut child);
+                break child_status_result(kind, status, failure);
+            }
+        }
+    };
+    let worker_outcome = match worker_outcome {
+        Some(outcome) => outcome,
+        None => reader.take().expect("the reader handle is present").join(),
+    };
     #[cfg(unix)]
     // Close inherited pipes if a command exits while one of its descendants survives.
     unsafe {
         libc::kill(-(child.id() as i32), libc::SIGKILL);
     }
-    combine_readback(result, reader.join())
+    combine_readback(result, worker_outcome)
 }
 
 #[invariant(true)]
@@ -954,32 +1094,50 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn wait_bounded_times_out_when_interrupts_pass_100_ms() {
-        // The poll returns interrupts until 110 ms.
+    fn wait_bounded_rejects_success_after_the_deadline() {
+        // Interrupts land at 0, 20, 41, 62, and 84 ms.
         // The limit is 100 ms.
-        // The wait times out before it can see the later exit.
+        // Each pause stops at the time that remains.
+        // Success is first observed at 105 ms.
+        // That exit is a timeout.
         let timeout = Duration::from_millis(100);
-        let interrupt_until = Duration::from_millis(110);
-        let mut elapsed = Duration::ZERO;
-        let mut steps = 0_u32;
-        let outcome = loop {
-            let kind = if elapsed < interrupt_until {
-                super::ChildPollKind::Interrupted
-            } else {
-                super::ChildPollKind::Exited
-            };
-            match super::bounded_wait_step(kind, elapsed, timeout) {
-                super::WaitStepKind::Continue => {
-                    steps += 1;
-                    elapsed += Duration::from_millis(20);
-                    assert!(steps < 20, "the wait did not reach the deadline");
-                }
-                outcome => break outcome,
-            }
-        };
-        assert!(matches!(outcome, super::WaitStepKind::TimedOut));
-        assert!(elapsed >= timeout);
-        assert!(elapsed < interrupt_until);
+        for stamp in [0_u64, 20, 41, 62, 84] {
+            let elapsed = Duration::from_millis(stamp);
+            let step =
+                super::bounded_wait_step(super::ChildPollKind::Interrupted, elapsed, timeout);
+            assert!(
+                matches!(step, super::WaitStepKind::Continue),
+                "stamp={stamp}"
+            );
+            let pause = super::bounded_wait_pause(elapsed, timeout);
+            assert!(pause <= Duration::from_millis(20));
+            assert!(pause <= timeout.saturating_sub(elapsed));
+            assert!(elapsed + pause <= timeout);
+        }
+        assert_eq!(
+            super::bounded_wait_pause(Duration::from_millis(84), timeout),
+            Duration::from_millis(16)
+        );
+        let late = super::bounded_wait_step(
+            super::ChildPollKind::Exited,
+            Duration::from_millis(105),
+            timeout,
+        );
+        assert!(matches!(late, super::WaitStepKind::TimedOut));
+        let exact = super::bounded_wait_step(super::ChildPollKind::Exited, timeout, timeout);
+        assert!(matches!(exact, super::WaitStepKind::TimedOut));
+        let early = super::bounded_wait_step(
+            super::ChildPollKind::Exited,
+            Duration::from_millis(84),
+            timeout,
+        );
+        assert!(matches!(early, super::WaitStepKind::Succeeded));
+        let failed = super::bounded_wait_step(
+            super::ChildPollKind::Failed,
+            Duration::from_millis(105),
+            timeout,
+        );
+        assert!(matches!(failed, super::WaitStepKind::Failed));
     }
 
     #[test]
@@ -1044,6 +1202,43 @@ mod tests {
         .expect_err("both failures stay in the command error");
         let text = format!("{error:#}");
         assert!(text.contains("exit status: 1"), "{text}");
+        assert!(text.contains("injected pipe"), "{text}");
+        assert!(
+            text.contains("R2 read-back failed (untrusted details redacted)"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_reports_a_worker_failure_while_the_child_runs() {
+        // The worker has already failed.
+        // The child is still running.
+        // One millisecond has passed on a 30 second limit.
+        // The parent reports the worker on this pass.
+        let step = super::readback_step(
+            true,
+            true,
+            super::ChildPollKind::Running,
+            Duration::from_millis(1),
+            Duration::from_secs(30),
+        );
+        assert!(matches!(step, super::ReadbackStep::ReportWorker));
+        let bytes = br#"{"r2_readback_error":"io","body_etag":null,"stored_etag":null}"#;
+        let error = super::combine_readback(
+            Err(anyhow::anyhow!("Publisher command is still running")),
+            Ok(super::ReadbackDrain {
+                bytes: bytes.to_vec(),
+                error: Some("injected pipe".to_owned()),
+            }),
+        )
+        .expect_err("the worker failure is reported");
+        let text = format!("{error:#}");
+        assert!(
+            text.contains("Publisher command is still running"),
+            "{text}"
+        );
         assert!(text.contains("injected pipe"), "{text}");
         assert!(
             text.contains("R2 read-back failed (untrusted details redacted)"),
@@ -2221,11 +2416,26 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         let [child, grandchild] = pids.as_slice() else {
             panic!("The stub did not record both process IDs")
         };
-        let deadline = Instant::now() + Duration::from_secs(2);
-        while !(process_has_exited(*child) && process_has_exited(*grandchild))
-            && Instant::now() < deadline
-        {
-            std::thread::sleep(Duration::from_millis(20));
+        let start = Instant::now();
+        let timeout = Duration::from_secs(2);
+        let mut seen_in_time = false;
+        loop {
+            // The clock is read after both process checks.
+            // An exit first seen at the deadline or later is a timeout.
+            let exited = process_has_exited(*child) && process_has_exited(*grandchild);
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                break;
+            }
+            if exited {
+                seen_in_time = true;
+                break;
+            }
+            let pause = super::bounded_wait_pause(elapsed, timeout);
+            if pause.is_zero() {
+                break;
+            }
+            std::thread::sleep(pause);
         }
         let child_exited = process_has_exited(*child);
         let grandchild_exited = process_has_exited(*grandchild);
@@ -2237,6 +2447,10 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
                 }
             }
         }
+        assert!(
+            seen_in_time,
+            "Both processes were first seen after the deadline"
+        );
         assert!(child_exited, "The child survived the timeout");
         assert!(grandchild_exited, "The grandchild survived the timeout");
     }

@@ -2196,27 +2196,29 @@ mod tests {
         "the discord stub server panicked".to_owned()
     }
 
-    /// Observe a Discord stub task.
-    /// Drop cannot await.
-    /// A finished panic is a test failure.
-    /// A live task is cancelled.
+    /// Await a Discord stub task.
+    /// Cancellation is a normal stop.
+    /// A panic keeps its message.
     #[requires(true)]
     #[ensures(true)]
-    fn observe_discord_server(mut task: tokio::task::JoinHandle<()>) {
-        task.abort();
-        let waker = std::task::Waker::noop();
-        let mut context = std::task::Context::from_waker(&waker);
-        match std::pin::Pin::new(&mut task).poll(&mut context) {
-            std::task::Poll::Ready(Ok(())) => {}
-            std::task::Poll::Ready(Err(error)) if error.is_cancelled() => {}
-            std::task::Poll::Ready(Err(error)) if error.is_panic() => {
+    async fn await_discord_server(task: tokio::task::JoinHandle<()>) {
+        match task.await {
+            Ok(()) => {}
+            Err(error) if error.is_cancelled() => {}
+            Err(error) if error.is_panic() => {
                 panic!("{}", discord_panic_text(error.into_panic().as_ref()));
             }
-            std::task::Poll::Ready(Err(error)) => {
-                panic!("the discord stub server failed: {error}");
-            }
-            std::task::Poll::Pending => {}
+            Err(error) => panic!("the discord stub server failed: {error}"),
         }
+    }
+
+    /// Abort a Discord stub task and await it.
+    /// The await finishes before the caller reports another error.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn shutdown_discord_server(task: tokio::task::JoinHandle<()>) {
+        task.abort();
+        await_discord_server(task).await;
     }
 
     /// A Discord that answers on localhost and remembers what it was asked.
@@ -2232,9 +2234,16 @@ mod tests {
         #[requires(true)]
         #[ensures(true)]
         fn drop(&mut self) {
-            if let Some(server) = self.server.take() {
-                observe_discord_server(server);
-            }
+            let Some(server) = self.server.take() else {
+                return;
+            };
+            let Ok(handle) = tokio::runtime::Handle::try_current() else {
+                server.abort();
+                return;
+            };
+            tokio::task::block_in_place(|| {
+                handle.block_on(shutdown_discord_server(server));
+            });
         }
     }
 
@@ -2289,7 +2298,7 @@ mod tests {
     #[ensures(true)]
     async fn discord_server_cancellation_is_normal() {
         let task = tokio::spawn(std::future::pending::<()>());
-        observe_discord_server(task);
+        shutdown_discord_server(task).await;
     }
 
     #[tokio::test]
@@ -2301,7 +2310,21 @@ mod tests {
         while !task.is_finished() {
             tokio::task::yield_now().await;
         }
-        observe_discord_server(task);
+        await_discord_server(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[should_panic(expected = "discord stub sentinel")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_server_teardown_awaits_a_running_task() {
+        let task = tokio::spawn(async {
+            tokio::task::yield_now().await;
+            panic!("discord stub sentinel");
+        });
+        tokio::task::yield_now().await;
+        assert!(!task.is_finished(), "the server task is still running");
+        await_discord_server(task).await;
     }
 
     impl FakeDiscord {
