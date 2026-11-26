@@ -13,7 +13,9 @@ It does not join a continued line, and it does not know a heredoc.
 A continuation line or a heredoc line that starts with FROM is read as an instruction.
 If a FROM instruction has a flag such as `--platform=`, the flag is the second word. The image stays unread.
 If a FROM instruction continues on the next line, the image on that line stays unread.
-A stage name, or an image that is only a build argument, is not a Rust image. The tests compare nothing.
+A stage name, or an image that is only a build argument, is not a Rust image unless its repository name is `rust`.
+If it is not a Rust image, the tests compare nothing.
+If its repository name is `rust`, the check raises PinError. Two forms are `FROM rust AS final` and `FROM ${BASE:-docker.io/library/rust:1.99.0-bookworm}`.
 A build argument in the tag of a Rust image raises PinError. One form is `FROM rust:${RUST_VERSION}-bookworm`.
 A Rust image spelled in a shell command stays unread.
 The repository name is the last path component before the tag or the digest.
