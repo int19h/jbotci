@@ -781,7 +781,7 @@ define_string_enum_metadata! {
         Long => ("LONG", "long"),
         Gismu => ("GISMU", "gismu"),
         Fuhivla => ("FUIVLA", "fuhivla"),
-        FuhivlaStem => ("FUIVLASTEM", "fuhivla-stem"),
+        FuhivlaRafsi => ("FUIVLARAFSI", "fuhivla-rafsi"),
         Cultural => ("CULTURAL", "cultural"),
         Extended => ("EXTENDED", "extended"),
         Unknown => ("UNKNOWN", "unknown"),
@@ -1188,7 +1188,8 @@ impl LujvoPart {
     ///
     /// A consonant-final stem takes `y` (`ierx-y`). A vowel-final part takes
     /// `'y`: the full fu'ivla (`spageti'y`), or the short form of a fu'ivla
-    /// that ends in an apostrophe and one vowel (`actce'y` from `actce'o`).
+    /// whose final vowel follows an apostrophe (`actce'y` from `actce'o`) or
+    /// a glide (`barbekei'y` from `barbekeiu`, read `barbekéĭu`).
     #[requires(true)]
     #[ensures(ret -> matches!(self, Self::Rafsi(_)))]
     pub fn is_fuhivla_rafsi_before(&self, next: Option<&Self>) -> bool {
@@ -2942,7 +2943,7 @@ fn valsi_lujvo_part(part: &LujvoPart, next: Option<&LujvoPart>) -> ValsiLujvoPar
             new!(ValsiLujvoPart {
                 kind: ValsiLujvoPartKind::Rafsi,
                 rafsi_kind: Some(if part.is_fuhivla_rafsi_before(next) {
-                    ValsiLujvoRafsiKind::FuhivlaStem
+                    ValsiLujvoRafsiKind::FuhivlaRafsi
                 } else {
                     // The class rules read unmarked text, as the stem test
                     // does. `splurtakní` before `'y` is still a full fu'ivla.
@@ -3884,7 +3885,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn valsi_analysis_names_fuivla_stem_rafsi() {
+    fn valsi_analysis_names_fuivla_rafsi() {
         for (lujvo, stem) in [("ierxydatsi'o", "ierx"), ("tci'ilykemcantutra", "tci'il")] {
             assert!(is_fuhivla_rafsi_stem(stem));
             let analysis = analyze_valsi(lujvo);
@@ -3897,7 +3898,7 @@ mod tests {
             assert_eq!(canonicalize_text(&word.parts[0].text), stem);
             assert_eq!(
                 word.parts[0].rafsi_kind,
-                Some(ValsiLujvoRafsiKind::FuhivlaStem)
+                Some(ValsiLujvoRafsiKind::FuhivlaRafsi)
             );
         }
         assert!(!is_fuhivla_rafsi_stem("spaget"));
@@ -3921,13 +3922,13 @@ mod tests {
             assert_eq!(kinds[0], kinds[1], "{lujvo}");
         }
         // A vowel-final part before `'y` is a fu'ivla rafsi: the full form of a
-        // fu'ivla, or the short form of one that ends in an apostrophe and a
-        // vowel (CLL 4.16). `kla'y` stays an ordinary rafsi.
+        // fu'ivla, or the short form of one whose final vowel follows an
+        // apostrophe or a glide (CLL 4.16). `kla'y` stays an ordinary rafsi.
         for (lujvo, expected) in [
-            ("actce'ybau", ValsiLujvoRafsiKind::FuhivlaStem),
-            ("spageti'ykukte", ValsiLujvoRafsiKind::FuhivlaStem),
-            ("adzau'ybau", ValsiLujvoRafsiKind::FuhivlaStem),
-            ("adzybau", ValsiLujvoRafsiKind::FuhivlaStem),
+            ("actce'ybau", ValsiLujvoRafsiKind::FuhivlaRafsi),
+            ("spageti'ykukte", ValsiLujvoRafsiKind::FuhivlaRafsi),
+            ("adzau'ybau", ValsiLujvoRafsiKind::FuhivlaRafsi),
+            ("adzybau", ValsiLujvoRafsiKind::FuhivlaRafsi),
         ] {
             let kind = analyze_valsi(lujvo)
                 .result
@@ -3939,6 +3940,16 @@ mod tests {
                 .rafsi_kind;
             assert_eq!(kind, Some(expected), "{lujvo}");
         }
+        // The kind covers short forms and full forms, so its JSON name is
+        // `fuhivla-rafsi`.
+        assert_eq!(
+            serde_json::to_value(ValsiLujvoRafsiKind::FuhivlaRafsi).unwrap(),
+            serde_json::json!("fuhivla-rafsi")
+        );
+        assert_eq!(
+            ValsiLujvoRafsiKind::FuhivlaRafsi.variant_name(),
+            "FUIVLARAFSI"
+        );
         assert!(is_fuhivla_rafsi_form("actce"));
         assert!(is_fuhivla_rafsi_form("ierx"));
         assert!(!is_fuhivla_rafsi_form("kla"));

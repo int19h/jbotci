@@ -177,8 +177,9 @@ pub struct ShortRafsiForm {
 #[invariant(true)]
 #[invariant(::Rafsi(text) => !text.is_empty())]
 #[invariant(::BrivlaCore(text) => !text.is_empty())]
-// `hyphen_for_build_part_pair` adds `y` after a stem with no test, so a stem
-// must be one that the morphology reads as a fu'ivla rafsi before `y`. That
+// `hyphen_for_build_part_pair` adds the hyphen after a stem with no test:
+// `y` after a consonant and `'y` after a vowel. So a stem must be one that
+// the morphology reads as a fu'ivla rafsi before that hyphen. That
 // check runs the recognizer, so it is expensive. bityzba allows one invariant
 // for each variant, so the cheap non-empty check is part of this one.
 #[expensive_invariant(::FuhivlaStem(text) => !text.is_empty() && crate::is_fuhivla_rafsi_form(text))]

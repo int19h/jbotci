@@ -4275,9 +4275,11 @@ pub(crate) fn is_fuhivla_rafsi_stem(stem: &str) -> bool {
 
 /// Return whether a vowel-final head is a fu'ivla rafsi before `'y`.
 ///
-/// CLL 4.16 gives each fu'ivla F the rafsi F + `'y`, and a fu'ivla that ends
-/// in an apostrophe and one vowel the short form without them, also with
-/// `'y` (`actce'o` gives `actce'y`). The morphology reads such a part with
+/// CLL 4.16 gives each fu'ivla F the rafsi F + `'y`. A fu'ivla whose final
+/// vowel follows an apostrophe or a glide also has a vowel-final short form
+/// with `'y`: the final vowel goes, and an apostrophe before it goes too
+/// (`actce'o` gives `actce'y`, and `barbekeiu`, read `barbekéĭu`, gives
+/// `barbekei'y`). The morphology reads such a part with
 /// `brivla_rafsi <- &(syllable consonantal_syllable* syllable) brivla_head h y`.
 /// The part is a fu'ivla rafsi only when the class rules do not read it as
 /// an ordinary rafsi or a gismu, because `kla'y` and `klama'y` belong to
