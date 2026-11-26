@@ -15,9 +15,10 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    MorphologyOptions, ShortRafsiShape, ends_with_vowel, fold_lojban_diacritic,
+    MorphologyOptions, ShortRafsiShape, canonicalize_text, fold_lojban_diacritic,
     is_fuhivla_rafsi_form, normalize_latin_apostrophe, normalize_lojban_input_text,
     possible_short_rafsi_forms, segment_words_with_modifiers_with_options_and_source_id,
+    strip_lojban_diacritic,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -1242,60 +1243,75 @@ pub fn normalize_lookup_query(raw: &str) -> String {
 
 /// The short rafsi form of a fu'ivla, from CLL 4.16.
 ///
-/// Only a fu'ivla that ends in one vowel has a short form. The vowel goes,
-/// and an apostrophe right before it goes too. A consonant-final stem takes
-/// `y` (`ierxi` gives `ierx`), and a vowel-final stem takes `'y` (`actce'o`
-/// gives `actce`). A fu'ivla that ends in a diphthong, such as `adzau`, has
-/// no short form. The morphology decides whether the stem is a fu'ivla
-/// rafsi, and so whether the short form is safe. The word must be one
-/// morphological word: an obsolete headword such as `aierne` splits into
-/// several words, so no lujvo can start with its stem. Every fu'ivla also has
-/// the full form, the word itself before `'y`, which needs no index entry.
+/// Only a fu'ivla whose final nucleus is one vowel has a short form. The
+/// morphology decides the nucleus: its reading of the word marks each glide,
+/// so `barbekeiu` reads as `barbekéĭu`, with the single vowel `u` after the
+/// glide `ĭ`, while `adzau` reads as `adzáŭ`, which ends in the diphthong
+/// `aŭ` and has no short form. The final vowel goes, and an apostrophe right
+/// before it goes too. A consonant-final stem takes `y` (`ierxi` gives
+/// `ierx`), and a vowel-final stem takes `'y` (`actce'o` gives `actce`,
+/// `barbekeiu` gives `barbekei`). The morphology also decides whether the
+/// stem is a fu'ivla rafsi, and so whether the short form is safe. The word
+/// must be one morphological word: an obsolete headword such as `aierne`
+/// splits into several words, so no lujvo can start with its stem. Every
+/// fu'ivla also has the full form, the word itself before `'y`, which needs
+/// no index entry.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty() && is_fuhivla_rafsi_form(stem)))]
-#[bityzba::expensive_ensures({
-    let canonical = normalize_lojban_input_text(word)
-        .map(|text| text.trim_matches('.').to_owned())
-        .filter(|text| is_single_word(text));
-    let accepted = canonical.as_deref().and_then(|text| {
-        let mut chars = text.chars().rev();
-        let last = chars.next().filter(|value| ends_with_vowel(&value.to_string()))?;
-        let before = chars.next()?;
-        if ends_with_vowel(&before.to_string()) {
-            return None;
-        }
-        let drop = last.len_utf8() + if before == '\'' { before.len_utf8() } else { 0 };
-        Some(text[..text.len() - drop].to_owned()).filter(|stem| is_fuhivla_rafsi_form(stem))
-    });
-    ret == accepted
-})]
+#[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
+#[bityzba::expensive_ensures(ret.as_ref().is_none_or(|stem| is_fuhivla_rafsi_form(stem)))]
+#[bityzba::expensive_ensures(ret.is_some() -> normalize_lojban_input_text(word).is_some_and(|text| single_word_phonemes(text.trim_matches('.')).is_some()))]
 pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
     let normalized = normalize_lojban_input_text(word)?;
-    let mut stem = normalized.trim_matches('.').to_owned();
-    if !ends_with_vowel(&stem) || !is_single_word(&stem) {
-        return None;
-    }
-    stem.pop();
-    // A vowel before the final vowel makes a diphthong, which has no short form.
-    if ends_with_vowel(&stem) {
-        return None;
-    }
-    if stem.ends_with('\'') {
-        stem.pop();
-    }
+    let phonemes = single_word_phonemes(normalized.trim_matches('.'))?;
+    let stem = short_form_of_phonemes(&phonemes)?;
     is_fuhivla_rafsi_form(&stem).then_some(stem)
 }
 
-/// True when the morphology reads `text` as exactly one plain word.
+/// The phonemes that the morphology reads for `text`, when `text` is exactly
+/// one plain word. The phonemes mark stress and glides.
 #[requires(true)]
-#[ensures(ret -> !text.is_empty())]
-fn is_single_word(text: &str) -> bool {
-    segment_words_with_modifiers_with_options_and_source_id(
+#[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.is_empty()))]
+fn single_word_phonemes(text: &str) -> Option<String> {
+    let words = segment_words_with_modifiers_with_options_and_source_id(
         text,
         &MorphologyOptions::default(),
         None,
     )
-    .is_ok_and(|words| matches!(words.as_slice(), [word] if word.bare_word().is_some()))
+    .ok()?;
+    let [word] = words.as_slice() else {
+        return None;
+    };
+    Some(word.bare_word()?.phonemes().as_str().to_owned())
+}
+
+/// The short form of a word from its phonemes, before the rafsi check.
+///
+/// The last phoneme must be a vowel that is the whole final nucleus: not a
+/// glide (`ŭ` in `adzáŭ` ends a diphthong) and not after another vowel. A
+/// glide before it starts the syllable and stays in the stem
+/// (`barbekéĭu` gives `barbekei`).
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
+fn short_form_of_phonemes(phonemes: &str) -> Option<String> {
+    // Keep the glide marks and fold only the stress marks.
+    let mut chars = phonemes
+        .chars()
+        .filter(|value| *value != ',')
+        .filter_map(strip_lojban_diacritic)
+        .collect::<Vec<_>>();
+    let last = chars.pop()?;
+    if !matches!(last, 'a' | 'e' | 'i' | 'o' | 'u') {
+        return None;
+    }
+    match chars.last().copied() {
+        Some('\'') => {
+            chars.pop();
+        }
+        Some('a' | 'e' | 'i' | 'o' | 'u' | 'y') | None => return None,
+        Some(_) => {}
+    }
+    let stem = canonicalize_text(&chars.into_iter().collect::<String>());
+    (!stem.is_empty()).then_some(stem)
 }
 
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
@@ -1740,6 +1756,17 @@ mod tests {
         assert_eq!(fuivla_stem_rafsi("actce'o").as_deref(), Some("actce"));
         assert_eq!(fuivla_stem_rafsi("enri").as_deref(), Some("enr"));
         assert_eq!(fuivla_stem_rafsi("adzau"), None);
+        // The morphology's reading decides the final nucleus. A glide before
+        // the final vowel is not part of it.
+        for (word, stem) in [
+            ("barbekeiu", "barbekei"),
+            ("aldeia", "aldei"),
+            ("alminiu", "almini"),
+            ("amnio", "amni"),
+            ("anmonia", "anmoni"),
+        ] {
+            assert_eq!(fuivla_stem_rafsi(word).as_deref(), Some(stem), "{word}");
+        }
         assert!(dictionary.lookup_rafsi("spaget").next().is_none());
         assert!(dictionary.rafsi_availability("spaget").is_free());
     }

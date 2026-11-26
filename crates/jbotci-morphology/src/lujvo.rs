@@ -709,26 +709,43 @@ fn y_hyphen_for_pair(previous: &str, next: &str) -> Option<&'static str> {
     })
 }
 
+/// The hyphen between two built parts.
+///
+/// First the left part chooses its hyphen: a consonant-final fu'ivla stem
+/// takes `y`, and a vowel-final stem or full brivla core takes `'y`
+/// (CLL 4.16). Other parts follow the rafsi pair rules. Then one rule
+/// applies to every hyphen that ends in `y`: when the next part starts with a
+/// vowel nucleus, an apostrophe follows the `y` (`spageti'y'enri`). A glide
+/// does not start a nucleus, so `nel` + `y` + `iismu` takes none.
 #[requires(true)]
 #[ensures(ret.is_none_or(|hyphen| is_bonding_hyphen(hyphen)))]
+#[ensures(ret.is_some_and(|hyphen| hyphen.ends_with('y')) -> !starts_with_vowel_nucleus_after_y(next.as_text()))]
 fn hyphen_for_build_part_pair(
     previous: &LujvoBuildPart,
     next: &LujvoBuildPart,
 ) -> Option<&'static str> {
-    if matches!(previous.as_data(), data!(LujvoBuildPart::FuhivlaStem(_))) {
-        // A vowel-final short form takes `'y`, as `actce'o` gives `actce'y`,
-        // the same hyphen as a full brivla core.
-        if previous.as_text().chars().last().is_some_and(is_vowel) {
-            Some("'y")
-        } else if starts_with_vowel_nucleus_after_y(next.as_text()) {
-            Some("y'")
-        } else {
-            Some("y")
-        }
-    } else if previous.is_brivla_core() && previous.as_text().chars().last().is_some_and(is_vowel) {
+    let previous_ends_with_vowel = previous.as_text().chars().last().is_some_and(is_vowel);
+    let hyphen = if matches!(previous.as_data(), data!(LujvoBuildPart::FuhivlaStem(_))) {
+        Some(if previous_ends_with_vowel { "'y" } else { "y" })
+    } else if previous.is_brivla_core() && previous_ends_with_vowel {
         Some("'y")
     } else {
         y_hyphen_for_pair(previous.as_text(), next.as_text())
+    };
+    hyphen.map(|hyphen| apostrophe_after_y(hyphen, next.as_text()))
+}
+
+/// Add the apostrophe that a vowel nucleus needs after a `y` hyphen.
+#[requires(is_bonding_hyphen(hyphen))]
+#[ensures(is_bonding_hyphen(ret))]
+fn apostrophe_after_y(hyphen: &'static str, next: &str) -> &'static str {
+    if !starts_with_vowel_nucleus_after_y(next) {
+        return hyphen;
+    }
+    match hyphen {
+        "y" => "y'",
+        "'y" => "'y'",
+        other => other,
     }
 }
 

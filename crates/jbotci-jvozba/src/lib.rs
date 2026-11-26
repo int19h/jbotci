@@ -1,7 +1,7 @@
 //! Lujvo composition and decomposition.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{
     Dictionary, DictionaryLujvoSegmentKind, DictionaryLujvoSource, EntryIndex, RafsiSource,
     WordType, fuivla_stem_rafsi, normalize_lookup_query,
@@ -1048,7 +1048,7 @@ fn segment_with_sources<'a>(
         LujvoPart::Hyphen(_) => (DictionaryLujvoSegmentKind::Hyphen, Vec::new()),
         LujvoPart::Rafsi(phonemes) if segment.is_fuhivla_rafsi_before(next) => (
             DictionaryLujvoSegmentKind::FuivlaRafsi,
-            fuivla_rafsi_sources(dictionary, phonemes.as_str()),
+            ranked_fuivla_rafsi_sources(dictionary, phonemes.as_str()),
         ),
         LujvoPart::Rafsi(phonemes) => (
             DictionaryLujvoSegmentKind::Rafsi,
@@ -1088,7 +1088,7 @@ fn primary_rafsi_source<'a>(
     })
 }
 
-/// The fu'ivla that a fu'ivla rafsi part comes from, ranked by score.
+/// The fu'ivla that a fu'ivla rafsi part comes from, in index order.
 ///
 /// CLL 4.16 gives two forms. The short form is a derived stem in the rafsi
 /// index (`ierx` from `ierxi`, `actce` from `actce'o`). The full form is the
@@ -1096,7 +1096,7 @@ fn primary_rafsi_source<'a>(
 /// fu'ivla entries with that lookup key. One part can come from both forms.
 #[requires(true)]
 #[ensures(ret.iter().all(|source| source.entry_index.0 < dictionary.entries().len()))]
-fn fuivla_rafsi_sources<'a>(
+fn fuivla_rafsi_source_set<'a>(
     dictionary: &Dictionary<'a>,
     part: &str,
 ) -> Vec<DictionaryLujvoSource<'a>> {
@@ -1121,6 +1121,17 @@ fn fuivla_rafsi_sources<'a>(
             });
         }
     }
+    sources
+}
+
+/// The sources of a fu'ivla rafsi part, ranked by score for display.
+#[requires(true)]
+#[ensures(true)]
+fn ranked_fuivla_rafsi_sources<'a>(
+    dictionary: &Dictionary<'a>,
+    part: &str,
+) -> Vec<DictionaryLujvoSource<'a>> {
+    let mut sources = fuivla_rafsi_source_set(dictionary, part);
     sources.sort_by(|left, right| {
         let score = |source: &DictionaryLujvoSource<'_>| {
             dictionary
@@ -1134,7 +1145,7 @@ fn fuivla_rafsi_sources<'a>(
     sources
 }
 
-/// The lookup key of the one word that a fu'ivla rafsi part names.
+/// The lookup key of the one word that a set of fu'ivla rafsi sources names.
 ///
 /// Entries that share a lookup key are one word, for example `onji` and
 /// `.onji`. The part is ambiguous when its sources have more than one key:
@@ -1143,8 +1154,7 @@ fn fuivla_rafsi_sources<'a>(
 /// not offer it.
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
-fn fuivla_rafsi_word_key(dictionary: &Dictionary<'_>, part: &str) -> Option<String> {
-    let sources = fuivla_rafsi_sources(dictionary, part);
+fn single_word_key(sources: &[DictionaryLujvoSource<'_>]) -> Option<String> {
     let mut keys = sources
         .iter()
         .map(|source| normalize_lookup_query(source.word));
@@ -1152,14 +1162,24 @@ fn fuivla_rafsi_word_key(dictionary: &Dictionary<'_>, part: &str) -> Option<Stri
     keys.all(|key| key == first).then_some(first)
 }
 
-/// True when the fu'ivla rafsi part names exactly the word of `expected`.
+/// The lookup key of the one word that a fu'ivla rafsi part names.
 #[requires(true)]
-#[ensures(ret -> fuivla_rafsi_sources(dictionary, part).iter().any(|source| source.entry_index == expected))]
+#[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
+fn fuivla_rafsi_word_key(dictionary: &Dictionary<'_>, part: &str) -> Option<String> {
+    single_word_key(&fuivla_rafsi_source_set(dictionary, part))
+}
+
+/// True when the fu'ivla rafsi part names exactly the word of `expected`.
+///
+/// One source set answers both questions: whether the part names one word,
+/// and whether that word includes `expected`.
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret -> fuivla_rafsi_source_set(dictionary, part).iter().any(|source| source.entry_index == expected))]
 fn fuivla_rafsi_names_entry(dictionary: &Dictionary<'_>, part: &str, expected: EntryIndex) -> bool {
-    fuivla_rafsi_word_key(dictionary, part).is_some()
-        && fuivla_rafsi_sources(dictionary, part)
-            .iter()
-            .any(|source| source.entry_index == expected)
+    let sources = fuivla_rafsi_source_set(dictionary, part);
+    single_word_key(&sources).is_some()
+        && sources.iter().any(|source| source.entry_index == expected)
 }
 
 /// True when the sources of an ordinary rafsi part include the entry at
@@ -1649,7 +1669,8 @@ mod tests {
         let token = CancellationToken::never();
         for (lujvo, part, sources) in [
             ("spageti'ykukte", "spageti", &["spageti"][..]),
-            ("enri'ykukte", "enri", &["enri"][..]),
+            // `enrio` reads as `énrĭo`, so its short form is `enri` too.
+            ("enri'ykukte", "enri", &["enri", "enrio"][..]),
             ("enrykukte", "enr", &["enri"][..]),
             ("actce'ybau", "actce", &["actce'o"][..]),
             ("adzau'ybau", "adzau", &["adzau"][..]),
@@ -1698,6 +1719,85 @@ mod tests {
             .unwrap_or_else(|error| panic!("{first} {second}: {error}"));
             assert_eq!(result.word, expected, "{first} {second}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_glide_before_the_final_vowel_keeps_the_short_form() {
+        // The morphology reads `barbekeiu` as `barbekéĭu`: the final nucleus is
+        // `u`, after the glide `ĭ`, so the short form is `barbekei'y`.
+        // `adzau` ends in the diphthong `aŭ` and has none.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let decomposition = decompose_lujvo_like(dictionary, "barbekei'ybau", &token)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            decomposition.segments[0]
+                .sources
+                .iter()
+                .map(|source| source.word)
+                .collect::<Vec<_>>(),
+            ["barbekeiu"]
+        );
+        for (first, expected) in [("barbekeiu", "barbekei'ybau"), ("adzau", "adzau'ybau")] {
+            let result = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::Word(first.to_owned()),
+                    JvozbaInput::Word("bangu".to_owned()),
+                ],
+                &token,
+            )
+            .unwrap();
+            assert_eq!(result.word, expected, "{first}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_vowel_nucleus_after_y_takes_an_apostrophe() {
+        // One rule follows the left part's hyphen: before a vowel nucleus the
+        // `y` takes an apostrophe. A glide is not a nucleus, so `iismu` takes
+        // none. This covers full forms, short forms, consonant stems and
+        // fixed rafsi.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        for (first, second, expected) in [
+            ("spageti", "enri", "spageti'y'enri"),
+            ("adzau", "enri", "adzau'y'enri"),
+            ("actce'o", "enri", "actce'y'enri"),
+            ("ierxi", "enri", "ierxy'enri"),
+            ("spageti", "iismu", "spageti'yiismu"),
+            ("actce'o", "iismu", "actce'yiismu"),
+            ("ierxi", "iismu", "ierxyiismu"),
+        ] {
+            let result = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::Word(first.to_owned()),
+                    JvozbaInput::Word(second.to_owned()),
+                ],
+                &token,
+            )
+            .unwrap_or_else(|error| panic!("{first} {second}: {error}"));
+            assert_eq!(result.word, expected, "{first} {second}");
+        }
+        let fixed = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::FixedRafsi("actce".to_owned()),
+                JvozbaInput::Word("enri".to_owned()),
+            ],
+            &token,
+        )
+        .unwrap();
+        assert_eq!(fixed.word, "actce'y'enri");
     }
 
     #[test]
