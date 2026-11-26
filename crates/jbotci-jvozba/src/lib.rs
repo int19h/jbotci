@@ -1048,7 +1048,7 @@ fn segment_with_sources<'a>(
         LujvoPart::Hyphen(_) => (DictionaryLujvoSegmentKind::Hyphen, Vec::new()),
         LujvoPart::Rafsi(phonemes) if segment.is_fuhivla_rafsi_before(next) => (
             DictionaryLujvoSegmentKind::FuivlaRafsi,
-            ranked_fuivla_rafsi_sources(dictionary, phonemes.as_str()),
+            fuivla_rafsi_source_set(dictionary, phonemes.as_str()),
         ),
         LujvoPart::Rafsi(phonemes) => (
             DictionaryLujvoSegmentKind::Rafsi,
@@ -1088,7 +1088,9 @@ fn primary_rafsi_source<'a>(
     })
 }
 
-/// The fu'ivla that a fu'ivla rafsi part comes from, in index order.
+/// The fu'ivla that a fu'ivla rafsi part comes from, ranked by score from
+/// high to low. Entries with the same score stay in source order, because
+/// `lookup_words` and `lookup_rafsi` rank their results that way.
 ///
 /// CLL 4.16 gives two forms. The full form is a fu'ivla itself before `'y`,
 /// and it names that fu'ivla alone (owner rule, #1136): when fu'ivla entries
@@ -1098,6 +1100,13 @@ fn primary_rafsi_source<'a>(
 /// and then the part names no single word.
 #[requires(true)]
 #[ensures(ret.iter().all(|source| source.entry_index.0 < dictionary.entries().len()))]
+#[ensures(ret.windows(2).all(|pair| {
+    let order = dictionary.entries()[pair[0].entry_index.0]
+        .score
+        .get()
+        .total_cmp(&dictionary.entries()[pair[1].entry_index.0].score.get());
+    order.is_gt() || (order.is_eq() && pair[0].entry_index < pair[1].entry_index)
+}), "the sources are ranked by score, then by source order")]
 fn fuivla_rafsi_source_set<'a>(
     dictionary: &Dictionary<'a>,
     part: &str,
@@ -1127,34 +1136,14 @@ fn fuivla_rafsi_source_set<'a>(
         .collect()
 }
 
-/// The sources of a fu'ivla rafsi part, ranked by score for display.
-#[requires(true)]
-#[ensures(true)]
-fn ranked_fuivla_rafsi_sources<'a>(
-    dictionary: &Dictionary<'a>,
-    part: &str,
-) -> Vec<DictionaryLujvoSource<'a>> {
-    let mut sources = fuivla_rafsi_source_set(dictionary, part);
-    sources.sort_by(|left, right| {
-        let score = |source: &DictionaryLujvoSource<'_>| {
-            dictionary
-                .entry_for_index(source.entry_index)
-                .map_or(f64::NEG_INFINITY, |entry| entry.score.get())
-        };
-        score(right)
-            .total_cmp(&score(left))
-            .then(left.entry_index.cmp(&right.entry_index))
-    });
-    sources
-}
-
 /// The lookup key of the one word that a set of fu'ivla rafsi sources names.
 ///
 /// Entries that share a lookup key are one word, for example `onji` and
 /// `.onji`. The part is ambiguous when its sources have more than one key:
-/// two fu'ivla that differ only in the final vowel, or a fu'ivla `actce` and
-/// the short form of `actce'o`. Then the part names no word, and jvozba does
-/// not offer it.
+/// two fu'ivla whose short forms are equal, such as `eska` and `esku`, which
+/// both shorten to `esk`. Then the part names no word, and jvozba does not
+/// offer it. A full form never has this problem, because it names only the
+/// entries with its own key.
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
 fn single_word_key(sources: &[DictionaryLujvoSource<'_>]) -> Option<String> {
@@ -1793,7 +1782,7 @@ mod tests {
     #[ensures(true)]
     fn the_full_form_names_its_fuivla_alone() {
         // Owner rules for round 8: F + `'y` names F alone, a short form that
-        // equals a full form does not exist, and a short form with the
+        // equals a full form does not exist, and a short form that adds the
         // experimental CgV warning is refused.
         let dictionary = jbotci_dictionary_data::english();
         let token = CancellationToken::never();
@@ -1833,6 +1822,9 @@ mod tests {
             ("enri", "kukte", "enrykukte"),
             ("enrio", "kukte", "enrio'ykukte"),
             ("bolviia", "bangu", "bolviia'ybau"),
+            // `abniena` has the warning itself, so its short form adds
+            // nothing and stays.
+            ("abniena", "kukte", "abnienykukte"),
             ("burjuia", "bangu", "burjuia'ybau"),
             ("cpikiui", "bangu", "cpikiui'ybau"),
             ("bantuuo", "bangu", "bantuuo'ybau"),

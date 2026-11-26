@@ -1265,32 +1265,51 @@ pub fn normalize_lookup_query(raw: &str) -> String {
 /// must be one morphological word: an obsolete headword such as `aierne`
 /// splits into several words, so no lujvo can start with its stem. Every
 /// fu'ivla also has the full form, the word itself before `'y`, which needs
-/// no index entry.
+/// no index entry. A short form is refused when it adds the experimental CgV
+/// warning: a compound built with it gets the warning, and the same compound
+/// built with the full form does not (`bolviia` has no short form, but
+/// `abniena` keeps `abnien`, because `abniena'y` has the warning too).
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
 #[bityzba::expensive_ensures(ret.as_ref().is_none_or(|stem| is_fuhivla_rafsi_form(stem)))]
+#[bityzba::expensive_ensures(
+    ret.as_ref().is_none_or(|stem| normalize_lojban_input_text(word)
+        .is_some_and(|text| !short_form_adds_experimental_cgv(stem, text.trim_matches('.')))),
+    "a short form adds no experimental CgV warning to its compounds"
+)]
 #[bityzba::expensive_ensures(ret.is_some() -> normalize_lojban_input_text(word).is_some_and(|text| single_word_phonemes(text.trim_matches('.')).is_some()))]
 pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
     let normalized = normalize_lojban_input_text(word)?;
-    let phonemes = single_word_phonemes(normalized.trim_matches('.'))?;
+    let full = normalized.trim_matches('.');
+    let phonemes = single_word_phonemes(full)?;
     let stem = short_form_of_phonemes(&phonemes)?;
-    (is_fuhivla_rafsi_form(&stem) && !short_form_has_experimental_cgv(&stem)).then_some(stem)
+    (is_fuhivla_rafsi_form(&stem) && !short_form_adds_experimental_cgv(&stem, full)).then_some(stem)
 }
 
-/// True when a word built with the short form gets the experimental CgV
-/// warning from the morphology.
+/// True when a compound built with the short form gets the experimental CgV
+/// warning from the morphology, and the same compound built with the full
+/// form does not.
 ///
 /// The owner refuses such a short form (`bolviia` keeps `bolviia'y`, not
-/// `bolvii'y`). The check builds `stem` + its hyphen + `kla` and reads the
-/// morphology's own warnings, because a glide cluster inside the stem is the
-/// same in every compound.
-#[requires(!stem.is_empty())]
+/// `bolvii'y`). A word that carries the warning itself keeps its short form,
+/// because the short form adds no new warning (`abniena` keeps `abnien`).
+/// The check builds `stem` + its hyphen + `kla` and `full` + `'ykla`, and
+/// reads the morphology's own warnings. A glide cluster inside a rafsi is the
+/// same in every compound, so one probe per form is enough.
+#[requires(!stem.is_empty() && !full.is_empty())]
 #[ensures(true)]
-fn short_form_has_experimental_cgv(stem: &str) -> bool {
+fn short_form_adds_experimental_cgv(stem: &str, full: &str) -> bool {
     let hyphen = if ends_with_vowel(stem) { "'y" } else { "y" };
-    let probe = format!("{stem}{hyphen}kla");
+    compound_has_experimental_cgv(&format!("{stem}{hyphen}kla"))
+        && !compound_has_experimental_cgv(&format!("{full}'ykla"))
+}
+
+/// True when the morphology gives `text` the experimental CgV warning.
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn compound_has_experimental_cgv(text: &str) -> bool {
     segment_words_with_modifiers_with_options_and_source_id_attempt(
-        &probe,
+        text,
         &MorphologyOptions::default(),
         None,
     )
@@ -1802,6 +1821,25 @@ mod tests {
         }
         assert!(dictionary.lookup_rafsi("spaget").next().is_none());
         assert!(dictionary.rafsi_availability("spaget").is_free());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_short_form_is_refused_only_when_it_adds_the_cgv_warning() {
+        // Owner rule 3, as refined: `bolvii'y` has the experimental CgV
+        // warning and `bolviia'y` does not, so `bolviia` has no short form.
+        assert!(short_form_adds_experimental_cgv("bolvii", "bolviia"));
+        assert_eq!(fuivla_stem_rafsi("bolviia"), None);
+        // `abniena` has the warning itself, so `abniena'y` has it too. The
+        // short form adds nothing, and `abniena` keeps `abnien`.
+        assert!(compound_has_experimental_cgv("abnienykla"));
+        assert!(compound_has_experimental_cgv("abniena'ykla"));
+        assert_eq!(fuivla_stem_rafsi("abniena").as_deref(), Some("abnien"));
+        // `anmonia` has the warning, and its short form loses it.
+        assert!(compound_has_experimental_cgv("anmonia'ykla"));
+        assert!(!compound_has_experimental_cgv("anmoni'ykla"));
+        assert_eq!(fuivla_stem_rafsi("anmonia").as_deref(), Some("anmoni"));
     }
 
     #[test]
