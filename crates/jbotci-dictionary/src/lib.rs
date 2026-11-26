@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
     MorphologyOptions, ShortRafsiShape, ends_with_vowel, fold_lojban_diacritic,
-    is_fuhivla_rafsi_stem, normalize_latin_apostrophe, normalize_lojban_input_text,
+    is_fuhivla_rafsi_form, normalize_latin_apostrophe, normalize_lojban_input_text,
     possible_short_rafsi_forms, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
@@ -1240,23 +1240,34 @@ pub fn normalize_lookup_query(raw: &str) -> String {
         .join(" ")
 }
 
-/// Remove the final vowel of a fu'ivla when the remainder can take a y-hyphen.
+/// The short rafsi form of a fu'ivla, from CLL 4.16.
 ///
-/// The word must be one morphological word. An obsolete headword such as
-/// `aierne` splits into several words, so no lujvo can start with its stem.
+/// Only a fu'ivla that ends in one vowel has a short form. The vowel goes,
+/// and an apostrophe right before it goes too. A consonant-final stem takes
+/// `y` (`ierxi` gives `ierx`), and a vowel-final stem takes `'y` (`actce'o`
+/// gives `actce`). A fu'ivla that ends in a diphthong, such as `adzau`, has
+/// no short form. The morphology decides whether the stem is a fu'ivla
+/// rafsi, and so whether the short form is safe. The word must be one
+/// morphological word: an obsolete headword such as `aierne` splits into
+/// several words, so no lujvo can start with its stem. Every fu'ivla also has
+/// the full form, the word itself before `'y`, which needs no index entry.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
+#[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty() && is_fuhivla_rafsi_form(stem)))]
 #[bityzba::expensive_ensures({
     let canonical = normalize_lojban_input_text(word)
         .map(|text| text.trim_matches('.').to_owned())
         .filter(|text| is_single_word(text));
     let accepted = canonical.as_deref().and_then(|text| {
-        text.split_at_checked(text.len().saturating_sub(1))
-            .filter(|(_, vowel)| ends_with_vowel(vowel))
-            .map(|(stem, _)| stem)
-            .filter(|stem| is_fuhivla_rafsi_stem(stem))
+        let mut chars = text.chars().rev();
+        let last = chars.next().filter(|value| ends_with_vowel(&value.to_string()))?;
+        let before = chars.next()?;
+        if ends_with_vowel(&before.to_string()) {
+            return None;
+        }
+        let drop = last.len_utf8() + if before == '\'' { before.len_utf8() } else { 0 };
+        Some(text[..text.len() - drop].to_owned()).filter(|stem| is_fuhivla_rafsi_form(stem))
     });
-    ret.as_deref() == accepted
+    ret == accepted
 })]
 pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
     let normalized = normalize_lojban_input_text(word)?;
@@ -1265,7 +1276,14 @@ pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
         return None;
     }
     stem.pop();
-    is_fuhivla_rafsi_stem(&stem).then_some(stem)
+    // A vowel before the final vowel makes a diphthong, which has no short form.
+    if ends_with_vowel(&stem) {
+        return None;
+    }
+    if stem.ends_with('\'') {
+        stem.pop();
+    }
+    is_fuhivla_rafsi_form(&stem).then_some(stem)
 }
 
 /// True when the morphology reads `text` as exactly one plain word.
@@ -1717,6 +1735,11 @@ mod tests {
             assert!(fuivla_stem_rafsi(word).is_none(), "{word}");
         }
         assert_eq!(fuivla_stem_rafsi("ierxi").as_deref(), Some("ierx"));
+        // CLL 4.16: an apostrophe before the final vowel goes with it, and a
+        // diphthong-final fu'ivla has no short form.
+        assert_eq!(fuivla_stem_rafsi("actce'o").as_deref(), Some("actce"));
+        assert_eq!(fuivla_stem_rafsi("enri").as_deref(), Some("enr"));
+        assert_eq!(fuivla_stem_rafsi("adzau"), None);
         assert!(dictionary.lookup_rafsi("spaget").next().is_none());
         assert!(dictionary.rafsi_availability("spaget").is_free());
     }

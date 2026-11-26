@@ -1184,12 +1184,26 @@ impl Word {
 }
 
 impl LujvoPart {
-    /// Return whether this part is a fu'ivla stem followed by its y-hyphen.
+    /// Return whether this part is a fu'ivla rafsi followed by its hyphen.
+    ///
+    /// A consonant-final stem takes `y` (`ierx-y`). A vowel-final part takes
+    /// `'y`: the full fu'ivla (`spageti'y`), or the short form of a fu'ivla
+    /// that ends in an apostrophe and one vowel (`actce'y` from `actce'o`).
     #[requires(true)]
     #[ensures(ret -> matches!(self, Self::Rafsi(_)))]
     pub fn is_fuhivla_rafsi_before(&self, next: Option<&Self>) -> bool {
-        matches!(next, Some(Self::Hyphen(hyphen)) if matches!(hyphen.as_str(), "y" | "y'"))
-            && matches!(self, Self::Rafsi(stem) if is_fuhivla_rafsi_stem(&canonicalize_text(stem.as_str())))
+        let Self::Rafsi(stem) = self else {
+            return false;
+        };
+        let Some(Self::Hyphen(hyphen)) = next else {
+            return false;
+        };
+        let stem = canonicalize_text(stem.as_str());
+        match hyphen.as_str() {
+            "y" | "y'" => is_fuhivla_rafsi_stem(&stem),
+            "'y" | "'y'" => segment::is_fuhivla_rafsi_head_before_apostrophe_y(&stem),
+            _ => false,
+        }
     }
 
     #[requires(true)]
@@ -3411,6 +3425,18 @@ pub fn is_fuhivla_rafsi_stem(stem: &str) -> bool {
     segment::is_fuhivla_rafsi_stem(stem)
 }
 
+/// Return whether a canonical part is a fu'ivla rafsi with the hyphen that
+/// its last letter takes: `y` after a consonant, `'y` after a vowel.
+#[requires(true)]
+#[ensures(ret -> !part.is_empty())]
+pub fn is_fuhivla_rafsi_form(part: &str) -> bool {
+    if part.chars().last().is_some_and(segment::is_vowel) {
+        segment::is_fuhivla_rafsi_head_before_apostrophe_y(part)
+    } else {
+        segment::is_fuhivla_rafsi_stem(part)
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
 pub fn parse_lujvo_word_parts(word: &str) -> Option<Vec<LujvoPart>> {
@@ -3886,6 +3912,29 @@ mod tests {
             assert_ne!(kinds[0], Some(ValsiLujvoRafsiKind::Unknown), "{lujvo}");
             assert_eq!(kinds[0], kinds[1], "{lujvo}");
         }
+        // A vowel-final part before `'y` is a fu'ivla rafsi: the full form of a
+        // fu'ivla, or the short form of one that ends in an apostrophe and a
+        // vowel (CLL 4.16). `kla'y` stays an ordinary rafsi.
+        for (lujvo, expected) in [
+            ("actce'ybau", ValsiLujvoRafsiKind::FuhivlaStem),
+            ("spageti'ykukte", ValsiLujvoRafsiKind::FuhivlaStem),
+            ("adzau'ybau", ValsiLujvoRafsiKind::FuhivlaStem),
+            ("adzybau", ValsiLujvoRafsiKind::FuhivlaStem),
+        ] {
+            let kind = analyze_valsi(lujvo)
+                .result
+                .classification
+                .as_ref()
+                .and_then(ValsiClassification::word)
+                .expect("plain word classification")
+                .parts[0]
+                .rafsi_kind;
+            assert_eq!(kind, Some(expected), "{lujvo}");
+        }
+        assert!(is_fuhivla_rafsi_form("actce"));
+        assert!(is_fuhivla_rafsi_form("ierx"));
+        assert!(!is_fuhivla_rafsi_form("kla"));
+        assert!(!is_fuhivla_rafsi_form("klama"));
     }
 
     #[test]

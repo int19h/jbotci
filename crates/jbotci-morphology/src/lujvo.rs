@@ -181,7 +181,7 @@ pub struct ShortRafsiForm {
 // must be one that the morphology reads as a fu'ivla rafsi before `y`. That
 // check runs the recognizer, so it is expensive. bityzba allows one invariant
 // for each variant, so the cheap non-empty check is part of this one.
-#[expensive_invariant(::FuhivlaStem(text) => !text.is_empty() && crate::is_fuhivla_rafsi_stem(text))]
+#[expensive_invariant(::FuhivlaStem(text) => !text.is_empty() && crate::is_fuhivla_rafsi_form(text))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LujvoBuildPart {
     Rafsi(String),
@@ -716,7 +716,11 @@ fn hyphen_for_build_part_pair(
     next: &LujvoBuildPart,
 ) -> Option<&'static str> {
     if matches!(previous.as_data(), data!(LujvoBuildPart::FuhivlaStem(_))) {
-        if starts_with_vowel_nucleus_after_y(next.as_text()) {
+        // A vowel-final short form takes `'y`, as `actce'o` gives `actce'y`,
+        // the same hyphen as a full brivla core.
+        if previous.as_text().chars().last().is_some_and(is_vowel) {
+            Some("'y")
+        } else if starts_with_vowel_nucleus_after_y(next.as_text()) {
             Some("y'")
         } else {
             Some("y")

@@ -4264,6 +4264,45 @@ pub(crate) fn is_fuhivla_rafsi_stem(stem: &str) -> bool {
     fuhivla_rafsi_base_slice_with_cache(&chars, 0, chars.len() - 1, chars.len(), &mut cache)
 }
 
+/// Return whether a vowel-final head is a fu'ivla rafsi before `'y`.
+///
+/// CLL 4.16 gives each fu'ivla F the rafsi F + `'y`, and a fu'ivla that ends
+/// in an apostrophe and one vowel the short form without them, also with
+/// `'y` (`actce'o` gives `actce'y`). The morphology reads such a part with
+/// `brivla_rafsi <- &(syllable consonantal_syllable* syllable) brivla_head h y`.
+/// The part is a fu'ivla rafsi only when the class rules do not read it as
+/// an ordinary rafsi or a gismu, because `kla'y` and `klama'y` belong to
+/// those words.
+#[requires(true)]
+#[ensures(ret -> !head.is_empty())]
+pub(crate) fn is_fuhivla_rafsi_head_before_apostrophe_y(head: &str) -> bool {
+    if head.is_empty() || !head.chars().last().is_some_and(is_vowel) {
+        return false;
+    }
+    if matches!(
+        classify_lujvo_rafsi(head),
+        crate::ValsiLujvoRafsiKind::Cvc
+            | crate::ValsiLujvoRafsiKind::Ccv
+            | crate::ValsiLujvoRafsiKind::Cvv
+            | crate::ValsiLujvoRafsiKind::Long
+            | crate::ValsiLujvoRafsiKind::Gismu
+    ) {
+        return false;
+    }
+    let chars = head.chars().chain(['\'', 'y']).collect::<Vec<_>>();
+    let head_end = chars.len() - 2;
+    if chars[..head_end].iter().any(|value| is_y(*value))
+        || !brivla_rafsi_two_syllable_lookahead(&chars, 0, chars.len())
+    {
+        return false;
+    }
+    let mut cache = MorphologyRecognitionCache::new(chars.len());
+    brivla_head_ends_until_with_cache(&chars, 0, chars.len(), chars.len(), &mut cache)
+        .iter()
+        .any(|end| *end == head_end)
+        && hy_rafsi_hyphen_end(&chars, head_end) == Some(chars.len())
+}
+
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
