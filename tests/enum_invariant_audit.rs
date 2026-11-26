@@ -40,8 +40,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The reason carries an already validated byte limit.",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::DictionaryWord",
+        "The expansion plan selects this index from the dictionary that the builder uses.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::FixedRafsi",
+        "The builder accepts raw rafsi text so it can report invalid input.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::UnlistedWord",
+        "The builder accepts raw dictionary misses and tests their morphology.",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:ExpansionPlan::Plain",
-        "The plan borrows one raw input without another data constraint.",
+        "The plan carries one expanded input.",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:ExpansionPlan::Decomposed",
@@ -1224,6 +1236,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegmentKind::FuivlaRafsi",
+        "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidEntry",
         "validation error wrapper carries path and entry diagnostics",
     ),
@@ -1708,6 +1724,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw-brackets profile validity is delegated to typed options where every depth and construct-filter combination is valid",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::AmbiguousFuivlaRafsi",
+        "the error reports the stem from a decomposition with multiple source entries",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::CouldNotBuildCompound",
         "jvozba error variant carries no payload beyond the discriminant",
     ),
@@ -1746,6 +1766,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::TooMuchWork",
         "the measure, the amount and the limit are figures the refused build reports; every combination is a possible report, and JvozbaError is constructed and matched across the CLI, web-core and Discord as a plain enum",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::DictionaryWord",
+        "The builder checks that this index points to this spelling in the active dictionary.",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::FixedRafsi",
@@ -2118,14 +2142,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-search/src/vlacku.rs:GlobToken::Vowel",
         "glob token variant is a closed matcher tag with no payload invariants",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Hyphen",
-        "composition kind is a closed display tag; surface/source fields carry data validity",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
-        "composition kind is a closed display tag; surface/source fields carry data validity",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:NextPlace::Numbered",
@@ -2688,6 +2704,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the adjacent-valsi page-find test router has one payload-free page and no route parameters to constrain",
     ),
     (
+        "crates/jbotci-ui/src/tests.rs:CompositionFindRoute::CompositionFindPage",
+        "the composition page-find test router has one payload-free page and no route parameters to constrain",
+    ),
+    (
         "crates/jbotci-ui/src/diagnostics.rs:ActiveDiagnosticTarget::Context",
         "diagnostic hover context target validity depends on the current diagnostics and is guarded at use sites",
     ),
@@ -2822,14 +2842,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Success",
         "web API result delegates payload constraints to GentufaSuccess and construction path",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPieceKind::Hyphen",
-        "composition piece kind is a closed presentation selector with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPieceKind::Rafsi",
-        "composition piece kind is a closed presentation selector with no payload to constrain",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaItemKind::FixedRafsi",

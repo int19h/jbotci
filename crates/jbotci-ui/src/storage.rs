@@ -233,7 +233,22 @@ pub(super) fn parse_vlacku_jvozba_json_item(value: &serde_json::Value) -> Option
         .and_then(serde_json::Value::as_u64)
         .map(|value| value as usize)
         .unwrap_or(0);
+    let entry_index = if item_kind == VlackuJvozbaItemKind::Word
+        && object
+            .get("dictionarySnapshot")
+            .and_then(serde_json::Value::as_str)
+            == Some(jbotci_web_core::vlacku_dictionary_snapshot_sha256())
+    {
+        object
+            .get("entryIndex")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|index| usize::try_from(index).ok())
+            .map(EntryIndex)
+    } else {
+        None
+    };
     Some(VlackuJvozbaItem {
+        entry_index,
         kind: item_kind,
         value: item_value.to_owned(),
         source,
@@ -253,6 +268,7 @@ pub(super) fn parse_vlacku_jvozba_legacy_items(raw: &str) -> Vec<VlackuJvozbaIte
                 _ => return None,
             };
             (!value.is_empty()).then(|| VlackuJvozbaItem {
+                entry_index: None,
                 kind: item_kind,
                 value: value.to_owned(),
                 source: None,
@@ -268,7 +284,7 @@ pub(super) fn format_vlacku_jvozba_items(items: &[VlackuJvozbaItem]) -> String {
     let values = items
         .iter()
         .map(|item| {
-            serde_json::json!({
+            let mut value = serde_json::json!({
                 "kind": match item.kind {
                     VlackuJvozbaItemKind::Word => "word",
                     VlackuJvozbaItemKind::FixedRafsi => "rafsi",
@@ -276,7 +292,15 @@ pub(super) fn format_vlacku_jvozba_items(items: &[VlackuJvozbaItem]) -> String {
                 "value": item.value.as_str(),
                 "source": item.source.as_deref(),
                 "indentLevel": item.indent_level,
-            })
+            });
+            if let Some(index) = item.entry_index
+                && item.kind == VlackuJvozbaItemKind::Word
+            {
+                value["entryIndex"] = serde_json::json!(index);
+                value["dictionarySnapshot"] =
+                    serde_json::json!(jbotci_web_core::vlacku_dictionary_snapshot_sha256());
+            }
+            value
         })
         .collect::<Vec<_>>();
     serde_json::to_string(&values).unwrap_or_else(|_| "[]".to_owned())

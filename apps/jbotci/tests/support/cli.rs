@@ -4160,6 +4160,7 @@ fn vlacku_colors_card_labels_dividers_and_rich_text() {
     let output = render_vlacku_output_with_options(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "klama".to_owned(),
                 word_type: "gismu".to_owned(),
                 selmaho: None,
@@ -4210,6 +4211,7 @@ fn vlacku_raw_sumti_places_keep_dollar_spans_and_color_equals() {
     let output = render_vlacku_output_with_options(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "klama".to_owned(),
                 word_type: "gismu".to_owned(),
                 selmaho: None,
@@ -4250,6 +4252,7 @@ fn vlacku_raw_sumti_places_keep_gloss_and_etymology_references() {
     let output = render_vlacku_output_with_options(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "example".to_owned(),
                 word_type: "lujvo".to_owned(),
                 selmaho: None,
@@ -4298,6 +4301,7 @@ fn vlacku_terminal_width_wraps_long_detail_lines_with_indent() {
     let output = render_vlacku_output_with_width(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "cmevla".to_owned(),
                 word_type: "lujvo".to_owned(),
                 selmaho: None,
@@ -4345,6 +4349,7 @@ fn vlacku_official_author_renders_infinity() {
     let output = render_vlacku_output(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "birka".to_owned(),
                 word_type: "gismu".to_owned(),
                 selmaho: None,
@@ -4381,6 +4386,7 @@ fn vlacku_ascii_renders_index_places_and_official_votes_as_ascii() {
     let output = render_vlacku_output_with_options(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "fuhivla".to_owned(),
                 word_type: "fu'ivla".to_owned(),
                 selmaho: None,
@@ -4424,6 +4430,7 @@ fn vlacku_unknown_gismu_shaped_word_renders_not_in_dictionary_note() {
     let output = render_vlacku_output_with_options(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "blable".to_owned(),
                 word_type: "gismu".to_owned(),
                 selmaho: None,
@@ -4466,6 +4473,7 @@ fn vlacku_unknown_lujvo_renders_note_and_keeps_decomposition() {
     let output = render_vlacku_output_with_options(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "brodau".to_owned(),
                 word_type: "lujvo".to_owned(),
                 selmaho: None,
@@ -4483,12 +4491,18 @@ fn vlacku_unknown_lujvo_renders_note_and_keeps_decomposition() {
                     VlackuCompositionPiece {
                         kind: VlackuCompositionKind::Rafsi,
                         surface: "brod".to_owned(),
-                        source: Some("broda".to_owned()),
+                        sources: vec![new!(jbotci_search::vlacku::VlackuCompositionSource {
+                            entry_index: jbotci_dictionary::EntryIndex(0),
+                            word: "broda".to_owned(),
+                        })],
                     },
                     VlackuCompositionPiece {
                         kind: VlackuCompositionKind::Rafsi,
                         surface: "dau".to_owned(),
-                        source: Some("darlu".to_owned()),
+                        sources: vec![new!(jbotci_search::vlacku::VlackuCompositionSource {
+                            entry_index: jbotci_dictionary::EntryIndex(1),
+                            word: "darlu".to_owned(),
+                        })],
                     },
                 ],
             })],
@@ -4526,6 +4540,7 @@ fn vlacku_known_card_rendering_is_byte_identical_to_before_known_flag() {
     let output = render_vlacku_output_with_options(
         &VlackuSearchOutput {
             cards: vec![new!(VlackuCard {
+                entry_index: None,
                 word: "klama".to_owned(),
                 word_type: "gismu".to_owned(),
                 selmaho: None,

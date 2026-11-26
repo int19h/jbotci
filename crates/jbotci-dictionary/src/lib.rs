@@ -15,7 +15,11 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    ShortRafsiShape, fold_lojban_diacritic, normalize_latin_apostrophe, possible_short_rafsi_forms,
+    MorphologyOptions, MorphologyWarningKind, ShortRafsiShape, canonicalize_text, ends_with_vowel,
+    fold_lojban_diacritic, is_fuhivla_rafsi_form, normalize_latin_apostrophe,
+    normalize_lojban_input_text, possible_short_rafsi_forms,
+    segment_words_with_modifiers_with_options_and_source_id,
+    segment_words_with_modifiers_with_options_and_source_id_attempt, strip_lojban_diacritic,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -156,7 +160,7 @@ impl<'a> Dictionary<'a> {
 
     /// Return a dictionary entry by generated entry index.
     #[requires(true)]
-    #[ensures(ret.is_none_or(|entry| self.entry_index_for_entry(entry) == Some(index)))]
+    #[ensures(ret.is_some() == (index.0 < self.entries.len()))]
     pub fn entry_for_index(&self, index: EntryIndex) -> Option<&'a DictionaryEntry<'a>> {
         self.entries.get(index.0)
     }
@@ -176,12 +180,17 @@ impl<'a> Dictionary<'a> {
 
     /// Return an entry's index when the reference belongs to this dictionary.
     #[requires(true)]
-    #[ensures(ret.is_none_or(|index| index.0 < self.entries.len()))]
+    #[ensures(ret.is_none_or(|index| self.entries.get(index.0).is_some_and(|candidate| std::ptr::eq(candidate, entry))))]
     pub fn entry_index_for_entry(&self, entry: &DictionaryEntry<'a>) -> Option<EntryIndex> {
+        // Use the address to find a candidate index, then confirm that it is this entry.
+        let bytes = std::ptr::from_ref(entry)
+            .addr()
+            .checked_sub(self.entries.as_ptr().addr())?;
+        let index = bytes / std::mem::size_of::<DictionaryEntry<'_>>();
         self.entries
-            .iter()
-            .position(|candidate| std::ptr::eq(candidate, entry))
-            .map(EntryIndex)
+            .get(index)
+            .filter(|candidate| std::ptr::eq(*candidate, entry))
+            .map(|_| EntryIndex(index))
     }
 
     /// Return the highest-scored entry for a normalized lookup query.
@@ -200,22 +209,26 @@ impl<'a> Dictionary<'a> {
         }
     })]
     pub fn lookup_word(&self, query: &str) -> Option<&DictionaryEntry<'a>> {
+        self.lookup_word_index(query)
+            .map(|index| self.entry_at(index))
+    }
+
+    /// Return the index of the highest-scored entry for a word.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|index| index.0 < self.entries.len()))]
+    pub fn lookup_word_index(&self, query: &str) -> Option<EntryIndex> {
         let normalized = normalize_lookup_query(query);
         let targets = self
             .word_index_entry(&normalized)
             .map(|entry| entry.targets)
             .unwrap_or(&[]);
-        targets
-            .iter()
-            .copied()
-            .min_by(|left, right| {
-                self.entry_at(*right)
-                    .score
-                    .get()
-                    .total_cmp(&self.entry_at(*left).score.get())
-                    .then(left.cmp(right))
-            })
-            .map(|index| self.entry_at(index))
+        targets.iter().copied().min_by(|left, right| {
+            self.entry_at(*right)
+                .score
+                .get()
+                .total_cmp(&self.entry_at(*left).score.get())
+                .then(left.cmp(right))
+        })
     }
 
     /// Return every entry for a normalized lookup query.
@@ -415,6 +428,7 @@ impl<'a> Dictionary<'a> {
             .to_vec();
         rank_rafsi_targets_by_entry_score(self, &mut targets);
         targets.into_iter().map(|target| RafsiMatch {
+            entry_index: target.entry_index,
             entry: self.entry_at(target.entry_index),
             source: target.source,
         })
@@ -455,9 +469,9 @@ impl<'a> Dictionary<'a> {
     /// match the claimant's word type: an official cmavo can hold an
     /// experimental rafsi.
     ///
-    /// Only [`RafsiSource::Listed`] matches count. The other sources are the
-    /// universal forms synthesized for every gismu-like entry, and for
-    /// well-formed gismu those cannot spell a short rafsi: a short rafsi is
+    /// Only [`RafsiSource::Listed`] matches count. Derived fu'ivla stems
+    /// carry no assignment. Universal forms of well-formed gismu cannot
+    /// spell a short rafsi: a short rafsi is
     /// three letters, or four with an apostrophe third (CVV, `sa'i`), whereas
     /// the universal forms of a CVCCV or CCVCV gismu are its apostrophe-free
     /// four- and five-letter prefixes. Nothing forces a gismu-typed entry to
@@ -591,17 +605,36 @@ pub struct DictionaryLujvoEntry<'a> {
 pub struct DictionaryLujvoSegment<'a> {
     pub kind: DictionaryLujvoSegmentKind,
     pub surface: &'a str,
-    pub source_word: Option<&'a str>,
+    pub sources: &'a [DictionaryLujvoSource<'a>],
+}
+
+/// A ranked dictionary entry behind a rafsi.
+#[invariant(true, "Dictionary::validate checks the source against the entry table")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DictionaryLujvoSource<'a> {
+    pub entry_index: EntryIndex,
+    pub word: &'a str,
 }
 
 /// Segment kind in a precomputed lujvo decomposition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 #[invariant(::Rafsi => true)]
+#[invariant(::FuivlaRafsi => true)]
 #[invariant(::Hyphen => true)]
 pub enum DictionaryLujvoSegmentKind {
     Rafsi,
+    FuivlaRafsi,
     Hyphen,
+}
+
+impl DictionaryLujvoSegmentKind {
+    #[requires(true)]
+    #[ensures(ret == (self != Self::Hyphen))]
+    pub fn is_rafsi(self) -> bool {
+        self != Self::Hyphen
+    }
 }
 
 /// Lensisku dictionary word type.
@@ -652,6 +685,12 @@ impl WordType {
     #[ensures(true)]
     pub const fn is_gismu_like(self) -> bool {
         matches!(self, Self::Gismu | Self::ExperimentalGismu)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Fuivla | Self::ObsoleteFuivla))]
+    pub const fn is_fuivla_like(self) -> bool {
+        matches!(self, Self::Fuivla | Self::ObsoleteFuivla)
     }
 
     /// Return the highest standing a rafsi assignment on a word of this type
@@ -812,7 +851,8 @@ pub struct DictionaryUser<'a> {
 }
 
 /// Entry index into a dictionary entry slice.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 #[invariant(true)]
 pub struct EntryIndex(pub usize);
 
@@ -872,16 +912,17 @@ pub enum RafsiSource {
     Listed { standing: RafsiClaimKind },
     UniversalShort,
     UniversalLong,
+    FuivlaStem,
 }
 
 impl RafsiSource {
-    /// The standing of a listed rafsi, or `None` for a universal form.
+    /// The standing of a listed rafsi, or `None` for a derived form.
     #[requires(true)]
     #[ensures(ret.is_some() == matches!(self, Self::Listed { .. }))]
     pub const fn listed_standing(self) -> Option<RafsiClaimKind> {
         match self {
             Self::Listed { standing } => Some(standing),
-            Self::UniversalShort | Self::UniversalLong => None,
+            Self::UniversalShort | Self::UniversalLong | Self::FuivlaStem => None,
         }
     }
 }
@@ -890,6 +931,7 @@ impl RafsiSource {
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[invariant(true)]
 pub struct RafsiMatch<'entry, 'dict> {
+    pub entry_index: EntryIndex,
     pub entry: &'entry DictionaryEntry<'dict>,
     pub source: RafsiSource,
 }
@@ -1044,6 +1086,14 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
     let mut rafsi_map: BTreeMap<String, Vec<RafsiIndexTarget>> = BTreeMap::new();
     let mut pattern_index = Vec::with_capacity(entries.len());
     let mut cmavo_map: BTreeMap<Vec<String>, Vec<EntryIndex>> = BTreeMap::new();
+    // Every fu'ivla F has the full form F + `'y`, which names F alone. A short
+    // form equal to a full form would name a second word, so it is not
+    // indexed (`eskua` would shorten to `esku`).
+    let fuivla_full_forms = entries
+        .iter()
+        .filter(|entry| entry.word_type.is_fuivla_like())
+        .map(|entry| normalize_lookup_query(entry.word))
+        .collect::<std::collections::BTreeSet<_>>();
 
     for (index, entry) in entries.iter().enumerate() {
         let entry_index = EntryIndex(index);
@@ -1079,6 +1129,20 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
                     source,
                 });
             }
+        }
+
+        if entry.word_type.is_fuivla_like()
+            && let Some(stem) = fuivla_stem_rafsi(entry.word)
+            && !fuivla_full_forms.contains(&normalize_lookup_query(&stem))
+        {
+            // A derived stem is in the exact rafsi index only. Wildcard rafsi
+            // search keeps to listed and universal forms, because nearly every
+            // fu'ivla has a stem, and those stems would bury the rafsi.
+            let key = normalize_lookup_query(&stem);
+            rafsi_map.entry(key).or_default().push(RafsiIndexTarget {
+                entry_index,
+                source: RafsiSource::FuivlaStem,
+            });
         }
 
         pattern_index.push(OwnedPatternIndexEntry {
@@ -1185,6 +1249,121 @@ pub fn normalize_lookup_query(raw: &str) -> String {
         .filter(|token| !token.is_empty())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// The short rafsi form of a fu'ivla, from CLL 4.16.
+///
+/// Only a fu'ivla whose final nucleus is one vowel has a short form. The
+/// morphology decides the nucleus: its reading of the word marks each glide,
+/// so `barbekeiu` reads as `barbekéĭu`, with the single vowel `u` after the
+/// glide `ĭ`, while `adzau` reads as `adzáŭ`, which ends in the diphthong
+/// `aŭ` and has no short form. The final vowel goes, and an apostrophe right
+/// before it goes too. A consonant-final stem takes `y` (`ierxi` gives
+/// `ierx`), and a vowel-final stem takes `'y` (`actce'o` gives `actce`,
+/// `barbekeiu` gives `barbekei`). The morphology also decides whether the
+/// stem is a fu'ivla rafsi, and so whether the short form is safe. The word
+/// must be one morphological word: an obsolete headword such as `aierne`
+/// splits into several words, so no lujvo can start with its stem. Every
+/// fu'ivla also has the full form, the word itself before `'y`, which needs
+/// no index entry. A short form is refused when it adds the experimental CgV
+/// warning: a compound built with it gets the warning, and the same compound
+/// built with the full form does not (`bolviia` has no short form, but
+/// `abniena` keeps `abnien`, because `abniena'y` has the warning too).
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
+#[bityzba::expensive_ensures(ret.as_ref().is_none_or(|stem| is_fuhivla_rafsi_form(stem)))]
+#[bityzba::expensive_ensures(
+    ret.as_ref().is_none_or(|stem| normalize_lojban_input_text(word)
+        .is_some_and(|text| !short_form_adds_experimental_cgv(stem, text.trim_matches('.')))),
+    "a short form adds no experimental CgV warning to its compounds"
+)]
+#[bityzba::expensive_ensures(ret.is_some() -> normalize_lojban_input_text(word).is_some_and(|text| single_word_phonemes(text.trim_matches('.')).is_some()))]
+pub fn fuivla_stem_rafsi(word: &str) -> Option<String> {
+    let normalized = normalize_lojban_input_text(word)?;
+    let full = normalized.trim_matches('.');
+    let phonemes = single_word_phonemes(full)?;
+    let stem = short_form_of_phonemes(&phonemes)?;
+    (is_fuhivla_rafsi_form(&stem) && !short_form_adds_experimental_cgv(&stem, full)).then_some(stem)
+}
+
+/// True when a compound built with the short form gets the experimental CgV
+/// warning from the morphology, and the same compound built with the full
+/// form does not.
+///
+/// The owner refuses such a short form (`bolviia` keeps `bolviia'y`, not
+/// `bolvii'y`). A word that carries the warning itself keeps its short form,
+/// because the short form adds no new warning (`abniena` keeps `abnien`).
+/// The check builds `stem` + its hyphen + `kla` and `full` + `'ykla`, and
+/// reads the morphology's own warnings. A glide cluster inside a rafsi is the
+/// same in every compound, so one probe per form is enough.
+#[requires(!stem.is_empty() && !full.is_empty())]
+#[ensures(true)]
+fn short_form_adds_experimental_cgv(stem: &str, full: &str) -> bool {
+    let hyphen = if ends_with_vowel(stem) { "'y" } else { "y" };
+    compound_has_experimental_cgv(&format!("{stem}{hyphen}kla"))
+        && !compound_has_experimental_cgv(&format!("{full}'ykla"))
+}
+
+/// True when the morphology gives `text` the experimental CgV warning.
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn compound_has_experimental_cgv(text: &str) -> bool {
+    segment_words_with_modifiers_with_options_and_source_id_attempt(
+        text,
+        &MorphologyOptions::default(),
+        None,
+    )
+    .into_data()
+    .warnings
+    .iter()
+    .any(|warning| warning.kind == MorphologyWarningKind::ExperimentalCgv)
+}
+
+/// The phonemes that the morphology reads for `text`, when `text` is exactly
+/// one plain word. The phonemes mark stress and glides.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.is_empty()))]
+fn single_word_phonemes(text: &str) -> Option<String> {
+    let words = segment_words_with_modifiers_with_options_and_source_id(
+        text,
+        &MorphologyOptions::default(),
+        None,
+    )
+    .ok()?;
+    let [word] = words.as_slice() else {
+        return None;
+    };
+    Some(word.bare_word()?.phonemes().as_str().to_owned())
+}
+
+/// The short form of a word from its phonemes, before the rafsi check.
+///
+/// The last phoneme must be a vowel that is the whole final nucleus: not a
+/// glide (`ŭ` in `adzáŭ` ends a diphthong) and not after another vowel. A
+/// glide before it starts the syllable and stays in the stem
+/// (`barbekéĭu` gives `barbekei`).
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|stem| !stem.is_empty()))]
+fn short_form_of_phonemes(phonemes: &str) -> Option<String> {
+    // Keep the glide marks and fold only the stress marks.
+    let mut chars = phonemes
+        .chars()
+        .filter(|value| *value != ',')
+        .filter_map(strip_lojban_diacritic)
+        .collect::<Vec<_>>();
+    let last = chars.pop()?;
+    if !matches!(last, 'a' | 'e' | 'i' | 'o' | 'u') {
+        return None;
+    }
+    match chars.last().copied() {
+        Some('\'') => {
+            chars.pop();
+        }
+        Some('a' | 'e' | 'i' | 'o' | 'u' | 'y') | None => return None,
+        Some(_) => {}
+    }
+    let stem = canonicalize_text(&chars.into_iter().collect::<String>());
+    (!stem.is_empty()).then_some(stem)
 }
 
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
@@ -1444,7 +1623,7 @@ fn validate_lujvo_index(
         let rafsi_count = lujvo_entry
             .segments
             .iter()
-            .filter(|segment| segment.kind == DictionaryLujvoSegmentKind::Rafsi)
+            .filter(|segment| segment.kind.is_rafsi())
             .count();
         if rafsi_count < 2 {
             return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
@@ -1462,12 +1641,37 @@ fn validate_lujvo_index(
                 reason: "decomposition segment surface is empty",
             });
         }
-        if lujvo_entry.segments.iter().any(|segment| {
-            segment.kind == DictionaryLujvoSegmentKind::Hyphen && segment.source_word.is_some()
-        }) {
+        if lujvo_entry
+            .segments
+            .iter()
+            .any(|segment| !segment.kind.is_rafsi() && !segment.sources.is_empty())
+        {
             return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
                 index,
                 reason: "hyphen segment has a source word",
+            });
+        }
+        if lujvo_entry.segments.iter().any(|segment| {
+            segment.kind == DictionaryLujvoSegmentKind::Rafsi && segment.sources.len() > 1
+        }) {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "ordinary rafsi segment has more than one source",
+            });
+        }
+        if lujvo_entry
+            .segments
+            .iter()
+            .flat_map(|segment| segment.sources)
+            .any(|source| {
+                entries
+                    .get(source.entry_index.0)
+                    .is_none_or(|entry| entry.word != source.word)
+            })
+        {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "decomposition source does not match its dictionary entry",
             });
         }
         if lujvo_entry
@@ -1537,6 +1741,174 @@ mod tests {
         assert_eq!(
             universal_gismu_rafsi_forms("broda"),
             vec![("broda".to_owned(), RafsiSource::UniversalLong)]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cyrillic_fuivla_supplies_a_normalized_stem_key() {
+        let word = "иерхи";
+        let entries = [test_entry(word, WordType::Fuivla, &[], None)];
+        let indexes = build_owned_indexes(&entries);
+        let stem = fuivla_stem_rafsi(word).expect("Cyrillic spelling has a stem");
+        assert_eq!(stem, "i'erx");
+        let key = normalize_lookup_query(&stem);
+        assert_eq!(indexes.rafsi_index[0].key, key);
+        // A derived stem is not a wildcard rafsi key.
+        assert!(indexes.pattern_index[0].rafsi_keys.is_empty());
+        assert_eq!(
+            indexes.rafsi_index[0].targets[0].source,
+            RafsiSource::FuivlaStem
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn derived_fuivla_stems_pass_morphology_and_do_not_claim_rafsi() {
+        let entries = &[
+            test_entry("ierxi", WordType::Fuivla, &[], None),
+            test_entry("tci'ile", WordType::ObsoleteFuivla, &[], None),
+            test_entry("spageti", WordType::Fuivla, &[], None),
+        ];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+        dictionary.validate().expect("consistent indexes");
+        for (stem, word) in [("ierx", "ierxi"), ("tci'il", "tci'ile")] {
+            let matched = dictionary.lookup_rafsi(stem).next().expect(stem);
+            assert_eq!(matched.source, RafsiSource::FuivlaStem);
+            assert_eq!(matched.entry.word, word);
+            assert!(dictionary.rafsi_availability(stem).is_free());
+        }
+        assert!(fuivla_stem_rafsi("\u{0301},").is_none());
+        // These obsolete headwords split into several words, so no lujvo can
+        // start with their stems.
+        for word in [
+            "aierne",
+            "matriocka",
+            "patriarko",
+            "reskuamata",
+            "restuatara",
+        ] {
+            assert!(fuivla_stem_rafsi(word).is_none(), "{word}");
+        }
+        assert_eq!(fuivla_stem_rafsi("ierxi").as_deref(), Some("ierx"));
+        // CLL 4.16: an apostrophe before the final vowel goes with it, and a
+        // diphthong-final fu'ivla has no short form.
+        assert_eq!(fuivla_stem_rafsi("actce'o").as_deref(), Some("actce"));
+        assert_eq!(fuivla_stem_rafsi("enri").as_deref(), Some("enr"));
+        assert_eq!(fuivla_stem_rafsi("adzau"), None);
+        // The morphology's reading decides the final nucleus. A glide before
+        // the final vowel is not part of it.
+        for (word, stem) in [
+            ("barbekeiu", "barbekei"),
+            ("aldeia", "aldei"),
+            ("alminiu", "almini"),
+            ("amnio", "amni"),
+            ("anmonia", "anmoni"),
+        ] {
+            assert_eq!(fuivla_stem_rafsi(word).as_deref(), Some(stem), "{word}");
+        }
+        assert!(dictionary.lookup_rafsi("spaget").next().is_none());
+        assert!(dictionary.rafsi_availability("spaget").is_free());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_short_form_is_refused_only_when_it_adds_the_cgv_warning() {
+        // Owner rule 3, as refined: `bolvii'y` has the experimental CgV
+        // warning and `bolviia'y` does not, so `bolviia` has no short form.
+        assert!(short_form_adds_experimental_cgv("bolvii", "bolviia"));
+        assert_eq!(fuivla_stem_rafsi("bolviia"), None);
+        // `abniena` has the warning itself, so `abniena'y` has it too. The
+        // short form adds nothing, and `abniena` keeps `abnien`.
+        assert!(compound_has_experimental_cgv("abnienykla"));
+        assert!(compound_has_experimental_cgv("abniena'ykla"));
+        assert_eq!(fuivla_stem_rafsi("abniena").as_deref(), Some("abnien"));
+        // `anmonia` has the warning, and its short form loses it.
+        assert!(compound_has_experimental_cgv("anmonia'ykla"));
+        assert!(!compound_has_experimental_cgv("anmoni'ykla"));
+        assert_eq!(fuivla_stem_rafsi("anmonia").as_deref(), Some("anmoni"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn validation_rejects_an_ordinary_rafsi_segment_with_several_sources() {
+        let entries = [
+            test_entry("ierxi", WordType::Fuivla, &[], None),
+            test_entry("ierxa", WordType::Fuivla, &[], None),
+            test_entry("klama", WordType::Gismu, &[], None),
+            test_entry("ierxykla", WordType::Lujvo, &[], None),
+        ];
+        let fuivla_sources = [
+            DictionaryLujvoSource {
+                entry_index: EntryIndex(0),
+                word: "ierxi",
+            },
+            DictionaryLujvoSource {
+                entry_index: EntryIndex(1),
+                word: "ierxa",
+            },
+        ];
+        let klama_source = [DictionaryLujvoSource {
+            entry_index: EntryIndex(2),
+            word: "klama",
+        }];
+        let source_words = ["ierxi", "ierxa", "klama"];
+        let shared = [
+            DictionaryLujvoSegment {
+                kind: DictionaryLujvoSegmentKind::FuivlaRafsi,
+                surface: "ierx",
+                sources: &fuivla_sources,
+            },
+            DictionaryLujvoSegment {
+                kind: DictionaryLujvoSegmentKind::Rafsi,
+                surface: "kla",
+                sources: &klama_source,
+            },
+        ];
+        let accepted = [DictionaryLujvoEntry {
+            entry_index: EntryIndex(3),
+            segments: &shared,
+            source_words: &source_words,
+        }];
+        assert!(validate_lujvo_index(&entries, &accepted).is_ok());
+
+        let ordinary = [
+            DictionaryLujvoSegment {
+                kind: DictionaryLujvoSegmentKind::Rafsi,
+                surface: "ierx",
+                sources: &fuivla_sources,
+            },
+            DictionaryLujvoSegment {
+                kind: DictionaryLujvoSegmentKind::Rafsi,
+                surface: "kla",
+                sources: &klama_source,
+            },
+        ];
+        let rejected = [DictionaryLujvoEntry {
+            entry_index: EntryIndex(3),
+            segments: &ordinary,
+            source_words: &source_words,
+        }];
+        assert_eq!(
+            validate_lujvo_index(&entries, &rejected),
+            Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index: 0,
+                reason: "ordinary rafsi segment has more than one source",
+            })
         );
     }
 

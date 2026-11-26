@@ -234,6 +234,7 @@ fn vlacku_search_options(
         min_votes: input.min_votes,
         min_similarity: input.min_similarity,
         decompose_lujvo: input.decompose_lujvo,
+        show_entry_decomposition: false,
         cancellation: cancellation.clone(),
     }))
 }
@@ -769,6 +770,20 @@ fn render_vlacku_decomposition_piece(
         .unwrap_or_else(|_| piece.surface.clone());
     match piece.kind {
         VlackuCompositionKind::Rafsi => red_in_scope(&surface, color, &scope),
+        VlackuCompositionKind::FuivlaRafsi => {
+            let label = if piece.sources.is_empty() {
+                scope.copy("fu'ivla rafsi")
+            } else {
+                scope.format(format_args!(
+                    "fu'ivla rafsi of {}",
+                    scope.join(piece.sources.iter().map(|source| &source.word), " / ")
+                ))
+            };
+            scope.format(format_args!(
+                "{} ({label})",
+                red_in_scope(&surface, color, scope)
+            ))
+        }
         VlackuCompositionKind::Hyphen => dark_in_scope(&surface, color, &scope),
     }
 }

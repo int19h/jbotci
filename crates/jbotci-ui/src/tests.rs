@@ -1197,6 +1197,7 @@ fn page_find_collects_vlacku_card_text_without_controls() {
         hidden_by_vote_filter: false,
         state: VlackuWebState::default(),
         cards: vec![VlackuWebCard {
+            entry_index: None,
             rank: 1,
             word: "broda".to_owned(),
             display_word: "broda".to_owned(),
@@ -1227,10 +1228,12 @@ fn page_find_collects_vlacku_card_text_without_controls() {
                 kind: VlackuCompositionPieceKind::Rafsi,
                 surface: "bro".to_owned(),
                 display_surface: "bro".to_owned(),
-                source: Some("broda".to_owned()),
-                display_source: Some("broda".to_owned()),
-                source_href: None,
-                source_is_surface: false,
+                sources: vec![new!(jbotci_web_core::VlackuCompositionSource {
+                    entry_index: None,
+                    word: "broda".to_owned(),
+                    href: "/vlacku/broda".to_owned(),
+                    is_surface: false,
+                })],
             }],
             can_add_to_jvozba: true,
         }],
@@ -1268,6 +1271,220 @@ fn page_find_collects_vlacku_card_text_without_controls() {
     }
     assert!(!texts.contains(&"Dictionary query".to_owned()));
     assert!(!texts.contains(&"jvozba".to_owned()));
+}
+
+/// A vlacku card for the page-find tests, with no text outside the headword
+/// and the decomposition.
+#[requires(!word.is_empty())]
+#[ensures(ret.word == word)]
+fn page_find_vlacku_card(word: &str, decomposition: Vec<VlackuCompositionPiece>) -> VlackuWebCard {
+    VlackuWebCard {
+        entry_index: None,
+        rank: 1,
+        word: word.to_owned(),
+        display_word: word.to_owned(),
+        word_type: "lujvo".to_owned(),
+        word_type_key: "lujvo".to_owned(),
+        selmaho: None,
+        author: None,
+        ipa: None,
+        similarity: None,
+        votes: VlackuVoteDisplay::Hidden,
+        rafsi: Vec::new(),
+        glosses: Vec::new(),
+        definition_source: String::new(),
+        definition: Vec::new(),
+        notes: Vec::new(),
+        etymology: Vec::new(),
+        decomposition,
+        can_add_to_jvozba: false,
+    }
+}
+
+/// A decomposition piece with one source for the page-find tests.
+#[requires(!surface.is_empty() && !source.is_empty())]
+#[ensures(ret.kind == kind && ret.sources.len() == 1)]
+fn page_find_piece(
+    kind: VlackuCompositionPieceKind,
+    surface: &str,
+    source: &str,
+) -> VlackuCompositionPiece {
+    VlackuCompositionPiece {
+        kind,
+        surface: surface.to_owned(),
+        display_surface: surface.to_owned(),
+        sources: vec![new!(jbotci_web_core::VlackuCompositionSource {
+            entry_index: None,
+            word: source.to_owned(),
+            href: format!("/vlacku/{source}"),
+            is_surface: surface == source,
+        })],
+    }
+}
+
+/// A hyphen piece, which has no source.
+#[requires(!surface.is_empty())]
+#[ensures(ret.kind == VlackuCompositionPieceKind::Hyphen && ret.sources.is_empty())]
+fn page_find_hyphen(surface: &str) -> VlackuCompositionPiece {
+    VlackuCompositionPiece {
+        kind: VlackuCompositionPieceKind::Hyphen,
+        surface: surface.to_owned(),
+        display_surface: surface.to_owned(),
+        sources: Vec::new(),
+    }
+}
+
+/// The cards of `spageti'ykukte`, of its source `spageti`, of the short form
+/// `actce'ybau`, and of `spageti'yspageti`, which repeats the full form and
+/// ends in a whole-word part with the same spelling.
+#[requires(true)]
+#[ensures(ret.len() == 4)]
+fn page_find_composition_cards() -> Vec<VlackuWebCard> {
+    use VlackuCompositionPieceKind::{FuivlaRafsi, Rafsi};
+    vec![
+        page_find_vlacku_card(
+            "spageti'ykukte",
+            vec![
+                page_find_piece(FuivlaRafsi, "spageti", "spageti"),
+                page_find_hyphen("'y"),
+                page_find_piece(Rafsi, "kukte", "kukte"),
+            ],
+        ),
+        page_find_vlacku_card("spageti", Vec::new()),
+        page_find_vlacku_card(
+            "actce'ybau",
+            vec![
+                page_find_piece(FuivlaRafsi, "actce", "actce'o"),
+                page_find_hyphen("'y"),
+                page_find_piece(Rafsi, "bau", "bangu"),
+            ],
+        ),
+        page_find_vlacku_card(
+            "spageti'yspageti",
+            vec![
+                page_find_piece(FuivlaRafsi, "spageti", "spageti"),
+                page_find_hyphen("'y"),
+                page_find_piece(Rafsi, "spageti", "spageti"),
+            ],
+        ),
+    ]
+}
+
+thread_local! {
+    static PAGE_FIND_COMPOSITION_CASE: RefCell<(String, GentufaScript)> =
+        RefCell::new((String::new(), GentufaScript::Latin));
+}
+
+#[invariant(true)]
+#[invariant(::CompositionFindPage => true)]
+#[derive(Clone, PartialEq, Routable)]
+enum CompositionFindRoute {
+    #[route("/")]
+    CompositionFindPage {},
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+fn CompositionFindApp() -> Element {
+    rsx! { Router::<CompositionFindRoute> {} }
+}
+
+/// Render the setup message for semantic search and the composition cards
+/// under the page query of the current case. The page also prints the
+/// number of matches in the page-find index.
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+fn CompositionFindPage() -> Element {
+    let jvozba_pane = use_signal(VlackuJvozbaPaneState::default);
+    let pending_cukta_scroll = use_signal(|| None);
+    let (query, script) = PAGE_FIND_COMPOSITION_CASE.with(|case| case.borrow().clone());
+    let cards = page_find_composition_cards();
+    let mut entries = Vec::new();
+    push_semantic_search_message_page_find_entries(&mut entries, SEMANTIC_SEARCH_SETUP_MESSAGE);
+    for card in &cards {
+        collect_vlacku_card_page_find_entries(&mut entries, card, script);
+    }
+    let index = build_page_find_index(&query, &entries);
+    let page_find = PageFindContext::new(&index, &PageFindRouteState::default());
+    rsx! {
+        span { "data-index-matches": "{index.matches.len()}" }
+        { render_semantic_search_message("dictionary-empty", SEMANTIC_SEARCH_SETUP_MESSAGE, Some(&page_find)) }
+        for card in cards.iter() {
+            { render_vlacku_card(card, jvozba_pane, false, pending_cukta_scroll, "", script, &page_find) }
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn page_find_marks_every_composition_and_message_label_in_index_order() {
+    // Each case is a page query and the number of labels on the page that
+    // contain it. `spageti`: the headword `spageti'ykukte`, its fu'ivla
+    // rafsi pill (surface and source), the headword `spageti`, the headword
+    // `spageti'yspageti` (twice), its pill (twice), and its last part, a
+    // whole word that shows one combined label. `actce`: the headword, the
+    // pill surface and the source `actce'o`. `kukte`: one headword and one
+    // combined label. The setup message renders its link label and the
+    // rest as two texts, in English in every script: `Download` and `model`
+    // each match once.
+    //
+    // Zbalermorna writes a word from its morphology, with stress, so a
+    // query word matches only where the page writes the same glyphs. A
+    // fu'ivla rafsi before `'y` has other glyphs than the word alone. For
+    // `spageti` that leaves the headword `spageti` and the two pill source
+    // labels, which are the labels that the old collector missed. `actce`
+    // matches the start of the source label `actce'o`. `kukte` ends each
+    // compound with its own glyphs, so it matches as in Latin.
+    assert_eq!(
+        format!("{SEMANTIC_SEARCH_SETUP_LINK_LABEL}{SEMANTIC_SEARCH_SETUP_LINK_SUFFIX}"),
+        SEMANTIC_SEARCH_SETUP_MESSAGE
+    );
+    for script in [
+        GentufaScript::Latin,
+        GentufaScript::Cyrillic,
+        GentufaScript::Zbalermorna,
+    ] {
+        let zbalermorna = script == GentufaScript::Zbalermorna;
+        for (query, expected) in [
+            (
+                display_lojban_text(script, "spageti"),
+                if zbalermorna { 3 } else { 9 },
+            ),
+            (
+                display_lojban_text(script, "actce"),
+                if zbalermorna { 1 } else { 3 },
+            ),
+            (display_lojban_text(script, "kukte"), 2),
+            ("Download".to_owned(), 1),
+            ("model".to_owned(), 1),
+        ] {
+            PAGE_FIND_COMPOSITION_CASE.with(|case| *case.borrow_mut() = (query.clone(), script));
+            let mut dom = VirtualDom::new(CompositionFindApp);
+            dom.rebuild_in_place();
+            let html = dioxus::ssr::render(&dom);
+            let marks = html
+                .split("data-page-find-match-index=\"")
+                .skip(1)
+                .map(|rest| {
+                    rest[..rest.find('"').expect("closed attribute")]
+                        .parse::<usize>()
+                        .expect("match index")
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                marks,
+                (0..expected).collect::<Vec<_>>(),
+                "{script:?} {query}: {html}"
+            );
+            assert!(
+                html.contains(&format!("data-index-matches=\"{expected}\"")),
+                "{script:?} {query}: {html}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -2534,12 +2751,23 @@ fn css_font_stacks_cover_ui_controls_and_lojban_fallbacks() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn tooltip_stack_cards_follow_the_stack_visibility() {
+    let css = include_str!("../assets/main.css");
+    let rule = css_rule(css, ".tooltip-stack-card {\n  position: static;");
+    assert!(rule.contains("visibility: inherit;"));
+    assert!(rule.contains("transition: none;"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn zbalermorna_linked_lojban_css_uses_lojban_font() {
     let css = include_str!("../assets/main.css");
     let selectors = [
         ".app-page.orthography-zbalermorna .parse-page .brackets-output",
         ".app-page.orthography-zbalermorna .parse-page .diagnostic-text-specific-word",
         ".app-page.orthography-zbalermorna .dictionary-page .dictionary-word-link",
+        ".app-page.orthography-zbalermorna .dictionary-page .rafsi-split-surface",
         ".app-page.orthography-zbalermorna .reference-resolution-tooltip .reference-row-target",
         ".app-page.orthography-zbalermorna .rich-dictionary-tooltip .tooltip-inline-link",
         ".app-page.orthography-zbalermorna .cll-page .spa-cll-link-dictionary",
@@ -4199,12 +4427,14 @@ fn vlacku_jvozba_storage_reads_v0_json_items() {
         items,
         vec![
             VlackuJvozbaItem {
+                entry_index: None,
                 kind: VlackuJvozbaItemKind::Word,
                 value: "cmene".to_owned(),
                 source: None,
                 indent_level: 2,
             },
             VlackuJvozbaItem {
+                entry_index: None,
                 kind: VlackuJvozbaItemKind::FixedRafsi,
                 value: "vla".to_owned(),
                 source: Some("valsi".to_owned()),
@@ -4224,12 +4454,14 @@ fn vlacku_jvozba_storage_migrates_legacy_newline_items() {
         items,
         vec![
             VlackuJvozbaItem {
+                entry_index: None,
                 kind: VlackuJvozbaItemKind::Word,
                 value: "cmene".to_owned(),
                 source: None,
                 indent_level: 0,
             },
             VlackuJvozbaItem {
+                entry_index: None,
                 kind: VlackuJvozbaItemKind::FixedRafsi,
                 value: "vla".to_owned(),
                 source: None,
@@ -4244,6 +4476,7 @@ fn vlacku_jvozba_storage_migrates_legacy_newline_items() {
 #[ensures(true)]
 fn vlacku_jvozba_storage_writes_v0_json_shape() {
     let raw = format_vlacku_jvozba_items(&[VlackuJvozbaItem {
+        entry_index: None,
         kind: VlackuJvozbaItemKind::FixedRafsi,
         value: "vla".to_owned(),
         source: Some("valsi".to_owned()),
@@ -4255,6 +4488,32 @@ fn vlacku_jvozba_storage_writes_v0_json_shape() {
         serde_json::json!([
             {"kind":"rafsi","value":"vla","source":"valsi","indentLevel":1}
         ])
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_jvozba_storage_keeps_entry_selection_for_the_same_snapshot() {
+    let item = VlackuJvozbaItem {
+        entry_index: Some(EntryIndex(42)),
+        kind: VlackuJvozbaItemKind::Word,
+        value: ".onji".to_owned(),
+        source: None,
+        indent_level: 0,
+    };
+    let raw = format_vlacku_jvozba_items(std::slice::from_ref(&item));
+    assert_eq!(parse_vlacku_jvozba_items(&raw), [item.clone()]);
+
+    let mut old: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    old[0]["dictionarySnapshot"] = serde_json::json!("older snapshot");
+    let raw = serde_json::to_string(&old).unwrap();
+    assert_eq!(
+        parse_vlacku_jvozba_items(&raw),
+        [VlackuJvozbaItem {
+            entry_index: None,
+            ..item
+        }]
     );
 }
 

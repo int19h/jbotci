@@ -404,7 +404,10 @@ mod tests {
         let cemjgu = lujvo_entry_for_word("cemjgu").expect("lujvo entry for cemjgu");
         assert_eq!(cemjgu.source_words, ["cecmu", "jguna"]);
         assert_eq!(
-            cemjgu.segments.last().map(|segment| segment.source_word),
+            cemjgu
+                .segments
+                .last()
+                .map(|segment| segment.sources.first().map(|source| source.word)),
             Some(Some("jguna"))
         );
     }
@@ -583,7 +586,7 @@ mod tests {
                 lujvo_entry
                     .segments
                     .iter()
-                    .filter(|segment| segment.kind == DictionaryLujvoSegmentKind::Rafsi)
+                    .filter(|segment| segment.kind.is_rafsi())
                     .count()
                     >= 2
             );
@@ -594,7 +597,8 @@ mod tests {
                     .all(|segment| !segment.surface.is_empty())
             );
             assert!(lujvo_entry.segments.iter().all(|segment| {
-                segment.kind == DictionaryLujvoSegmentKind::Rafsi || segment.source_word.is_none()
+                segment.kind.is_rafsi()
+                    || segment.sources.first().map(|source| source.word).is_none()
             }));
             previous_index = Some(lujvo_entry.entry_index.get());
         }
@@ -632,8 +636,8 @@ mod tests {
                 lujvo_entry
                     .segments
                     .iter()
-                    .filter(|segment| segment.kind == DictionaryLujvoSegmentKind::Rafsi)
-                    .all(|segment| segment.source_word.is_some()),
+                    .filter(|segment| segment.kind.is_rafsi())
+                    .all(|segment| segment.sources.first().map(|source| source.word).is_some()),
                 "{} has an unsourced rafsi",
                 entries[lujvo_entry.entry_index.get()].word
             );
@@ -648,7 +652,13 @@ mod tests {
         let segments = jbobau
             .segments
             .iter()
-            .map(|segment| (segment.kind, segment.surface, segment.source_word))
+            .map(|segment| {
+                (
+                    segment.kind,
+                    segment.surface,
+                    segment.sources.first().map(|source| source.word),
+                )
+            })
             .collect::<Vec<_>>();
 
         assert_eq!(
@@ -672,7 +682,13 @@ mod tests {
         let segments = mumymast
             .segments
             .iter()
-            .map(|segment| (segment.kind, segment.surface, segment.source_word))
+            .map(|segment| {
+                (
+                    segment.kind,
+                    segment.surface,
+                    segment.sources.first().map(|source| source.word),
+                )
+            })
             .collect::<Vec<_>>();
 
         assert_eq!(
@@ -694,7 +710,13 @@ mod tests {
         let segments = ciartai
             .segments
             .iter()
-            .map(|segment| (segment.kind, segment.surface, segment.source_word))
+            .map(|segment| {
+                (
+                    segment.kind,
+                    segment.surface,
+                    segment.sources.first().map(|source| source.word),
+                )
+            })
             .collect::<Vec<_>>();
 
         assert_eq!(
@@ -794,7 +816,10 @@ mod tests {
     ) {
         assert_eq!(segment.kind, kind);
         assert_eq!(segment.surface, surface);
-        assert_eq!(segment.source_word, source_word);
+        assert_eq!(
+            segment.sources.first().map(|source| source.word),
+            source_word
+        );
     }
 
     /// Assert that `word` carries exactly `rafsi`, each resolving back to it.

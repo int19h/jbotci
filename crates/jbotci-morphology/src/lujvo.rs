@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_interrupt::CancellationToken;
 use serde::{Deserialize, Serialize};
 
@@ -177,9 +177,16 @@ pub struct ShortRafsiForm {
 #[invariant(true)]
 #[invariant(::Rafsi(text) => !text.is_empty())]
 #[invariant(::BrivlaCore(text) => !text.is_empty())]
+// `hyphen_for_build_part_pair` adds the hyphen after a stem with no test:
+// `y` after a consonant and `'y` after a vowel. So a stem must be one that
+// the morphology reads as a fu'ivla rafsi before that hyphen. That
+// check runs the recognizer, so it is expensive. bityzba allows one invariant
+// for each variant, so the cheap non-empty check is part of this one.
+#[expensive_invariant(::FuhivlaStem(text) => !text.is_empty() && crate::is_fuhivla_rafsi_form(text))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LujvoBuildPart {
     Rafsi(String),
+    FuhivlaStem(String),
     BrivlaCore(String),
 }
 
@@ -188,7 +195,9 @@ impl LujvoBuildPart {
     #[ensures(!ret.is_empty())]
     pub fn as_text(&self) -> &str {
         match self.as_data() {
-            data!(LujvoBuildPart::Rafsi(text)) | data!(LujvoBuildPart::BrivlaCore(text)) => text,
+            data!(LujvoBuildPart::Rafsi(text))
+            | data!(LujvoBuildPart::FuhivlaStem(text))
+            | data!(LujvoBuildPart::BrivlaCore(text)) => text,
         }
     }
 
@@ -231,7 +240,27 @@ pub fn choose_best_lujvo_candidate_from_parts(
     choices: &[Vec<LujvoBuildPart>],
     cancellation: &CancellationToken,
 ) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
-    choose_best_candidate_from_parts(mode, choices, &mut Vec::new(), None, cancellation)
+    choose_best_lujvo_candidate_from_parts_with_filter(mode, choices, cancellation, |_| true)
+}
+
+/// Filter parsed lujvo after their parts match the joined candidate.
+/// Cmevla candidates keep their separate rules and skip this filter.
+#[requires(true)]
+#[ensures(true)]
+pub fn choose_best_lujvo_candidate_from_parts_with_filter(
+    mode: LujvoBuildMode,
+    choices: &[Vec<LujvoBuildPart>],
+    cancellation: &CancellationToken,
+    mut accept: impl FnMut(&[crate::LujvoPart]) -> bool,
+) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
+    choose_best_candidate_from_parts(
+        mode,
+        choices,
+        &mut Vec::new(),
+        None,
+        cancellation,
+        &mut accept,
+    )
 }
 
 #[requires(true)]
@@ -242,6 +271,7 @@ fn choose_best_candidate_from_parts<'a>(
     selected: &mut Vec<&'a LujvoBuildPart>,
     best: Option<LujvoCandidate>,
     cancellation: &CancellationToken,
+    accept: &mut impl FnMut(&[crate::LujvoPart]) -> bool,
 ) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
     let Some((next_choices, rest)) = choices.split_first() else {
         let Some(bonded) = bond_lujvo_build_part_refs(selected) else {
@@ -253,7 +283,9 @@ fn choose_best_candidate_from_parts<'a>(
             parts: bonded,
             word,
         });
-        if mode == LujvoBuildMode::Lujvo && !is_valid_lujvo_candidate(&candidate, cancellation)? {
+        if mode == LujvoBuildMode::Lujvo
+            && !is_valid_lujvo_candidate(&candidate, cancellation, accept)?
+        {
             return Ok(best);
         }
         return Ok(Some(select_better_candidate(best, candidate)));
@@ -262,8 +294,14 @@ fn choose_best_candidate_from_parts<'a>(
     let mut current_best = best;
     for choice in next_choices {
         selected.push(choice);
-        current_best =
-            choose_best_candidate_from_parts(mode, rest, selected, current_best, cancellation)?;
+        current_best = choose_best_candidate_from_parts(
+            mode,
+            rest,
+            selected,
+            current_best,
+            cancellation,
+            accept,
+        )?;
         selected.pop();
     }
     Ok(current_best)
@@ -359,6 +397,7 @@ pub fn is_valid_lujvo_candidate_word(word_text: &str) -> bool {
 fn is_valid_lujvo_candidate(
     candidate: &LujvoCandidate,
     cancellation: &CancellationToken,
+    accept: &mut impl FnMut(&[crate::LujvoPart]) -> bool,
 ) -> Result<bool, crate::MorphologyError> {
     // An interrupt is not an invalid spelling. The search must stop instead
     // of treating the flag as "try the next candidate".
@@ -381,9 +420,9 @@ fn is_valid_lujvo_candidate(
     if word.kind() != crate::WordKind::Lujvo {
         return Ok(false);
     }
-    Ok(word
-        .lujvo_parts()
-        .is_some_and(|parts| lujvo_parts_match(parts.as_slice(), &candidate.parts)))
+    Ok(word.lujvo_parts().is_some_and(|parts| {
+        lujvo_parts_match(parts.as_slice(), &candidate.parts) && accept(parts.as_slice())
+    }))
 }
 
 #[requires(true)]
@@ -671,16 +710,43 @@ fn y_hyphen_for_pair(previous: &str, next: &str) -> Option<&'static str> {
     })
 }
 
+/// The hyphen between two built parts.
+///
+/// First the left part chooses its hyphen: a consonant-final fu'ivla stem
+/// takes `y`, and a vowel-final stem or full brivla core takes `'y`
+/// (CLL 4.16). Other parts follow the rafsi pair rules. Then one rule
+/// applies to every hyphen that ends in `y`: when the next part starts with a
+/// vowel nucleus, an apostrophe follows the `y` (`spageti'y'enri`). A glide
+/// does not start a nucleus, so `nel` + `y` + `iismu` takes none.
 #[requires(true)]
 #[ensures(ret.is_none_or(|hyphen| is_bonding_hyphen(hyphen)))]
+#[ensures(ret.is_some_and(|hyphen| hyphen.ends_with('y')) -> !starts_with_vowel_nucleus_after_y(next.as_text()))]
 fn hyphen_for_build_part_pair(
     previous: &LujvoBuildPart,
     next: &LujvoBuildPart,
 ) -> Option<&'static str> {
-    if previous.is_brivla_core() && previous.as_text().chars().last().is_some_and(is_vowel) {
+    let previous_ends_with_vowel = previous.as_text().chars().last().is_some_and(is_vowel);
+    let hyphen = if matches!(previous.as_data(), data!(LujvoBuildPart::FuhivlaStem(_))) {
+        Some(if previous_ends_with_vowel { "'y" } else { "y" })
+    } else if previous.is_brivla_core() && previous_ends_with_vowel {
         Some("'y")
     } else {
         y_hyphen_for_pair(previous.as_text(), next.as_text())
+    };
+    hyphen.map(|hyphen| apostrophe_after_y(hyphen, next.as_text()))
+}
+
+/// Add the apostrophe that a vowel nucleus needs after a `y` hyphen.
+#[requires(is_bonding_hyphen(hyphen))]
+#[ensures(is_bonding_hyphen(ret))]
+fn apostrophe_after_y(hyphen: &'static str, next: &str) -> &'static str {
+    if !starts_with_vowel_nucleus_after_y(next) {
+        return hyphen;
+    }
+    match hyphen {
+        "y" => "y'",
+        "'y" => "'y'",
+        other => other,
     }
 }
 

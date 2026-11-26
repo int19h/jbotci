@@ -938,7 +938,11 @@ pub(crate) fn pronunciation_syllable_texts(phonemes: &str) -> Option<Vec<String>
 pub(crate) fn classify_lujvo_rafsi(text: &str) -> crate::ValsiLujvoRafsiKind {
     // A comma marks a syllable. Filter it once, while this list is built.
     // The recognizers read letters only.
-    let chars: Vec<char> = text.chars().filter(|value| *value != ',').collect();
+    // The class rules read canonical letters: no stress or glide marks, and
+    // one apostrophe spelling. A comma marks a syllable; canonical text has
+    // none.
+    let canonical = crate::canonicalize_text(text);
+    let chars: Vec<char> = canonical.chars().filter(|value| *value != ',').collect();
     if chars.is_empty() {
         return crate::ValsiLujvoRafsiKind::Unknown;
     }
@@ -979,13 +983,15 @@ pub(crate) fn classify_lujvo_rafsi(text: &str) -> crate::ValsiLujvoRafsiKind {
 #[requires(true)]
 #[ensures(!ret || !text.is_empty())]
 pub(crate) fn is_lujvo_rafsi_fragment(text: &str) -> bool {
-    if classify_lujvo_rafsi(text) != crate::ValsiLujvoRafsiKind::Unknown {
+    let canonical = crate::canonicalize_text(text.trim_matches(','));
+    if classify_lujvo_rafsi(&canonical) != crate::ValsiLujvoRafsiKind::Unknown
+        || crate::is_fuhivla_rafsi_form(&canonical)
+    {
         return true;
     }
 
-    // The class check above already drops commas. This trial buffer must too.
-    // `is_fuhivla_shape_slice` reads letters only.
-    let mut chars: Vec<char> = text.chars().filter(|value| *value != ',').collect();
+    // `is_fuhivla_shape_slice` reads canonical letters only.
+    let mut chars: Vec<char> = canonical.chars().filter(|value| *value != ',').collect();
     if chars.is_empty() {
         return false;
     }
@@ -4252,6 +4258,64 @@ fn fuhivla_rafsi_base_ends_until_with_cache(
     }
     cache.record_fuhivla_rafsi_base_ends(index, lookahead_end, &ends);
     ends
+}
+
+#[requires(true)]
+#[ensures(ret -> !stem.is_empty())]
+pub(crate) fn is_fuhivla_rafsi_stem(stem: &str) -> bool {
+    // The recognizer reads canonical letters.
+    let stem = crate::canonicalize_text(stem);
+    if stem.is_empty() {
+        return false;
+    }
+    let chars = stem.chars().chain(std::iter::once('y')).collect::<Vec<_>>();
+    let mut cache = MorphologyRecognitionCache::new(chars.len());
+    fuhivla_rafsi_base_slice_with_cache(&chars, 0, chars.len() - 1, chars.len(), &mut cache)
+}
+
+/// Return whether a vowel-final head is a fu'ivla rafsi before `'y`.
+///
+/// CLL 4.16 gives each fu'ivla F the rafsi F + `'y`. A fu'ivla whose final
+/// vowel follows an apostrophe or a glide also has a vowel-final short form
+/// with `'y`: the final vowel goes, and an apostrophe before it goes too
+/// (`actce'o` gives `actce'y`, and `barbekeiu`, read `barbekéĭu`, gives
+/// `barbekei'y`). The morphology reads such a part with
+/// `brivla_rafsi <- &(syllable consonantal_syllable* syllable) brivla_head h y`.
+/// The part is a fu'ivla rafsi only when the class rules do not read it as
+/// an ordinary rafsi or a gismu, because `kla'y` and `klama'y` belong to
+/// those words.
+#[requires(true)]
+#[ensures(ret -> !head.is_empty())]
+pub(crate) fn is_fuhivla_rafsi_head_before_apostrophe_y(head: &str) -> bool {
+    let head = crate::canonicalize_text(head);
+    if head.is_empty() || !head.chars().last().is_some_and(is_vowel) {
+        return false;
+    }
+    // A part that the morphology reads as ordinary rafsi, a string of them,
+    // or a gismu belongs to those words (`kla'y`, `jbobau'y`, `klama'y`).
+    if matches!(
+        classify_lujvo_rafsi(&head),
+        crate::ValsiLujvoRafsiKind::Cvc
+            | crate::ValsiLujvoRafsiKind::Ccv
+            | crate::ValsiLujvoRafsiKind::Cvv
+            | crate::ValsiLujvoRafsiKind::Long
+            | crate::ValsiLujvoRafsiKind::Gismu
+            | crate::ValsiLujvoRafsiKind::Extended
+    ) {
+        return false;
+    }
+    let chars = head.chars().chain(['\'', 'y']).collect::<Vec<_>>();
+    let head_end = chars.len() - 2;
+    if chars[..head_end].iter().any(|value| is_y(*value))
+        || !brivla_rafsi_two_syllable_lookahead(&chars, 0, chars.len())
+    {
+        return false;
+    }
+    let mut cache = MorphologyRecognitionCache::new(chars.len());
+    brivla_head_ends_until_with_cache(&chars, 0, chars.len(), chars.len(), &mut cache)
+        .iter()
+        .any(|end| *end == head_end)
+        && hy_rafsi_hyphen_end(&chars, head_end) == Some(chars.len())
 }
 
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]

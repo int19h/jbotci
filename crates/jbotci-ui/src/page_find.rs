@@ -714,7 +714,7 @@ fn collect_cukta_page_find_entries(
             ..
         } => {
             if let Some(message) = message {
-                push_page_find_entry(entries, semantic_search_message_visible_text(message));
+                push_semantic_search_message_page_find_entries(entries, message);
             }
             for card in results {
                 collect_cukta_search_card_page_find_entries(entries, card);
@@ -1052,7 +1052,7 @@ fn collect_vlacku_page_find_entries(
         push_page_find_entry(entries, vote_filter_empty_text(result.state.min_votes));
         push_page_find_entry(entries, "Show all entries");
     } else if let Some(message) = &result.message {
-        push_page_find_entry(entries, semantic_search_message_visible_text(message));
+        push_semantic_search_message_page_find_entries(entries, message);
     }
     for error in &result.errors {
         push_page_find_entry(entries, error.clone());
@@ -1161,18 +1161,19 @@ fn collect_vlacku_composition_piece_page_find_entries(
     piece: &VlackuCompositionPiece,
     script: GentufaScript,
 ) {
-    if piece.kind != VlackuCompositionPieceKind::Rafsi {
+    if !piece.kind.is_rafsi() {
         return;
     }
     push_page_find_entry(
         entries,
         display_lujvo_fragment(script, &piece.display_surface, LujvoFragmentKind::Rafsi),
     );
-    if let Some(source) = &piece.source
-        && !piece.source_is_surface
-    {
-        let source_label = piece.display_source.as_deref().unwrap_or(source);
-        push_page_find_entry(entries, display_lojban_text(script, source_label));
+    if piece.kind == VlackuCompositionPieceKind::FuivlaRafsi {
+        push_page_find_entry(entries, "fu'ivla rafsi".to_owned());
+    }
+    // The renderer shows these sources with their own labels.
+    for source in piece.separately_shown_sources() {
+        push_page_find_entry(entries, display_lojban_text(script, &source.word));
     }
 }
 
@@ -1466,12 +1467,22 @@ fn collect_settings_page_find_entries(
     }
 }
 
+/// Add the texts of a semantic search message, one entry for each text that
+/// `render_semantic_search_message` renders.
+///
+/// The setup message renders its link label and the rest as two texts, so
+/// it has two entries. One entry for the whole message would have another
+/// key, and the page would mark neither text.
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn semantic_search_message_visible_text(message: &str) -> String {
+#[ensures(entries.len() >= old(entries.len()))]
+fn push_semantic_search_message_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    message: &str,
+) {
     if message == SEMANTIC_SEARCH_SETUP_MESSAGE {
-        format!("{SEMANTIC_SEARCH_SETUP_LINK_LABEL}{SEMANTIC_SEARCH_SETUP_LINK_SUFFIX}")
+        push_page_find_entry(entries, SEMANTIC_SEARCH_SETUP_LINK_LABEL);
+        push_page_find_entry(entries, SEMANTIC_SEARCH_SETUP_LINK_SUFFIX);
     } else {
-        message.to_owned()
+        push_page_find_entry(entries, message);
     }
 }
