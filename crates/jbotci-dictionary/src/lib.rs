@@ -1496,7 +1496,11 @@ impl std::fmt::Display for LookupPatternError {
             match (jbotci_morphology::normalize_lojban_input_text(&joined), ret.as_ref()) {
                 (None, _) => true,
                 (Some(strict), Ok(actual)) => key_text_of(actual) == normalize_lookup_query(&strict),
-                (Some(_), Err(_)) => false,
+                // A run with no letter, such as `, ,`, is an error here and
+                // an empty key there.
+                (Some(strict), Err(error)) => {
+                    error.invalid_character().is_none() && normalize_lookup_query(&strict).is_empty()
+                }
             };
         agrees_with_parser
             && match (ret.as_ref(), whole.as_ref()) {
