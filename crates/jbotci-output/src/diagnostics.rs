@@ -241,11 +241,7 @@ fn line_start_at(source: &str, index: usize) -> usize {
 #[requires(true)]
 #[ensures(ret <= source.len())]
 fn line_end_at(source: &str, index: usize) -> usize {
-    let index = char_boundary_at(source, index);
-    match source[index..].find('\n') {
-        Some(offset) => index + offset,
-        None => source.len(),
-    }
+    line_content_end(source, index)
 }
 
 #[requires(true)]
@@ -256,6 +252,25 @@ fn char_boundary_at(source: &str, index: usize) -> usize {
         index -= 1;
     }
     index
+}
+
+/// Exclusive end of the visible text on the line that holds `index`.
+///
+/// CR LF is one line break. The end is the CR byte.
+/// A lone CR stays in the line.
+#[requires(true)]
+#[ensures(ret <= text.len() && text.is_char_boundary(ret))]
+fn line_content_end(text: &str, index: usize) -> usize {
+    let index = char_boundary_at(text, index);
+    let Some(offset) = text[index..].find('\n') else {
+        return text.len();
+    };
+    let newline = index + offset;
+    if newline > 0 && text.as_bytes()[newline - 1] == b'\r' {
+        newline - 1
+    } else {
+        newline
+    }
 }
 
 #[invariant(*source_start <= *source_end)]
@@ -814,14 +829,13 @@ fn window_label_span(label: &DiagnosticLabel, window: &RetainedWindow<'_>) -> Ra
 }
 
 /// A multiline label ends on the anchor line inside this text.
+///
+/// The end stops before a CR LF break. It does not stop between the two bytes.
 #[requires(true)]
 #[ensures(ret.start <= ret.end && ret.end <= text.len())]
 fn clamp_span_to_anchor_line(span: Range<usize>, text: &str) -> Range<usize> {
     let anchor = span.start.min(text.len());
-    let line_end = text[anchor..]
-        .find('\n')
-        .map(|offset| anchor + offset)
-        .unwrap_or(text.len());
+    let line_end = line_content_end(text, anchor);
     let end = span.end.min(line_end).max(anchor);
     anchor..end
 }
@@ -1908,6 +1922,8 @@ mod tests {
         let mut saw_final_newline = false;
         let mut saw_no_final_newline = false;
         let mut saw_location_only = false;
+        let mut saw_crlf_only = false;
+        let mut saw_lone_cr = false;
         for case in 0..CASES {
             let set = random_label_set(&mut rng, case);
             let cap = excerpt_copy_cap(set.width, usize::MAX);
@@ -1947,6 +1963,18 @@ mod tests {
                 "case {case} length {}",
                 rendered.len()
             );
+            let crlf_only =
+                set.source.contains("\r\n") && !source_has_lone_carriage_return(&set.source);
+            if crlf_only {
+                saw_crlf_only = true;
+                assert!(
+                    !rendered.contains('\u{240d}'),
+                    "case {case} shows a carriage return mark\n{rendered}"
+                );
+            }
+            if source_has_lone_carriage_return(&set.source) {
+                saw_lone_cr = true;
+            }
             let primary = set
                 .labels
                 .iter()
@@ -1972,7 +2000,15 @@ mod tests {
             }
             let tight = render_label_set(&set.source, &set.labels, set.width, 64);
             match tight {
-                Ok(text) => assert!(text.len() <= 64, "case {case} tight {}", text.len()),
+                Ok(text) => {
+                    assert!(text.len() <= 64, "case {case} tight {}", text.len());
+                    if crlf_only {
+                        assert!(
+                            !text.contains('\u{240d}'),
+                            "case {case} tight shows a carriage return mark\n{text}"
+                        );
+                    }
+                }
                 Err(OutputError::Limit { .. }) => {}
                 Err(error) => panic!("case {case} tight failed: {error:?}"),
             }
@@ -1985,6 +2021,8 @@ mod tests {
         assert!(saw_eof && saw_empty_line && saw_overlap && saw_distant);
         assert!(saw_control && saw_long_line && saw_final_newline && saw_no_final_newline);
         assert!(saw_location_only);
+        assert!(saw_crlf_only, "no CR LF source without a lone CR");
+        assert!(saw_lone_cr, "no lone CR in the generated sources");
     }
 
     #[invariant(true)]
@@ -2132,6 +2170,16 @@ mod tests {
             let last = labels.len() - 1;
             labels[last].3 = true;
         }
+        // Case numbers choose the break bytes.
+        // One third of the cases use CR LF.
+        // One third of the cases insert one lone CR.
+        // The other cases keep LF.
+        // The choice does not call the random source.
+        match case % 3 {
+            1 => expand_lf_to_crlf(&mut source, &mut labels),
+            2 => insert_lone_carriage_return(&mut source, &mut labels),
+            _ => {}
+        }
         if labels
             .iter()
             .any(|(start, _, _, _)| *start == source.len() && source.ends_with('\n'))
@@ -2150,6 +2198,80 @@ mod tests {
             long_line,
             location_only,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_lf_to_crlf(source: &mut String, labels: &mut [(usize, usize, String, bool)]) {
+        if !source.contains('\n') {
+            return;
+        }
+        let mut rewritten = String::with_capacity(source.len().saturating_mul(2));
+        let mut map = vec![0usize; source.len() + 1];
+        let mut old = 0usize;
+        for character in source.chars() {
+            let new_at = rewritten.len();
+            let width = character.len_utf8();
+            if character == '\n' {
+                rewritten.push_str("\r\n");
+                map[old] = new_at;
+            } else {
+                rewritten.push(character);
+                for byte in 0..width {
+                    map[old + byte] = new_at + byte;
+                }
+            }
+            old += width;
+        }
+        map[source.len()] = rewritten.len();
+        *source = rewritten;
+        for label in labels.iter_mut() {
+            label.0 = map[label.0];
+            label.1 = map[label.1];
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn insert_lone_carriage_return(
+        source: &mut String,
+        labels: &mut [(usize, usize, String, bool)],
+    ) {
+        let old_len = source.len();
+        let at = source
+            .char_indices()
+            .find(|(_, character)| *character != '\n' && *character != '\r')
+            .map(|(index, _)| index)
+            .unwrap_or(old_len);
+        source.insert(at, '\r');
+        if at < old_len {
+            for label in labels.iter_mut() {
+                if label.0 >= at {
+                    label.0 += 1;
+                }
+                if label.1 >= at {
+                    label.1 += 1;
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_has_lone_carriage_return(source: &str) -> bool {
+        let bytes = source.as_bytes();
+        let mut index = 0usize;
+        while index < bytes.len() {
+            if bytes[index] == b'\r' {
+                if bytes.get(index + 1) != Some(&b'\n') {
+                    return true;
+                }
+                index += 2;
+            } else {
+                index += 1;
+            }
+        }
+        false
     }
 
     #[requires(true)]
@@ -2252,6 +2374,111 @@ mod tests {
             }
         }
         found
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn line_content_end_stops_before_crlf_and_keeps_a_lone_cr() {
+        assert_eq!(line_content_end("a\r\n", 0), 1);
+        assert_eq!(line_content_end("a\n", 0), 1);
+        assert_eq!(line_content_end("a\r", 0), 2);
+        assert_eq!(line_content_end("a\rb\n", 0), 3);
+        assert_eq!(line_content_end("\r\n", 0), 0);
+        assert_eq!(line_content_end("\r\n", 1), 0);
+        assert_eq!(line_content_end("ab\r\ncd", 4), 6);
+        assert_eq!(clamp_span_to_anchor_line(0..6, "lo\r\nnu"), 0..2);
+        assert_eq!(clamp_span_to_anchor_line(3..6, "lo\r\nnu"), 3..3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn crlf_excerpts_omit_the_carriage_return_mark() {
+        let one_line = render_label_set(
+            "mi ku\r\n",
+            &[(3, 5, "@@ku@@".to_owned(), true)],
+            80,
+            65_536,
+        )
+        .expect("one line");
+        assert!(one_line.contains("mi ku"), "{one_line}");
+        assert!(!one_line.contains('\u{240d}'), "{one_line}");
+        assert!(!one_line.contains('\r'), "{one_line}");
+
+        let several = render_label_set(
+            "mi\r\n\r\nku\r\n",
+            &[(6, 8, "@@ku@@".to_owned(), true)],
+            80,
+            65_536,
+        )
+        .expect("several lines");
+        assert!(several.contains("ku"), "{several}");
+        assert!(!several.contains('\u{240d}'), "{several}");
+
+        let multiline = render_label_set(
+            "lo\r\nnu\r\n",
+            &[(0, 6, "@@all@@".to_owned(), true)],
+            80,
+            65_536,
+        )
+        .expect("multiline");
+        assert!(!multiline.contains('\u{240d}'), "{multiline}");
+        let (body, marks) = body_and_marks(&multiline, "lo");
+        assert_eq!(body, "lo", "{multiline}");
+        assert_eq!(
+            marks
+                .chars()
+                .filter(|mark| *mark == '^' || *mark == '-')
+                .count(),
+            2,
+            "{multiline}"
+        );
+
+        let mut clipped = String::from("lo ");
+        clipped.push_str(&"x".repeat(80));
+        clipped.push_str("\r\nku\r\n");
+        let end = clipped.len();
+        let window = render_label_set(
+            &clipped,
+            &[(0, end, "@@span@@".to_owned(), true)],
+            20,
+            65_536,
+        )
+        .expect("clipped");
+        assert!(!window.contains('\u{240d}'), "{window}");
+        assert!(!window.contains('\r'), "{window}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_lone_carriage_return_stays_visible_on_its_line() {
+        let rendered = render_label_set("lo\rnu", &[(3, 5, "@@nu@@".to_owned(), true)], 80, 65_536)
+            .expect("lone CR");
+        assert!(rendered.contains('\u{240d}'), "{rendered}");
+        assert!(rendered.contains("lo"), "{rendered}");
+        assert!(rendered.contains("nu"), "{rendered}");
+    }
+
+    #[requires(!rendered.is_empty() && !text.is_empty())]
+    #[ensures(true)]
+    fn body_and_marks(rendered: &str, text: &str) -> (String, String) {
+        let lines = rendered.lines().collect::<Vec<_>>();
+        for (index, line) in lines.iter().enumerate() {
+            let Some((_, body)) = line.split_once('|') else {
+                continue;
+            };
+            if body.contains(text) && !body.contains('^') {
+                let marks = lines
+                    .get(index + 1)
+                    .and_then(|next| next.split_once('|'))
+                    .map(|(_, mark_body)| mark_body.trim().to_owned())
+                    .unwrap_or_default();
+                return (body.trim().to_owned(), marks);
+            }
+        }
+        panic!("missing {text} in {rendered}");
     }
 
     #[test]
