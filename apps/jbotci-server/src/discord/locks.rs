@@ -120,11 +120,14 @@ impl MessageLocks {
             registry: Arc::clone(self),
             message_id: message_id.clone(),
         };
+        // The clock is read after the wait returns.
+        // A lock at the deadline or later is a timeout.
         match tokio::time::timeout_at(deadline, mutex.lock_owned()).await {
-            Ok(guard) => Ok(MessageGuard {
+            Ok(guard) if Instant::now() < deadline => Ok(MessageGuard {
                 _guard: guard,
                 _interest: interest,
             }),
+            Ok(_guard) => Err(LockError::WaitTimedOut),
             Err(_elapsed) => Err(LockError::WaitTimedOut),
         }
     }
@@ -360,6 +363,20 @@ mod tests {
         };
         waiter.await.expect("waiter finished by its own deadline");
         drop(holder);
+        assert_eq!(locks.live_entries(), 0);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_free_lock_at_the_deadline_is_a_timeout() {
+        // The mutex is free.
+        // The deadline is already due.
+        // The wait still reports a ready lock.
+        // That lock is a timeout.
+        let locks = Arc::new(MessageLocks::new(4, 4));
+        let result = locks.acquire(&message("15"), Instant::now()).await;
+        assert_eq!(result.err(), Some(LockError::WaitTimedOut));
         assert_eq!(locks.live_entries(), 0);
     }
 }

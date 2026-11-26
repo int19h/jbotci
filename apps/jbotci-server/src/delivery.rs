@@ -376,8 +376,15 @@ async fn limit_api_response(
         });
     }
     let (parts, body) = response.into_parts();
+    // The clock is read after the collection returns.
+    // A body at the deadline or later is a timeout.
+    // A length error keeps its own response.
+    // Any other body error keeps its own response.
     match tokio::time::timeout_at(deadline, Limited::new(body, limit.get()).collect()).await {
-        Ok(Ok(body)) => Response::from_parts(parts, Body::new(body)),
+        Ok(Ok(body)) if Instant::now() < deadline => Response::from_parts(parts, Body::new(body)),
+        Ok(Ok(_body)) => crate::execution::work_error_response(WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        }),
         Ok(Err(error)) if error.is::<LengthLimitError>() => {
             crate::execution::work_error_response(WorkError::OutputLimit)
         }
@@ -1414,5 +1421,58 @@ mod tests {
             "work_deadline_exceeded"
         );
         assert!(sender.is_closed());
+    }
+
+    /// A body that sleeps once inside the read and then returns one chunk.
+    /// The pause is a test control.
+    #[invariant(true)]
+    struct LateBody {
+        delay: std::time::Duration,
+        slept: bool,
+    }
+
+    impl HttpBody for LateBody {
+        type Data = Bytes;
+        type Error = axum::Error;
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_frame(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Option<Result<http_body::Frame<Bytes>, axum::Error>>> {
+            if self.slept {
+                return Poll::Ready(None);
+            }
+            self.slept = true;
+            std::thread::sleep(self.delay);
+            Poll::Ready(Some(Ok(http_body::Frame::data(Bytes::from_static(
+                b"late",
+            )))))
+        }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn api_collection_rejects_a_body_after_the_deadline() {
+        // The collection starts inside the limit.
+        // The body becomes ready after the limit.
+        // That body is a timeout.
+        let limit = std::time::Duration::from_millis(40);
+        let response = limit_api_response(
+            Response::new(Body::new(LateBody {
+                delay: limit + std::time::Duration::from_millis(80),
+                slept: false,
+            })),
+            jbotci_output::budget::ByteLimit::new(128).unwrap(),
+            Instant::now() + limit,
+        )
+        .await;
+        assert_eq!(response.status(), axum::http::StatusCode::GATEWAY_TIMEOUT);
+        assert_eq!(
+            response.headers()["x-jbotci-error"],
+            "work_deadline_exceeded"
+        );
     }
 }

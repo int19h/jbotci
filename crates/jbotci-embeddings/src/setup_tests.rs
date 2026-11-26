@@ -88,6 +88,8 @@ fn pack_io_is_a_stall(error: &std::io::Error) -> bool {
 /// Read one request line.
 /// An interrupt returns to this loop.
 /// The stop flag and the hang limit are checked on every pass.
+/// The clock is read after each read returns.
+/// A byte or end of file at the hang limit or later is a hang.
 /// A stall is tried again while the stop flag is false.
 /// A stall of 60 seconds with a false stop flag fails the hang limit.
 /// The failure text says that this limit only stops a hang.
@@ -95,6 +97,19 @@ fn pack_io_is_a_stall(error: &std::io::Error) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn read_pack_line(stream: &mut impl std::io::Read, stop: &AtomicBool) -> PackRead {
+    read_pack_line_for(stream, stop, PACK_HANG_LIMIT)
+}
+
+/// Read one request line with an explicit hang limit.
+/// The clock is read after each read returns.
+/// A byte or end of file at the limit or later is a hang.
+#[requires(!limit.is_zero())]
+#[ensures(true)]
+fn read_pack_line_for(
+    stream: &mut impl std::io::Read,
+    stop: &AtomicBool,
+    limit: std::time::Duration,
+) -> PackRead {
     let mut line = Vec::new();
     let mut byte = [0_u8; 1];
     let mut progressed = std::time::Instant::now();
@@ -102,17 +117,23 @@ fn read_pack_line(stream: &mut impl std::io::Read, stop: &AtomicBool) -> PackRea
         if stop.load(AtomicOrdering::Acquire) {
             return new!(PackRead::Stopped);
         }
-        if progressed.elapsed() >= PACK_HANG_LIMIT {
+        if progressed.elapsed() >= limit {
             panic!("this limit only stops a hang");
         }
         match std::io::Read::read(stream, &mut byte) {
             Ok(0) => {
+                if progressed.elapsed() >= limit {
+                    panic!("this limit only stops a hang");
+                }
                 if line.is_empty() {
                     return new!(PackRead::End);
                 }
                 return new!(PackRead::Line(String::from_utf8_lossy(&line).into_owned(),));
             }
             Ok(_) => {
+                if progressed.elapsed() >= limit {
+                    panic!("this limit only stops a hang");
+                }
                 progressed = std::time::Instant::now();
                 line.push(byte[0]);
                 if byte[0] == b'\n' {
@@ -164,6 +185,8 @@ fn fresh_pack_progress() -> PackProgress {
 /// The socket timeout is 100 milliseconds.
 /// An interrupt leaves the byte offset unchanged.
 /// The stop flag and the hang limit are checked on every pass.
+/// The clock is read after each write returns.
+/// A positive write at the hang limit or later is a hang.
 /// A stall is tried again while the stop flag is false.
 /// The first stall before the stop flag records that the write blocked.
 /// A stall of 60 seconds with a false stop flag fails the hang limit.
@@ -178,13 +201,29 @@ fn write_pack_bytes(
     progress: &Mutex<PackProgress>,
     wake: &Condvar,
 ) -> PackWrite {
+    write_pack_bytes_for(stream, bytes, stop, progress, wake, PACK_HANG_LIMIT)
+}
+
+/// Write every byte with an explicit hang limit.
+/// The clock is read after each write returns.
+/// A positive write at the limit or later is a hang.
+#[requires(!limit.is_zero())]
+#[ensures(true)]
+fn write_pack_bytes_for(
+    stream: &mut impl std::io::Write,
+    bytes: &[u8],
+    stop: &AtomicBool,
+    progress: &Mutex<PackProgress>,
+    wake: &Condvar,
+    limit: std::time::Duration,
+) -> PackWrite {
     let mut offset = 0;
     let mut progressed = std::time::Instant::now();
     while offset < bytes.len() {
         if stop.load(AtomicOrdering::Acquire) {
             return new!(PackWrite::Stopped);
         }
-        if progressed.elapsed() >= PACK_HANG_LIMIT {
+        if progressed.elapsed() >= limit {
             panic!("this limit only stops a hang");
         }
         match std::io::Write::write(stream, &bytes[offset..]) {
@@ -194,6 +233,9 @@ fn write_pack_bytes(
                 ));
             }
             Ok(count) => {
+                if progressed.elapsed() >= limit {
+                    panic!("this limit only stops a hang");
+                }
                 offset += count;
                 progressed = std::time::Instant::now();
             }
@@ -587,6 +629,32 @@ fn write_pack_bytes_keeps_the_offset_across_interrupts() {
     assert_eq!(writer.written, b"abcd");
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn write_pack_bytes_rejects_a_write_after_the_deadline() {
+    // The pre-write check passes.
+    // The write finishes after the limit.
+    // The result is a hang.
+    let limit = std::time::Duration::from_millis(40);
+    let stop = AtomicBool::new(false);
+    let progress = Mutex::new(fresh_pack_progress());
+    let wake = Condvar::new();
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut writer = LatePackBytes {
+            delay: limit + std::time::Duration::from_millis(80),
+            paused: false,
+            payload: 0,
+        };
+        let _ = write_pack_bytes_for(&mut writer, b"abcd", &stop, &progress, &wake, limit);
+    }));
+    let message = panic_payload_text(caught.expect_err("a late write is a hang"));
+    assert!(
+        message.contains("this limit only stops a hang"),
+        "{message}"
+    );
+}
+
 /// A writer that sets the stop flag and then always returns Interrupted.
 #[invariant(true)]
 struct StopThenInterruptWrite {
@@ -705,6 +773,57 @@ fn port_scan_retries_the_same_port_after_an_interrupt() {
     assert_eq!(calls, 2);
 }
 
+/// A reader or writer that pauses once and then returns one scripted result.
+/// `payload` 0 means end of file.
+/// Any other payload is one byte.
+#[invariant(true)]
+struct LatePackBytes {
+    delay: std::time::Duration,
+    paused: bool,
+    payload: u8,
+}
+
+impl std::io::Read for LatePackBytes {
+    #[requires(true)]
+    #[ensures(true)]
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        if !self.paused {
+            self.paused = true;
+            std::thread::sleep(self.delay);
+        }
+        if self.payload == 0 {
+            return Ok(0);
+        }
+        buf[0] = self.payload;
+        self.payload = 0;
+        Ok(1)
+    }
+}
+
+impl std::io::Write for LatePackBytes {
+    #[requires(true)]
+    #[ensures(true)]
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        if !self.paused {
+            self.paused = true;
+            std::thread::sleep(self.delay);
+        }
+        Ok(buf.len())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -722,6 +841,44 @@ fn read_pack_line_retries_an_interrupted_read() {
         data!(PackRead::Line(text)) => assert_eq!(text, "GET /pack HTTP/1.1\r\n"),
         _ => panic!("the pack line is complete"),
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_line_rejects_a_byte_after_the_deadline() {
+    // The pre-read check passes.
+    // The byte arrives after the limit.
+    // The line is a hang.
+    let limit = std::time::Duration::from_millis(40);
+    let stop = AtomicBool::new(false);
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut reader = LatePackBytes {
+            delay: limit + std::time::Duration::from_millis(80),
+            paused: false,
+            payload: b'\n',
+        };
+        let _ = read_pack_line_for(&mut reader, &stop, limit);
+    }));
+    let message = panic_payload_text(caught.expect_err("a late byte is a hang"));
+    assert!(
+        message.contains("this limit only stops a hang"),
+        "{message}"
+    );
+
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut reader = LatePackBytes {
+            delay: limit + std::time::Duration::from_millis(80),
+            paused: false,
+            payload: 0,
+        };
+        let _ = read_pack_line_for(&mut reader, &stop, limit);
+    }));
+    let message = panic_payload_text(caught.expect_err("late end of file is a hang"));
+    assert!(
+        message.contains("this limit only stops a hang"),
+        "{message}"
+    );
 }
 
 #[test]
@@ -1056,8 +1213,10 @@ fn pack_wait_failure_text(result: &Result<(), String>) -> String {
 
 /// Wait until a milestone is set.
 /// The milestone and the worker result share one mutex.
+/// The clock is read before the milestone is tested.
+/// A milestone at the limit or later is a hang.
 /// The hook runs after the predicate and before the sleep.
-/// The wait reads both values again before it sleeps.
+/// The wait reads the clock and both values again before it sleeps.
 /// A worker error fails this wait only while the milestone is unset.
 /// The sleep stops at the remaining time.
 #[requires(!limit.is_zero())]
@@ -1072,16 +1231,19 @@ fn wait_for_pack_milestone(
     let started = std::time::Instant::now();
     let mut guard = progress.lock().expect("the pack server milestone is open");
     loop {
+        if started.elapsed() >= limit {
+            panic!("this limit only stops a hang");
+        }
         if !still_waiting(&guard) {
             return;
         }
         if let Some(result) = guard.worker_result.clone() {
             panic!("{}", pack_wait_failure_text(&result));
         }
+        before_sleep(&mut guard);
         if started.elapsed() >= limit {
             panic!("this limit only stops a hang");
         }
-        before_sleep(&mut guard);
         if !still_waiting(&guard) {
             return;
         }
@@ -1187,6 +1349,36 @@ fn pack_wait_sees_a_result_published_before_sleep() {
     assert!(message.contains("connection reset"), "{message}");
     assert!(
         !message.contains("this limit only stops a hang"),
+        "{message}"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_wait_rejects_a_milestone_after_the_deadline() {
+    // The first pass sees no milestone.
+    // The hook then sets the milestone after the limit.
+    // The next pass reads the clock before it tests the milestone.
+    // The milestone is a hang.
+    let progress = Mutex::new(fresh_pack_progress());
+    let wake = Condvar::new();
+    let limit = std::time::Duration::from_millis(40);
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        wait_for_pack_milestone(
+            &progress,
+            &wake,
+            limit,
+            |state| !state.accept_ready,
+            |state| {
+                std::thread::sleep(limit + std::time::Duration::from_millis(80));
+                state.accept_ready = true;
+            },
+        );
+    }));
+    let message = panic_payload_text(caught.expect_err("a late milestone is a hang"));
+    assert!(
+        message.contains("this limit only stops a hang"),
         "{message}"
     );
 }
@@ -1346,6 +1538,100 @@ fn pack_receive_reports_a_socket_error_with_its_cause() {
     }
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_client_rejects_a_read_after_the_deadline() {
+    // The pre-read check passes.
+    // The byte arrives after the deadline.
+    // End of file after the deadline is the same hang.
+    let limit = std::time::Duration::from_millis(40);
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut reader = LatePackBytes {
+            delay: limit + std::time::Duration::from_millis(80),
+            paused: false,
+            payload: b'x',
+        };
+        let deadline = std::time::Instant::now() + limit;
+        let _ = read_pack_client_until_close(&mut reader, deadline, |_stream, _remaining| Ok(()));
+    }));
+    let message = panic_payload_text(caught.expect_err("late bytes are a hang"));
+    assert!(
+        message.contains("the pack server did not close the socket"),
+        "{message}"
+    );
+
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut reader = LatePackBytes {
+            delay: limit + std::time::Duration::from_millis(80),
+            paused: false,
+            payload: 0,
+        };
+        let deadline = std::time::Instant::now() + limit;
+        let _ = read_pack_client_until_close(&mut reader, deadline, |_stream, _remaining| Ok(()));
+    }));
+    let message = panic_payload_text(caught.expect_err("late end of file is a hang"));
+    assert!(
+        message.contains("the pack server did not close the socket"),
+        "{message}"
+    );
+}
+
+/// Read until the pack server closes the socket.
+/// The clock is read after each read returns.
+/// End of file or bytes at the deadline or later are a hang.
+/// An interrupt, a timeout, or a would-block result tries again.
+/// Any other socket error reports its cause.
+#[requires(true)]
+#[ensures(true)]
+fn read_pack_client_until_close<S, F>(
+    stream: &mut S,
+    deadline: std::time::Instant,
+    mut set_timeout: F,
+) -> Vec<u8>
+where
+    S: std::io::Read,
+    F: FnMut(&mut S, std::time::Duration) -> std::io::Result<()>,
+{
+    let mut buf = [0_u8; 128];
+    loop {
+        let now = std::time::Instant::now();
+        if now >= deadline {
+            panic!("the pack server did not close the socket");
+        }
+        let remaining = deadline.saturating_duration_since(now);
+        if remaining.is_zero() {
+            panic!("the pack server did not close the socket");
+        }
+        match set_timeout(stream, remaining) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => panic!(
+                "the pack client sets a read timeout: {}",
+                socket_error_text(&error)
+            ),
+        }
+        match pack_receive_step(std::io::Read::read(stream, &mut buf)).into_data() {
+            data!(PackReceiveStep::Closed) => {
+                if std::time::Instant::now() >= deadline {
+                    panic!("the pack server did not close the socket");
+                }
+                return Vec::new();
+            }
+            data!(PackReceiveStep::Bytes(count)) => {
+                if std::time::Instant::now() >= deadline {
+                    panic!("the pack server did not close the socket");
+                }
+                return buf[..count].to_vec();
+            }
+            data!(PackReceiveStep::Retry) => continue,
+            data!(PackReceiveStep::Failed(message)) => {
+                panic!("the pack client read failed: {message}");
+            }
+        }
+    }
+}
+
 /// Report a file open error that is not a missing file.
 /// A normal user gets that error from a mode of 000.
 /// Root can read a mode of 000.
@@ -1380,34 +1666,10 @@ fn pack_server_reports_an_unreadable_file() {
     // End of file and the expected reset are closure.
     // Any other socket error reports its cause.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-    let mut buf = [0_u8; 128];
-    let count = loop {
-        let now = std::time::Instant::now();
-        if now >= deadline {
-            panic!("the pack server did not close the socket");
-        }
-        let remaining = deadline.saturating_duration_since(now);
-        if remaining.is_zero() {
-            panic!("the pack server did not close the socket");
-        }
-        match client.set_read_timeout(Some(remaining)) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(error) => panic!(
-                "the pack client sets a read timeout: {}",
-                socket_error_text(&error)
-            ),
-        }
-        match pack_receive_step(std::io::Read::read(&mut client, &mut buf)).into_data() {
-            data!(PackReceiveStep::Closed) => break 0,
-            data!(PackReceiveStep::Bytes(count)) => break count,
-            data!(PackReceiveStep::Retry) => continue,
-            data!(PackReceiveStep::Failed(message)) => {
-                panic!("the pack client read failed: {message}");
-            }
-        }
-    };
-    let text = String::from_utf8_lossy(&buf[..count]);
+    let bytes = read_pack_client_until_close(&mut client, deadline, |stream, remaining| {
+        stream.set_read_timeout(Some(remaining))
+    });
+    let text = String::from_utf8_lossy(&bytes);
     assert!(!text.contains("404"), "{text}");
     let started = std::time::Instant::now();
     let error = server

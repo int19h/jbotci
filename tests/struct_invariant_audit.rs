@@ -52,6 +52,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The writer sets the stop flag and then returns an interrupt. The call count accepts any usize and has no relation to the flag.",
     ),
     (
+        "crates/jbotci-embeddings/src/setup_tests.rs:LatePackBytes",
+        "The reader or writer pauses once and then returns one scripted result. The pause and the payload are test controls.",
+    ),
+    (
         "apps/jbotci-server/src/discord/components.rs:AttachmentText",
         "The serializer borrows any list of already validated attachments.",
     ),
@@ -102,6 +106,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/delivery.rs:PendingAfterRead",
         "The probe returns its bytes and then stays pending. The started flag and the sent flag are test controls.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:LateBody",
+        "The body sleeps once and then returns one chunk. The pause is a test control.",
     ),
     (
         "apps/jbotci-server/src/execution.rs:AdmissionCancellation",

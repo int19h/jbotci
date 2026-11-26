@@ -739,8 +739,13 @@ impl ToolServices {
         let not_running = || SemanticSearchError::lane(WorkError::Panicked { lane });
         let permit = match deadline {
             Some(deadline) => {
+                // The clock is read after the reserve returns.
+                // A permit at the deadline or later is a timeout.
                 match tokio::time::timeout_at(deadline, self.embedding_worker.reserve()).await {
-                    Ok(Ok(permit)) => permit,
+                    Ok(Ok(permit)) if Instant::now() < deadline => permit,
+                    Ok(Ok(_permit)) => {
+                        return Err(SemanticSearchError::lane(WorkError::TimedOut { lane }));
+                    }
                     Ok(Err(_closed)) => return Err(not_running()),
                     Err(_elapsed) => {
                         return Err(SemanticSearchError::lane(WorkError::TimedOut { lane }));
@@ -767,18 +772,23 @@ async fn await_rendered_reply(
     received: oneshot::Receiver<Result<ToolRenderedOutput>>,
     deadline: Instant,
 ) -> Result<ToolRenderedOutput> {
-    tokio::time::timeout_at(deadline, received)
-        .await
-        .map_err(|_| {
-            anyhow!(WorkError::TimedOut {
-                lane: WorkLane::Compute
-            })
-        })?
-        .map_err(|_| {
-            anyhow!(WorkError::Panicked {
-                lane: WorkLane::Embedding
-            })
-        })?
+    // The clock is read after the reply arrives.
+    // A rendered result at the deadline or later is a timeout.
+    // A closed channel stays a panic.
+    // A job error stays that error.
+    match tokio::time::timeout_at(deadline, received).await {
+        Err(_) => Err(anyhow!(WorkError::TimedOut {
+            lane: WorkLane::Compute
+        })),
+        Ok(Err(_)) => Err(anyhow!(WorkError::Panicked {
+            lane: WorkLane::Embedding
+        })),
+        Ok(Ok(Ok(value))) if Instant::now() < deadline => Ok(value),
+        Ok(Ok(Ok(_value))) => Err(anyhow!(WorkError::TimedOut {
+            lane: WorkLane::Compute
+        })),
+        Ok(Ok(Err(error))) => Err(error),
+    }
 }
 
 /// Await a typed reply; past the deadline the caller gives up (the job is
@@ -789,6 +799,10 @@ async fn await_typed_reply<T>(
     received: oneshot::Receiver<std::result::Result<T, SemanticSearchError>>,
     deadline: Option<Instant>,
 ) -> std::result::Result<T, SemanticSearchError> {
+    // The clock is read after the reply arrives.
+    // A value at the deadline or later is a timeout.
+    // A search error stays that error.
+    // A closed channel stays a panic.
     let outcome = match deadline {
         Some(deadline) => match tokio::time::timeout_at(deadline, received).await {
             Ok(outcome) => outcome,
@@ -800,11 +814,111 @@ async fn await_typed_reply<T>(
         },
         None => received.await,
     };
-    outcome.map_err(|_stopped| {
+    let value = outcome.map_err(|_stopped| {
         SemanticSearchError::lane(WorkError::Panicked {
             lane: WorkLane::Embedding,
         })
-    })?
+    })?;
+    if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+        if value.is_err() {
+            return value;
+        }
+        return Err(SemanticSearchError::lane(WorkError::TimedOut {
+            lane: WorkLane::Embedding,
+        }));
+    }
+    value
+}
+
+#[cfg(test)]
+mod deadline_reply_tests {
+    use super::*;
+    use jbotci_cli::{ToolRenderedOutput, ToolStatus};
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_rendered_reply_at_the_deadline_is_a_timeout() {
+        // The reply is already waiting.
+        // The deadline is already due.
+        // The rendered result is a timeout.
+        let (sender, receiver) = oneshot::channel();
+        sender
+            .send(Ok(ToolRenderedOutput {
+                status: ToolStatus::Success,
+                stdout: b"late".to_vec(),
+                stderr: String::new(),
+                content_type: None,
+            }))
+            .expect("the test sends the reply");
+        let error = await_rendered_reply(receiver, Instant::now())
+            .await
+            .expect_err("a late rendered reply is a timeout");
+        assert!(
+            error
+                .to_string()
+                .contains("The operation did not finish before its deadline."),
+            "{error}"
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_closed_rendered_reply_at_the_deadline_stays_a_panic() {
+        let (sender, receiver) = oneshot::channel();
+        drop(sender);
+        let error = await_rendered_reply(receiver, Instant::now())
+            .await
+            .expect_err("a closed reply is a panic");
+        assert!(
+            error.to_string().contains("The operation failed."),
+            "{error}"
+        );
+        assert!(
+            !error
+                .to_string()
+                .contains("The operation did not finish before its deadline."),
+            "{error}"
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_typed_value_at_the_deadline_is_a_timeout() {
+        let (sender, receiver) = oneshot::channel();
+        sender.send(Ok(7_u8)).expect("the test sends the value");
+        let error = await_typed_reply(receiver, Some(Instant::now()))
+            .await
+            .expect_err("a late value is a timeout");
+        assert!(
+            error
+                .to_string()
+                .contains("The operation did not finish before its deadline."),
+            "{error}"
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_typed_search_error_at_the_deadline_stays_that_error() {
+        let (sender, receiver) = oneshot::channel();
+        sender
+            .send(Err(SemanticSearchError::failed("index offline".to_owned())))
+            .expect("the test sends the search error");
+        let error = await_typed_reply::<u8>(receiver, Some(Instant::now()))
+            .await
+            .expect_err("a late search error stays a search error");
+        assert!(error.to_string().contains("index offline"), "{error}");
+        assert!(
+            !error
+                .to_string()
+                .contains("The operation did not finish before its deadline."),
+            "{error}"
+        );
+    }
 }
 
 /// The production job handler: owns the embedding cache for the worker's

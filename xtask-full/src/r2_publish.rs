@@ -881,15 +881,18 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
             }
         }
     };
+    // Kill the group before the reader joins.
+    // A grandchild keeps the stderr pipe open.
+    // The child is already reaped.
+    // A second kill is harmless.
+    #[cfg(unix)]
+    unsafe {
+        libc::kill(-(child.id() as i32), libc::SIGKILL);
+    }
     let worker_outcome = match worker_outcome {
         Some(outcome) => outcome,
         None => reader.take().expect("the reader handle is present").join(),
     };
-    #[cfg(unix)]
-    // Close inherited pipes if a command exits while one of its descendants survives.
-    unsafe {
-        libc::kill(-(child.id() as i32), libc::SIGKILL);
-    }
     combine_readback(result, worker_outcome)
 }
 
@@ -2453,6 +2456,28 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         );
         assert!(child_exited, "The child survived the timeout");
         assert!(grandchild_exited, "The grandchild survived the timeout");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_stops_a_grandchild_that_inherits_stderr() {
+        // The shell exits 0.
+        // The grandchild inherits stderr and sleeps.
+        // The group kill runs before the reader joins.
+        // The one second limit bounds the command.
+        let started = Instant::now();
+        let result = run_readback(
+            Command::new("sh").args(["-c", "sleep 60 & exit 0"]),
+            Duration::from_secs(1),
+        );
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "the reader join ran for {elapsed:?}"
+        );
+        result.expect("the child exit is success");
     }
 
     #[cfg(unix)]
