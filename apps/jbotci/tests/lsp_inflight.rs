@@ -1,9 +1,11 @@
 //! The stdio server must answer a burst larger than its worker pool.
 //!
-//! The child process is pinned to one CPU.
-//! The worker pool size is then two.
-//! The burst sends 32 requests.
-//! Thirty-two is larger than that pool on every host.
+//! The burst is larger than the worker pool.
+//! Linux pins the child to one CPU in the current mask.
+//! The pool size is then two.
+//! The burst length is 32.
+//! Another host uses the real pool size plus eight.
+//! The length is at least 32.
 //!
 //! The pass condition is the response set.
 //! Every burst id arrives once.
@@ -11,13 +13,13 @@
 //! Shutdown then returns a null result.
 //! The 120 second deadline is only a hang bound.
 //! A full pool that blocks the reader writes no burst response.
-//! Four completions use a grammar limit of one second.
-//! One worker at that limit finishes this fixed burst inside the bound.
-
-#![cfg(unix)]
+//! Completion requests use a grammar limit of one second.
+//! The Linux burst finishes inside the bound.
 
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Read, Write};
+use std::num::NonZeroUsize;
+#[cfg(target_os = "linux")]
 use std::os::unix::process::CommandExt;
 use std::panic::{AssertUnwindSafe, resume_unwind};
 use std::process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
@@ -33,9 +35,25 @@ use serde_json::{Value, json};
 const DOCUMENT_URI: &str = "untitled:inflight-repro.jbo";
 const DOCUMENT_TEXT: &str = "mi klama .i do klama";
 const EDITED_TEXT: &str = "do klama";
-const BURST_LEN: u64 = 32;
 const RESPONSE_DEADLINE: Duration = Duration::from_secs(120);
 const EXIT_DEADLINE: Duration = Duration::from_secs(10);
+
+#[requires(true)]
+#[ensures(ret >= 32)]
+fn burst_len() -> u64 {
+    // Linux pins the child to one CPU.
+    // The worker pool size is then two.
+    if cfg!(target_os = "linux") {
+        return 32;
+    }
+    let count = std::thread::available_parallelism()
+        .map(NonZeroUsize::get)
+        .unwrap_or(2)
+        .max(2)
+        .saturating_add(8)
+        .max(32);
+    u64::try_from(count).unwrap_or(u64::MAX)
+}
 
 #[invariant(*pid > 0)]
 struct RunningServer {
@@ -57,8 +75,9 @@ impl RunningServer {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        // The hook runs in the child, after fork and before exec.
+        // Linux runs this hook in the child after fork and before exec.
         // The parent keeps its own CPU set.
+        #[cfg(target_os = "linux")]
         unsafe {
             command.pre_exec(restrict_child_to_one_cpu);
         }
@@ -140,13 +159,36 @@ impl RunningServer {
     }
 }
 
+#[cfg(target_os = "linux")]
+#[requires(true)]
+#[ensures(ret.is_none_or(|cpu| cpu < libc::CPU_SETSIZE as usize))]
+fn first_allowed_cpu(set: &libc::cpu_set_t) -> Option<usize> {
+    (0..libc::CPU_SETSIZE as usize).find(|&cpu| unsafe { libc::CPU_ISSET(cpu, set) })
+}
+
+/// The child uses the first CPU in the current mask.
+///
+/// An empty mask returns an error.
+/// Spawn fails after that error.
+#[cfg(target_os = "linux")]
 #[requires(true)]
 #[ensures(true)]
 fn restrict_child_to_one_cpu() -> std::io::Result<()> {
     unsafe {
+        let mut current = std::mem::zeroed::<libc::cpu_set_t>();
+        let got = libc::sched_getaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &mut current);
+        if got != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        let Some(cpu) = first_allowed_cpu(&current) else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "the current CPU mask is empty",
+            ));
+        };
         let mut set = std::mem::zeroed::<libc::cpu_set_t>();
         libc::CPU_ZERO(&mut set);
-        libc::CPU_SET(0, &mut set);
+        libc::CPU_SET(cpu, &mut set);
         let result = libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set);
         if result == 0 {
             Ok(())
@@ -154,6 +196,31 @@ fn restrict_child_to_one_cpu() -> std::io::Result<()> {
             Err(std::io::Error::last_os_error())
         }
     }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn first_allowed_cpu_skips_a_gap_at_zero() {
+    let mut set = unsafe { std::mem::zeroed::<libc::cpu_set_t>() };
+    unsafe {
+        libc::CPU_ZERO(&mut set);
+        libc::CPU_SET(3, &mut set);
+    }
+    assert_eq!(first_allowed_cpu(&set), Some(3));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn first_allowed_cpu_rejects_an_empty_mask() {
+    let mut set = unsafe { std::mem::zeroed::<libc::cpu_set_t>() };
+    unsafe {
+        libc::CPU_ZERO(&mut set);
+    }
+    assert!(first_allowed_cpu(&set).is_none());
 }
 
 #[requires(true)]
@@ -284,7 +351,7 @@ fn params_for(method: &str, uri: &str) -> Value {
 }
 
 #[requires(true)]
-#[ensures(ret.len() == usize::try_from(BURST_LEN).expect("burst length fits"))]
+#[ensures(ret.len() == usize::try_from(burst_len()).expect("burst length fits"))]
 fn burst_methods() -> Vec<&'static str> {
     const HEAVY: [&str; 7] = [
         "textDocument/diagnostic",
@@ -295,7 +362,7 @@ fn burst_methods() -> Vec<&'static str> {
         "textDocument/completion",
         "textDocument/selectionRange",
     ];
-    (0..BURST_LEN)
+    (0..burst_len())
         .map(|index| {
             if index == 8 {
                 "completionItem/resolve"
@@ -413,7 +480,8 @@ fn drive_stdio_server(
             &request_message(id, method, params_for(method, DOCUMENT_URI)),
         );
     }
-    // Id 2 is the first heavy request. Id 10 is the cheap resolve past saturation.
+    // Id 2 is the first heavy request.
+    // Id 10 is the cheap resolve request.
     let cancel_id = 2;
     let resolve_id = 2 + 8;
     push_message(
@@ -472,7 +540,7 @@ fn drive_stdio_server(
             }),
         ),
     );
-    let edited_id = 2 + BURST_LEN;
+    let edited_id = 2 + burst_len();
     write_message(
         &mut stdin,
         &request_message(

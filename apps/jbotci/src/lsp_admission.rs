@@ -11,6 +11,7 @@ use std::future::Future;
 use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
@@ -28,11 +29,56 @@ use tower::Service;
 
 const MIN_HEAVY_REQUESTS: usize = 2;
 
+/// One cancel slot for one request id.
+///
+/// The token identifies that request.
+/// A newer request with the same id stores a new token.
+#[invariant(*token > 0)]
+struct CancelSlot {
+    token: u64,
+    sender: oneshot::Sender<()>,
+}
+
+/// The cancel tokens and the live cancel senders.
+///
+/// The next token stays above zero.
+#[invariant(next_token.load(std::sync::atomic::Ordering::Relaxed) > 0)]
+struct CancelBook {
+    next_token: AtomicU64,
+    entries: Mutex<HashMap<NumberOrString, CancelSlot>>,
+}
+
+/// Removes one cancel entry on drop.
+///
+/// The id and the token identify that entry.
+struct CancelGuard(Arc<CancelBook>, NumberOrString, u64);
+
+impl Drop for CancelGuard {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        let mut entries = self
+            .0
+            .as_data()
+            .entries
+            .lock()
+            .expect("LSP cancel map lock poisoned");
+        // Drop removes the entry for this token.
+        // A newer entry for the same id stays in the map.
+        if entries
+            .get(&self.1)
+            .is_some_and(|slot| slot.token == self.2)
+        {
+            entries.remove(&self.1);
+        }
+    }
+}
+
 #[invariant(*heavy_limit >= MIN_HEAVY_REQUESTS && *heavy_limit <= Semaphore::MAX_PERMITS)]
 #[invariant(heavy_permits.available_permits() <= *heavy_limit)]
 pub(super) struct RequestAdmission<S> {
     service: Arc<Mutex<S>>,
-    cancels: Mutex<HashMap<NumberOrString, oneshot::Sender<()>>>,
+    cancels: Arc<CancelBook>,
     heavy_permits: Arc<Semaphore>,
     heavy_limit: usize,
 }
@@ -59,7 +105,10 @@ pub(super) fn request_admission<S>(service: S) -> RequestAdmission<S> {
 fn request_admission_with_limit<S>(service: S, heavy_limit: usize) -> RequestAdmission<S> {
     new!(RequestAdmission {
         service: Arc::new(Mutex::new(service)),
-        cancels: Mutex::new(HashMap::new()),
+        cancels: Arc::new(new!(CancelBook {
+            next_token: AtomicU64::new(1),
+            entries: Mutex::new(HashMap::new()),
+        })),
         heavy_permits: Arc::new(Semaphore::new(heavy_limit)),
         heavy_limit,
     })
@@ -90,20 +139,50 @@ fn cancelled_response() -> ResponseError {
 impl<S> RequestAdmission<S> {
     #[requires(true)]
     #[ensures(true)]
-    fn register_cancel(&self, id: NumberOrString) -> oneshot::Receiver<()> {
+    fn register_cancel(&self, id: NumberOrString) -> (oneshot::Receiver<()>, CancelGuard) {
         let (sender, receiver) = oneshot::channel();
-        let mut cancels = self.cancels.lock().expect("LSP cancel map lock poisoned");
-        cancels.retain(|_, sender| !sender.is_closed());
-        cancels.insert(id, sender);
-        receiver
+        let token = take_cancel_token(&self.cancels);
+        self.cancels
+            .as_data()
+            .entries
+            .lock()
+            .expect("LSP cancel map lock poisoned")
+            .insert(id.clone(), new!(CancelSlot { token, sender }));
+        (receiver, CancelGuard(Arc::clone(&self.cancels), id, token))
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn cancel_request(&self, id: &NumberOrString) {
-        let mut cancels = self.cancels.lock().expect("LSP cancel map lock poisoned");
-        if let Some(sender) = cancels.remove(id) {
-            let _ = sender.send(());
+        let mut entries = self
+            .cancels
+            .as_data()
+            .entries
+            .lock()
+            .expect("LSP cancel map lock poisoned");
+        if let Some(slot) = entries.remove(id) {
+            let _ = slot.into_data().sender.send(());
+        }
+    }
+}
+
+#[requires(book.as_data().next_token.load(Ordering::Relaxed) > 0)]
+#[ensures(ret > 0)]
+fn take_cancel_token(book: &CancelBook) -> u64 {
+    // Zero is not a token.
+    // The counter wraps after the last u64 value.
+    let token = &book.as_data().next_token;
+    loop {
+        let current = token.load(Ordering::Relaxed);
+        let next = match current.wrapping_add(1) {
+            0 => 1,
+            value => value,
+        };
+        if token
+            .compare_exchange(current, next, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
+        {
+            return current;
         }
     }
 }
@@ -128,10 +207,13 @@ where
     #[ensures(true)]
     fn call(&mut self, req: AnyRequest) -> <Self as Service<AnyRequest>>::Future {
         let heavy = request_uses_analysis_worker(&req.method);
-        let cancel = self.register_cancel(req.id.clone());
+        let (cancel, guard) = self.register_cancel(req.id.clone());
         let permits = Arc::clone(&self.heavy_permits);
         let service = Arc::clone(&self.service);
         Box::pin(async move {
+            // The guard stays in this future.
+            // The future drop removes the cancel entry for this token.
+            let _guard = guard;
             // A dropped sender is not a client cancel. The work future must continue.
             let cancel_requested = async move {
                 match cancel.await {
@@ -377,5 +459,36 @@ mod tests {
         assert!(second.await.expect("second request").is_null());
         assert!(third.await.expect("third request").is_null());
         assert!(shutdown.await.expect("shutdown request").is_null());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn dropped_request_removes_only_its_cancel_entry() {
+        let started = Arc::new(AtomicUsize::new(0));
+        let (_ready_tx, ready_rx) = watch::channel(false);
+        let mut admission =
+            request_admission_with_limit(pending_service(Arc::clone(&started), ready_rx), 2);
+        let first = admission.call(request(7, request::HoverRequest::METHOD));
+        assert_eq!(cancel_token(&admission, 7), Some(1));
+        let second = admission.call(request(7, request::HoverRequest::METHOD));
+        assert_eq!(cancel_token(&admission, 7), Some(2));
+        drop(first);
+        assert_eq!(cancel_token(&admission, 7), Some(2));
+        drop(second);
+        assert_eq!(cancel_token(&admission, 7), None);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn cancel_token(admission: &super::RequestAdmission<PendingService>, id: i32) -> Option<u64> {
+        admission
+            .cancels
+            .as_data()
+            .entries
+            .lock()
+            .expect("LSP cancel map lock poisoned")
+            .get(&NumberOrString::Number(id))
+            .map(|slot| slot.token)
     }
 }
