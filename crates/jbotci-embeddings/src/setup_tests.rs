@@ -1215,6 +1215,8 @@ fn pack_wait_failure_text(result: &Result<(), String>) -> String {
 /// The milestone and the worker result share one mutex.
 /// The clock is read before the milestone is tested.
 /// A milestone at the limit or later is a hang.
+/// A worker error at that limit stays the worker error.
+/// The milestone is unset in that case.
 /// The hook runs after the predicate and before the sleep.
 /// The wait reads the clock and both values again before it sleeps.
 /// A worker error fails this wait only while the milestone is unset.
@@ -1232,6 +1234,11 @@ fn wait_for_pack_milestone(
     let mut guard = progress.lock().expect("the pack server milestone is open");
     loop {
         if started.elapsed() >= limit {
+            if still_waiting(&guard) {
+                if let Some(result) = guard.worker_result.clone() {
+                    panic!("{}", pack_wait_failure_text(&result));
+                }
+            }
             panic!("this limit only stops a hang");
         }
         if !still_waiting(&guard) {
@@ -1242,6 +1249,11 @@ fn wait_for_pack_milestone(
         }
         before_sleep(&mut guard);
         if started.elapsed() >= limit {
+            if still_waiting(&guard) {
+                if let Some(result) = guard.worker_result.clone() {
+                    panic!("{}", pack_wait_failure_text(&result));
+                }
+            }
             panic!("this limit only stops a hang");
         }
         if !still_waiting(&guard) {
@@ -1379,6 +1391,36 @@ fn pack_wait_rejects_a_milestone_after_the_deadline() {
     let message = panic_payload_text(caught.expect_err("a late milestone is a hang"));
     assert!(
         message.contains("this limit only stops a hang"),
+        "{message}"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pack_wait_keeps_a_worker_error_at_the_deadline() {
+    // The hook sleeps past the limit and then stores the worker error.
+    // The milestone stays unset.
+    // The wait reports the worker error.
+    let progress = Mutex::new(fresh_pack_progress());
+    let wake = Condvar::new();
+    let limit = std::time::Duration::from_millis(40);
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        wait_for_pack_milestone(
+            &progress,
+            &wake,
+            limit,
+            |state| !state.accept_ready,
+            |state| {
+                std::thread::sleep(limit + std::time::Duration::from_millis(80));
+                state.worker_result = Some(Err("connection reset".to_owned()));
+            },
+        );
+    }));
+    let message = panic_payload_text(caught.expect_err("a late worker error stays that error"));
+    assert!(message.contains("connection reset"), "{message}");
+    assert!(
+        !message.contains("this limit only stops a hang"),
         "{message}"
     );
 }
