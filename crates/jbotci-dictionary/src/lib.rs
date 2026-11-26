@@ -2174,6 +2174,40 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn a_decomposition_never_makes_a_word_break_in_a_key() {
+        // U+037E decomposes to `;`, and U+226E and U+226F to `<` or `>` and a
+        // mark. A word break is decided from the typed character, so none of
+        // them is a space in the index key, in an exact lookup or in a glob.
+        for value in ['\u{037e}', '\u{226e}', '\u{226f}', '\u{0387}'] {
+            let text = format!("abu{value}sance");
+            assert!(!normalize_lookup_query(&text).contains(' '), "{value:?}");
+            assert_eq!(
+                normalize_lookup_pattern::<char>(&[LookupPatternPart::Literal(&text)])
+                    .expect_err("gentufa rejects the character")
+                    .invalid_character(),
+                Some(value),
+                "{value:?}"
+            );
+            assert!(
+                normalize_lookup_pattern(&[
+                    LookupPatternPart::Literal(&text),
+                    LookupPatternPart::Wildcard('*'),
+                ])
+                .is_err(),
+                "{value:?}"
+            );
+        }
+        // Canonically equivalent headwords get one index key, also where a
+        // lookup rejects them.
+        assert_eq!(
+            normalize_lookup_query("аи\u{0327}\u{0306}"),
+            normalize_lookup_query("аи\u{0306}\u{0327}")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn a_word_break_between_wildcards_is_a_space() {
         #[requires(true)]
         #[ensures(true)]

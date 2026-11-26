@@ -5032,6 +5032,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn canonically_equivalent_spellings_convert_alike() {
+        use unicode_normalization::UnicodeNormalization;
+
         // Every character that the converter reads, and every character whose
         // decomposition the converter reads, gives one result in either
         // spelling, for the parser and for the lookup transcript.
@@ -5045,7 +5047,28 @@ mod tests {
             text
         }
 
+        // The letters that the converter keeps when it may skip what it
+        // cannot read, as the index does. An unread character is named as
+        // typed, so `Â` and `A` + U+0302 name different characters, but both
+        // are rejected, and the index leaves both out.
+        #[requires(true)]
+        #[ensures(true)]
+        fn kept(input: &str) -> String {
+            segment::normalize_source_chars(
+                input.chars().enumerate(),
+                &MorphologyOptions::default(),
+            )
+            .iter()
+            .map(|item| item.value)
+            .collect()
+        }
+
         let options = MorphologyOptions::default();
+        let strict = |text: &str| {
+            segment::normalize_source_chars_checked(text.chars().enumerate(), &options)
+                .map(|chars| chars.iter().map(|item| item.value).collect::<String>())
+                .ok()
+        };
         let mut checked = 0;
         for code in 0..=u32::from(char::MAX) {
             let Some(composed) = char::from_u32(code) else {
@@ -5058,14 +5081,28 @@ mod tests {
             if decomposed.chars().eq(std::iter::once(composed)) {
                 continue;
             }
-            let strict = |text: &str| {
-                segment::normalize_source_chars_checked(text.chars().enumerate(), &options)
-                    .map(|chars| chars.iter().map(|item| item.value).collect::<String>())
-                    .ok()
-            };
             let composed_text = composed.to_string();
             let composed_strict = strict(&composed_text);
             let decomposed_strict = strict(&decomposed);
+            let letters_and_marks = |text: &str| {
+                text.chars().all(|value| {
+                    value.is_alphabetic() || unicode_normalization::char::is_combining_mark(value)
+                })
+            };
+            if !letters_and_marks(&composed_text) || !letters_and_marks(&decomposed) {
+                // A decomposition into punctuation or a separator is not
+                // used: the typed character stays as typed, so the
+                // transcript cannot gain a word break (U+037E, U+226E).
+                assert_eq!(transcript(&composed_text), composed_text, "{composed:?}");
+                continue;
+            }
+            // The index uses the transcript even where both strict spellings
+            // fail, so the transcripts must agree in every case.
+            assert_eq!(
+                kept(&composed_text),
+                kept(&decomposed),
+                "{composed:?} {decomposed:?}"
+            );
             if composed_strict.is_none() && decomposed_strict.is_none() {
                 continue;
             }
@@ -5073,13 +5110,34 @@ mod tests {
                 composed_strict, decomposed_strict,
                 "{composed:?} {decomposed:?}"
             );
-            assert_eq!(
-                transcript(&composed_text),
-                transcript(&decomposed),
-                "{composed:?} {decomposed:?}"
-            );
             checked += 1;
         }
+        // Mark sequences in either canonical order give one result, for the
+        // parser and for the transcript, also where both spellings fail.
+        let marks = [
+            '\u{0301}', '\u{0300}', '\u{0306}', '\u{0327}', '\u{0323}', '\u{0302}', '\u{0308}',
+            '\u{0303}',
+        ];
+        let mut pairs = 0;
+        for base in ['a', 'e', 'i', 'o', 'u', 'y', 'I', 'и', 'у', 'е', 'а', 'И'] {
+            for first in marks {
+                for second in marks {
+                    let forward = format!("а{base}{first}{second}");
+                    let backward = format!("а{base}{second}{first}");
+                    if forward.nfd().ne(backward.nfd()) {
+                        continue;
+                    }
+                    for other in [backward.clone(), forward.nfc().collect::<String>()] {
+                        assert_eq!(kept(&forward), kept(&other), "{forward:?} {other:?}");
+                        assert_eq!(strict(&forward), strict(&other), "{forward:?} {other:?}");
+                    }
+                    pairs += 1;
+                }
+            }
+        }
+        assert!(pairs > 100, "{pairs}");
+        // The case from the review: the cedilla does not hide the glide.
+        assert_eq!(kept("аи\u{0327}\u{0306}"), kept("аи\u{0306}\u{0327}"));
         // The stressed Latin vowels, the four glides in each script and case,
         // and the Cyrillic grave letters.
         assert!(checked >= 40, "{checked}");

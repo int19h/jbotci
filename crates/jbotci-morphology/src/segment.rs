@@ -165,49 +165,111 @@ pub(crate) struct ConverterUnit {
 /// The converter input for source characters, the same for every canonically
 /// equivalent spelling.
 ///
-/// Each source character is split into its canonical decomposition, so `й`
-/// and `и` + U+0306, or `ѝ` and `и` + U+0300, become the same characters.
-/// Then a base and a following combining mark join again when their canonical
-/// composition is a letter that the converter reads, such as `й`, `ĭ` or
-/// `á`. Otherwise the mark stays apart: a stress mark marks the letter before
-/// it, and any other mark is a character that the converter cannot read.
-/// Every accepted mark (acute, grave, breve) has the canonical combining class
-/// 230. Canonical ordering only moves marks of different classes, so a
-/// reordering that this decomposition does not apply can only move a mark
-/// that is unread anyway.
+/// Three steps, as in Unicode canonical normalization:
+///
+/// 1. Each typed letter or combining mark is split into its canonical
+///    decomposition. Every other typed character stays as typed, so a word
+///    break or a punctuation mark is decided from what the user wrote, and a
+///    decomposition never creates one. U+037E stays U+037E and does not
+///    become `;`. A decomposition is used only when all its parts are letters
+///    or marks.
+/// 2. Each run of combining marks is put in canonical order, a stable sort
+///    by canonical combining class. `и` + U+0327 + U+0306 and `и` + U+0306 +
+///    U+0327 become the same characters.
+/// 3. Canonical composition joins a base with a mark that is not blocked,
+///    but only when the composition is a letter that the converter reads,
+///    such as `й`, `ĭ` or `á`. Otherwise the mark stays apart: a stress mark
+///    marks the letter before it, and any other mark is a character that the
+///    converter cannot read.
+///
+/// So canonically equivalent input gives the same units, apart from their
+/// source positions. Each unit keeps the source range of its parts and the
+/// character the user typed, for errors and spans.
 #[requires(true)]
-#[ensures(ret.windows(2).all(|pair| pair[0].end <= pair[1].end))]
+#[ensures(true)]
+#[bityzba::expensive_ensures(ret.iter().all(|unit| !is_separator(unit.value) || unit.value == unit.source_value), "a decomposition never creates a separator")]
 pub(crate) fn canonical_converter_units(
     chars: impl IntoIterator<Item = (usize, char)>,
 ) -> Vec<ConverterUnit> {
-    let options = MorphologyOptions::default();
-    let mut units: Vec<ConverterUnit> = Vec::new();
+    use unicode_normalization::char::{
+        canonical_combining_class, compose, decompose_canonical, is_combining_mark,
+    };
+    let is_letter_or_mark = |value: char| value.is_alphabetic() || is_combining_mark(value);
+    let mut pieces = Vec::new();
+    let mut parts = Vec::new();
     for (index, source_value) in chars {
-        unicode_normalization::char::decompose_canonical(source_value, |value| {
-            if let Some(last) = units.last().copied()
-                && unicode_normalization::char::is_combining_mark(value)
-                && let Some(composed) = unicode_normalization::char::compose(last.value, value)
+        parts.clear();
+        decompose_canonical(source_value, |value| parts.push(value));
+        let decompose =
+            is_letter_or_mark(source_value) && parts.iter().all(|part| is_letter_or_mark(*part));
+        if decompose {
+            pieces.extend(parts.iter().map(|value| {
+                new!(ConverterUnit {
+                    start: index,
+                    end: index + 1,
+                    value: *value,
+                    source_value,
+                })
+            }));
+        } else {
+            pieces.push(new!(ConverterUnit {
+                start: index,
+                end: index + 1,
+                value: source_value,
+                source_value,
+            }));
+        }
+    }
+    let mut run_start = 0;
+    while run_start < pieces.len() {
+        if canonical_combining_class(pieces[run_start].value) == 0 {
+            run_start += 1;
+            continue;
+        }
+        let run_end = (run_start..pieces.len())
+            .find(|index| canonical_combining_class(pieces[*index].value) == 0)
+            .unwrap_or(pieces.len());
+        pieces[run_start..run_end].sort_by_key(|piece| canonical_combining_class(piece.value));
+        run_start = run_end;
+    }
+    let options = MorphologyOptions::default();
+    let mut units = Vec::with_capacity(pieces.len());
+    let mut cursor = 0;
+    while cursor < pieces.len() {
+        let mut base = pieces[cursor];
+        cursor += 1;
+        if canonical_combining_class(base.value) != 0 {
+            units.push(base);
+            continue;
+        }
+        let mut kept = Vec::new();
+        let mut last_kept_class = 0;
+        while cursor < pieces.len() && canonical_combining_class(pieces[cursor].value) != 0 {
+            let mark = pieces[cursor];
+            cursor += 1;
+            let class = canonical_combining_class(mark.value);
+            let blocked = !kept.is_empty() && last_kept_class >= class;
+            if !blocked
+                && let Some(composed) = compose(base.value, mark.value)
                 && converter_reads(composed, &options)
             {
-                *units.last_mut().expect("the last unit exists") = new!(ConverterUnit {
-                    start: last.start,
-                    end: index + 1,
+                base = new!(ConverterUnit {
+                    start: base.start.min(mark.start),
+                    end: base.end.max(mark.end),
                     value: composed,
-                    source_value: if last.start == index {
-                        source_value
+                    source_value: if base.start == mark.start {
+                        base.source_value
                     } else {
                         composed
                     },
                 });
             } else {
-                units.push(new!(ConverterUnit {
-                    start: index,
-                    end: index + 1,
-                    value,
-                    source_value,
-                }));
+                kept.push(mark);
+                last_kept_class = class;
             }
-        });
+        }
+        units.push(base);
+        units.extend(kept);
     }
     units
 }
