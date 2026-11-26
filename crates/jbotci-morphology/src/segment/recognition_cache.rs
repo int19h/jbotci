@@ -11,6 +11,9 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+/// Memo tables use the standard map in every build. The cost rows measure this map.
+type MemoMap<K, V> = HashMap<K, V>;
+
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_interrupt::CancellationToken;
@@ -23,13 +26,16 @@ thread_local! {
     static BODY_CAP: Cell<u64> = const { Cell::new(u64::MAX) };
     static SYLLABLE_STEPS: Cell<u64> = const { Cell::new(0) };
     static SYLLABLE_CAP: Cell<u64> = const { Cell::new(u64::MAX) };
+    static NUCLEUS_STEPS: Cell<u64> = const { Cell::new(0) };
+    static NUCLEUS_CAP: Cell<u64> = const { Cell::new(u64::MAX) };
     static LIVE_SLOTS: Cell<u64> = const { Cell::new(0) };
     static PEAK_SLOTS: Cell<u64> = const { Cell::new(0) };
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
-fn note_recognition_body() {
+fn count_recognition_body() {
     // The counter exists so a test can prove the recognizer stays polynomial.
     // Production builds do not read it. The cap is a test assertion checked at
     // the moment a body finishes: an exponential run fails there instead of
@@ -52,22 +58,20 @@ fn note_recognition_body() {
 
 /// Counts one index visited by the descending syllable scan.
 ///
-/// The cap is a test assertion, like [`note_recognition_body`]. Production
+/// The cap is a test assertion, like [`count_recognition_body`]. Production
 /// builds do not read it, and it is not a limit on the scan.
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn note_syllable_step() {
-    #[cfg(test)]
-    {
-        let next = SYLLABLE_STEPS.with(|count| {
-            let next = count.get().saturating_add(1);
-            count.set(next);
-            next
-        });
-        let cap = SYLLABLE_CAP.with(|cap| cap.get());
-        if next > cap {
-            panic!("syllable scan visited {next} indexes, above the polynomial cap {cap}");
-        }
+pub(crate) fn count_syllable_step() {
+    let next = SYLLABLE_STEPS.with(|count| {
+        let next = count.get().saturating_add(1);
+        count.set(next);
+        next
+    });
+    let cap = SYLLABLE_CAP.with(|cap| cap.get());
+    if next > cap {
+        panic!("syllable scan visited {next} indexes, above the polynomial cap {cap}");
     }
 }
 
@@ -112,6 +116,66 @@ impl Drop for RecognitionBodyCount {
         let previous_cap = self.previous_cap;
         BODY_CAP.with(|cap| cap.set(previous_cap));
         BODY_COUNT.with(|count| count.set(0));
+    }
+}
+
+/// Counts one index visited by a descending nucleus-bit scan.
+///
+/// The cap is a test assertion. Production builds do not read it, and it is
+/// not a limit on the scan. A debug build and a release build count the same
+/// indexes.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn count_nucleus_step() {
+    let next = NUCLEUS_STEPS.with(|count| {
+        let next = count.get().saturating_add(1);
+        count.set(next);
+        next
+    });
+    let cap = NUCLEUS_CAP.with(|cap| cap.get());
+    if next > cap {
+        panic!("nucleus scan visited {next} indexes, above the polynomial cap {cap}");
+    }
+}
+
+/// Test guard for the nucleus-scan counter.
+#[cfg(test)]
+#[invariant(true)]
+#[derive(Debug)]
+pub(crate) struct NucleusStepCount {
+    previous_cap: u64,
+}
+
+#[cfg(test)]
+impl NucleusStepCount {
+    #[requires(true)]
+    #[ensures(ret.get() == 0)]
+    pub(crate) fn begin(cap: u64) -> Self {
+        let previous_cap = NUCLEUS_CAP.with(|cap_cell| {
+            let previous = cap_cell.get();
+            cap_cell.set(cap);
+            previous
+        });
+        NUCLEUS_STEPS.with(|count| count.set(0));
+        Self { previous_cap }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn get(&self) -> u64 {
+        NUCLEUS_STEPS.with(|count| count.get())
+    }
+}
+
+#[cfg(test)]
+impl Drop for NucleusStepCount {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        let previous_cap = self.previous_cap;
+        NUCLEUS_CAP.with(|cap| cap.set(previous_cap));
+        NUCLEUS_STEPS.with(|count| count.set(0));
     }
 }
 
@@ -261,9 +325,9 @@ struct StressContextKey {
 /// It does not include a failure the caller already held.
 #[invariant(ranges.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
 #[derive(Debug, Clone)]
-pub(super) struct LujvoPartRangeMemo {
-    pub(super) ranges: Option<Rc<[LujvoPartRange]>>,
-    pub(super) failure: Option<LujvoParseFailure>,
+pub(crate) struct LujvoPartRangeMemo {
+    pub(crate) ranges: Option<Rc<[LujvoPartRange]>>,
+    pub(crate) failure: Option<LujvoParseFailure>,
 }
 
 /// Memoized results for every recognizer in the stressed-word cycle.
@@ -328,7 +392,7 @@ pub(super) struct LujvoPartRangeMemo {
 /// two-index keys. A coda query visits the syllabic-consonant run its flags
 /// depend on, then stops. On `lo` that run is one character. A long run still
 /// visits each character of the run once per uncached query.
-/// `consonantal_chain_then_final` and `consonantal_chain_then_onset` follow
+/// `drive::cons_final` and `consonantal_chain_then_onset` follow
 /// one successor per step. One chain takes `O(n)` steps, and each step scans
 /// only its own run. A run as long as the candidate makes one chain `O(n^2)`.
 ///
@@ -339,6 +403,7 @@ pub(super) struct LujvoPartRangeMemo {
 /// The bounds count work. They are not a cutoff. Every key still returns the
 /// body's own answer.
 #[invariant(*char_count < usize::MAX)]
+#[invariant(char_state.len() == *char_count)]
 #[derive(Debug)]
 pub(crate) struct MorphologyRecognitionCache {
     pub(crate) char_count: usize,
@@ -347,102 +412,139 @@ pub(crate) struct MorphologyRecognitionCache {
     /// The cache wrapper cannot implement `Drop`. Its invariant generates
     /// `into_data`, and that moves the inner value out of the wrapper.
     accounted: CacheSlotAccount,
-    lujvo_from: RefCell<HashMap<InitialRafsiKey, bool>>,
-    cmavo_word: RefCell<HashMap<SpanKey, bool>>,
-    lojban_word: RefCell<HashMap<SpanKey, bool>>,
-    brivla_word: RefCell<HashMap<SpanKey, bool>>,
-    lujvo_slice: RefCell<HashMap<SpanKey, bool>>,
-    fuhivla_shape_y: RefCell<HashMap<YPolicyKey, bool>>,
-    fuhivla_shape: RefCell<HashMap<SpanKey, bool>>,
-    fuhivla_head_policy: RefCell<HashMap<FuhivlaHeadKey, bool>>,
-    experimental_cgv: RefCell<HashMap<SpanKey, bool>>,
-    fuhivla_head_ends: RefCell<HashMap<LookaheadKey, Rc<[usize]>>>,
-    brivla_head_ends: RefCell<HashMap<LookaheadKey, Rc<[usize]>>>,
-    slinkuhi: RefCell<HashMap<SpanKey, bool>>,
-    rafsi_string_starts: RefCell<HashMap<SpanKey, bool>>,
-    rafsi_string_from: RefCell<HashMap<LookaheadKey, bool>>,
-    rafsi_string_ending: RefCell<HashMap<LookaheadKey, bool>>,
-    post_word: RefCell<HashMap<SpanKey, bool>>,
-    cmavo_post_word: RefCell<HashMap<PrefixEndKey, bool>>,
-    initial_rafsi_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
-    extended_rafsi_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
-    any_extended_rafsi_starts: RefCell<HashMap<SpanKey, bool>>,
-    fuhivla_rafsi_base_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
-    stressed_extended_rafsi_ends: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
-    nucleus_has_implicit_stress: RefCell<HashMap<SpanKey, bool>>,
-    stress_tail_reaches_boundary: RefCell<HashMap<SpanKey, bool>>,
-    greedy_rafsi_chain: RefCell<HashMap<SpanKey, Rc<[usize]>>>,
-    lujvo_part_ranges: RefCell<HashMap<InitialRafsiKey, LujvoPartRangeMemo>>,
-    nucleus_is_stressed: RefCell<HashMap<StressContextKey, bool>>,
-    y_less_rafsi_unstressed: RefCell<HashMap<StressContextKey, bool>>,
-    cvv_rafsi_unstressed: RefCell<HashMap<StressContextKey, bool>>,
+    lujvo_from: RefCell<MemoMap<InitialRafsiKey, bool>>,
+    cmavo_word: RefCell<MemoMap<SpanKey, bool>>,
+    lojban_word: RefCell<MemoMap<SpanKey, bool>>,
+    brivla_word: RefCell<MemoMap<SpanKey, bool>>,
+    lujvo_slice: RefCell<MemoMap<SpanKey, bool>>,
+    fuhivla_shape_y: RefCell<MemoMap<YPolicyKey, bool>>,
+    fuhivla_shape: RefCell<MemoMap<SpanKey, bool>>,
+    fuhivla_head_policy: RefCell<MemoMap<FuhivlaHeadKey, bool>>,
+    experimental_cgv: RefCell<MemoMap<SpanKey, bool>>,
+    fuhivla_head_ends: RefCell<MemoMap<LookaheadKey, Rc<[usize]>>>,
+    brivla_head_ends: RefCell<MemoMap<LookaheadKey, Rc<[usize]>>>,
+    slinkuhi: RefCell<MemoMap<SpanKey, bool>>,
+    rafsi_string_starts: RefCell<MemoMap<SpanKey, bool>>,
+    rafsi_string_from: RefCell<MemoMap<LookaheadKey, bool>>,
+    rafsi_string_ending: RefCell<MemoMap<LookaheadKey, bool>>,
+    post_word: RefCell<MemoMap<SpanKey, bool>>,
+    cmavo_post_word: RefCell<MemoMap<PrefixEndKey, bool>>,
+    initial_rafsi_ends: RefCell<MemoMap<SpanKey, Rc<[usize]>>>,
+    extended_rafsi_ends: RefCell<MemoMap<SpanKey, Rc<[usize]>>>,
+    any_extended_rafsi_starts: RefCell<MemoMap<SpanKey, bool>>,
+    fuhivla_rafsi_base_ends: RefCell<MemoMap<SpanKey, Rc<[usize]>>>,
+    stressed_extended_rafsi_ends: RefCell<MemoMap<SpanKey, Rc<[usize]>>>,
+    nucleus_has_implicit_stress: RefCell<MemoMap<SpanKey, bool>>,
+    stress_tail_reaches_boundary: RefCell<MemoMap<SpanKey, bool>>,
+    greedy_rafsi_chain: RefCell<MemoMap<SpanKey, Rc<[usize]>>>,
+    lujvo_part_ranges: RefCell<MemoMap<InitialRafsiKey, LujvoPartRangeMemo>>,
+    nucleus_is_stressed: RefCell<MemoMap<StressContextKey, bool>>,
+    y_less_rafsi_unstressed: RefCell<MemoMap<StressContextKey, bool>>,
+    cvv_rafsi_unstressed: RefCell<MemoMap<StressContextKey, bool>>,
     /// Prefix `post_word`: `pause / !nucleus lojban_word`.
     /// A brivla in that word can end before the slice. This is not `post_word`.
     /// A true result here must not satisfy a caller that needs the next word
     /// to consume the whole slice.
-    prefix_post_word: RefCell<HashMap<SpanKey, bool>>,
+    prefix_post_word: RefCell<MemoMap<SpanKey, bool>>,
     /// Prefix `lojban_word`: `cmevla / cmavo / brivla`.
     /// The cmavo arm continues with `prefix_post_word`. This is not `lojban_word`.
-    prefix_lojban_word: RefCell<HashMap<SpanKey, bool>>,
+    prefix_lojban_word: RefCell<MemoMap<SpanKey, bool>>,
     /// `initial_rafsi* brivla_core` ending strictly before this span.
-    cvcy_core_before: RefCell<HashMap<SpanKey, bool>>,
+    cvcy_core_before: RefCell<MemoMap<SpanKey, bool>>,
     /// Shared with the admission that owns this segmentation.
     ///
-    /// A recognizer loads this flag once at the start of each memoized body.
-    /// `record_*` refuses to insert after the flag is set, so a cancelled
-    /// answer is not stored even in this per-call table.
+    /// `record_*` loads it once, immediately before the insert.
     cancellation: CancellationToken,
+    /// Nucleus bits and cmavo answers for this cache's character buffer.
+    ///
+    /// The buffer lives in this field. A recognizer reads those characters
+    /// from this field. It cannot apply these tables to another buffer.
+    char_state: crate::recog_state::CharState,
+    /// Driver flags for this cache.
+    drive: Rc<super::drive::DriveState>,
 }
 
 impl MorphologyRecognitionCache {
-    #[requires(char_count < usize::MAX)]
-    #[ensures(ret.char_count == char_count)]
-    #[ensures(!ret.is_cancelled())]
-    #[ensures(ret.allocated_slots_for_contract() == 0)]
-    pub(crate) fn new(char_count: usize) -> Self {
-        Self::with_cancellation(char_count, CancellationToken::never())
+    /// The character buffer and tables of this cache.
+    #[requires(true)]
+    #[ensures(ret.len() == self.char_count)]
+    pub(crate) fn char_state(&self) -> &crate::recog_state::CharState {
+        &self.char_state
     }
 
-    #[requires(char_count < usize::MAX)]
-    #[ensures(ret.char_count == char_count)]
+    /// The driver flags of this cache.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn drive(&self) -> &Rc<super::drive::DriveState> {
+        &self.drive
+    }
+
+    #[requires(chars.len() < usize::MAX)]
+    #[ensures(ret.char_count == chars.len())]
+    #[ensures(ret.char_state.len() == chars.len())]
+    #[ensures(!ret.is_cancelled())]
     #[ensures(ret.allocated_slots_for_contract() == 0)]
-    pub(crate) fn with_cancellation(char_count: usize, cancellation: CancellationToken) -> Self {
+    pub(crate) fn new(chars: &[char]) -> Self {
+        Self::with_cancellation(chars, CancellationToken::never())
+    }
+
+    #[requires(chars.len() < usize::MAX)]
+    #[ensures(ret.char_count == chars.len())]
+    #[ensures(ret.char_state.len() == chars.len())]
+    #[ensures(ret.allocated_slots_for_contract() == 0)]
+    pub(crate) fn with_cancellation(chars: &[char], cancellation: CancellationToken) -> Self {
+        Self::with_cancellation_rc(Rc::from(chars), cancellation)
+    }
+
+    /// Builds a cache on an existing character buffer.
+    ///
+    /// The cache clones the `Rc` pointer. It does not copy the characters.
+    #[requires(chars.len() < usize::MAX)]
+    #[ensures(ret.char_count == chars.len())]
+    #[ensures(ret.char_state.len() == chars.len())]
+    #[ensures(ret.allocated_slots_for_contract() == 0)]
+    pub(crate) fn with_cancellation_rc(chars: Rc<[char]>, cancellation: CancellationToken) -> Self {
+        let char_count = chars.len();
+        let drive = Rc::new(super::drive::DriveState::new());
+        let char_state = crate::recog_state::CharState::from_rc(Rc::clone(&chars));
         let cache = new!(MorphologyRecognitionCache {
             char_count: char_count,
             accounted: CacheSlotAccount::new(),
             cancellation: cancellation,
-            lujvo_from: RefCell::new(HashMap::new()),
-            cmavo_word: RefCell::new(HashMap::new()),
-            lojban_word: RefCell::new(HashMap::new()),
-            brivla_word: RefCell::new(HashMap::new()),
-            lujvo_slice: RefCell::new(HashMap::new()),
-            fuhivla_shape_y: RefCell::new(HashMap::new()),
-            fuhivla_shape: RefCell::new(HashMap::new()),
-            fuhivla_head_policy: RefCell::new(HashMap::new()),
-            experimental_cgv: RefCell::new(HashMap::new()),
-            fuhivla_head_ends: RefCell::new(HashMap::new()),
-            brivla_head_ends: RefCell::new(HashMap::new()),
-            slinkuhi: RefCell::new(HashMap::new()),
-            rafsi_string_starts: RefCell::new(HashMap::new()),
-            rafsi_string_from: RefCell::new(HashMap::new()),
-            rafsi_string_ending: RefCell::new(HashMap::new()),
-            post_word: RefCell::new(HashMap::new()),
-            cmavo_post_word: RefCell::new(HashMap::new()),
-            initial_rafsi_ends: RefCell::new(HashMap::new()),
-            extended_rafsi_ends: RefCell::new(HashMap::new()),
-            any_extended_rafsi_starts: RefCell::new(HashMap::new()),
-            fuhivla_rafsi_base_ends: RefCell::new(HashMap::new()),
-            stressed_extended_rafsi_ends: RefCell::new(HashMap::new()),
-            nucleus_has_implicit_stress: RefCell::new(HashMap::new()),
-            stress_tail_reaches_boundary: RefCell::new(HashMap::new()),
-            greedy_rafsi_chain: RefCell::new(HashMap::new()),
-            lujvo_part_ranges: RefCell::new(HashMap::new()),
-            nucleus_is_stressed: RefCell::new(HashMap::new()),
-            y_less_rafsi_unstressed: RefCell::new(HashMap::new()),
-            cvv_rafsi_unstressed: RefCell::new(HashMap::new()),
-            prefix_post_word: RefCell::new(HashMap::new()),
-            prefix_lojban_word: RefCell::new(HashMap::new()),
-            cvcy_core_before: RefCell::new(HashMap::new()),
+            char_state: char_state,
+            drive: drive,
+            lujvo_from: RefCell::new(MemoMap::default()),
+            cmavo_word: RefCell::new(MemoMap::default()),
+            lojban_word: RefCell::new(MemoMap::default()),
+            brivla_word: RefCell::new(MemoMap::default()),
+            lujvo_slice: RefCell::new(MemoMap::default()),
+            fuhivla_shape_y: RefCell::new(MemoMap::default()),
+            fuhivla_shape: RefCell::new(MemoMap::default()),
+            fuhivla_head_policy: RefCell::new(MemoMap::default()),
+            experimental_cgv: RefCell::new(MemoMap::default()),
+            fuhivla_head_ends: RefCell::new(MemoMap::default()),
+            brivla_head_ends: RefCell::new(MemoMap::default()),
+            slinkuhi: RefCell::new(MemoMap::default()),
+            rafsi_string_starts: RefCell::new(MemoMap::default()),
+            rafsi_string_from: RefCell::new(MemoMap::default()),
+            rafsi_string_ending: RefCell::new(MemoMap::default()),
+            post_word: RefCell::new(MemoMap::default()),
+            cmavo_post_word: RefCell::new(MemoMap::default()),
+            initial_rafsi_ends: RefCell::new(MemoMap::default()),
+            extended_rafsi_ends: RefCell::new(MemoMap::default()),
+            any_extended_rafsi_starts: RefCell::new(MemoMap::default()),
+            fuhivla_rafsi_base_ends: RefCell::new(MemoMap::default()),
+            stressed_extended_rafsi_ends: RefCell::new(MemoMap::default()),
+            nucleus_has_implicit_stress: RefCell::new(MemoMap::default()),
+            stress_tail_reaches_boundary: RefCell::new(MemoMap::default()),
+            greedy_rafsi_chain: RefCell::new(MemoMap::default()),
+            lujvo_part_ranges: RefCell::new(MemoMap::default()),
+            nucleus_is_stressed: RefCell::new(MemoMap::default()),
+            y_less_rafsi_unstressed: RefCell::new(MemoMap::default()),
+            cvv_rafsi_unstressed: RefCell::new(MemoMap::default()),
+            prefix_post_word: RefCell::new(MemoMap::default()),
+            prefix_lojban_word: RefCell::new(MemoMap::default()),
+            cvcy_core_before: RefCell::new(MemoMap::default()),
         });
         cache.sync_accounted();
         cache
@@ -453,6 +555,102 @@ impl MorphologyRecognitionCache {
     #[ensures(true)]
     pub(crate) fn is_cancelled(&self) -> bool {
         self.cancellation.is_cancelled()
+    }
+
+    /// Insert `value` when the token is still clear.
+    ///
+    /// This is the one cancel load on the store path. A cancel that arrives
+    /// during the insert leaves a result that was already complete.
+    #[inline]
+    #[requires(true)]
+    #[ensures(true)]
+    fn commit_copied<K, V>(&self, table: &RefCell<MemoMap<K, V>>, key: K, value: V)
+    where
+        K: Copy + Eq + std::hash::Hash,
+    {
+        if self.cancellation.is_cancelled() {
+            return;
+        }
+        table.borrow_mut().insert(key, value);
+        #[cfg(test)]
+        count_recognition_body();
+        self.sync_accounted();
+    }
+
+    #[inline]
+    #[requires(start <= end)]
+    #[ensures(true)]
+    fn commit_span(
+        &self,
+        table: &RefCell<MemoMap<SpanKey, bool>>,
+        start: usize,
+        end: usize,
+        value: bool,
+    ) {
+        let key = new!(SpanKey {
+            start: start,
+            end: end,
+        });
+        self.commit_copied(table, key, value);
+    }
+
+    #[inline]
+    #[requires(start <= end && end <= context_end)]
+    #[ensures(true)]
+    fn commit_stress(
+        &self,
+        table: &RefCell<MemoMap<StressContextKey, bool>>,
+        start: usize,
+        end: usize,
+        context_end: usize,
+        value: bool,
+    ) {
+        let key = new!(StressContextKey {
+            start: start,
+            end: end,
+            context_end: context_end,
+        });
+        self.commit_copied(table, key, value);
+    }
+
+    #[inline]
+    #[requires(start <= end)]
+    #[ensures(ret.len() == value.len())]
+    fn commit_ends(
+        &self,
+        table: &RefCell<MemoMap<SpanKey, Rc<[usize]>>>,
+        start: usize,
+        end: usize,
+        value: &[usize],
+    ) -> Rc<[usize]> {
+        let stored = Rc::<[usize]>::from(value);
+        let key = new!(SpanKey {
+            start: start,
+            end: end,
+        });
+        self.commit_copied(table, key, Rc::clone(&stored));
+        stored
+    }
+
+    #[inline]
+    #[requires(start <= end && end <= lookahead_end)]
+    #[ensures(ret.len() == value.len())]
+    fn commit_lookahead_ends(
+        &self,
+        table: &RefCell<MemoMap<LookaheadKey, Rc<[usize]>>>,
+        start: usize,
+        end: usize,
+        lookahead_end: usize,
+        value: &[usize],
+    ) -> Rc<[usize]> {
+        let stored = Rc::<[usize]>::from(value);
+        let key = new!(LookaheadKey {
+            start: start,
+            end: end,
+            lookahead_end: lookahead_end,
+        });
+        self.commit_copied(table, key, Rc::clone(&stored));
+        stored
     }
 
     #[requires(true)]
@@ -483,7 +681,7 @@ impl MorphologyRecognitionCache {
     fn total_capacity(&self) -> u64 {
         #[requires(true)]
         #[ensures(ret == u64::try_from(table.borrow().capacity()).unwrap_or(u64::MAX))]
-        fn slots<K, V>(table: &RefCell<HashMap<K, V>>) -> u64 {
+        fn slots<K, V>(table: &RefCell<MemoMap<K, V>>) -> u64 {
             u64::try_from(table.borrow().capacity()).unwrap_or(u64::MAX)
         }
         slots(&self.lujvo_from)
@@ -560,17 +758,12 @@ impl MorphologyRecognitionCache {
         has_initial_rafsi: bool,
         result: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
         let key = new!(InitialRafsiKey {
             start: index,
             end: end,
             has_initial_rafsi: has_initial_rafsi,
         });
-        self.lujvo_from.borrow_mut().insert(key, result);
-        self.sync_accounted();
+        self.commit_copied(&self.lujvo_from, key, result);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -582,12 +775,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.cmavo_word(start, end) == Some(value))]
     pub(crate) fn record_cmavo_word(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.cmavo_word, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.cmavo_word, start, end, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -599,12 +787,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.lojban_word(start, end) == Some(value))]
     pub(crate) fn record_lojban_word(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.lojban_word, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.lojban_word, start, end, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -616,12 +799,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.brivla_word(start, end) == Some(value))]
     pub(crate) fn record_brivla_word(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.brivla_word, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.brivla_word, start, end, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -633,12 +811,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.lujvo_slice(start, end) == Some(value))]
     pub(crate) fn record_lujvo_slice(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.lujvo_slice, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.lujvo_slice, start, end, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -661,17 +834,12 @@ impl MorphologyRecognitionCache {
         allows_y: bool,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
         let key = new!(YPolicyKey {
             start: start,
             end: end,
             allows_y: allows_y,
         });
-        self.fuhivla_shape_y.borrow_mut().insert(key, value);
-        self.sync_accounted();
+        self.commit_copied(&self.fuhivla_shape_y, key, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -683,12 +851,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.fuhivla_shape(start, end) == Some(value))]
     pub(crate) fn record_fuhivla_shape(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.fuhivla_shape, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.fuhivla_shape, start, end, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -716,17 +879,12 @@ impl MorphologyRecognitionCache {
         policy: FuhivlaHeadPolicy,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
         let key = new!(FuhivlaHeadKey {
             start: start,
             end: end,
             policy: policy,
         });
-        self.fuhivla_head_policy.borrow_mut().insert(key, value);
-        self.sync_accounted();
+        self.commit_copied(&self.fuhivla_head_policy, key, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -738,12 +896,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.experimental_cgv(start, end) == Some(value))]
     pub(crate) fn record_experimental_cgv(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.experimental_cgv, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.experimental_cgv, start, end, value);
     }
 
     #[requires(index <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
@@ -766,14 +919,8 @@ impl MorphologyRecognitionCache {
         lookahead_end: usize,
         value: &[usize],
     ) -> Rc<[usize]> {
-        if self.is_cancelled() {
-            // Do not store a head list for a cancelled recognition.
-            return Rc::from(value);
-        }
-        note_recognition_body();
-        let stored = lookahead_head_set(&self.fuhivla_head_ends, index, end, lookahead_end, value);
-        self.sync_accounted();
-        stored
+        // Do not store a head list for a cancelled recognition.
+        self.commit_lookahead_ends(&self.fuhivla_head_ends, index, end, lookahead_end, value)
     }
 
     /// Store `ends` itself. The fu'ivla miss path that copies a brivla head
@@ -788,20 +935,12 @@ impl MorphologyRecognitionCache {
         lookahead_end: usize,
         ends: Rc<[usize]>,
     ) -> Rc<[usize]> {
-        if self.is_cancelled() {
-            // Hand the list back without putting it in the table.
-            return Rc::clone(&ends);
-        }
-        note_recognition_body();
         let key = new!(LookaheadKey {
             start: index,
             end: end,
             lookahead_end: lookahead_end,
         });
-        self.fuhivla_head_ends
-            .borrow_mut()
-            .insert(key, Rc::clone(&ends));
-        self.sync_accounted();
+        self.commit_copied(&self.fuhivla_head_ends, key, Rc::clone(&ends));
         Rc::clone(&ends)
     }
 
@@ -825,13 +964,7 @@ impl MorphologyRecognitionCache {
         lookahead_end: usize,
         value: &[usize],
     ) -> Rc<[usize]> {
-        if self.is_cancelled() {
-            return Rc::from(value);
-        }
-        note_recognition_body();
-        let stored = lookahead_head_set(&self.brivla_head_ends, index, end, lookahead_end, value);
-        self.sync_accounted();
-        stored
+        self.commit_lookahead_ends(&self.brivla_head_ends, index, end, lookahead_end, value)
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -843,12 +976,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.slinkuhi(start, end) == Some(value))]
     pub(crate) fn record_slinkuhi(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.slinkuhi, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.slinkuhi, start, end, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -860,12 +988,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.rafsi_string_starts(start, end) == Some(value))]
     pub(crate) fn record_rafsi_string_starts(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.rafsi_string_starts, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.rafsi_string_starts, start, end, value);
     }
 
     #[requires(start <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
@@ -893,17 +1016,12 @@ impl MorphologyRecognitionCache {
         lookahead_end: usize,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
         let key = new!(LookaheadKey {
             start: start,
             end: end,
             lookahead_end: lookahead_end,
         });
-        self.rafsi_string_from.borrow_mut().insert(key, value);
-        self.sync_accounted();
+        self.commit_copied(&self.rafsi_string_from, key, value);
     }
 
     #[requires(start <= end && end <= lookahead_end && lookahead_end <= self.char_count)]
@@ -931,17 +1049,12 @@ impl MorphologyRecognitionCache {
         lookahead_end: usize,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
         let key = new!(LookaheadKey {
             start: start,
             end: end,
             lookahead_end: lookahead_end,
         });
-        self.rafsi_string_ending.borrow_mut().insert(key, value);
-        self.sync_accounted();
+        self.commit_copied(&self.rafsi_string_ending, key, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -953,12 +1066,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.post_word(index, end) == Some(value))]
     pub(crate) fn record_post_word(&self, index: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.post_word, index, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.post_word, index, end, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -970,12 +1078,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.prefix_post_word(index, end) == Some(value))]
     pub(crate) fn record_prefix_post_word(&self, index: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.prefix_post_word, index, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.prefix_post_word, index, end, value);
     }
 
     #[requires(start <= end && end <= self.char_count)]
@@ -987,12 +1090,7 @@ impl MorphologyRecognitionCache {
     #[requires(start <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.prefix_lojban_word(start, end) == Some(value))]
     pub(crate) fn record_prefix_lojban_word(&self, start: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.prefix_lojban_word, start, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.prefix_lojban_word, start, end, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -1004,12 +1102,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.cvcy_core_before(index, end) == Some(value))]
     pub(crate) fn record_cvcy_core_before(&self, index: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.cvcy_core_before, index, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.cvcy_core_before, index, end, value);
     }
 
     #[requires(prefix_start <= prefix_end && prefix_end <= end && end <= self.char_count)]
@@ -1037,17 +1130,12 @@ impl MorphologyRecognitionCache {
         end: usize,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
         let key = new!(PrefixEndKey {
             prefix_start: prefix_start,
             prefix_end: prefix_end,
             end: end,
         });
-        self.cmavo_post_word.borrow_mut().insert(key, value);
-        self.sync_accounted();
+        self.commit_copied(&self.cmavo_post_word, key, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -1059,12 +1147,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.initial_rafsi_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
     pub(crate) fn record_initial_rafsi_ends(&self, index: usize, end: usize, value: &[usize]) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        head_set(&self.initial_rafsi_ends, index, end, value);
-        self.sync_accounted();
+        let _stored = self.commit_ends(&self.initial_rafsi_ends, index, end, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -1076,12 +1159,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.extended_rafsi_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
     pub(crate) fn record_extended_rafsi_ends(&self, index: usize, end: usize, value: &[usize]) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        head_set(&self.extended_rafsi_ends, index, end, value);
-        self.sync_accounted();
+        let _stored = self.commit_ends(&self.extended_rafsi_ends, index, end, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -1093,12 +1171,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.any_extended_rafsi_starts(index, end) == Some(value))]
     pub(crate) fn record_any_extended_rafsi_starts(&self, index: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.any_extended_rafsi_starts, index, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.any_extended_rafsi_starts, index, end, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -1110,12 +1183,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.fuhivla_rafsi_base_ends(index, end).is_some_and(|ends| ends.len() == value.len()))]
     pub(crate) fn record_fuhivla_rafsi_base_ends(&self, index: usize, end: usize, value: &[usize]) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        head_set(&self.fuhivla_rafsi_base_ends, index, end, value);
-        self.sync_accounted();
+        let _stored = self.commit_ends(&self.fuhivla_rafsi_base_ends, index, end, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -1141,12 +1209,7 @@ impl MorphologyRecognitionCache {
         end: usize,
         value: &[usize],
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        head_set(&self.stressed_extended_rafsi_ends, index, end, value);
-        self.sync_accounted();
+        let _stored = self.commit_ends(&self.stressed_extended_rafsi_ends, index, end, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -1158,12 +1221,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(self.is_cancelled() || self.nucleus_has_implicit_stress(index, end) == Some(value))]
     pub(crate) fn record_nucleus_has_implicit_stress(&self, index: usize, end: usize, value: bool) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.nucleus_has_implicit_stress, index, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.nucleus_has_implicit_stress, index, end, value);
     }
 
     #[requires(index <= end && end <= self.char_count)]
@@ -1180,12 +1238,7 @@ impl MorphologyRecognitionCache {
         end: usize,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        span_set(&self.stress_tail_reaches_boundary, index, end, value);
-        self.sync_accounted();
+        self.commit_span(&self.stress_tail_reaches_boundary, index, end, value);
     }
 
     #[requires(start <= lookahead_end && lookahead_end <= self.char_count)]
@@ -1212,18 +1265,12 @@ impl MorphologyRecognitionCache {
         lookahead_end: usize,
         value: &[usize],
     ) -> Rc<[usize]> {
-        if self.is_cancelled() {
-            return Rc::from(value);
-        }
-        note_recognition_body();
-        let stored = head_set(&self.greedy_rafsi_chain, start, lookahead_end, value);
-        self.sync_accounted();
-        stored
+        self.commit_ends(&self.greedy_rafsi_chain, start, lookahead_end, value)
     }
 
     #[requires(index <= end && end <= self.char_count)]
     #[ensures(true)]
-    pub(super) fn lujvo_part_ranges(
+    pub(crate) fn lujvo_part_ranges(
         &self,
         index: usize,
         end: usize,
@@ -1240,7 +1287,7 @@ impl MorphologyRecognitionCache {
     #[requires(index <= end && end <= self.char_count)]
     #[requires(ranges.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
     #[ensures(self.is_cancelled() || self.lujvo_part_ranges(index, end, has_initial_rafsi).is_some())]
-    pub(super) fn record_lujvo_part_ranges(
+    pub(crate) fn record_lujvo_part_ranges(
         &self,
         index: usize,
         end: usize,
@@ -1248,10 +1295,6 @@ impl MorphologyRecognitionCache {
         ranges: Option<Rc<[LujvoPartRange]>>,
         failure: Option<LujvoParseFailure>,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
         let key = new!(InitialRafsiKey {
             start: index,
             end: end,
@@ -1261,8 +1304,7 @@ impl MorphologyRecognitionCache {
             ranges: ranges,
             failure: failure,
         });
-        self.lujvo_part_ranges.borrow_mut().insert(key, memo);
-        self.sync_accounted();
+        self.commit_copied(&self.lujvo_part_ranges, key, memo);
     }
 
     #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
@@ -1285,12 +1327,7 @@ impl MorphologyRecognitionCache {
         context_end: usize,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        stress_set(&self.nucleus_is_stressed, start, end, context_end, value);
-        self.sync_accounted();
+        self.commit_stress(&self.nucleus_is_stressed, start, end, context_end, value);
     }
 
     #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
@@ -1313,18 +1350,13 @@ impl MorphologyRecognitionCache {
         context_end: usize,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        stress_set(
+        self.commit_stress(
             &self.y_less_rafsi_unstressed,
             start,
             end,
             context_end,
             value,
         );
-        self.sync_accounted();
     }
 
     #[requires(start <= end && end <= context_end && context_end <= self.char_count)]
@@ -1347,12 +1379,7 @@ impl MorphologyRecognitionCache {
         context_end: usize,
         value: bool,
     ) {
-        if self.is_cancelled() {
-            return;
-        }
-        note_recognition_body();
-        stress_set(&self.cvv_rafsi_unstressed, start, end, context_end, value);
-        self.sync_accounted();
+        self.commit_stress(&self.cvv_rafsi_unstressed, start, end, context_end, value);
     }
 }
 
@@ -1392,7 +1419,7 @@ impl Drop for CacheSlotAccount {
 
 #[requires(start <= end)]
 #[ensures(true)]
-fn span_get(table: &RefCell<HashMap<SpanKey, bool>>, start: usize, end: usize) -> Option<bool> {
+fn span_get(table: &RefCell<MemoMap<SpanKey, bool>>, start: usize, end: usize) -> Option<bool> {
     let key = new!(SpanKey {
         start: start,
         end: end,
@@ -1403,7 +1430,7 @@ fn span_get(table: &RefCell<HashMap<SpanKey, bool>>, start: usize, end: usize) -
 #[requires(start <= end && end <= context_end)]
 #[ensures(true)]
 fn stress_get(
-    table: &RefCell<HashMap<StressContextKey, bool>>,
+    table: &RefCell<MemoMap<StressContextKey, bool>>,
     start: usize,
     end: usize,
     context_end: usize,
@@ -1416,37 +1443,10 @@ fn stress_get(
     table.borrow().get(&key).copied()
 }
 
-#[requires(start <= end && end <= context_end)]
-#[ensures(stress_get(table, start, end, context_end) == Some(value))]
-fn stress_set(
-    table: &RefCell<HashMap<StressContextKey, bool>>,
-    start: usize,
-    end: usize,
-    context_end: usize,
-    value: bool,
-) {
-    let key = new!(StressContextKey {
-        start: start,
-        end: end,
-        context_end: context_end,
-    });
-    table.borrow_mut().insert(key, value);
-}
-
-#[requires(start <= end)]
-#[ensures(span_get(table, start, end) == Some(value))]
-fn span_set(table: &RefCell<HashMap<SpanKey, bool>>, start: usize, end: usize, value: bool) {
-    let key = new!(SpanKey {
-        start: start,
-        end: end,
-    });
-    table.borrow_mut().insert(key, value);
-}
-
 #[requires(start <= end)]
 #[ensures(true)]
 fn head_get(
-    table: &RefCell<HashMap<SpanKey, Rc<[usize]>>>,
+    table: &RefCell<MemoMap<SpanKey, Rc<[usize]>>>,
     start: usize,
     end: usize,
 ) -> Option<Rc<[usize]>> {
@@ -1455,29 +1455,12 @@ fn head_get(
         end: end,
     });
     table.borrow().get(&key).cloned()
-}
-
-#[requires(start <= end)]
-#[ensures(head_get(table, start, end).is_some_and(|ends| ends.len() == value.len()))]
-fn head_set(
-    table: &RefCell<HashMap<SpanKey, Rc<[usize]>>>,
-    start: usize,
-    end: usize,
-    value: &[usize],
-) -> Rc<[usize]> {
-    let stored = Rc::<[usize]>::from(value);
-    let key = new!(SpanKey {
-        start: start,
-        end: end,
-    });
-    table.borrow_mut().insert(key, Rc::clone(&stored));
-    stored
 }
 
 #[requires(start <= end && end <= lookahead_end)]
 #[ensures(true)]
 fn lookahead_head_get(
-    table: &RefCell<HashMap<LookaheadKey, Rc<[usize]>>>,
+    table: &RefCell<MemoMap<LookaheadKey, Rc<[usize]>>>,
     start: usize,
     end: usize,
     lookahead_end: usize,
@@ -1490,21 +1473,112 @@ fn lookahead_head_get(
     table.borrow().get(&key).cloned()
 }
 
-#[requires(start <= end && end <= lookahead_end)]
-#[ensures(lookahead_head_get(table, start, end, lookahead_end).is_some_and(|ends| ends.len() == value.len()))]
-fn lookahead_head_set(
-    table: &RefCell<HashMap<LookaheadKey, Rc<[usize]>>>,
-    start: usize,
-    end: usize,
-    lookahead_end: usize,
-    value: &[usize],
-) -> Rc<[usize]> {
-    let stored = Rc::<[usize]>::from(value);
-    let key = new!(LookaheadKey {
-        start: start,
-        end: end,
-        lookahead_end: lookahead_end,
-    });
-    table.borrow_mut().insert(key, Rc::clone(&stored));
-    stored
+#[cfg(test)]
+mod memo_keys {
+    use bityzba::requires;
+
+    use super::MorphologyRecognitionCache;
+    use crate::segment::FuhivlaHeadPolicy;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn cache() -> MorphologyRecognitionCache {
+        let chars: Vec<char> = "abcdef".chars().collect();
+        MorphologyRecognitionCache::new(&chars)
+    }
+
+    /// Each extra key field must miss when only that field changes.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r23_memo_keys_keep_each_varying_input() {
+        let cache = cache();
+        cache.record_lujvo_from(0, 2, true, true);
+        assert_eq!(cache.lujvo_from(0, 2, true), Some(true));
+        assert_eq!(cache.lujvo_from(0, 2, false), None);
+        assert_eq!(cache.lujvo_from(1, 2, true), None);
+        assert_eq!(cache.lujvo_from(0, 3, true), None);
+
+        cache.record_lujvo_part_ranges(0, 2, false, None, None);
+        assert!(cache.lujvo_part_ranges(0, 2, false).is_some());
+        assert!(cache.lujvo_part_ranges(0, 2, true).is_none());
+        assert!(cache.lujvo_part_ranges(1, 2, false).is_none());
+        assert!(cache.lujvo_part_ranges(0, 3, false).is_none());
+
+        cache.record_fuhivla_shape_y(0, 2, true, true);
+        assert_eq!(cache.fuhivla_shape_y(0, 2, true), Some(true));
+        assert_eq!(cache.fuhivla_shape_y(0, 2, false), None);
+        assert_eq!(cache.fuhivla_shape_y(1, 2, true), None);
+        assert_eq!(cache.fuhivla_shape_y(0, 3, true), None);
+
+        cache.record_fuhivla_head_policy(0, 2, FuhivlaHeadPolicy::Standard, true);
+        assert_eq!(
+            cache.fuhivla_head_policy(0, 2, FuhivlaHeadPolicy::Standard),
+            Some(true)
+        );
+        assert_eq!(
+            cache.fuhivla_head_policy(0, 2, FuhivlaHeadPolicy::ExperimentalCgv),
+            None
+        );
+        assert_eq!(
+            cache.fuhivla_head_policy(1, 2, FuhivlaHeadPolicy::Standard),
+            None
+        );
+        assert_eq!(
+            cache.fuhivla_head_policy(0, 3, FuhivlaHeadPolicy::Standard),
+            None
+        );
+
+        cache.record_rafsi_string_from(0, 2, 4, true);
+        assert_eq!(cache.rafsi_string_from(0, 2, 4), Some(true));
+        assert_eq!(cache.rafsi_string_from(0, 2, 6), None);
+        assert_eq!(cache.rafsi_string_from(1, 2, 4), None);
+        assert_eq!(cache.rafsi_string_from(0, 1, 4), None);
+        cache.record_rafsi_string_ending(0, 2, 4, false);
+        assert_eq!(cache.rafsi_string_ending(0, 2, 4), Some(false));
+        assert_eq!(cache.rafsi_string_ending(0, 2, 5), None);
+        assert_eq!(cache.rafsi_string_ending(1, 2, 4), None);
+        assert_eq!(cache.rafsi_string_ending(0, 1, 4), None);
+        let _ = cache.record_fuhivla_head_ends(0, 2, 4, &[]);
+        assert!(cache.fuhivla_head_ends(0, 2, 4).is_some());
+        assert!(cache.fuhivla_head_ends(0, 2, 5).is_none());
+        assert!(cache.fuhivla_head_ends(1, 2, 4).is_none());
+        assert!(cache.fuhivla_head_ends(0, 1, 4).is_none());
+        let _ = cache.record_brivla_head_ends(0, 2, 4, &[1]);
+        assert!(cache.brivla_head_ends(0, 2, 4).is_some());
+        assert!(cache.brivla_head_ends(0, 2, 6).is_none());
+        assert!(cache.brivla_head_ends(1, 2, 4).is_none());
+        assert!(cache.brivla_head_ends(0, 1, 4).is_none());
+
+        cache.record_cmavo_post_word(0, 1, 3, true);
+        assert_eq!(cache.cmavo_post_word(0, 1, 3), Some(true));
+        assert_eq!(cache.cmavo_post_word(0, 2, 3), None);
+        assert_eq!(cache.cmavo_post_word(1, 1, 3), None);
+        assert_eq!(cache.cmavo_post_word(0, 1, 4), None);
+
+        cache.record_nucleus_is_stressed(0, 2, 4, true);
+        assert_eq!(cache.nucleus_is_stressed(0, 2, 4), Some(true));
+        assert_eq!(cache.nucleus_is_stressed(0, 2, 5), None);
+        assert_eq!(cache.nucleus_is_stressed(1, 2, 4), None);
+        assert_eq!(cache.nucleus_is_stressed(0, 1, 4), None);
+        cache.record_y_less_rafsi_unstressed(0, 2, 4, false);
+        assert_eq!(cache.y_less_rafsi_unstressed(0, 2, 4), Some(false));
+        assert_eq!(cache.y_less_rafsi_unstressed(0, 2, 6), None);
+        assert_eq!(cache.y_less_rafsi_unstressed(1, 2, 4), None);
+        assert_eq!(cache.y_less_rafsi_unstressed(0, 1, 4), None);
+        cache.record_cvv_rafsi_unstressed(0, 2, 4, true);
+        assert_eq!(cache.cvv_rafsi_unstressed(0, 2, 4), Some(true));
+        assert_eq!(cache.cvv_rafsi_unstressed(0, 2, 3), None);
+        assert_eq!(cache.cvv_rafsi_unstressed(1, 2, 4), None);
+        assert_eq!(cache.cvv_rafsi_unstressed(0, 1, 4), None);
+
+        cache.record_cmavo_word(0, 2, true);
+        assert_eq!(cache.cmavo_word(0, 2), Some(true));
+        assert_eq!(cache.cmavo_word(0, 3), None);
+        assert_eq!(cache.cmavo_word(1, 2), None);
+        cache.record_initial_rafsi_ends(0, 2, &[1]);
+        assert!(cache.initial_rafsi_ends(0, 2).is_some());
+        assert!(cache.initial_rafsi_ends(0, 3).is_none());
+        assert!(cache.initial_rafsi_ends(1, 2).is_none());
+    }
 }

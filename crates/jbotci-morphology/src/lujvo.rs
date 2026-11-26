@@ -234,6 +234,29 @@ pub fn choose_best_lujvo_candidate_from_parts(
     choose_best_candidate_from_parts(mode, choices, &mut Vec::new(), None, cancellation)
 }
 
+/// One choice group, or the empty tail after the last group.
+///
+/// `groups` is the tail that this frame still has to try. `index` is the
+/// next option in the first group of that tail. `pushed` means that option
+/// is already on `selected` and its child tail has run.
+/// An empty tail keeps index 0 and `pushed` clear. A pushed frame names a real option.
+#[invariant(choose_frame_fits(groups, *index, *pushed))]
+struct ChooseFrame<'a> {
+    groups: &'a [Vec<LujvoBuildPart>],
+    index: usize,
+    best: Option<LujvoCandidate>,
+    pushed: bool,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn choose_frame_fits(groups: &&[Vec<LujvoBuildPart>], index: usize, pushed: bool) -> bool {
+    let Some(options) = groups.first() else {
+        return index == 0 && !pushed;
+    };
+    index <= options.len() && (!pushed || index < options.len())
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn choose_best_candidate_from_parts<'a>(
@@ -243,30 +266,81 @@ fn choose_best_candidate_from_parts<'a>(
     best: Option<LujvoCandidate>,
     cancellation: &CancellationToken,
 ) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
-    let Some((next_choices, rest)) = choices.split_first() else {
-        let Some(bonded) = bond_lujvo_build_part_refs(selected) else {
-            return Ok(best);
-        };
-        let word = bonded.concat();
-        let candidate = new!(LujvoCandidate {
-            score: lujvo_score(&bonded),
-            parts: bonded,
-            word,
-        });
-        if mode == LujvoBuildMode::Lujvo && !is_valid_lujvo_candidate(&candidate, cancellation)? {
-            return Ok(best);
+    // One native frame per group overflows a 160 KiB stack at 81 groups.
+    // The vector keeps the same left-to-right order. A child frame is pushed
+    // before the parent resumes, so the child is the frame the loop pops.
+    let mut frames = vec![new!(ChooseFrame {
+        groups: choices,
+        index: 0,
+        best,
+        pushed: false,
+    })];
+    loop {
+        let mut data = frames.pop().expect("choice frame").into_data();
+        if data.groups.is_empty() {
+            let carried = data.best.take();
+            let leaf = choose_finished_candidate(mode, selected, carried, cancellation)?;
+            if frames.is_empty() {
+                return Ok(leaf);
+            }
+            let parent = frames.pop().expect("parent frame");
+            frames.push(parent.with_data(data! { best: leaf }));
+            continue;
         }
-        return Ok(Some(select_better_candidate(best, candidate)));
-    };
-
-    let mut current_best = best;
-    for choice in next_choices {
-        selected.push(choice);
-        current_best =
-            choose_best_candidate_from_parts(mode, rest, selected, current_best, cancellation)?;
-        selected.pop();
+        let options_len = data.groups[0].len();
+        if data.index >= options_len {
+            let done = data.best;
+            if frames.is_empty() {
+                return Ok(done);
+            }
+            let parent = frames.pop().expect("parent frame");
+            frames.push(parent.with_data(data! { best: done }));
+            continue;
+        }
+        if data.pushed {
+            selected.pop();
+            data.pushed = false;
+            data.index += 1;
+            frames.push(ChooseFrame::from_data(data));
+            continue;
+        }
+        let groups = data.groups;
+        let index = data.index;
+        selected.push(&groups[0][index]);
+        let child_best = data.best.take();
+        data.pushed = true;
+        let child_groups = &groups[1..];
+        frames.push(ChooseFrame::from_data(data));
+        frames.push(new!(ChooseFrame {
+            groups: child_groups,
+            index: 0,
+            best: child_best,
+            pushed: false,
+        }));
     }
-    Ok(current_best)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn choose_finished_candidate(
+    mode: LujvoBuildMode,
+    selected: &[&LujvoBuildPart],
+    best: Option<LujvoCandidate>,
+    cancellation: &CancellationToken,
+) -> Result<Option<LujvoCandidate>, crate::MorphologyError> {
+    let Some(bonded) = bond_lujvo_build_part_refs(selected) else {
+        return Ok(best);
+    };
+    let word = bonded.concat();
+    let candidate = new!(LujvoCandidate {
+        score: lujvo_score(&bonded),
+        parts: bonded,
+        word,
+    });
+    if mode == LujvoBuildMode::Lujvo && !is_valid_lujvo_candidate(&candidate, cancellation)? {
+        return Ok(best);
+    }
+    Ok(Some(select_better_candidate(best, candidate)))
 }
 
 #[requires(true)]
@@ -1006,5 +1080,21 @@ mod tests {
         // dictionary lists still yields its short rafsi.
         assert_eq!(GismuShape::classify("toldu"), Some(GismuShape::Cvccv));
         assert_eq!(short_rafsi_spellings("toldu"), vec!["to'u", "tod", "tol"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_pushed_frame_over_an_empty_group_is_rejected() {
+        let groups = [Vec::<LujvoBuildPart>::new()];
+        assert!(
+            try_new!(ChooseFrame {
+                groups: &groups,
+                index: 0,
+                best: None,
+                pushed: true,
+            })
+            .is_err()
+        );
     }
 }

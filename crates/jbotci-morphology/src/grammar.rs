@@ -1,5 +1,6 @@
+#[cfg(test)]
+use std::cell::Cell;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::rc::Rc;
@@ -14,6 +15,7 @@ use crate::segment::{
     next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_nucleus,
     syllable_has_explicit_stress, text_chars,
 };
+use crate::tree::TreeSlot;
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
     MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
@@ -22,6 +24,28 @@ use crate::{
     ReplacementQuoteWord, Selmaho, Verbatim, Word, WordKind, WordLike, WordLikeData,
     ZoiDelimiterDetailKind, canonical_text_eq, canonicalize_text, morphology_error_recovery_start,
 };
+
+/// One word-start frame on the grammar work stack.
+///
+/// `index` is the source index under evaluation. `holds` counts region
+/// borrows that this frame must release.
+#[invariant(true)]
+#[derive(Clone, Copy)]
+struct GrammarWorkFrame {
+    index: usize,
+    holds: u32,
+}
+
+/// One normalized candidate kept for a work-driver retry.
+///
+/// `start` and `end` are source indexes of the span.
+#[invariant(start <= end)]
+#[derive(Debug, Clone)]
+struct SavedWordNorm {
+    start: usize,
+    end: usize,
+    normalized: Rc<NormalizedCandidate>,
+}
 
 /// One plain word, or `Ok(None)` when the text is not one plain word.
 ///
@@ -36,25 +60,28 @@ pub(crate) fn lex_single_word(
     options: &MorphologyOptions,
 ) -> Result<Option<Word>, MorphologyError> {
     let mut segmenter = Segmenter::new(input, options, None);
-    let word = match segmenter.next_plain_word() {
-        Ok(word) => Some(word),
-        Err(error) if error.is_interrupted() => return Err(error),
-        Err(_) => None,
-    };
-    if options.cancellation.is_cancelled() {
-        return Err(MorphologyError::Interrupted);
-    }
-    let Some(word) = word else {
-        return Ok(None);
-    };
-    segmenter.skip_separators();
-    if segmenter.index != segmenter.chars.len() {
-        return Ok(None);
-    }
-    match word.into_data() {
-        data!(WordLike::PlainWord(word)) => Ok(Some(word)),
-        _ => Ok(None),
-    }
+    let outcome = (|| {
+        let word = match segmenter.next_plain_word() {
+            Ok(word) => Some(word),
+            Err(error) if error.is_interrupted() => return Err(error),
+            Err(_) => None,
+        };
+        if options.cancellation.is_cancelled() {
+            return Err(MorphologyError::Interrupted);
+        }
+        let Some(word) = word else {
+            return Ok(None);
+        };
+        segmenter.skip_separators();
+        if segmenter.index != segmenter.chars.len() {
+            return Ok(None);
+        }
+        match word.into_data() {
+            data!(WordLike::PlainWord(word)) => Ok(Some(word)),
+            _ => Ok(None),
+        }
+    })();
+    outcome
 }
 
 #[requires(true)]
@@ -248,6 +275,14 @@ struct Segmenter<'a> {
     /// opening delimiter word.
     permissive_boundaries_enabled: bool,
     trace: TraceRecorder,
+    /// Grammar-driver flags for this parse.
+    ///
+    /// Each region cache of this parse holds the same `Rc`.
+    /// A nested segmenter builds a new value.
+    flags: Rc<RefCell<crate::recog_state::ParseFlags>>,
+    /// Normalized candidates kept for a work-driver retry.
+    /// An inner drive saves this list and restores it when the drive drops.
+    saved_norms: Rc<RefCell<Vec<SavedWordNorm>>>,
     /// One recognition region for the current unspaced span.
     ///
     /// `lojban_word_starts_at` calls back into this search on the suffix.
@@ -365,6 +400,18 @@ enum RegionFrame {
     PushedDrop,
 }
 
+/// One cmavo shape check, saved for the retry after a block.
+///
+/// `Continue` means the span is not a finished cmavo. The split search still
+/// runs. `Done` is the finished check. A blocked retry reads this value and
+/// does not build the character table again.
+#[invariant(::Done(candidate) => candidate.as_ref().is_none_or(|word| word.end > 0 && !word.phonemes.is_empty()))]
+#[derive(Debug, Clone)]
+enum CmavoPrescan {
+    Continue,
+    Done(Option<StreamingWordCandidate>),
+}
+
 #[invariant(true)]
 #[invariant(::Done(candidate) => candidate.as_ref().is_none_or(|word| word.end > 0 && !word.phonemes.is_empty()))]
 #[derive(Debug, Clone)]
@@ -374,6 +421,9 @@ enum WordStartMemo {
     /// `Some` is a finished word, and that word consumed input.
     Done(Option<StreamingWordCandidate>),
 }
+
+/// The key is a source index. Every build uses the standard map.
+type WordStartMap = std::collections::HashMap<usize, WordStartMemo>;
 
 /// The outermost normalized span and the recognizer cache for its suffixes.
 ///
@@ -396,7 +446,10 @@ struct ActiveWordRegion {
     /// Interior mutability keeps the validated region on the stack.
     /// The wrapper has no mutable field access.
     cache: RefCell<MorphologyRecognitionCache>,
-    memo: RefCell<HashMap<usize, WordStartMemo>>,
+    memo: RefCell<WordStartMap>,
+    /// The cmavo shape check for one source index. A blocked call keeps this
+    /// map. The retry reads it instead of classifying the span again.
+    cmavo_prescan: RefCell<std::collections::HashMap<usize, CmavoPrescan>>,
 }
 
 #[requires(start <= candidate_end)]
@@ -438,6 +491,84 @@ fn shared_stripped_offset(region: &ActiveWordRegion, start: usize) -> usize {
     region.normalized.source_stripped_char_ends[local]
 }
 
+/// Restores one parse's grammar driver. Drop runs on unwind.
+///
+/// A driver is not started while one is active, so eval, block, and the
+/// region hold are empty here. The guard checks that and clears them on
+/// drop. The saved norm list is live. Drop puts that list back.
+#[invariant(true)]
+struct GrammarDriveGuard {
+    flags: Rc<RefCell<crate::recog_state::ParseFlags>>,
+    norms: Rc<RefCell<Vec<SavedWordNorm>>>,
+    saved_norms: Vec<SavedWordNorm>,
+}
+
+impl GrammarDriveGuard {
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter(
+        flags: Rc<RefCell<crate::recog_state::ParseFlags>>,
+        norms: Rc<RefCell<Vec<SavedWordNorm>>>,
+    ) -> Self {
+        {
+            let flags = flags.borrow();
+            flags.enter_driver();
+            assert!(
+                flags.take_eval().is_none(),
+                "grammar driver started during a grammar evaluation"
+            );
+            assert!(
+                flags.take_block().is_none(),
+                "grammar driver started during a grammar block"
+            );
+            assert_eq!(
+                flags.region_hold(),
+                0,
+                "grammar driver started during a region hold"
+            );
+            flags.set_region_hold(0);
+        }
+        let saved_norms = std::mem::take(&mut *norms.borrow_mut());
+        Self {
+            flags,
+            norms,
+            saved_norms,
+        }
+    }
+}
+
+impl Drop for GrammarDriveGuard {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        {
+            let flags = self.flags.borrow();
+            flags.set_eval(None);
+            let _ = flags.take_block();
+            flags.set_region_hold(0);
+            flags.leave_driver();
+        }
+        let inner = std::mem::take(&mut *self.norms.borrow_mut());
+        // The outer list is still in `saved_norms`. Subtract only the inner list.
+        #[cfg(test)]
+        release_saved_word_norms(&inner);
+        drop(inner);
+        *self.norms.borrow_mut() = std::mem::take(&mut self.saved_norms);
+    }
+}
+
+impl Drop for Segmenter<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        #[cfg(test)]
+        {
+            let norms = std::mem::take(&mut *self.saved_norms.borrow_mut());
+            release_saved_word_norms(&norms);
+        }
+    }
+}
+
 impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(ret.index == 0)]
@@ -460,6 +591,8 @@ impl<'a> Segmenter<'a> {
             ignored_probe: None,
             permissive_boundaries_enabled: options.permissive_lexer,
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Morphology),
+            flags: Rc::new(RefCell::new(crate::recog_state::ParseFlags::new())),
+            saved_norms: Rc::new(RefCell::new(Vec::new())),
             word_regions: RefCell::new(Vec::new()),
         }
     }
@@ -470,10 +603,11 @@ impl<'a> Segmenter<'a> {
         self.trace_step(TraceLevel::Top, "morphology", 0, 0, || None);
         let result = self.segment_words();
         self.push_ignored_characters_advice();
-        let trace = self.trace.finish();
+        let warnings = std::mem::take(&mut self.warnings);
+        let trace = std::mem::replace(&mut self.trace, TraceRecorder::default()).finish();
         new!(MorphologySegmentAttempt {
             result,
-            warnings: self.warnings,
+            warnings,
             trace,
         })
     }
@@ -483,7 +617,7 @@ impl<'a> Segmenter<'a> {
     fn segment_recovered_attempt(mut self) -> RecoveredMorphologySegmentAttempt {
         self.trace_step(TraceLevel::Top, "morphology recovered", 0, 0, || None);
         let result = self.segment_words_recovered();
-        let trace = self.trace.finish();
+        let trace = std::mem::replace(&mut self.trace, TraceRecorder::default()).finish();
         new!(RecoveredMorphologySegmentAttempt { result, trace })
     }
 
@@ -493,10 +627,11 @@ impl<'a> Segmenter<'a> {
         self.trace_step(TraceLevel::Top, "morphology display", 0, 0, || None);
         let result = self.segment_display();
         self.push_ignored_characters_advice();
-        let trace = self.trace.finish();
+        let warnings = std::mem::take(&mut self.warnings);
+        let trace = std::mem::replace(&mut self.trace, TraceRecorder::default()).finish();
         new!(MorphologySegmentAttempt {
             result,
-            warnings: self.warnings,
+            warnings,
             trace,
         })
     }
@@ -1138,14 +1273,18 @@ impl<'a> Segmenter<'a> {
         }
         self.skip_separators();
         let start = self.index;
+        // A kept region keeps its own tables. Nothing here clears them.
         let candidate_end = self.candidate_end(start);
         if start == candidate_end {
             return Err(self.invalid_span(MorphologyErrorKind::ExpectedWord, start, start, None));
         }
         let normalized_candidate = self.checked_normalized_candidate(start, candidate_end);
         if let Some(normalized_candidate) = &normalized_candidate
-            && let Some(candidate) =
-                self.streaming_word_candidate(start, candidate_end, normalized_candidate)
+            && let Some(candidate) = crate::segment::drive::ready(self.streaming_word_candidate(
+                start,
+                candidate_end,
+                normalized_candidate,
+            ))
         {
             let data!(StreamingWordCandidate {
                 end,
@@ -1328,13 +1467,14 @@ impl<'a> Segmenter<'a> {
             let data!(StreamingWordCandidate { end, .. }) = candidate.into_data();
             return Some(end);
         }
+        let form_state = crate::recog_state::CharState::new(&normalized.stripped_chars);
         for end in (start + 1)..=candidate_end {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
             let relative_end = end - start;
             if normalized
-                .stripped_cmavo_phonemes(0, relative_end)
+                .stripped_cmavo_phonemes(&form_state, 0, relative_end)
                 .is_none()
             {
                 continue;
@@ -1375,13 +1515,13 @@ impl<'a> Segmenter<'a> {
             return false;
         }
         if self.starts_with_pause_required_nucleus_at(prefix_end) {
-            return self.indicator_cmavo_boundary_ok(
+            return crate::segment::drive::ready(self.indicator_cmavo_boundary_ok(
                 prefix,
                 prefix_start,
                 prefix_end,
                 candidate_end,
                 normalized,
-            );
+            ));
         }
         true
     }
@@ -1409,13 +1549,12 @@ impl<'a> Segmenter<'a> {
                 continue;
             }
             let local_stripped_end = normalized.stripped_end_to_source_end(end - start)?;
-            let normalized_prefix_chars = normalized.normalized_chars_to_source_end(end - start)?;
+            // The char map must cover this end. Classification reads the string.
+            normalized.normalized_chars_to_source_end(end - start)?;
             let classified =
-                self.with_shared_cache(start, normalized, |stripped, offset, cache| {
+                self.with_shared_cache(start, normalized, |_stripped, offset, cache| {
                     crate::segment::classify_word_with_cache(
                         normalized_prefix,
-                        normalized_prefix_chars,
-                        stripped,
                         offset,
                         offset + local_stripped_end,
                         cache,
@@ -1460,46 +1599,61 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|candidate| candidate.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty())) || ret.is_err())]
     fn streaming_word_candidate(
         &self,
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-    ) -> Option<StreamingWordCandidate> {
+    ) -> Result<Option<StreamingWordCandidate>, crate::segment::drive::Blocked> {
         let frame = self.open_word_region(start, candidate_end, normalized);
         if let Some(cached) = self.finished_word_start(start) {
             self.close_word_region(frame);
-            return cached;
+            return Ok(cached);
+        }
+        if self.options.cancellation.is_cancelled() {
+            self.close_word_region(frame);
+            return Ok(None);
         }
         self.mark_word_start_running(start);
         let result = self.streaming_word_candidate_uncached(start, candidate_end, normalized);
+        let Ok(result) = result else {
+            self.clear_word_start(start);
+            // A blocked call is retried. The region holds the recognition
+            // cache and the cmavo shape check. Popping it makes the retry
+            // scan the same span again. A cancelled call is not retried,
+            // so that call drops the region it pushed.
+            if self.options.cancellation.is_cancelled() {
+                self.close_word_region(frame);
+            }
+            return result;
+        };
         // A cancelled search did not prove that this index is not a word.
         // Leave the per-call memo without a Done(None) answer.
         if self.options.cancellation.is_cancelled() {
             self.clear_word_start(start);
             self.close_word_region(frame);
-            return None;
+            return Ok(None);
         }
         self.store_word_start(start, result.clone());
         self.close_word_region(frame);
-        result
+        Ok(result)
     }
 
     #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|candidate| candidate.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty())) || ret.is_err())]
     fn streaming_word_candidate_uncached(
         &self,
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-    ) -> Option<StreamingWordCandidate> {
+    ) -> Result<Option<StreamingWordCandidate>, crate::segment::drive::Blocked> {
         if let Some(candidate) = self.streaming_cmevla_candidate(start, candidate_end, normalized) {
-            return Some(candidate);
+            return Ok(Some(candidate));
         }
-        if let Some(candidate) = self.streaming_cmavo_candidate(start, candidate_end, normalized) {
-            return Some(candidate);
+        if let Some(candidate) = self.streaming_cmavo_candidate(start, candidate_end, normalized)? {
+            return Ok(Some(candidate));
         }
         self.streaming_brivla_candidate(start, candidate_end, normalized)
     }
@@ -1519,6 +1673,27 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> RegionFrame {
+        let resumed = self.word_regions.borrow().last().is_some_and(|region| {
+            region.source_start == start
+                && region.source_end == candidate_end
+                && region_accepts_suffix(
+                    region,
+                    start,
+                    candidate_end,
+                    normalized,
+                    self.permissive_boundaries_enabled,
+                )
+        });
+        if resumed {
+            // This call pushed the region, then blocked. The retry still owns
+            // the pop when a parent region is underneath.
+            let nested = self.word_regions.borrow().len() > 1;
+            return if nested {
+                RegionFrame::PushedDrop
+            } else {
+                RegionFrame::PushedKeep
+            };
+        }
         let reuse = self.word_regions.borrow().last().is_some_and(|region| {
             region_accepts_suffix(
                 region,
@@ -1534,14 +1709,20 @@ impl<'a> Segmenter<'a> {
         // A parent search is still on this stack. Leave its region in place
         // and cover this call with a region that drops when the call returns.
         // Otherwise the previous span is finished, and this call starts a new one.
-        let busy = self.word_regions.borrow().iter().any(|region| {
+        let mut busy = self.word_regions.borrow().iter().any(|region| {
             region
                 .memo
                 .borrow()
                 .values()
                 .any(|state| matches!(state.as_data(), data!(WordStartMemo::Running)))
         });
+        // A suspended word keeps its region until the driver retries it.
+        // An idle check would drop that region and its recognition cache.
+        if self.flags.borrow().region_held() {
+            busy = true;
+        }
         if !busy {
+            // Each region owns its tables. Dropping the vec drops those tables.
             self.word_regions.borrow_mut().clear();
         }
         self.push_word_region(start, candidate_end, normalized);
@@ -1566,8 +1747,8 @@ impl<'a> Segmenter<'a> {
         normalized: &NormalizedCandidate,
     ) {
         let stripped_chars: Rc<[char]> = Rc::from(normalized.stripped_chars.as_slice());
-        let cache = MorphologyRecognitionCache::with_cancellation(
-            stripped_chars.len(),
+        let cache = MorphologyRecognitionCache::with_cancellation_rc(
+            Rc::clone(&stripped_chars),
             self.options.cancellation.clone(),
         );
         let region = new!(ActiveWordRegion {
@@ -1577,7 +1758,8 @@ impl<'a> Segmenter<'a> {
             normalized: normalized.clone(),
             stripped_chars: stripped_chars,
             cache: RefCell::new(cache),
-            memo: RefCell::new(HashMap::new()),
+            memo: RefCell::new(WordStartMap::default()),
+            cmavo_prescan: RefCell::new(std::collections::HashMap::new()),
         });
         self.word_regions.borrow_mut().push(region);
     }
@@ -1617,15 +1799,69 @@ impl<'a> Segmenter<'a> {
             .insert(start, new!(WordStartMemo::Running));
     }
 
+    /// A cancelled call does not replace a finished value.
+    ///
+    /// The cancel load is the last check before the insert. A dummy result
+    /// follows a cancelled load on this same thread, so this load sees it.
+    /// A `Running` mark must not stay. A blocked dependency returns before
+    /// this call, so the grammar index and the segment key are both empty.
     #[requires(true)]
     #[ensures(true)]
+    #[bityzba::expensive_ensures(!self.word_start_is_running(start))]
     fn store_word_start(&self, start: usize, result: Option<StreamingWordCandidate>) {
+        assert!(
+            !self.flags.borrow().blocked(),
+            "word-start memo written while grammar is blocked"
+        );
+        {
+            let regions = self.word_regions.borrow();
+            let region = regions.last().expect("word region");
+            assert!(
+                !crate::segment::drive::dep_blocked(&region.cache.borrow()),
+                "word-start memo written while a dependency is blocked"
+            );
+        }
+        if self.options.cancellation.is_cancelled() {
+            self.drop_running_word_start(start);
+            return;
+        }
         let regions = self.word_regions.borrow();
         let region = regions.last().expect("word region");
         region
             .memo
             .borrow_mut()
             .insert(start, new!(WordStartMemo::Done(result)));
+    }
+
+    /// Remove a `Running` mark. Leave a finished value in place.
+    #[requires(true)]
+    #[ensures(!self.word_start_is_running(start))]
+    fn drop_running_word_start(&self, start: usize) {
+        let regions = self.word_regions.borrow();
+        let Some(region) = regions.last() else {
+            return;
+        };
+        let mut memo = region.memo.borrow_mut();
+        let keep_done = matches!(
+            memo.get(&start).map(WordStartMemo::as_data),
+            Some(data!(WordStartMemo::Done(_)))
+        );
+        if !keep_done {
+            memo.remove(&start);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn word_start_is_running(&self, start: usize) -> bool {
+        let regions = self.word_regions.borrow();
+        let Some(region) = regions.last() else {
+            return false;
+        };
+        matches!(
+            region.memo.borrow().get(&start).map(WordStartMemo::as_data),
+            Some(data!(WordStartMemo::Running))
+        )
     }
 
     /// Drop a Running mark that must not become a stored negative answer.
@@ -1639,35 +1875,55 @@ impl<'a> Segmenter<'a> {
         region.memo.borrow_mut().remove(&start);
     }
 
+    /// The saved cmavo shape check for `start`, when this span already ran it.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recall_cmavo_prescan(&self, start: usize) -> Option<CmavoPrescan> {
+        let regions = self.word_regions.borrow();
+        let region = regions.last()?;
+        region.cmavo_prescan.borrow().get(&start).cloned()
+    }
+
+    /// Save one cmavo shape check on the open region.
+    #[requires(true)]
+    #[ensures(true)]
+    fn store_cmavo_prescan(&self, start: usize, saved: CmavoPrescan) {
+        let regions = self.word_regions.borrow();
+        let region = regions.last().expect("word region");
+        region.cmavo_prescan.borrow_mut().insert(start, saved);
+    }
+
     #[requires(!self.word_regions.borrow().is_empty())]
     #[ensures(true)]
     fn with_shared_cache<R>(
         &self,
         start: usize,
         normalized: &NormalizedCandidate,
-        body: impl FnOnce(&[char], usize, &mut MorphologyRecognitionCache) -> R,
+        body: impl FnOnce(&[char], usize, &MorphologyRecognitionCache) -> R,
     ) -> R {
         let regions = self.word_regions.borrow();
         let region = regions.last().expect("word region");
         let offset = shared_stripped_offset(region, start);
         let stripped = Rc::clone(&region.stripped_chars);
         debug_assert_eq!(&stripped[offset..], normalized.stripped_chars.as_slice());
-        let mut cache = region.cache.borrow_mut();
-        body(&stripped, offset, &mut cache)
+        let cache = region.cache.borrow();
+        // The cache owns this stripped buffer. The closure reads that state.
+        debug_assert_eq!(cache.char_count, stripped.len());
+        body(&stripped, offset, &cache)
     }
 
     #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|candidate| candidate.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty())) || ret.is_err())]
     fn streaming_brivla_candidate(
         &self,
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-    ) -> Option<StreamingWordCandidate> {
+    ) -> Result<Option<StreamingWordCandidate>, crate::segment::drive::Blocked> {
         for end in (start + 1)..=candidate_end {
             if self.options.cancellation.is_cancelled() {
-                return None;
+                return Ok(None);
             }
             let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
                 continue;
@@ -1678,24 +1934,23 @@ impl<'a> Segmenter<'a> {
                 candidate_end,
                 normalized_prefix,
                 normalized,
-            ) {
+            )? {
                 continue;
             }
             let Some(local_stripped_end) = normalized.stripped_end_to_source_end(end - start)
             else {
                 continue;
             };
-            let Some(normalized_prefix_chars) =
-                normalized.normalized_chars_to_source_end(end - start)
-            else {
+            if normalized
+                .normalized_chars_to_source_end(end - start)
+                .is_none()
+            {
                 continue;
-            };
+            }
             let Some((kind, phonemes)) =
-                self.with_shared_cache(start, normalized, |stripped, offset, cache| {
+                self.with_shared_cache(start, normalized, |_stripped, offset, cache| {
                     crate::segment::classify_word_with_cache(
                         normalized_prefix,
-                        normalized_prefix_chars,
-                        stripped,
                         offset,
                         offset + local_stripped_end,
                         cache,
@@ -1707,13 +1962,13 @@ impl<'a> Segmenter<'a> {
             if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
                 continue;
             }
-            return Some(new!(StreamingWordCandidate {
+            return Ok(Some(new!(StreamingWordCandidate {
                 end: end,
                 kind: kind,
                 phonemes: phonemes,
-            }));
+            })));
         }
-        None
+        Ok(None)
     }
 
     #[requires(start < end && end <= candidate_end && candidate_end <= self.chars.len())]
@@ -1725,12 +1980,18 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized_prefix: &str,
         normalized: &NormalizedCandidate,
-    ) -> bool {
+    ) -> Result<bool, crate::segment::drive::Blocked> {
         if has_explicit_brivla_stress(normalized_prefix) {
-            explicit_brivla_stress_is_valid(normalized_prefix)
-                && self.brivla_boundary_ok(start, end, candidate_end, normalized_prefix, normalized)
+            Ok(explicit_brivla_stress_is_valid(normalized_prefix)
+                && self.brivla_boundary_ok(
+                    start,
+                    end,
+                    candidate_end,
+                    normalized_prefix,
+                    normalized,
+                )?)
         } else {
-            self.pause_at(end)
+            Ok(self.pause_at(end))
         }
     }
 
@@ -1743,16 +2004,16 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         prefix: &str,
         normalized: &NormalizedCandidate,
-    ) -> bool {
+    ) -> Result<bool, crate::segment::drive::Blocked> {
         if self.pause_at(end) {
-            return true;
+            return Ok(true);
         }
         let Some(remainder) = normalized.slice_source_range(end - start, candidate_end - start)
         else {
-            return false;
+            return Ok(false);
         };
         if boundary_repeats_diphthong_semivowel(prefix, remainder) {
-            return false;
+            return Ok(false);
         }
         self.post_word_at(end)
     }
@@ -1790,17 +2051,40 @@ impl<'a> Segmenter<'a> {
 
     #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|candidate| candidate.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty())) || ret.is_err())]
     fn streaming_cmavo_candidate(
         &self,
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-    ) -> Option<StreamingWordCandidate> {
+    ) -> Result<Option<StreamingWordCandidate>, crate::segment::drive::Blocked> {
         // The shape check returns before the prefix search. The search is the
         // call that chains to the next word, so it must not keep that frame.
-        if let Some(done) = self.cmavo_candidate_prescan(start, candidate_end, normalized) {
-            return done;
+        // A blocked retry reads the saved check. It does not classify again.
+        match self
+            .recall_cmavo_prescan(start)
+            .as_ref()
+            .map(CmavoPrescan::as_data)
+        {
+            Some(data!(CmavoPrescan::Done(done))) => return Ok(done.clone()),
+            Some(data!(CmavoPrescan::Continue)) => {}
+            None => {
+                match self.cmavo_candidate_prescan(start, candidate_end, normalized) {
+                    None => {
+                        // A cancelled check did not finish the shape. The next
+                        // call classifies the span again.
+                        if !self.options.cancellation.is_cancelled() {
+                            self.store_cmavo_prescan(start, new!(CmavoPrescan::Continue));
+                        }
+                    }
+                    Some(done) => {
+                        if !self.options.cancellation.is_cancelled() {
+                            self.store_cmavo_prescan(start, new!(CmavoPrescan::Done(done.clone())));
+                        }
+                        return Ok(done);
+                    }
+                }
+            }
         }
         self.streaming_cmavo_splits(start, candidate_end, normalized)
     }
@@ -1830,29 +2114,30 @@ impl<'a> Segmenter<'a> {
         else {
             return Some(None);
         };
-        let Some(full_candidate_chars) =
-            normalized.normalized_chars_to_source_end(candidate_end - start)
-        else {
+        if normalized
+            .normalized_chars_to_source_end(candidate_end - start)
+            .is_none()
+        {
             return Some(None);
-        };
-        let blocks_brivla = self.with_shared_cache(start, normalized, |stripped, offset, cache| {
-            crate::segment::starts_with_cvcy_lujvo_chars_with_cache(
-                stripped,
-                offset,
-                offset + local_stripped_end,
-                cache,
-            ) || crate::segment::classify_word_with_cache(
-                full_candidate,
-                full_candidate_chars,
-                stripped,
-                offset,
-                offset + local_stripped_end,
-                cache,
-            )
-            .is_some_and(|(kind, _)| {
-                matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
-            })
-        });
+        }
+        let blocks_brivla =
+            self.with_shared_cache(start, normalized, |_stripped, offset, cache| {
+                crate::segment::drive::ready(
+                    crate::segment::starts_with_cvcy_lujvo_chars_with_cache(
+                        offset,
+                        offset + local_stripped_end,
+                        cache,
+                    ),
+                ) || crate::segment::classify_word_with_cache(
+                    full_candidate,
+                    offset,
+                    offset + local_stripped_end,
+                    cache,
+                )
+                .is_some_and(|(kind, _)| {
+                    matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
+                })
+            });
         if crate::segment::is_cmevla_text(full_candidate) || blocks_brivla {
             return Some(None);
         }
@@ -1863,12 +2148,15 @@ impl<'a> Segmenter<'a> {
             && stripped_prefix
                 .iter()
                 .all(|value| matches!(value, 'y' | 'ý'))
-            && let Some(phonemes) = crate::segment::parse_cmavo_form_with_lookahead(
-                stripped_prefix,
-                0,
-                stripped_prefix.len(),
-                stripped_prefix.len(),
-            )
+            && let Some(phonemes) = {
+                let form_state = crate::recog_state::CharState::new(stripped_prefix);
+                crate::segment::parse_cmavo_form_with_lookahead(
+                    &form_state,
+                    0,
+                    stripped_prefix.len(),
+                    stripped_prefix.len(),
+                )
+            }
         {
             return Some(Some(new!(StreamingWordCandidate {
                 end: candidate_end,
@@ -1881,35 +2169,37 @@ impl<'a> Segmenter<'a> {
 
     #[inline(never)]
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|candidate| candidate.as_ref().is_none_or(|candidate| candidate.end > start && candidate.end <= candidate_end && !candidate.phonemes.is_empty())) || ret.is_err())]
     fn streaming_cmavo_splits(
         &self,
         start: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-    ) -> Option<StreamingWordCandidate> {
+    ) -> Result<Option<StreamingWordCandidate>, crate::segment::drive::Blocked> {
+        let form_state = crate::recog_state::CharState::new(&normalized.stripped_chars);
         for end in (start + 1)..=candidate_end {
             if self.options.cancellation.is_cancelled() {
-                return None;
+                return Ok(None);
             }
             let relative_end = end - start;
             // The cluster after a stressed final nucleus can start in the next word.
-            let Some(phonemes) = normalized.stripped_cmavo_phonemes(0, relative_end) else {
+            let Some(phonemes) = normalized.stripped_cmavo_phonemes(&form_state, 0, relative_end)
+            else {
                 continue;
             };
             let Some(normalized_prefix) = normalized.slice_to_source_end(relative_end) else {
                 continue;
             };
-            if !self.cmavo_boundary_ok(start, end, candidate_end, normalized_prefix, normalized) {
+            if !self.cmavo_boundary_ok(start, end, candidate_end, normalized_prefix, normalized)? {
                 continue;
             }
-            return Some(new!(StreamingWordCandidate {
+            return Ok(Some(new!(StreamingWordCandidate {
                 end: end,
                 kind: WordKind::Cmavo,
                 phonemes: phonemes,
-            }));
+            })));
         }
-        None
+        Ok(None)
     }
 
     #[requires(true)]
@@ -2194,12 +2484,11 @@ impl<'a> Segmenter<'a> {
             if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
                 let end = self.candidate_end(self.index);
                 if self.is_digit_sequence_candidate(self.index, end) {
-                    words.extend(
-                        self.digit_sequence()
-                            .ok()?
-                            .into_iter()
-                            .map(|word| new!(ReplacementQuoteWord { word })),
-                    );
+                    words.extend(self.digit_sequence().ok()?.into_iter().map(|word| {
+                        new!(ReplacementQuoteWord {
+                            word: TreeSlot::new(word)
+                        })
+                    }));
                     continue;
                 }
             }
@@ -2223,11 +2512,11 @@ impl<'a> Segmenter<'a> {
                     return None;
                 }
                 words.push(new!(ReplacementQuoteWord {
-                    word: WordLike::letter(WordLike::bare(word), bu)
+                    word: TreeSlot::new(WordLike::letter(WordLike::bare(word), bu))
                 }));
             } else {
                 words.push(new!(ReplacementQuoteWord {
-                    word: WordLike::bare(word)
+                    word: TreeSlot::new(WordLike::bare(word))
                 }));
             }
         }
@@ -2781,17 +3070,17 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         prefix: &str,
         normalized: &NormalizedCandidate,
-    ) -> bool {
+    ) -> Result<bool, crate::segment::drive::Blocked> {
         if self.pause_at(prefix_end) {
-            return true;
+            return Ok(true);
         }
         let Some(remainder) =
             normalized.slice_source_range(prefix_end - prefix_start, candidate_end - prefix_start)
         else {
-            return false;
+            return Ok(false);
         };
         if boundary_repeats_diphthong_semivowel(prefix, remainder) {
-            return false;
+            return Ok(false);
         }
         let pause_required = self.starts_with_pause_required_nucleus_at(prefix_end);
         if pause_required
@@ -2801,9 +3090,9 @@ impl<'a> Segmenter<'a> {
                 prefix_end,
                 candidate_end,
                 normalized,
-            )
+            )?
         {
-            return false;
+            return Ok(false);
         }
         self.lojban_word_starts_at(prefix_end)
     }
@@ -2817,15 +3106,20 @@ impl<'a> Segmenter<'a> {
         prefix_end: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-    ) -> bool {
-        is_indicator_cmavo_text(prefix)
+    ) -> Result<bool, crate::segment::drive::Blocked> {
+        Ok(is_indicator_cmavo_text(prefix)
             && self.camxes_non_nucleus_word_start_at(
                 prefix_start,
                 prefix_end,
                 candidate_end,
                 normalized,
             )
-            && self.indicator_cmavo_starts_at(prefix_start, prefix_end, candidate_end, normalized)
+            && self.indicator_cmavo_starts_at(
+                prefix_start,
+                prefix_end,
+                candidate_end,
+                normalized,
+            )?)
     }
 
     #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
@@ -2843,7 +3137,10 @@ impl<'a> Segmenter<'a> {
         }
         normalized
             .normalized_chars_source_range(index - prefix_start, candidate_end - prefix_start)
-            .is_some_and(|normalized| !starts_with_nucleus(normalized, 0))
+            .is_some_and(|span| {
+                let sub = crate::recog_state::CharState::new(span);
+                !starts_with_nucleus(&sub, 0)
+            })
     }
 
     #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
@@ -2854,33 +3151,45 @@ impl<'a> Segmenter<'a> {
         index: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
-    ) -> bool {
+    ) -> Result<bool, crate::segment::drive::Blocked> {
         if index >= candidate_end {
-            return false;
+            return Ok(false);
         }
         let relative_start = index - prefix_start;
-        ((index + 1)..=candidate_end).any(|end| {
+        let form_state = crate::recog_state::CharState::new(&normalized.stripped_chars);
+        for end in (index + 1)..=candidate_end {
             let relative_end = end - prefix_start;
-            let Some(phonemes) = normalized.stripped_cmavo_phonemes(relative_start, relative_end)
+            let Some(phonemes) =
+                normalized.stripped_cmavo_phonemes(&form_state, relative_start, relative_end)
             else {
-                return false;
+                continue;
             };
             let Some(normalized_prefix) =
                 normalized.slice_source_range(relative_start, relative_end)
             else {
-                return false;
+                continue;
             };
-            is_indicator_cmavo_text(&phonemes)
-                && self.cmavo_boundary_ok(index, end, candidate_end, normalized_prefix, normalized)
-        })
+            if is_indicator_cmavo_text(&phonemes)
+                && self.cmavo_boundary_ok(
+                    index,
+                    end,
+                    candidate_end,
+                    normalized_prefix,
+                    normalized,
+                )?
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     #[requires(index <= self.chars.len())]
     #[ensures(true)]
-    fn post_word_at(&self, index: usize) -> bool {
-        self.pause_at(index)
+    fn post_word_at(&self, index: usize) -> Result<bool, crate::segment::drive::Blocked> {
+        Ok(self.pause_at(index)
             || (!self.starts_with_pause_required_nucleus_at(index)
-                && self.lojban_word_starts_at(index))
+                && self.lojban_word_starts_at(index)?))
     }
 
     #[requires(index <= self.chars.len())]
@@ -2899,32 +3208,163 @@ impl<'a> Segmenter<'a> {
         }
         let end = self.candidate_end(index);
         self.checked_normalized_slice(index, end)
-            .is_some_and(|normalized| starts_with_nucleus(&text_chars(&normalized), 0))
+            .is_some_and(|normalized| {
+                let chars = text_chars(&normalized);
+                // This text buffer is local to the pause check.
+                let state = crate::recog_state::CharState::new(&chars);
+                starts_with_nucleus(&state, 0)
+            })
     }
 
     #[requires(index <= self.chars.len())]
     #[ensures(true)]
-    fn lojban_word_starts_at(&self, index: usize) -> bool {
-        let recognize = || {
-            if self.options.cancellation.is_cancelled() {
-                return false;
-            }
-            let Some((index, candidate_end, normalized)) = self.normalized_word_start(index) else {
-                return false;
-            };
-            self.streaming_word_candidate(index, candidate_end, &normalized)
-                .is_some()
-        };
-        // One unspaced cmavo chain keeps this call on the stack once per word.
-        // Grow the native stack when less than 64 KiB remains. wasm32 has no
-        // auxiliary stack, so the same call stays on the host stack.
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            return stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
+    fn lojban_word_starts_at_body(
+        &self,
+        index: usize,
+    ) -> Result<bool, crate::segment::drive::Blocked> {
+        if self.options.cancellation.is_cancelled() {
+            return Ok(false);
         }
-        #[cfg(target_arch = "wasm32")]
+        // A retry already normalized this span. The saved candidate is that
+        // result. Building it again walks the whole unspaced text.
+        let start = self.skip_commas_index(index);
+        let candidate_end = self.candidate_end(start);
+        if let Some(saved) = recall_saved_word_norm(&self.saved_norms, start, candidate_end) {
+            return Ok(self
+                .streaming_word_candidate(start, candidate_end, &saved)?
+                .is_some());
+        }
+        let Some((index, candidate_end, normalized)) = self.normalized_word_start(index) else {
+            return Ok(false);
+        };
+        let shared = Rc::new(normalized);
+        remember_saved_word_norm(&self.saved_norms, index, candidate_end, Rc::clone(&shared));
+        Ok(self
+            .streaming_word_candidate(index, candidate_end, &shared)?
+            .is_some())
+    }
+
+    #[requires(index <= self.chars.len())]
+    #[ensures(true)]
+    fn lojban_word_starts_at(&self, index: usize) -> Result<bool, crate::segment::drive::Blocked> {
+        if self.options.cancellation.is_cancelled() {
+            return Ok(false);
+        }
+        if let Some(done) = self.cached_word_bool(index) {
+            return Ok(done);
+        }
+        if let Some(done) = self
+            .flags
+            .borrow()
+            .resolved(index, self.permissive_boundaries_enabled)
         {
-            recognize()
+            return Ok(done);
+        }
+        if self.flags.borrow().in_driver() {
+            if !self.flags.borrow().evaluating(index) {
+                return Err(self.flags.borrow().block_at(index));
+            }
+        } else {
+            return Ok(self.grammar_work_drive(index));
+        }
+        self.lojban_word_starts_at_body(index)
+    }
+
+    #[requires(root <= self.chars.len())]
+    #[ensures(true)]
+    fn grammar_work_drive(&self, root: usize) -> bool {
+        let _drive = GrammarDriveGuard::enter(Rc::clone(&self.flags), Rc::clone(&self.saved_norms));
+        // The stack lists every paused index. A second set would copy that list.
+        let mut stack = vec![GrammarWorkFrame {
+            index: root,
+            holds: 0,
+        }];
+        loop {
+            let Some(key) = stack.last().map(|frame| frame.index) else {
+                break;
+            };
+            if self.options.cancellation.is_cancelled() {
+                break;
+            }
+            if self.cached_word_bool(key).is_some()
+                || self
+                    .flags
+                    .borrow()
+                    .resolved(key, self.permissive_boundaries_enabled)
+                    .is_some()
+            {
+                if let Some(frame) = stack.pop() {
+                    self.flags.borrow().release_region_holds(frame.holds);
+                }
+                continue;
+            }
+            self.flags.borrow().set_eval(Some(key));
+            let _ = self.flags.borrow().take_block();
+            let body = self.lojban_word_starts_at_body(key);
+            self.flags.borrow().set_eval(None);
+            if self.options.cancellation.is_cancelled() {
+                break;
+            }
+            let value = match body {
+                Err(_) => {
+                    let Some(dep) = self.flags.borrow().take_block() else {
+                        panic!("word-start recognition blocked without a source index");
+                    };
+                    let Some(top_index) = stack.last().map(|frame| frame.index) else {
+                        panic!("word-start recognition blocked with an empty work stack");
+                    };
+                    if dep <= top_index {
+                        panic!("word-start recognition re-entered source index {dep}");
+                    }
+                    if let Some(top) = stack.last_mut() {
+                        top.holds = top.holds.saturating_add(1);
+                    }
+                    self.flags.borrow().note_region_hold();
+                    stack.push(GrammarWorkFrame {
+                        index: dep,
+                        holds: 0,
+                    });
+                    continue;
+                }
+                Ok(value) => {
+                    if self.flags.borrow().take_block().is_some() {
+                        panic!("word-start recognition stored a block after a finished answer");
+                    }
+                    value
+                }
+            };
+            if self.cached_word_bool(key).is_none() {
+                self.flags
+                    .borrow()
+                    .note_resolved(key, self.permissive_boundaries_enabled, value);
+            }
+            if let Some(frame) = stack.pop() {
+                self.flags.borrow().release_region_holds(frame.holds);
+            }
+        }
+        while let Some(frame) = stack.pop() {
+            self.flags.borrow().release_region_holds(frame.holds);
+        }
+        self.cached_word_bool(root)
+            .or_else(|| {
+                self.flags
+                    .borrow()
+                    .resolved(root, self.permissive_boundaries_enabled)
+            })
+            .unwrap_or(false)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn cached_word_bool(&self, start: usize) -> Option<bool> {
+        let regions = self.word_regions.borrow();
+        let region = regions.last()?;
+        match region.memo.borrow().get(&start).map(WordStartMemo::as_data) {
+            Some(data!(WordStartMemo::Done(result))) => Some(result.is_some()),
+            Some(data!(WordStartMemo::Running)) => {
+                panic!("word-start recognition re-entered source index {start}")
+            }
+            None => None,
         }
     }
 
@@ -2932,11 +3372,10 @@ impl<'a> Segmenter<'a> {
     ///
     /// A cmavo boundary calls `lojban_word_starts_at` on the next word, and
     /// that call stays on the stack until the rest of the chain resolves.
-    /// One chain of `lo` is one frame per word. The normalizer frame is about
-    /// 10 KB. This function owns that frame and returns before the next word
-    /// is recognized, so the frame does not stay on the chain. wasm32 keeps
-    /// the chain on the host stack. A native target grows the stack in
-    /// `lojban_word_starts_at`.
+    /// One chain of `lo` is one frame per word on the work stack. The
+    /// normalizer frame is about 10 KB. This function owns that frame and
+    /// returns before the next word is recognized, so the frame does not stay
+    /// live across that call.
     #[inline(never)]
     #[requires(index <= self.chars.len())]
     #[ensures(ret.as_ref().is_none_or(|(word_index, candidate_end, candidate)| {
@@ -3462,6 +3901,149 @@ struct NormalizedCandidate {
     source_stripped_char_ends: Vec<usize>,
 }
 
+#[cfg(test)]
+thread_local! {
+    static NORM_LIVE_BYTES: Cell<usize> = const { Cell::new(0) };
+    static NORM_PEAK_BYTES: Cell<usize> = const { Cell::new(0) };
+    static NORM_PEAK_COUNT: Cell<usize> = const { Cell::new(0) };
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn saved_norm_heap_bytes(normalized: &NormalizedCandidate) -> usize {
+    normalized
+        .text
+        .capacity()
+        .saturating_add(
+            normalized
+                .normalized_chars
+                .capacity()
+                .saturating_mul(std::mem::size_of::<char>()),
+        )
+        .saturating_add(
+            normalized
+                .stripped_chars
+                .capacity()
+                .saturating_mul(std::mem::size_of::<char>()),
+        )
+        .saturating_add(
+            normalized
+                .source_text_byte_ends
+                .capacity()
+                .saturating_mul(std::mem::size_of::<usize>()),
+        )
+        .saturating_add(
+            normalized
+                .source_normalized_char_ends
+                .capacity()
+                .saturating_mul(std::mem::size_of::<usize>()),
+        )
+        .saturating_add(
+            normalized
+                .source_stripped_char_ends
+                .capacity()
+                .saturating_mul(std::mem::size_of::<usize>()),
+        )
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn count_saved_word_norm(bytes: usize, count: usize) {
+    NORM_LIVE_BYTES.with(|cell| {
+        let live = cell.get().saturating_add(bytes);
+        cell.set(live);
+        NORM_PEAK_BYTES.with(|peak| {
+            if live > peak.get() {
+                peak.set(live);
+            }
+        });
+    });
+    NORM_PEAK_COUNT.with(|peak| {
+        if count > peak.get() {
+            peak.set(count);
+        }
+    });
+}
+
+/// Drop the high-water mark. A measured parse calls this before it starts.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reset_saved_word_norm_peak() {
+    NORM_PEAK_BYTES.with(|cell| cell.set(0));
+    NORM_PEAK_COUNT.with(|cell| cell.set(0));
+}
+
+/// Peak saved normalized candidates in one parse, and the bytes in their buffers.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn saved_word_norm_peak() -> (usize, usize) {
+    (
+        NORM_PEAK_COUNT.with(|cell| cell.get()),
+        NORM_PEAK_BYTES.with(|cell| cell.get()),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn remember_saved_word_norm(
+    saved: &RefCell<Vec<SavedWordNorm>>,
+    start: usize,
+    end: usize,
+    normalized: Rc<NormalizedCandidate>,
+) {
+    let mut saved = saved.borrow_mut();
+    if saved
+        .iter()
+        .any(|known| known.start == start && known.end == end)
+    {
+        return;
+    }
+    #[cfg(test)]
+    let bytes = saved_norm_heap_bytes(&normalized);
+    saved.push(new!(SavedWordNorm {
+        start: start,
+        end: end,
+        normalized: normalized,
+    }));
+    #[cfg(test)]
+    let count = saved.len();
+    drop(saved);
+    #[cfg(test)]
+    count_saved_word_norm(bytes, count);
+}
+
+/// Subtract the bytes of a list that is about to drop.
+///
+/// The live counter counts candidates that are still stored.
+/// A second parse must not add those bytes on top of a finished parse.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn release_saved_word_norms(norms: &[SavedWordNorm]) {
+    let bytes = norms.iter().fold(0usize, |sum, known| {
+        sum.saturating_add(saved_norm_heap_bytes(&known.normalized))
+    });
+    NORM_LIVE_BYTES.with(|cell| {
+        cell.set(cell.get().saturating_sub(bytes));
+    });
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recall_saved_word_norm(
+    saved: &RefCell<Vec<SavedWordNorm>>,
+    start: usize,
+    end: usize,
+) -> Option<Rc<NormalizedCandidate>> {
+    saved.borrow().iter().find_map(|known| {
+        (known.start == start && known.end == end).then(|| Rc::clone(&known.normalized))
+    })
+}
+
 impl NormalizedCandidate {
     #[requires(source_char_count > 0)]
     #[ensures(ret.source_char_count == source_char_count)]
@@ -3561,13 +4143,14 @@ impl NormalizedCandidate {
     #[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.is_empty()))]
     fn stripped_cmavo_phonemes(
         &self,
+        state: &crate::recog_state::CharState,
         relative_start: usize,
         relative_end: usize,
     ) -> Option<String> {
         let stripped_start = self.stripped_end_to_source_end(relative_start)?;
         let stripped_end = self.stripped_end_to_source_end(relative_end)?;
         crate::segment::parse_cmavo_form_with_lookahead(
-            &self.stripped_chars,
+            state,
             stripped_start,
             stripped_end,
             self.stripped_chars.len(),
@@ -4153,6 +4736,7 @@ fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
 #[ensures(true)]
 pub(crate) fn explicit_brivla_stress_is_valid_chars(chars: &[char]) -> bool {
     // A falling diphthong is one nucleus. An acute on either vowel marks it.
+    // Callers pass a rafsi slice. Its rows must not land in the region table.
     let nuclei = stressable_nucleus_spans(chars);
     let stressed = nuclei
         .iter()
@@ -4170,6 +4754,7 @@ pub(crate) fn explicit_brivla_stress_is_valid_chars(chars: &[char]) -> bool {
 #[requires(true)]
 #[ensures(ret.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
 fn stressable_nucleus_spans(chars: &[char]) -> Vec<Range<usize>> {
+    let state = crate::recog_state::CharState::new(chars);
     let mut spans = Vec::new();
     let mut index = 0;
     while index < chars.len() {
@@ -4177,7 +4762,7 @@ fn stressable_nucleus_spans(chars: &[char]) -> Vec<Range<usize>> {
             index += 1;
             continue;
         }
-        if let Some((stressable, end)) = parse_explicit_stress_nucleus_end(chars, index) {
+        if let Some((stressable, end)) = parse_explicit_stress_nucleus_end(&state, index) {
             if stressable {
                 spans.push(index..end);
             }
@@ -4213,7 +4798,7 @@ mod tests {
     use super::*;
     use crate::LujvoParseExpectation;
     use crate::PhonotacticDetailKind;
-    use bityzba::requires;
+    use bityzba::{new, requires};
 
     #[test]
     #[requires(true)]
@@ -6935,5 +7520,99 @@ mod tests {
             return None;
         };
         detail.as_ref()
+    }
+
+    /// U+2019 stays inside the word after issue 1120.
+    ///
+    /// The character is a Latin apostrophe in every lexer mode. The strict
+    /// entry, the recovered entry, and the display entry accept one zoi quote
+    /// and the following word. The two resolved maps stay separate. The test
+    /// `r23_resolved_keeps_the_permissive_flag` stores one answer in each map.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r23_zoi_permissive_quote_keeps_the_apostrophe_inside_the_word() {
+        let text = "zoi gy x gy,spra\u{2019}eti";
+        let options = MorphologyOptions {
+            permissive_lexer: true,
+            ..MorphologyOptions::default()
+        };
+        let strict =
+            crate::segment_words_with_modifiers_with_options_and_source_id(text, &options, None)
+                .expect("strict parse");
+        assert_apostrophe_zoi(&strict);
+        let recovered = crate::segment_words_with_modifiers_recovered_with_options_and_source_id(
+            text, &options, None,
+        );
+        assert!(
+            recovered.errors.is_empty(),
+            "recovered errors {:?}",
+            recovered.errors
+        );
+        assert_apostrophe_zoi(&recovered.words);
+        let display =
+            crate::segment_words_for_display_with_options_and_source_id(text, &options, None)
+                .expect("display parse");
+        assert_apostrophe_zoi(&display);
+    }
+
+    /// A saved norm for one span must not answer a different span.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r23_saved_norm_keeps_the_span() {
+        let saved = std::cell::RefCell::new(Vec::new());
+        let chars = vec![new!(crate::segment::NormalizedSourceChar {
+            source_start: 0,
+            source_end: 1,
+            source_value: 'a',
+            value: 'a',
+        })];
+        let candidate =
+            std::rc::Rc::new(NormalizedCandidate::from_normalized_source_chars(1, chars));
+        remember_saved_word_norm(&saved, 0, 2, std::rc::Rc::clone(&candidate));
+        assert!(recall_saved_word_norm(&saved, 0, 2).is_some());
+        assert!(recall_saved_word_norm(&saved, 0, 3).is_none());
+        assert!(recall_saved_word_norm(&saved, 1, 2).is_none());
+    }
+
+    /// Two work parses of one unspaced text must report the same saved-norm peak.
+    ///
+    /// `kanyklama` stores no saved norm. Twenty `lo` plus `broda` does.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r23_saved_norm_peak_does_not_grow_across_parses() {
+        let text = format!("{}broda", "lo".repeat(20));
+        crate::grammar::reset_saved_word_norm_peak();
+        let _ = crate::segment_words_with_modifiers(&text);
+        let peak1 = crate::grammar::saved_word_norm_peak();
+        crate::grammar::reset_saved_word_norm_peak();
+        let _ = crate::segment_words_with_modifiers(&text);
+        let peak2 = crate::grammar::saved_word_norm_peak();
+        assert!(peak1.0 > 0, "peak count {peak1:?}");
+        assert_eq!(peak1, peak2);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_apostrophe_zoi(words: &[WordLike]) {
+        assert_eq!(words.len(), 2, "{words:?}");
+        let data!(WordLike::DelimitedNonLojbanQuote {
+            quoted_text,
+            opening_delimiter,
+            closing_delimiter,
+            ..
+        }) = words[0].as_data()
+        else {
+            panic!("expected a zoi quote, got {:?}", words[0]);
+        };
+        assert_eq!(quoted_text.text, "x");
+        assert_eq!(opening_delimiter.phonemes().as_str(), "gy");
+        assert_eq!(closing_delimiter.phonemes().as_str(), "gy");
+        let data!(WordLike::PlainWord(word)) = words[1].as_data() else {
+            panic!("expected the following word, got {:?}", words[1]);
+        };
+        assert_eq!(word.phonemes().as_str(), "spra'éti");
     }
 }

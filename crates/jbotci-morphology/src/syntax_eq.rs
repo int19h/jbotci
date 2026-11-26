@@ -8,6 +8,22 @@ use crate::{Verbatim, Word, WordLike, WordLikeData, folded_lojban_diacritics_eq}
 #[requires(true)]
 #[ensures(true)]
 pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
+    let mut stack = vec![(left, right)];
+    while let Some((left, right)) = stack.pop() {
+        if !syntax_step(&mut stack, left, right) {
+            return false;
+        }
+    }
+    true
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_step<'a>(
+    stack: &mut Vec<(&'a WordLike, &'a WordLike)>,
+    left: &'a WordLike,
+    right: &'a WordLike,
+) -> bool {
     match (left.as_data(), right.as_data()) {
         (data!(WordLike::PlainWord(left)), data!(WordLike::PlainWord(right))) => {
             word_syntax_eq(left, right)
@@ -81,16 +97,20 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 lehai: rc
             }),
         ) => {
-            left.len() == right.len()
-                && word_syntax_eq(lc, rc)
-                && left.iter().zip(right).all(|(l, r)| {
-                    word_syntax_eq(&l.marker, &r.marker)
-                        && l.words.len() == r.words.len()
-                        && l.words
-                            .iter()
-                            .zip(&r.words)
-                            .all(|(l, r)| word_like_syntax_eq(&l.word, &r.word))
-                })
+            if left.len() != right.len() || !word_syntax_eq(lc, rc) {
+                return false;
+            }
+            for (left_run, right_run) in left.iter().zip(right) {
+                if !word_syntax_eq(&left_run.marker, &right_run.marker)
+                    || left_run.words.len() != right_run.words.len()
+                {
+                    return false;
+                }
+                for (left_word, right_word) in left_run.words.iter().zip(&right_run.words) {
+                    stack.push((left_word.word.as_ref(), right_word.word.as_ref()));
+                }
+            }
+            true
         }
         (
             data!(WordLike::DelimitedWordQuote {
@@ -114,7 +134,13 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 base: right_base,
                 bu: right_bu,
             }),
-        ) => word_like_syntax_eq(left_base, right_base) && word_syntax_eq(left_bu, right_bu),
+        ) => {
+            if !word_syntax_eq(left_bu, right_bu) {
+                return false;
+            }
+            stack.push((left_base.as_ref(), right_base.as_ref()));
+            true
+        }
         (
             data!(WordLike::ZeiCompound {
                 left: left_left,
@@ -127,9 +153,11 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 right: right_right,
             }),
         ) => {
-            word_like_syntax_eq(left_left, right_left)
-                && word_syntax_eq(left_zei, right_zei)
-                && word_syntax_eq(left_right, right_right)
+            if !word_syntax_eq(left_zei, right_zei) || !word_syntax_eq(left_right, right_right) {
+                return false;
+            }
+            stack.push((left_left.as_ref(), right_left.as_ref()));
+            true
         }
         _ => false,
     }

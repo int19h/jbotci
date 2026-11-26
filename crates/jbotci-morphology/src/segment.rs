@@ -11,6 +11,9 @@ use crate::{
 
 mod phonotactics;
 mod recognition_cache;
+
+pub(crate) mod drive;
+
 pub use phonotactics::ConsonantPairClass;
 pub(crate) use phonotactics::{
     consonant_pair_class, experimental_permissible_consonant_pair, initial_pair_chars,
@@ -332,14 +335,15 @@ pub(crate) fn first_morphology_violation(
     chars: &[NormalizedSourceChar],
 ) -> Option<MorphologyViolation> {
     let values = normalized_values(chars);
-    let range = invalid_apostrophe_range(&values)
+    let state = crate::recog_state::CharState::new(&values);
+    let range = invalid_apostrophe_range(&state)
         .map(|range| (MorphologyErrorKind::InvalidApostrophe, range))
         .or_else(|| {
             digit_apostrophe_range(&values)
                 .map(|range| (MorphologyErrorKind::DigitApostrophe, range))
         })
         .or_else(|| {
-            digit_followed_by_nucleus_range(&values)
+            digit_followed_by_nucleus_range(&state)
                 .map(|range| (MorphologyErrorKind::DigitVowel, range))
         })
         .or_else(|| {
@@ -350,9 +354,9 @@ pub(crate) fn first_morphology_violation(
             geminated_consonant_range(&values)
                 .map(|range| (MorphologyErrorKind::GeminatedConsonant, range))
         })
-        .or_else(|| y_hiatus_range(&values).map(|range| (MorphologyErrorKind::YHiatus, range)))
+        .or_else(|| y_hiatus_range(&state).map(|range| (MorphologyErrorKind::YHiatus, range)))
         .or_else(|| {
-            vowel_hiatus_range(&values).map(|range| (MorphologyErrorKind::VowelHiatus, range))
+            vowel_hiatus_range(&state).map(|range| (MorphologyErrorKind::VowelHiatus, range))
         })
         .or_else(|| {
             voicing_mismatch_range(&values)
@@ -388,7 +392,8 @@ pub(crate) fn first_morphology_violation(
 #[ensures(ret.as_ref().is_none_or(|range| range.start < range.end))]
 pub(crate) fn cgv_source_range(chars: &[NormalizedSourceChar]) -> Option<SourceRange> {
     let values = normalized_values(chars);
-    cgv_range(&values).and_then(|range| source_range_from_normalized_range(chars, range))
+    let state = crate::recog_state::CharState::new(&values);
+    cgv_range(&state).and_then(|range| source_range_from_normalized_range(chars, range))
 }
 
 #[requires(true)]
@@ -455,39 +460,34 @@ pub(crate) fn classify_word(normalized_word: &str) -> Option<(WordKind, String)>
         return None;
     }
 
-    let normalized_chars = text_chars(normalized_word);
     let stripped_chars = text_chars(&stripped);
-    let mut cache = MorphologyRecognitionCache::new(stripped_chars.len());
-    classify_word_with_cache(
-        normalized_word,
-        &normalized_chars,
-        &stripped_chars,
-        0,
-        stripped_chars.len(),
-        &mut cache,
-    )
+    let cache = MorphologyRecognitionCache::new(&stripped_chars);
+    classify_word_with_cache(normalized_word, 0, stripped_chars.len(), &cache)
 }
 
-#[requires(stripped_start <= stripped_end && stripped_end <= stripped_chars.len())]
-#[requires(cache.char_count == stripped_chars.len())]
+#[requires(stripped_start <= stripped_end && stripped_end <= cache.char_count)]
+#[requires(cache.char_count == cache.char_state().len())]
 #[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 pub(crate) fn classify_word_with_cache(
     normalized_word: &str,
-    normalized_chars: &[char],
-    stripped_chars: &[char],
     stripped_start: usize,
     stripped_end: usize,
-    cache: &mut MorphologyRecognitionCache,
+    cache: &MorphologyRecognitionCache,
 ) -> Option<(WordKind, String)> {
+    let normalized_chars = text_chars(normalized_word);
+    let stripped_chars = cache.char_state().chars_rc();
+
     if cache.is_cancelled() {
         return None;
     }
 
-    let stripped_prefix = &stripped_chars[stripped_start..stripped_end];
+    let stripped_prefix = &stripped_chars.as_ref()[stripped_start..stripped_end];
     if stripped_prefix.is_empty() {
         return None;
     }
-    let blocks_brivla = blocks_word_shape(normalized_chars);
+    // `normalized_chars` is not the cache buffer. Its rows stay off that table.
+    let normalized_state = crate::recog_state::CharState::new(&normalized_chars);
+    let blocks_brivla = blocks_word_shape(&normalized_state);
 
     if !blocks_brivla && is_gismu_chars(stripped_prefix) {
         return Some((
@@ -497,7 +497,11 @@ pub(crate) fn classify_word_with_cache(
     }
 
     if !blocks_brivla
-        && is_lujvo_slice_with_cache(stripped_chars, stripped_start, stripped_end, cache)
+        && drive::ready(is_lujvo_slice_with_cache(
+            stripped_start,
+            stripped_end,
+            cache,
+        ))
     {
         return Some((
             WordKind::Lujvo,
@@ -506,7 +510,11 @@ pub(crate) fn classify_word_with_cache(
     }
 
     if !blocks_brivla
-        && is_fuhivla_shape_slice_with_cache(stripped_chars, stripped_start, stripped_end, cache)
+        && drive::ready(is_fuhivla_shape_slice_with_cache(
+            stripped_start,
+            stripped_end,
+            cache,
+        ))
     {
         return Some((
             WordKind::Fuhivla,
@@ -528,21 +536,22 @@ pub(crate) fn classify_word_with_cache(
 #[ensures(!ret.is_empty() || normalized_word.is_empty())]
 pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     let chars: Vec<char> = normalized_word.chars().collect();
+    let state = crate::recog_state::CharState::new(&chars);
     let mut out = String::new();
     for (index, value) in chars.iter().copied().enumerate() {
         if value == ',' {
             out.push(value);
             continue;
         }
-        let output = if is_i_semivowel(&chars, index) {
+        let output = if is_i_semivowel(&state, index) {
             'ĭ'
-        } else if is_u_semivowel(&chars, index) {
+        } else if is_u_semivowel(&state, index) {
             'ŭ'
         } else {
             normalize_vowel(value)
         };
         // A falling diphthong is one nucleus. Put the acute on its first vowel.
-        let marked = parse_diphthong_end(&chars, index)
+        let marked = drive::diphthong_iter(&state, index)
             .is_some_and(|(_, end)| syllable_has_explicit_stress(&chars, index, end));
         out.push(if marked { acute_vowel(output) } else { output });
     }
@@ -593,6 +602,8 @@ fn has_explicit_stress(phonemes: &str) -> bool {
 #[ensures(true)]
 fn stressable_nucleus_byte_starts(phonemes: &str) -> Vec<usize> {
     let chars = text_chars(phonemes);
+    // This vector is a fresh buffer. Keep its rows off the region table.
+    let state = crate::recog_state::CharState::new(&chars);
     let byte_starts = phonemes
         .char_indices()
         .map(|(index, _)| index)
@@ -604,12 +615,12 @@ fn stressable_nucleus_byte_starts(phonemes: &str) -> Vec<usize> {
             index += 1;
             continue;
         }
-        if let Some((_, end)) = parse_diphthong_end(&chars, index) {
+        if let Some((_, end)) = drive::diphthong_iter(&state, index) {
             if let Some(byte_start) = byte_starts.get(index).copied() {
                 starts.push(byte_start);
             }
             index = end;
-        } else if let Some(end) = parse_single_vowel_end(&chars, index) {
+        } else if let Some(end) = drive::single_vowel_iter(&state, index) {
             if !matches!(chars[index], 'y' | 'ý')
                 && let Some(byte_start) = byte_starts.get(index).copied()
             {
@@ -663,7 +674,8 @@ pub(crate) fn parse_cmevla_lujvo_part_candidates_with_canonical_phonemes(
     if shape_chars.len() != canonical_chars.len() {
         return Vec::new();
     }
-    analyze_cmevla_lujvo_part_range_candidates_chars(&shape_chars)
+    let state = crate::recog_state::CharState::new(&shape_chars);
+    analyze_cmevla_lujvo_part_range_candidates_chars(&state)
         .into_iter()
         .filter_map(|ranges| lujvo_ranges_to_parts(&canonical_chars, ranges))
         .collect()
@@ -707,7 +719,7 @@ pub(crate) fn fuhivla_y_error_detail(word: &str) -> Option<MorphologyErrorDetail
                 )))
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct LujvoParseFailure {
+pub(crate) struct LujvoParseFailure {
     /// End of the recognized prefix, as a char index into the candidate.
     index: usize,
     /// Start of the recognized trailing rafsi.
@@ -801,7 +813,7 @@ impl LujvoParseFailure {
 
 #[invariant(self.start < self.end, "lujvo part ranges must cover a non-empty span")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct LujvoPartRange {
+pub(crate) struct LujvoPartRange {
     kind: LujvoPartRangeKind,
     start: usize,
     end: usize,
@@ -857,16 +869,17 @@ fn analyze_lujvo_parts_chars(chars: &[char]) -> Result<Vec1<LujvoPart>, LujvoPar
 fn analyze_lujvo_part_ranges_chars(
     chars: &[char],
 ) -> Result<Vec1<LujvoPartRange>, LujvoParseFailure> {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    analyze_lujvo_part_ranges_chars_with_cache(chars, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    analyze_lujvo_part_ranges_chars_with_cache(&cache)
 }
 
-#[requires(cache.char_count == chars.len())]
+#[requires(cache.char_state().len() == cache.char_count)]
 #[ensures(ret.as_ref().is_ok_and(|ranges| !ranges.is_empty()) || ret.is_err())]
 fn analyze_lujvo_part_ranges_chars_with_cache(
-    chars: &[char],
-    cache: &mut MorphologyRecognitionCache,
+    cache: &MorphologyRecognitionCache,
 ) -> Result<Vec1<LujvoPartRange>, LujvoParseFailure> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
         return Err(LujvoParseFailure::new(
             0,
@@ -881,9 +894,13 @@ fn analyze_lujvo_part_ranges_chars_with_cache(
     }
     // Every length uses the same analysis. A stressed initial rafsi that
     // reaches the end records an incomplete short-final failure there.
-    if let Some(ranges) =
-        lujvo_part_ranges_from_with_cache(chars, 0, chars.len(), false, &mut failure, cache)
-        && let Ok(ranges) = Vec1::try_from_vec(ranges)
+    if let Some(ranges) = drive::ready(lujvo_part_ranges_from_with_cache(
+        0,
+        chars.len(),
+        false,
+        &mut failure,
+        cache,
+    )) && let Ok(ranges) = Vec1::try_from_vec(ranges)
     {
         return Ok(ranges);
     }
@@ -943,6 +960,7 @@ pub(crate) fn classify_lujvo_rafsi(text: &str) -> crate::ValsiLujvoRafsiKind {
         return crate::ValsiLujvoRafsiKind::Unknown;
     }
     let end = chars.len();
+    let state = crate::recog_state::CharState::new(&chars);
     if is_cultural_rafsi_slice(&chars, 0, end) {
         return crate::ValsiLujvoRafsiKind::Cultural;
     }
@@ -952,19 +970,19 @@ pub(crate) fn classify_lujvo_rafsi(text: &str) -> crate::ValsiLujvoRafsiKind {
     if is_fuhivla_shape_slice(&chars, 0, end) {
         return crate::ValsiLujvoRafsiKind::Fuhivla;
     }
-    if cvc_rafsi_end(&chars, 0) == Some(end) {
+    if cvc_rafsi_end(&state, 0) == Some(end) {
         return crate::ValsiLujvoRafsiKind::Cvc;
     }
-    if ccv_rafsi_end(&chars, 0) == Some(end) {
+    if ccv_rafsi_end(&state, 0) == Some(end) {
         return crate::ValsiLujvoRafsiKind::Ccv;
     }
-    if cvv_rafsi_ends(&chars, 0)
+    if cvv_rafsi_ends(&state, 0)
         .into_iter()
         .any(|rafsi_end| rafsi_end == end)
     {
         return crate::ValsiLujvoRafsiKind::Cvv;
     }
-    if long_rafsi_ends(&chars, 0)
+    if long_rafsi_ends(&state, 0)
         .into_iter()
         .any(|rafsi_end| rafsi_end == end)
     {
@@ -1031,14 +1049,17 @@ fn has_stage3_classifier(chars: &[char]) -> bool {
     let end = chars.len();
     // One cache for every classifier trial. A fresh cache per trial would
     // repeat the same candidate's recognizer from scratch.
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    for classifier_end in y_rafsi_ends(chars, 0)
-        .into_iter()
-        .chain(hy_rafsi_ends(chars, 0))
-        .chain(rn_hyphenated_classifier_ends(chars, 0))
-    {
+    let cache = MorphologyRecognitionCache::new(chars);
+    let mut classifier_ends = y_rafsi_ends(&cache.char_state(), 0);
+    classifier_ends.extend(hy_rafsi_ends(&cache.char_state(), 0));
+    classifier_ends.extend(rn_hyphenated_classifier_ends(&cache.char_state(), 0));
+    for classifier_end in classifier_ends {
         if classifier_end < end
-            && is_fuhivla_shape_slice_with_cache(chars, classifier_end, end, &mut cache)
+            && drive::ready(is_fuhivla_shape_slice_with_cache(
+                classifier_end,
+                end,
+                &cache,
+            ))
         {
             return true;
         }
@@ -1046,15 +1067,20 @@ fn has_stage3_classifier(chars: &[char]) -> bool {
     false
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn rn_hyphenated_classifier_ends(chars: &[char], index: usize) -> Vec<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn rn_hyphenated_classifier_ends(
+    state: &crate::recog_state::CharState,
+    index: usize,
+) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     let mut ends = Vec::new();
-    for base_end in long_rafsi_ends(chars, index)
+    for base_end in long_rafsi_ends(state, index)
         .into_iter()
-        .chain(cvc_rafsi_end(chars, index))
-        .chain(ccv_rafsi_end(chars, index))
-        .chain(cvv_rafsi_base_ends(chars, index))
+        .chain(cvc_rafsi_end(state, index))
+        .chain(ccv_rafsi_end(state, index))
+        .chain(cvv_rafsi_base_ends(state, index))
     {
         if let Some(end) = r_hyphen_end(chars, base_end).or_else(|| n_hyphen_end(chars, base_end)) {
             ends.push(end);
@@ -1787,95 +1813,63 @@ pub(crate) fn text_chars(text: &str) -> Vec<char> {
 pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
     // A comma marks a syllable. Filter it once, while this list is built.
     // The parser reads the letters only.
-    let chars = text
-        .chars()
-        .filter(|value| *value != ',')
-        .collect::<Vec<_>>();
-    parse_cmavo_form_chars(&chars)
+    let chars: Vec<char> = text.chars().filter(|value| *value != ',').collect();
+    parse_cmavo_form_chars(&crate::recog_state::CharState::new(&chars))
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
-fn parse_cmavo_form_chars(chars: &[char]) -> Option<String> {
+fn parse_cmavo_form_chars(state: &crate::recog_state::CharState) -> Option<String> {
     let mut normalized = String::new();
     let mut output = Some(&mut normalized);
-    parse_cmavo_form_chars_into(chars, &mut output)?;
+    parse_cmavo_form_chars_into(state, &mut output)?;
     Some(normalized)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn parse_cmavo_form_chars_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
+fn parse_cmavo_form_chars_into(
+    state: &crate::recog_state::CharState,
+    output: &mut Option<&mut String>,
+) -> Option<()> {
+    let chars: &[char] = state.chars();
+
     // A cmavo parsed alone ends at the input. That end is a pause.
-    parse_cmavo_form_span_into(chars, 0, chars.len(), chars.len(), output)
+    parse_cmavo_form_span_into(state, 0, chars.len(), chars.len(), output)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 pub(crate) fn parse_cmavo_form_with_lookahead(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     end: usize,
     lookahead_end: usize,
 ) -> Option<String> {
     let mut normalized = String::new();
     let mut output = Some(&mut normalized);
-    parse_cmavo_form_span_into(chars, start, end, lookahead_end, &mut output)?;
+    parse_cmavo_form_span_into(state, start, end, lookahead_end, &mut output)?;
     Some(normalized)
 }
 
-#[requires(index <= limit && limit <= chars.len())]
-#[ensures(ret.is_none_or(|(_, nucleus)| nucleus == index + 1 && nucleus < limit))]
-fn cmavo_span_glide_end(chars: &[char], index: usize, limit: usize) -> Option<(char, usize)> {
-    // The glide check sees only the cmavo span. A vowel past `limit` is lookahead.
-    if index >= limit {
-        return None;
-    }
-    let glide = match chars[index] {
-        'i' | 'í' | 'ĭ' => 'ĭ',
-        'u' | 'ú' | 'ŭ' => 'ŭ',
-        _ => return None,
-    };
-    let nucleus = index + 1;
-    if nucleus >= limit || !starts_with_nucleus(&chars[..limit], nucleus) {
-        return None;
-    }
-    Some((glide, nucleus))
-}
-
-#[requires(start <= span_end && span_end <= chars.len())]
-#[ensures(ret.is_none_or(|nucleus| nucleus == start + 1 && nucleus <= span_end))]
-fn cmavo_consonant_nucleus(chars: &[char], start: usize, span_end: usize) -> Option<usize> {
-    // One consonant. `!cluster` already rejects two consonants and three consonants.
-    if start >= span_end || !is_consonant(chars[start]) {
-        return None;
-    }
-    let nucleus = start + 1;
-    if nucleus < span_end
-        && (is_consonant(chars[nucleus])
-            || cmavo_span_glide_end(chars, nucleus, span_end).is_some())
-    {
-        return None;
-    }
-    Some(nucleus)
-}
-
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= state.len())]
 #[bityzba::expensive_requires(
     start <= lookahead_end
-        && lookahead_end <= chars.len()
-        && chars[start..lookahead_end]
+        && lookahead_end <= state.len()
+        && state.chars()[start..lookahead_end]
             .iter()
             .all(|value| *value != ',')
 )]
 #[ensures(true)]
 fn parse_cmavo_form_span_into(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     end: usize,
     lookahead_end: usize,
     output: &mut Option<&mut String>,
 ) -> Option<()> {
+    let chars: &[char] = state.chars();
+
     // The caller strips commas before this call. This parser reads letters only.
     if start >= end {
         return None;
@@ -1895,7 +1889,7 @@ fn parse_cmavo_form_span_into(
         append_cmavo_str(output, digit_to_cmavo(span[0])?);
         return Some(());
     }
-    parse_cmavo_form_main_span_into(chars, start, end, lookahead_end, output)
+    parse_cmavo_form_main_span_into(state, start, end, lookahead_end, output)
 }
 
 #[requires(true)]
@@ -1914,23 +1908,65 @@ fn append_cmavo_str(output: &mut Option<&mut String>, value: &str) {
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn append_cmavo_char(output: &mut Option<&mut String>, value: char) {
-    if let Some(text) = output.as_mut() {
-        text.push(value);
+#[requires(index <= limit && limit <= state.len())]
+#[ensures(ret.is_none_or(|(_, nucleus)| nucleus == index + 1 && nucleus < limit))]
+fn cmavo_span_glide_end(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    limit: usize,
+) -> Option<(char, usize)> {
+    // The glide check sees only the cmavo span. A vowel past `limit` is lookahead.
+    // `nucleus_at_limit` reads the stored nucleus bits. It does not walk a vowel
+    // chain one call deeper per character.
+    let chars: &[char] = state.chars();
+    if index >= limit {
+        return None;
     }
+    let glide = match chars[index] {
+        'i' | 'í' | 'ĭ' => 'ĭ',
+        'u' | 'ú' | 'ŭ' => 'ŭ',
+        _ => return None,
+    };
+    let nucleus = index + 1;
+    if nucleus >= limit || !drive::nucleus_at_limit(state, nucleus, limit) {
+        return None;
+    }
+    Some((glide, nucleus))
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(start <= span_end && span_end <= state.len())]
+#[ensures(ret.is_none_or(|nucleus| nucleus == start + 1 && nucleus <= span_end))]
+fn cmavo_consonant_nucleus(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    span_end: usize,
+) -> Option<usize> {
+    // One consonant. `!cluster` already rejects two consonants and three consonants.
+    let chars: &[char] = state.chars();
+    if start >= span_end || !is_consonant(chars[start]) {
+        return None;
+    }
+    let nucleus = start + 1;
+    if nucleus < span_end
+        && (is_consonant(chars[nucleus])
+            || cmavo_span_glide_end(state, nucleus, span_end).is_some())
+    {
+        return None;
+    }
+    Some(nucleus)
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
 fn parse_cmavo_form_main_span_into(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     end: usize,
     lookahead_end: usize,
     output: &mut Option<&mut String>,
 ) -> Option<()> {
+    let chars: &[char] = state.chars();
+
     // cmavo_form <- !h !cluster onset (nucleus h)* (!stressed nucleus / nucleus !cluster)
     // The buffer has no comma. `!cluster` already rejects two consonants.
     if start >= end
@@ -1939,87 +1975,20 @@ fn parse_cmavo_form_main_span_into(
     {
         return None;
     }
-    if let Some((glide, nucleus)) = cmavo_span_glide_end(chars, start, end) {
+    if let Some((glide, nucleus)) = cmavo_span_glide_end(state, start, end) {
         return with_cmavo_output_rollback(output, |output| {
-            append_cmavo_char(output, glide);
-            parse_cmavo_form_tail_span_into(chars, nucleus, end, lookahead_end, output)
+            append_cmavo_chars(output, &[glide]);
+            drive::cmavo_tail(state, nucleus, end, lookahead_end, output)
         });
     }
     if is_consonant(chars[start]) {
-        let nucleus = cmavo_consonant_nucleus(chars, start, end)?;
+        let nucleus = cmavo_consonant_nucleus(state, start, end)?;
         return with_cmavo_output_rollback(output, |output| {
-            append_cmavo_char(output, chars[start]);
-            parse_cmavo_form_tail_span_into(chars, nucleus, end, lookahead_end, output)
+            append_cmavo_chars(output, &[chars[start]]);
+            drive::cmavo_tail(state, nucleus, end, lookahead_end, output)
         });
     }
-    parse_cmavo_form_tail_span_into(chars, start, end, lookahead_end, output)
-}
-
-#[requires(index <= cmavo_end && cmavo_end <= lookahead_end && lookahead_end <= chars.len())]
-#[ensures(true)]
-fn parse_cmavo_form_tail_span_into(
-    chars: &[char],
-    index: usize,
-    cmavo_end: usize,
-    lookahead_end: usize,
-    output: &mut Option<&mut String>,
-) -> Option<()> {
-    // The nucleus productions read through `lookahead_end`. Cutting the buffer
-    // at `cmavo_end` would hide a following vowel, and `!nucleus` would succeed
-    // on a letter that is still inside a diphthong.
-    let visible = &chars[..lookahead_end];
-    if let Some((semivowel, after_nucleus)) = parse_diphthong_end(visible, index)
-        && after_nucleus <= cmavo_end
-    {
-        if after_nucleus == cmavo_end {
-            if last_cmavo_nucleus_is_allowed(chars, index, after_nucleus, lookahead_end) {
-                append_cmavo_diphthong_nucleus(output, chars, index, after_nucleus, semivowel);
-                return Some(());
-            }
-        } else if chars.get(after_nucleus) == Some(&'\'')
-            && with_cmavo_output_rollback(output, |output| {
-                append_cmavo_diphthong_nucleus(output, chars, index, after_nucleus, semivowel);
-                append_cmavo_char(output, '\'');
-                parse_cmavo_form_tail_span_into(
-                    chars,
-                    after_nucleus + 1,
-                    cmavo_end,
-                    lookahead_end,
-                    output,
-                )
-            })
-            .is_some()
-        {
-            return Some(());
-        }
-    }
-    if let Some(after_nucleus) = parse_single_vowel_end(visible, index)
-        && after_nucleus <= cmavo_end
-    {
-        let value = chars[index];
-        if after_nucleus == cmavo_end {
-            if last_cmavo_nucleus_is_allowed(chars, index, after_nucleus, lookahead_end) {
-                append_cmavo_single_nucleus(output, value);
-                return Some(());
-            }
-        } else if chars.get(after_nucleus) == Some(&'\'')
-            && with_cmavo_output_rollback(output, |output| {
-                append_cmavo_single_nucleus(output, value);
-                append_cmavo_char(output, '\'');
-                parse_cmavo_form_tail_span_into(
-                    chars,
-                    after_nucleus + 1,
-                    cmavo_end,
-                    lookahead_end,
-                    output,
-                )
-            })
-            .is_some()
-        {
-            return Some(());
-        }
-    }
-    None
+    drive::cmavo_tail(state, start, end, lookahead_end, output)
 }
 
 #[requires(nucleus_start < nucleus_end && nucleus_end <= lookahead_end && lookahead_end <= chars.len())]
@@ -2039,37 +2008,6 @@ fn last_cmavo_nucleus_is_allowed(
         return true;
     }
     !consonant_cluster_follows(chars, nucleus_end, lookahead_end)
-}
-
-#[requires(nucleus_start < nucleus_end && nucleus_end <= chars.len())]
-#[ensures(true)]
-fn append_cmavo_diphthong_nucleus(
-    output: &mut Option<&mut String>,
-    chars: &[char],
-    nucleus_start: usize,
-    nucleus_end: usize,
-    semivowel: char,
-) {
-    // The acute sits on the first vowel. A mark on the off-glide moves there.
-    let first = normalize_vowel(chars[nucleus_start]);
-    let first = if syllable_has_explicit_stress(chars, nucleus_start, nucleus_end) {
-        acute_vowel(first)
-    } else {
-        first
-    };
-    append_cmavo_char(output, first);
-    append_cmavo_char(output, semivowel);
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn append_cmavo_single_nucleus(output: &mut Option<&mut String>, value: char) {
-    let nucleus = if is_y(value) {
-        value
-    } else {
-        normalize_vowel(value)
-    };
-    append_cmavo_char(output, nucleus);
 }
 
 #[requires(true)]
@@ -2096,48 +2034,68 @@ fn max_initial_end(chars: &[char], start: usize) -> usize {
     chars.len().min(start + 3)
 }
 
-#[requires(start <= chars.len())]
-#[requires(ends.iter().all(|end| *end <= chars.len()))]
-#[ensures(ends.iter().all(|end| *end <= chars.len()))]
-fn append_parse_onset_ends(chars: &[char], start: usize, ends: &mut Vec<usize>) {
-    if let Some(end) = parse_glide_end(chars, start) {
+#[requires(start <= state.len())]
+#[requires(ends.iter().all(|end| *end <= state.len()))]
+#[ensures(ends.iter().all(|end| *end <= state.len()))]
+fn append_parse_onset_ends(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    ends: &mut Vec<usize>,
+) {
+    let chars: &[char] = state.chars();
+
+    if let Some(end) = parse_glide_end(state, start) {
         ends.push(end);
     }
     for end in (start..=max_initial_end(chars, start)).rev() {
-        if parse_initial_end(chars, start, end).is_some() {
+        if parse_initial_end(state, start, end).is_some() {
             ends.push(end);
         }
     }
 }
 
-#[requires(start <= chars.len())]
-#[requires(target_end <= chars.len())]
+#[requires(start <= state.len())]
+#[requires(target_end <= state.len())]
 #[ensures(true)]
-fn has_parse_onset_end(chars: &[char], start: usize, target_end: usize) -> bool {
-    if parse_glide_end(chars, start) == Some(target_end) {
+fn has_parse_onset_end(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    target_end: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
+    if parse_glide_end(state, start) == Some(target_end) {
         return true;
     }
     target_end >= start
         && target_end <= max_initial_end(chars, start)
-        && parse_initial_end(chars, start, target_end).is_some()
+        && parse_initial_end(state, start, target_end).is_some()
 }
 
-#[requires(start <= chars.len())]
+#[requires(start <= state.len())]
 #[ensures(true)]
-fn has_parse_onset(chars: &[char], start: usize) -> bool {
-    parse_glide_end(chars, start).is_some()
+fn has_parse_onset(state: &crate::recog_state::CharState, start: usize) -> bool {
+    let chars: &[char] = state.chars();
+
+    parse_glide_end(state, start).is_some()
         || (start..=max_initial_end(chars, start))
             .rev()
-            .any(|end| parse_initial_end(chars, start, end).is_some())
+            .any(|end| parse_initial_end(state, start, end).is_some())
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(ret.is_none_or(|value| value == end))]
-fn parse_initial_end(chars: &[char], start: usize, end: usize) -> Option<usize> {
+fn parse_initial_end(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+) -> Option<usize> {
+    let chars: &[char] = state.chars();
+
     if !valid_initial_shape(chars, start, end) {
         return None;
     }
-    if end < chars.len() && (is_consonant(chars[end]) || starts_glide(chars, end)) {
+    if end < chars.len() && (is_consonant(chars[end]) || starts_glide(state, end)) {
         return None;
     }
     Some(end)
@@ -2155,47 +2113,44 @@ fn valid_initial_shape(chars: &[char], start: usize, end: usize) -> bool {
     }
 }
 
-#[requires(start <= chars.len())]
-#[requires(ends.iter().all(|end| *end <= chars.len()))]
-#[ensures(ends.iter().all(|end| *end <= chars.len()))]
-fn append_parse_nucleus_ends(chars: &[char], start: usize, ends: &mut Vec<usize>) {
-    if let Some((_, end)) = parse_diphthong_end(chars, start) {
+#[requires(start <= state.len())]
+#[requires(ends.iter().all(|end| *end <= state.len()))]
+#[ensures(ends.iter().all(|end| *end <= state.len()))]
+fn append_parse_nucleus_ends(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    ends: &mut Vec<usize>,
+) {
+    if let Some((_, end)) = drive::diphthong_iter(state, start) {
         ends.push(end);
     }
-    if let Some(end) = parse_single_vowel_end(chars, start) {
+    if let Some(end) = drive::single_vowel_iter(state, start) {
         ends.push(end);
     }
 }
 
-#[requires(start <= chars.len())]
-#[requires(target_end <= chars.len())]
+#[requires(start <= state.len())]
+#[requires(target_end <= state.len())]
 #[ensures(true)]
-fn has_parse_nucleus_end(chars: &[char], start: usize, target_end: usize) -> bool {
-    parse_diphthong_end(chars, start).is_some_and(|(_, end)| end == target_end)
-        || parse_single_vowel_end(chars, start) == Some(target_end)
+fn has_parse_nucleus_end(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    target_end: usize,
+) -> bool {
+    drive::diphthong_iter(state, start).is_some_and(|(_, end)| end == target_end)
+        || drive::single_vowel_iter(state, start) == Some(target_end)
 }
 
-#[requires(start <= chars.len())]
-#[requires(limit <= chars.len())]
+#[requires(start <= state.len())]
+#[requires(limit <= state.len())]
 #[ensures(true)]
-fn has_parse_nucleus_end_at_or_before(chars: &[char], start: usize, limit: usize) -> bool {
-    parse_diphthong_end(chars, start).is_some_and(|(_, end)| end <= limit)
-        || parse_single_vowel_end(chars, start).is_some_and(|end| end <= limit)
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
-pub(crate) fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
-    let (semivowel, end) = raw_diphthong_end(chars, start)?;
-    if next_non_comma_index(chars, end)
-        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
-    {
-        return None;
-    }
-    if starts_with_nucleus(chars, end) {
-        return None;
-    }
-    Some((semivowel, end))
+fn has_parse_nucleus_end_at_or_before(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    limit: usize,
+) -> bool {
+    drive::diphthong_iter(state, start).is_some_and(|(_, end)| end <= limit)
+        || drive::single_vowel_iter(state, start).is_some_and(|end| end <= limit)
 }
 
 #[requires(true)]
@@ -2208,59 +2163,48 @@ pub(crate) fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool 
     }
 }
 
-#[requires(start <= chars.len())]
-#[ensures(ret.is_none_or(|end| end == start + 1))]
-pub(crate) fn parse_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
-    let value = *chars.get(start)?;
-    if value == 'y' || value == 'ý' {
-        let end = start + 1;
-        if starts_with_nucleus(chars, end) {
-            return None;
-        }
-        return Some(end);
-    }
-    if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
-        return None;
-    }
-    let end = start + 1;
-    if starts_with_nucleus(chars, end) {
-        return None;
-    }
-    Some(end)
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
+#[requires(start <= state.len())]
+#[ensures(ret.is_none_or(|(_, end)| end > start && end <= state.len()))]
 pub(crate) fn parse_explicit_stress_nucleus_end(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
 ) -> Option<(bool, usize)> {
-    if let Some((_, end)) = parse_diphthong_end(chars, start) {
+    let chars: &[char] = state.chars();
+
+    if let Some((_, end)) = drive::diphthong_iter(state, start) {
         return Some((true, end));
     }
     let value = *chars.get(start)?;
-    parse_single_vowel_end(chars, start).map(|end| (!is_y(value), end))
+    drive::single_vowel_iter(state, start).map(|end| (!is_y(value), end))
 }
 
-#[requires(start <= chars.len())]
-#[ensures(ret.is_none_or(|end| end > start && end <= chars.len()))]
-fn parse_glide_end(chars: &[char], start: usize) -> Option<usize> {
-    starts_glide(chars, start).then_some(start + 1)
+#[requires(start <= state.len())]
+#[ensures(ret.is_none_or(|end| end > start && end <= state.len()))]
+fn parse_glide_end(state: &crate::recog_state::CharState, start: usize) -> Option<usize> {
+    starts_glide(state, start).then_some(start + 1)
 }
 
-#[requires(start <= chars.len())]
+#[requires(start <= state.len())]
 #[ensures(true)]
-pub(crate) fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
+pub(crate) fn starts_with_nucleus(state: &crate::recog_state::CharState, start: usize) -> bool {
+    let chars: &[char] = state.chars();
+
     // Camxes starts every vowel with `comma*`, so `!nucleus` reads past a comma.
     let Some(start) = next_non_comma_index(chars, start) else {
         return false;
     };
-    parse_diphthong_end(chars, start).is_some() || parse_single_vowel_end(chars, start).is_some()
+    return drive::nucleus_at(state, start);
 }
 
-#[requires(limit <= chars.len())]
+#[requires(limit <= state.len())]
 #[ensures(ret.is_none_or(|end| end == start + 1 && end <= limit))]
-fn vowel_production_end(chars: &[char], start: usize, limit: usize) -> Option<usize> {
+fn vowel_production_end(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    limit: usize,
+) -> Option<usize> {
+    let chars: &[char] = state.chars();
+
     // vowel <- (a / e / i / o / u) !nucleus
     // `limit` is the candidate bound. The check reads through that bound.
     // It does not stop at a shorter proposed rafsi end.
@@ -2268,21 +2212,25 @@ fn vowel_production_end(chars: &[char], start: usize, limit: usize) -> Option<us
         return None;
     }
     let end = start + 1;
-    if starts_with_nucleus(&chars[..limit], end) {
+    if drive::nucleus_at_limit(state, end, limit) {
         return None;
     }
-    Some(end)
+    return Some(end);
 }
 
-#[requires(limit <= chars.len())]
+#[requires(limit <= state.len())]
 #[ensures(ret.is_none_or(|end| end > start && end <= limit))]
-fn diphthong_production_end(chars: &[char], start: usize, limit: usize) -> Option<usize> {
+fn diphthong_production_end(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    limit: usize,
+) -> Option<usize> {
     // diphthong <- (a i !i / a u !u / e i !i / o i !i) !nucleus
     // The same candidate bound keeps a following nucleus visible.
     if start >= limit {
         return None;
     }
-    parse_diphthong_end(&chars[..limit], start).map(|(_, end)| end)
+    return drive::diphthong_iter_limit(state, start, limit).map(|(_, end)| end);
 }
 
 #[requires(lookahead_end <= chars.len())]
@@ -2316,14 +2264,28 @@ fn consonant_index_within(chars: &[char], index: usize, lookahead_end: usize) ->
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn is_cmevla_text(normalized: &str) -> bool {
+    // A cmevla ends on a consonant and does not start with an apostrophe.
+    // Those two tests read the text. The character table is only for the
+    // shape checks that follow. A vowel-final span returns here.
+    let mut chars_iter = normalized.chars();
+    let Some(first) = chars_iter.next() else {
+        return false;
+    };
+    if first == '\'' {
+        return false;
+    }
+    // One character has no separate last character. That character is `first`.
+    let last = chars_iter.next_back().unwrap_or(first);
+    if !is_consonant(last) {
+        return false;
+    }
     let chars = text_chars(normalized);
-    chars.last().is_some_and(|last| is_consonant(*last))
-        && chars.first().is_some_and(|first| *first != '\'')
-        && !blocks_word_shape(&chars)
+    let state = crate::recog_state::CharState::new(&chars);
+    !blocks_word_shape(&state)
         && !has_forbidden_consonant_triple(&chars)
         && !has_forbidden_consonant_pair(&chars)
-        && !has_digit_followed_by_nucleus(&chars)
-        && !has_vowel_hiatus(&chars)
+        && !has_digit_followed_by_nucleus(&state)
+        && !has_vowel_hiatus(&state)
         && chars.iter().all(|value| {
             is_consonant(*value)
                 || is_vowel(*value)
@@ -2334,12 +2296,14 @@ pub(crate) fn is_cmevla_text(normalized: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn blocks_word_shape(chars: &[char]) -> bool {
-    has_invalid_apostrophe(chars)
-        || has_digit_followed_by_nucleus(chars)
+fn blocks_word_shape(state: &crate::recog_state::CharState) -> bool {
+    let chars: &[char] = state.chars();
+
+    has_invalid_apostrophe(state)
+        || has_digit_followed_by_nucleus(state)
         || has_geminated_consonant(chars)
-        || has_y_hiatus(chars)
-        || has_vowel_hiatus(chars)
+        || has_y_hiatus(state)
+        || has_vowel_hiatus(state)
         || has_voicing_mismatch(chars)
         || has_forbidden_consonant_triple(chars)
         || has_forbidden_consonant_pair(chars)
@@ -2353,23 +2317,21 @@ fn has_voicing_mismatch(chars: &[char]) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn has_invalid_apostrophe(chars: &[char]) -> bool {
-    invalid_apostrophe_range(chars).is_some()
+fn has_invalid_apostrophe(state: &crate::recog_state::CharState) -> bool {
+    invalid_apostrophe_range(state).is_some()
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
-fn invalid_apostrophe_range(chars: &[char]) -> Option<Range<usize>> {
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= state.len()))]
+fn invalid_apostrophe_range(state: &crate::recog_state::CharState) -> Option<Range<usize>> {
+    let chars: &[char] = state.chars();
+
     chars.iter().enumerate().find_map(|(index, value)| {
-        if *value != '\'' {
-            return None;
-        }
-        // A comma before the next vowel is a syllable mark. It does not break the apostrophe.
-        let preceded = previous_non_comma(chars, index)
-            .is_some_and(|(_, previous)| can_precede_apostrophe(previous));
-        // `starts_with_nucleus` reads past a comma. The comma is a syllable mark.
-        let followed = starts_with_nucleus(chars, index + 1);
-        (!preceded || !followed).then_some(index..index + 1)
+        (*value == '\''
+            && (!previous_non_comma(chars, index)
+                .is_some_and(|(_, previous)| can_precede_apostrophe(previous))
+                || !starts_with_nucleus(state, index + 1)))
+        .then_some(index..index + 1)
     })
 }
 
@@ -2473,37 +2435,41 @@ fn mz_pair(first: char, second: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn has_digit_followed_by_nucleus(chars: &[char]) -> bool {
-    digit_followed_by_nucleus_range(chars).is_some()
+fn has_digit_followed_by_nucleus(state: &crate::recog_state::CharState) -> bool {
+    digit_followed_by_nucleus_range(state).is_some()
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
-fn digit_followed_by_nucleus_range(chars: &[char]) -> Option<Range<usize>> {
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= state.len()))]
+fn digit_followed_by_nucleus_range(state: &crate::recog_state::CharState) -> Option<Range<usize>> {
+    let chars: &[char] = state.chars();
+
     chars.iter().enumerate().find_map(|(index, value)| {
         if !value.is_ascii_digit() {
             return None;
         }
         let next = next_non_comma_index(chars, index + 1)?;
-        starts_with_nucleus(chars, next).then_some(index..nucleus_end_for_span(chars, next))
+        starts_with_nucleus(state, next).then_some(index..nucleus_end_for_span(chars, next))
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn has_y_hiatus(chars: &[char]) -> bool {
-    y_hiatus_range(chars).is_some()
+fn has_y_hiatus(state: &crate::recog_state::CharState) -> bool {
+    y_hiatus_range(state).is_some()
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
-fn y_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= state.len()))]
+fn y_hiatus_range(state: &crate::recog_state::CharState) -> Option<Range<usize>> {
+    let chars: &[char] = state.chars();
+
     chars.iter().enumerate().find_map(|(index, value)| {
         if !is_y(*value) {
             return None;
         }
         let next = next_non_comma_index(chars, index + 1)?;
-        (!is_y(chars[next]) && starts_with_nucleus(chars, next))
+        (!is_y(chars[next]) && starts_with_nucleus(state, next))
             .then_some(index..nucleus_end_for_span(chars, next))
     })
 }
@@ -2568,25 +2534,35 @@ fn is_consonant(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_i_semivowel(chars: &[char], index: usize) -> bool {
+fn is_i_semivowel(state: &crate::recog_state::CharState, index: usize) -> bool {
+    let chars: &[char] = state.chars();
+
     matches!(chars.get(index).copied(), Some('i' | 'í' | 'ĭ'))
-        && (is_diphthong_semivowel(chars, index, 'i') || starts_glide(chars, index))
+        && (is_diphthong_semivowel(state, index, 'i') || starts_glide(state, index))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn is_u_semivowel(chars: &[char], index: usize) -> bool {
+fn is_u_semivowel(state: &crate::recog_state::CharState, index: usize) -> bool {
+    let chars: &[char] = state.chars();
+
     matches!(chars.get(index).copied(), Some('u' | 'ú' | 'ŭ'))
-        && (is_diphthong_semivowel(chars, index, 'u') || starts_glide(chars, index))
+        && (is_diphthong_semivowel(state, index, 'u') || starts_glide(state, index))
 }
 
-#[requires(index <= chars.len())]
+#[requires(index <= state.len())]
 #[ensures(true)]
-fn is_diphthong_semivowel(chars: &[char], index: usize, semivowel: char) -> bool {
+fn is_diphthong_semivowel(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    semivowel: char,
+) -> bool {
+    let chars: &[char] = state.chars();
+
     let Some((_, previous)) = previous_non_comma(chars, index) else {
         return false;
     };
-    if starts_with_nucleus(chars, index + 1) {
+    if starts_with_nucleus(state, index + 1) {
         return false;
     }
     matches!(
@@ -2595,13 +2571,15 @@ fn is_diphthong_semivowel(chars: &[char], index: usize, semivowel: char) -> bool
     )
 }
 
-#[requires(index <= chars.len())]
+#[requires(index <= state.len())]
 #[ensures(true)]
-fn starts_glide(chars: &[char], index: usize) -> bool {
+fn starts_glide(state: &crate::recog_state::CharState, index: usize) -> bool {
+    let chars: &[char] = state.chars();
+
     matches!(
         chars.get(index).copied(),
         Some('i' | 'í' | 'ĭ' | 'u' | 'ú' | 'ŭ')
-    ) && starts_with_nucleus(chars, index + 1)
+    ) && starts_with_nucleus(state, index + 1)
 }
 
 #[requires(index <= chars.len())]
@@ -2619,16 +2597,18 @@ fn previous_non_comma(chars: &[char], index: usize) -> Option<(usize, char)> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
-fn cgv_range(chars: &[char]) -> Option<Range<usize>> {
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= state.len()))]
+fn cgv_range(state: &crate::recog_state::CharState) -> Option<Range<usize>> {
+    let chars: &[char] = state.chars();
+
     for (index, value) in chars.iter().copied().enumerate() {
-        if !matches!(value, 'i' | 'í' | 'ĭ' | 'u' | 'ú' | 'ŭ') || !starts_glide(chars, index) {
+        if !matches!(value, 'i' | 'í' | 'ĭ' | 'u' | 'ú' | 'ŭ') || !starts_glide(state, index) {
             continue;
         }
         if let Some((previous_index, previous)) = previous_non_comma(chars, index)
             && is_consonant(previous)
         {
-            return Some(previous_index..glide_end_for_span(chars, index));
+            return Some(previous_index..glide_end_for_span(state, index));
         }
     }
     None
@@ -2647,12 +2627,14 @@ fn digit_apostrophe_range(chars: &[char]) -> Option<Range<usize>> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
-fn breve_not_glide_range(chars: &[char]) -> Option<Range<usize>> {
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= state.len()))]
+fn breve_not_glide_range(state: &crate::recog_state::CharState) -> Option<Range<usize>> {
+    let chars: &[char] = state.chars();
+
     chars.iter().enumerate().find_map(|(index, value)| {
         let invalid = match *value {
-            'ĭ' => !is_i_semivowel(chars, index),
-            'ŭ' => !is_u_semivowel(chars, index),
+            'ĭ' => !is_i_semivowel(state, index),
+            'ŭ' => !is_u_semivowel(state, index),
             _ => false,
         };
         invalid.then_some(index..index + 1)
@@ -2663,7 +2645,8 @@ fn breve_not_glide_range(chars: &[char]) -> Option<Range<usize>> {
 #[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
 fn latin_breve_not_glide_range(chars: &[NormalizedSourceChar]) -> Option<Range<usize>> {
     let values = normalized_values(chars);
-    breve_not_glide_range(&values).filter(|range| {
+    let state = crate::recog_state::CharState::new(&values);
+    breve_not_glide_range(&state).filter(|range| {
         chars
             .get(range.start)
             .is_some_and(|source| is_latin_breve_source(source.source_value))
@@ -2674,7 +2657,8 @@ fn latin_breve_not_glide_range(chars: &[NormalizedSourceChar]) -> Option<Range<u
 #[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
 fn hard_breve_not_glide_range(chars: &[NormalizedSourceChar]) -> Option<Range<usize>> {
     let values = normalized_values(chars);
-    breve_not_glide_range(&values).filter(|range| {
+    let state = crate::recog_state::CharState::new(&values);
+    breve_not_glide_range(&state).filter(|range| {
         chars
             .get(range.start)
             .is_some_and(|source| !is_latin_breve_source(source.source_value))
@@ -2716,11 +2700,13 @@ fn nucleus_end_for_span(chars: &[char], start: usize) -> usize {
         .unwrap_or(start + 1)
 }
 
-#[requires(start < chars.len())]
-#[ensures(ret > start && ret <= chars.len())]
-fn glide_end_for_span(chars: &[char], start: usize) -> usize {
+#[requires(start < state.len())]
+#[ensures(ret > start && ret <= state.len())]
+fn glide_end_for_span(state: &crate::recog_state::CharState, start: usize) -> usize {
+    let chars: &[char] = state.chars();
+
     next_non_comma_index(chars, start + 1)
-        .filter(|next| starts_with_nucleus(chars, *next))
+        .filter(|next| starts_with_nucleus(state, *next))
         .map(|next| nucleus_end_for_span(chars, next))
         .unwrap_or(start + 1)
 }
@@ -2742,116 +2728,181 @@ fn is_gismu_chars(chars: &[char]) -> bool {
     }
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn lujvo_from_until_with_cache(
-    chars: &[char],
     index: usize,
     end: usize,
     has_initial_rafsi: bool,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    if cache.is_cancelled() {
-        return false;
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let key = new!(drive::RecKey::LujvoFrom {
+        index,
+        end,
+        flag: has_initial_rafsi,
+    });
+    match drive::open_memo(cache, cache.lujvo_from(index, end, has_initial_rafsi), key)? {
+        drive::Open::Cancelled => return Ok(false),
+        drive::Open::Hit(result) => return Ok(result),
+        drive::Open::Drive => {
+            return Ok(drive::lujvo_from_drive(
+                index,
+                end,
+                has_initial_rafsi,
+                cache,
+            ));
+        }
+        drive::Open::Own => {}
     }
 
-    if let Some(result) = cache.lujvo_from(index, end, has_initial_rafsi) {
-        return result;
-    }
     // This checker only needs a yes or no. The failure record belongs to the
     // part-range analysis that builds the diagnostic.
     let mut ignored_failure = None;
     let result = if index >= end {
         false
     } else if has_initial_rafsi
-        && lujvo_core_part_ranges_until(chars, index, end, &mut ignored_failure, cache).is_some()
+        && lujvo_core_part_ranges_until(index, end, &mut ignored_failure, cache)?.is_some()
     {
         true
     } else if !has_initial_rafsi
-        && lujvo_core_part_ranges_until(chars, index, end, &mut ignored_failure, cache)
+        && lujvo_core_part_ranges_until(index, end, &mut ignored_failure, cache)?
             .is_some_and(|ranges| ranges.len() > 1)
     {
         true
-    } else if !has_initial_rafsi && is_lujvo_final_rafsi_alone_until(chars, index, end) {
+    } else if !has_initial_rafsi
+        && is_lujvo_final_rafsi_alone_until(&cache.char_state(), index, end)
+    {
         true
     } else {
-        initial_rafsi_ends_until_with_cache(chars, index, end, cache)
-            .into_iter()
-            .any(|next| next > index && lujvo_from_until_with_cache(chars, next, end, true, cache))
+        {
+            let mut found = false;
+            let ends = initial_rafsi_ends_until_with_cache(index, end, cache)?;
+            let resume_at = match drive::resume(cache) {
+                drive::Resume::LujvoFrom(drive::LujvoFromResume::AtOrdinal(ordinal)) => ordinal,
+                _ => 0,
+            };
+            for (ordinal, next) in ends.into_iter().enumerate() {
+                if ordinal < resume_at {
+                    continue;
+                }
+                drive::set_resume(
+                    cache,
+                    drive::Resume::LujvoFrom(drive::LujvoFromResume::AtOrdinal(ordinal)),
+                );
+
+                if next > index && lujvo_from_until_with_cache(next, end, true, cache)? {
+                    found = true;
+                    break;
+                }
+            }
+            found
+        }
     };
     cache.record_lujvo_from(index, end, has_initial_rafsi, result);
-    result
+    Ok(result)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
-#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end)))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().as_ref().is_none_or(|ranges| !ranges.is_empty())))]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end))))]
 fn lujvo_part_ranges_from_with_cache(
-    chars: &[char],
     index: usize,
     end: usize,
     has_initial_rafsi: bool,
     failure: &mut Option<LujvoParseFailure>,
-    cache: &mut MorphologyRecognitionCache,
-) -> Option<Vec<LujvoPartRange>> {
-    if cache.is_cancelled() {
-        return None;
-    }
-
-    if let Some(memo) = cache.lujvo_part_ranges(index, end, has_initial_rafsi) {
-        merge_lujvo_failure(failure, memo.failure);
-        return memo.ranges.as_ref().map(|ranges| ranges.to_vec());
-    }
-    let mut local_failure = None;
-    let result = lujvo_part_ranges_uncached(
-        chars,
+    cache: &MorphologyRecognitionCache,
+) -> Result<Option<Vec<LujvoPartRange>>, drive::Blocked> {
+    let key = new!(drive::RecKey::LujvoParts {
         index,
         end,
-        has_initial_rafsi,
-        &mut local_failure,
+        flag: has_initial_rafsi,
+    });
+    match drive::open_memo(
         cache,
-    );
+        cache.lujvo_part_ranges(index, end, has_initial_rafsi),
+        key,
+    )? {
+        drive::Open::Cancelled => return Ok(None),
+        drive::Open::Hit(memo) => {
+            merge_lujvo_failure(failure, memo.failure);
+            return Ok(memo.ranges.as_ref().map(|ranges| ranges.to_vec()));
+        }
+        drive::Open::Drive => {
+            return Ok(drive::lujvo_parts_drive(
+                index,
+                end,
+                has_initial_rafsi,
+                failure,
+                cache,
+            ));
+        }
+        drive::Open::Own => {}
+    }
+
+    let mut local_failure = None;
+    let result =
+        lujvo_part_ranges_uncached(index, end, has_initial_rafsi, &mut local_failure, cache)?;
     let ranges = result
         .as_ref()
         .map(|ranges| Rc::<[LujvoPartRange]>::from(ranges.as_slice()));
     cache.record_lujvo_part_ranges(index, end, has_initial_rafsi, ranges, local_failure);
     merge_lujvo_failure(failure, local_failure);
-    result
+    Ok(result)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
-#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end)))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().as_ref().is_none_or(|ranges| !ranges.is_empty())))]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end))))]
 fn lujvo_part_ranges_uncached(
-    chars: &[char],
     index: usize,
     end: usize,
     has_initial_rafsi: bool,
     failure: &mut Option<LujvoParseFailure>,
-    cache: &mut MorphologyRecognitionCache,
-) -> Option<Vec<LujvoPartRange>> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Option<Vec<LujvoPartRange>>, drive::Blocked> {
     if index >= end {
         record_lujvo_failure(failure, index, has_initial_rafsi);
-        return None;
+        return Ok(None);
     }
     if has_initial_rafsi
-        && let Some(ranges) = lujvo_core_part_ranges_until(chars, index, end, failure, cache)
+        && let Some(ranges) = lujvo_core_part_ranges_until(index, end, failure, cache)?
     {
-        return Some(ranges);
+        return Ok(Some(ranges));
     }
     if !has_initial_rafsi
-        && let Some(ranges) = lujvo_core_part_ranges_until(chars, index, end, failure, cache)
+        && let Some(ranges) = lujvo_core_part_ranges_until(index, end, failure, cache)?
         && ranges.len() > 1
     {
-        return Some(ranges);
+        return Ok(Some(ranges));
     }
-    if !has_initial_rafsi && is_lujvo_final_rafsi_alone_until(chars, index, end) {
-        return Some(vec![LujvoPartRange::rafsi(index, end)]);
+    if !has_initial_rafsi && is_lujvo_final_rafsi_alone_until(&cache.char_state(), index, end) {
+        return Ok(Some(vec![LujvoPartRange::rafsi(index, end)]));
     }
-    for next in initial_rafsi_ends_until_with_cache(chars, index, end, cache) {
+    let part_ends = initial_rafsi_ends_until_with_cache(index, end, cache)?;
+    let (resume_at, saved_failure) = match drive::resume(cache) {
+        drive::Resume::LujvoParts(drive::LujvoPartsResume::AtOrdinal { ordinal, failure }) => {
+            (ordinal, failure)
+        }
+        _ => (0, None),
+    };
+    // Early checks already ran. A resume past ordinal 0 replaces their result
+    // with the failure those finished ordinals had recorded. A merge would
+    // keep a second copy of the same early failure.
+    if resume_at > 0 {
+        *failure = saved_failure;
+    }
+    for (ordinal, next) in part_ends.into_iter().enumerate() {
+        if ordinal < resume_at {
+            continue;
+        }
+        drive::set_resume(
+            cache,
+            drive::Resume::LujvoParts(drive::LujvoPartsResume::AtOrdinal {
+                ordinal,
+                failure: *failure,
+            }),
+        );
+
         if next <= index {
             continue;
         }
@@ -2860,32 +2911,38 @@ fn lujvo_part_ranges_uncached(
         // predicate in this span. A stressed initial rafsi needs a short final
         // rafsi. An unstressed initial rafsi can take another initial rafsi or
         // a brivla core. A tail after the y stays on the invalid-lujvo path.
-        if next == end && initial_rafsi_reaches_end_on_y(chars, index, end, cache) {
-            let expected = if stressed_y_ending_rafsi_in_context(chars, index, end, cache) {
-                LujvoParseExpectation::ShortFinalRafsi
-            } else {
-                LujvoParseExpectation::FinalOrInitialRafsi
-            };
-            // This branch runs only after a y-ending rafsi production matched.
-            merge_lujvo_failure(
-                failure,
-                Some(LujvoParseFailure::with_rafsi(
-                    index, end, expected, true, true,
-                )),
-            );
-            continue;
+        if next == end {
+            let reaches = initial_rafsi_reaches_end_on_y(index, end, cache)?;
+            if reaches {
+                let stressed = stressed_y_ending_rafsi_in_context(index, end, cache)?;
+                let expected = if stressed {
+                    LujvoParseExpectation::ShortFinalRafsi
+                } else {
+                    LujvoParseExpectation::FinalOrInitialRafsi
+                };
+                // This branch runs only after a y-ending rafsi production matched.
+                merge_lujvo_failure(
+                    failure,
+                    Some(LujvoParseFailure::with_rafsi(
+                        index, end, expected, true, true,
+                    )),
+                );
+                continue;
+            }
         }
-        let Some(mut rest) =
-            lujvo_part_ranges_from_with_cache(chars, next, end, true, failure, cache)
+        let Some(mut rest) = lujvo_part_ranges_from_with_cache(next, end, true, failure, cache)?
         else {
             continue;
         };
-        let mut ranges = initial_rafsi_ranges(chars, index, next)?;
+        let mut ranges = match initial_rafsi_ranges(&cache.char_state(), index, next) {
+            Some(value) => value,
+            None => return Ok(None),
+        };
         ranges.append(&mut rest);
-        return Some(ranges);
+        return Ok(Some(ranges));
     }
     record_lujvo_failure(failure, index, has_initial_rafsi);
-    None
+    Ok(None)
 }
 
 #[requires(!ranges.is_empty())]
@@ -2903,12 +2960,16 @@ fn lujvo_ranges_to_parts(chars: &[char], ranges: Vec<LujvoPartRange>) -> Option<
 
 #[requires(true)]
 #[ensures(ret.iter().all(|ranges| !ranges.is_empty()))]
-fn analyze_cmevla_lujvo_part_range_candidates_chars(chars: &[char]) -> Vec<Vec<LujvoPartRange>> {
+fn analyze_cmevla_lujvo_part_range_candidates_chars(
+    state: &crate::recog_state::CharState,
+) -> Vec<Vec<LujvoPartRange>> {
+    let chars: &[char] = state.chars();
+
     if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
         return Vec::new();
     }
     let mut candidates = Vec::new();
-    collect_cmevla_lujvo_part_ranges_from(chars, 0, &mut Vec::new(), &mut candidates);
+    collect_cmevla_lujvo_part_ranges_from(state, 0, &mut candidates);
     unique_cmevla_lujvo_part_range_candidates(candidates)
 }
 
@@ -2926,106 +2987,96 @@ fn unique_cmevla_lujvo_part_range_candidates(
     unique
 }
 
-#[requires(index <= chars.len())]
-#[requires(acc.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+#[requires(index <= state.len())]
 #[requires(out.iter().all(|ranges| !ranges.is_empty()))]
 #[ensures(out.iter().all(|ranges| !ranges.is_empty()))]
 fn collect_cmevla_lujvo_part_ranges_from(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
-    acc: &mut Vec<LujvoPartRange>,
     out: &mut Vec<Vec<LujvoPartRange>>,
 ) {
-    if index == chars.len() {
-        if cmevla_lujvo_ranges_match_bonded(chars, acc) {
-            out.push(acc.clone());
-        }
-        return;
-    }
-
-    for ranges in cmevla_lujvo_range_candidates(chars, index, acc) {
-        let Some(next) = ranges.last().map(|range| range.end) else {
-            continue;
-        };
-        let previous_len = acc.len();
-        acc.extend(ranges);
-        collect_cmevla_lujvo_part_ranges_from(chars, next, acc, out);
-        acc.truncate(previous_len);
-    }
+    drive::cmevla_ranges(state, index, out);
+    return;
 }
 
-#[requires(index < chars.len())]
-#[requires(acc.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+#[requires(index < state.len())]
+#[requires(acc.iter().all(|range| range.start < range.end && range.end <= state.len()))]
 #[ensures(ret.iter().all(|ranges| !ranges.is_empty()))]
 fn cmevla_lujvo_range_candidates(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     acc: &[LujvoPartRange],
 ) -> Vec<Vec<LujvoPartRange>> {
+    let chars: &[char] = state.chars();
+
     let mut candidates = Vec::new();
     if acc
         .last()
         .is_some_and(|range| range.kind == LujvoPartRangeKind::Rafsi)
-        && let Some(hyphen) = cmevla_lujvo_standalone_hyphen_range(chars, index)
+        && let Some(hyphen) = cmevla_lujvo_standalone_hyphen_range(state, index)
     {
         candidates.push(vec![hyphen]);
     }
 
     candidates.extend(
-        cmevla_lujvo_cvv_rafsi_ends(chars, index)
+        cmevla_lujvo_cvv_rafsi_ends(state, index)
             .into_iter()
             .map(|end| vec![LujvoPartRange::rafsi(index, end)]),
     );
 
-    if let Some(ranges) = cmevla_lujvo_y_hyphenated_rafsi_ranges(chars, index) {
+    if let Some(ranges) = cmevla_lujvo_y_hyphenated_rafsi_ranges(state, index) {
         candidates.push(ranges);
     }
 
     if let Some(range) = cmevla_lujvo_final_long_vowel_range(chars, index) {
         candidates.push(vec![range]);
     }
-    if let Some(range) = cmevla_lujvo_final_long_consonant_range(chars, index) {
+    if let Some(range) = cmevla_lujvo_final_long_consonant_range(state, index) {
         candidates.push(vec![range]);
     }
 
-    if let Some(end) = cvc_rafsi_end(chars, index) {
+    if let Some(end) = cvc_rafsi_end(state, index) {
         candidates.push(vec![LujvoPartRange::rafsi(index, end)]);
     }
-    if let Some(end) = ccv_rafsi_end(chars, index) {
+    if let Some(end) = ccv_rafsi_end(state, index) {
         candidates.push(vec![LujvoPartRange::rafsi(index, end)]);
     }
 
     candidates
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|range| range.start == index && range.end > index && range.end <= chars.len()))]
-fn cmevla_lujvo_standalone_hyphen_range(chars: &[char], index: usize) -> Option<LujvoPartRange> {
-    rafsi_hyphen_end(chars, index)
+#[requires(index <= state.len())]
+#[ensures(ret.as_ref().is_none_or(|range| range.start == index && range.end > index && range.end <= state.len()))]
+fn cmevla_lujvo_standalone_hyphen_range(
+    state: &crate::recog_state::CharState,
+    index: usize,
+) -> Option<LujvoPartRange> {
+    let chars: &[char] = state.chars();
+    rafsi_hyphen_end(state, index)
         .or_else(|| r_hyphen_end(chars, index))
         .or_else(|| n_hyphen_end(chars, index))
         .map(|end| LujvoPartRange::hyphen(index, end))
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn cmevla_lujvo_cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut ends = cvv_rafsi_base_ends(chars, index);
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn cmevla_lujvo_cvv_rafsi_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    let mut ends = cvv_rafsi_base_ends(state, index);
     ends.sort_by_key(|end| (*end, *end - index));
     ends
 }
 
-#[requires(index <= chars.len())]
+#[requires(index <= state.len())]
 #[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
 fn cmevla_lujvo_y_hyphenated_rafsi_ranges(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
 ) -> Option<Vec<LujvoPartRange>> {
-    long_rafsi_ends(chars, index)
+    long_rafsi_ends(state, index)
         .into_iter()
-        .chain(cvc_rafsi_end(chars, index))
+        .chain(cvc_rafsi_end(state, index))
         .find_map(|base_end| {
-            rafsi_hyphen_end(chars, base_end).map(|end| {
+            rafsi_hyphen_end(state, base_end).map(|end| {
                 vec![
                     LujvoPartRange::rafsi(index, base_end),
                     LujvoPartRange::hyphen(base_end, end),
@@ -3040,10 +3091,15 @@ fn cmevla_lujvo_final_long_vowel_range(chars: &[char], index: usize) -> Option<L
     is_gismu_slice(chars, index, chars.len()).then_some(LujvoPartRange::rafsi(index, chars.len()))
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|range| range.start == index && range.end == chars.len()))]
-fn cmevla_lujvo_final_long_consonant_range(chars: &[char], index: usize) -> Option<LujvoPartRange> {
-    long_rafsi_ends(chars, index)
+#[requires(index <= state.len())]
+#[ensures(ret.as_ref().is_none_or(|range| range.start == index && range.end == state.len()))]
+fn cmevla_lujvo_final_long_consonant_range(
+    state: &crate::recog_state::CharState,
+    index: usize,
+) -> Option<LujvoPartRange> {
+    let chars: &[char] = state.chars();
+
+    long_rafsi_ends(state, index)
         .into_iter()
         .any(|end| end == chars.len())
         .then_some(LujvoPartRange::rafsi(index, chars.len()))
@@ -3120,10 +3176,16 @@ fn cmevla_lujvo_range_text_is(chars: &[char], range: &LujvoPartRange, text: &str
         .eq(text.chars())
 }
 
-#[requires(start < end && end <= chars.len())]
+#[requires(start < end && end <= state.len())]
 #[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
 #[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end)))]
-fn initial_rafsi_ranges(chars: &[char], start: usize, end: usize) -> Option<Vec<LujvoPartRange>> {
+fn initial_rafsi_ranges(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+) -> Option<Vec<LujvoPartRange>> {
+    let chars: &[char] = state.chars();
+
     if let Some(hyphen_start) = (start + 1..end).find(|index| is_rafsi_hyphen_start(chars, *index))
     {
         return Some(vec![
@@ -3131,7 +3193,7 @@ fn initial_rafsi_ranges(chars: &[char], start: usize, end: usize) -> Option<Vec<
             LujvoPartRange::hyphen(hyphen_start, end),
         ]);
     }
-    if let Some(hyphen_start) = cvv_rafsi_hyphen_start_for_initial_end(chars, start, end) {
+    if let Some(hyphen_start) = cvv_rafsi_hyphen_start_for_initial_end(state, start, end) {
         return Some(vec![
             LujvoPartRange::rafsi(start, hyphen_start),
             LujvoPartRange::hyphen(hyphen_start, end),
@@ -3170,21 +3232,23 @@ fn phonemes_part(chars: &[char], start: usize, end: usize) -> Option<Phonemes> {
 #[requires(index <= chars.len())]
 #[ensures(true)]
 fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    starts_with_cvcy_lujvo_chars_with_cache(chars, index, chars.len(), &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(starts_with_cvcy_lujvo_chars_with_cache(
+        index,
+        chars.len(),
+        &cache,
+    ))
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= end && end <= cache.char_count)]
 #[ensures(true)]
 pub(crate) fn starts_with_cvcy_lujvo_chars_with_cache(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     // CVCy_lujvo <- CVC_rafsi y h? initial_rafsi* brivla_core
@@ -3192,52 +3256,58 @@ pub(crate) fn starts_with_cvcy_lujvo_chars_with_cache(
     // The first rafsi needs an unstressed vowel. A stressed vowel takes the
     // second alternative, and that tail is only a short final. CV'V is not one.
     // Stress uses the predicates for this span. An accent mark alone does not.
-    cvcy_lujvo_from_unstressed_cvc(chars, index, end, cache)
-        || cvcy_lujvo_from_stressed_cvc(chars, index, end, cache)
+    let unstressed = cvcy_lujvo_from_unstressed_cvc(index, end, cache)?;
+    if unstressed {
+        return Ok(true);
+    }
+    cvcy_lujvo_from_stressed_cvc(index, end, cache)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn cvcy_lujvo_from_unstressed_cvc(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // CVC_rafsi <- consonant unstressed_vowel consonant
-    let Some(base_end) = cvc_rafsi_end(chars, index) else {
-        return false;
+    let Some(base_end) = cvc_rafsi_end(&cache.char_state(), index) else {
+        return Ok(false);
     };
     if base_end >= end || !chars.get(base_end).is_some_and(|value| is_y(*value)) {
-        return false;
+        return Ok(false);
     }
-    if !y_less_rafsi_is_unstressed_in_context(chars, index, base_end, end, cache) {
-        return false;
+    if !y_less_rafsi_is_unstressed_in_context(index, base_end, end, cache)? {
+        return Ok(false);
     }
     // `h?` stays inside this span. The apostrophe counts only when a nucleus follows.
-    let after_y = optional_rafsi_h_end(chars, base_end + 1, end);
+    let after_y = optional_rafsi_h_end(&cache.char_state(), base_end + 1, end);
     // The whole tail can be one lujvo. It can also be initial_rafsi* brivla_core
     // ending before this candidate. Stress and lookahead keep `end`.
-    after_y < end
-        && (lujvo_from_until_with_cache(chars, after_y, end, true, cache)
-            || cvcy_initial_rafsi_star_core_before_end(chars, after_y, end, cache))
+    // A blocked lujvo check is `Err`. The core arm does not run.
+    if after_y >= end {
+        return Ok(false);
+    }
+    let lujvo = lujvo_from_until_with_cache(after_y, end, true, cache)?;
+    Ok(lujvo || cvcy_initial_rafsi_star_core_before_end(after_y, end, cache)?)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn cvcy_lujvo_from_stressed_cvc(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // stressed_CVC_rafsi y short_final_rafsi
     // This alternative has no h. The short final can end before this span.
     // `post_word` then reads the next word. `klama` is `kla` plus `ma`.
-    let Some(base_end) = stressed_cvc_rafsi_end_in_context(chars, index, end, cache) else {
-        return false;
+    let Some(base_end) = stressed_cvc_rafsi_end_in_context(index, end, cache)? else {
+        return Ok(false);
     };
     let after_y = base_end + 1;
     if base_end >= end
@@ -3245,93 +3315,145 @@ fn cvcy_lujvo_from_stressed_cvc(
         || !chars.get(base_end).is_some_and(|value| is_y(*value))
         || chars[after_y] == '\''
     {
-        return false;
+        return Ok(false);
     }
     let short_end = after_y + 3;
-    short_end <= end
-        && is_unaccented_short_final_rafsi_slice(chars, after_y, short_end)
-        && prefix_post_word_slice_with_cache(chars, short_end, end, cache)
+    if short_end > end
+        || !is_unaccented_short_final_rafsi_slice(&cache.char_state(), after_y, short_end)
+    {
+        return Ok(false);
+    }
+    drive::enter_prefix_post(short_end, end, cache)
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn cvcy_initial_rafsi_star_core_before_end(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     // initial_rafsi* brivla_core, with the core ending before `context_end`.
     // `context_end` stays the stress pause and the lookahead. A shorter core
     // end is not a pause.
-    if cache.is_cancelled() || index >= context_end {
-        return false;
+    if index >= context_end {
+        return Ok(false);
     }
-    if let Some(result) = cache.cvcy_core_before(index, context_end) {
-        return result;
+    let key = new!(drive::RecKey::Cvcy {
+        index,
+        end: context_end,
+    });
+    match drive::open_memo(cache, cache.cvcy_core_before(index, context_end), key)? {
+        drive::Open::Cancelled => return Ok(false),
+        drive::Open::Hit(result) => return Ok(result),
+        drive::Open::Drive => return Ok(drive::cvcy_drive(index, context_end, cache)),
+        drive::Open::Own => {}
     }
-    let result = cvcy_brivla_core_before_end(chars, index, context_end, cache)
-        || initial_rafsi_ends_until_with_cache(chars, index, context_end, cache)
-            .into_iter()
-            .any(|next| {
-                next > index
-                    && next < context_end
-                    && cvcy_initial_rafsi_star_core_before_end(chars, next, context_end, cache)
-            });
+
+    let cvcy_resume = match drive::resume(cache) {
+        drive::Resume::Cvcy(drive::CvcyResume::AfterCore(ordinal)) => Some(ordinal),
+        _ => None,
+    };
+    let mut found = if cvcy_resume.is_none() {
+        cvcy_brivla_core_before_end(index, context_end, cache)?
+    } else {
+        false
+    };
+    if !found {
+        let ends = initial_rafsi_ends_until_with_cache(index, context_end, cache)?;
+        let resume_at = cvcy_resume.unwrap_or(0);
+        for (ordinal, next) in ends.into_iter().enumerate() {
+            if ordinal < resume_at {
+                continue;
+            }
+            if next > index && next < context_end {
+                drive::set_resume(
+                    cache,
+                    drive::Resume::Cvcy(drive::CvcyResume::AfterCore(ordinal)),
+                );
+
+                if cvcy_initial_rafsi_star_core_before_end(next, context_end, cache)? {
+                    found = true;
+                    break;
+                }
+            }
+        }
+    }
+    let result = found;
     cache.record_cvcy_core_before(index, context_end, result);
-    result
+    Ok(result)
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn cvcy_brivla_core_before_end(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     // brivla_core <- fuhivla / gismu / CVV_final_rafsi
     //              / stressed_initial_rafsi short_final_rafsi
-    cvcy_gismu_core_before_end(chars, index, context_end, cache)
-        || cvcy_cvv_core_before_end(chars, index, context_end, cache)
-        || cvcy_stressed_initial_short_final_before_end(chars, index, context_end, cache)
-        || cvcy_fuhivla_core_before_end(chars, index, context_end, cache)
+    // A blocked arm is `Err`. The next arm does not run.
+    let gismu = cvcy_gismu_core_before_end(index, context_end, cache)?;
+    if gismu {
+        return Ok(true);
+    }
+    let cvv = cvcy_cvv_core_before_end(index, context_end, cache)?;
+    if cvv {
+        return Ok(true);
+    }
+    let stressed = cvcy_stressed_initial_short_final_before_end(index, context_end, cache)?;
+    if stressed {
+        return Ok(true);
+    }
+    cvcy_fuhivla_core_before_end(index, context_end, cache)
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn cvcy_fuhivla_core_before_end(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // fuhivla <- fuhivla_head stressed_syllable consonantal_syllable* final_syllable
     // The shape checker reads stress to its own end. An early core therefore
     // needs an explicit mark on the penultimate nucleus. Implicit stress from
     // that shorter end does not count. `context_end` still bounds post_word.
-    cvcy_stressable_nucleus_ends(chars, index, context_end)
+    for core_end in cvcy_stressable_nucleus_ends(&cache.char_state(), index, context_end)
         .into_iter()
         .skip(1)
-        .any(|core_end| {
-            let prefix = &chars[index..core_end];
-            crate::grammar::has_explicit_brivla_stress_chars(prefix)
-                && crate::grammar::explicit_brivla_stress_is_valid_chars(prefix)
-                && !crate::grammar::boundary_repeats_diphthong_semivowel_chars(
-                    prefix,
-                    &chars[core_end..context_end],
-                )
-                && is_fuhivla_shape_slice_with_cache(chars, index, core_end, cache)
-                && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
-        })
+    {
+        let prefix = &chars[index..core_end];
+        if !(crate::grammar::has_explicit_brivla_stress_chars(prefix)
+            && crate::grammar::explicit_brivla_stress_is_valid_chars(prefix)
+            && !crate::grammar::boundary_repeats_diphthong_semivowel_chars(
+                prefix,
+                &chars[core_end..context_end],
+            ))
+        {
+            continue;
+        }
+        if is_fuhivla_shape_slice_with_cache(index, core_end, cache)?
+            && drive::enter_prefix_post(core_end, context_end, cache)?
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
-#[requires(start < end && end <= chars.len())]
+#[requires(start < end && end <= state.len())]
 #[ensures(ret.iter().all(|nucleus_end| *nucleus_end > start && *nucleus_end < end))]
-fn cvcy_stressable_nucleus_ends(chars: &[char], start: usize, end: usize) -> Vec<usize> {
+fn cvcy_stressable_nucleus_ends(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     let mut nucleus_ends = Vec::new();
     let mut index = start;
     while index < end {
@@ -3339,7 +3461,7 @@ fn cvcy_stressable_nucleus_ends(chars: &[char], start: usize, end: usize) -> Vec
             index += 1;
             continue;
         }
-        let Some((stressable, nucleus_end)) = parse_explicit_stress_nucleus_end(chars, index)
+        let Some((stressable, nucleus_end)) = parse_explicit_stress_nucleus_end(state, index)
         else {
             index += 1;
             continue;
@@ -3355,15 +3477,15 @@ fn cvcy_stressable_nucleus_ends(chars: &[char], start: usize, end: usize) -> Vec
     nucleus_ends
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn cvcy_gismu_core_before_end(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // gismu <- (initial_pair stressed_vowel / consonant stressed_vowel consonant)
     //          &final_syllable consonant vowel &post_word
     // The shape is `is_gismu_slice`. Both shapes put the final syllable at
@@ -3372,248 +3494,124 @@ fn cvcy_gismu_core_before_end(
     // from the next word.
     let core_end = index + 5;
     if core_end >= context_end || !is_gismu_slice(chars, index, core_end) {
-        return false;
+        return Ok(false);
     }
     let final_start = index + 3;
-    syllable_is_stressed_in_context(chars, index, final_start, context_end)
-        && final_syllable_slice(chars, final_start, core_end)
-        && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
+    if !final_syllable_slice(&cache.char_state(), final_start, core_end) {
+        return Ok(false);
+    }
+    if !syllable_is_stressed_in_context(&cache.char_state(), index, final_start, context_end) {
+        return Ok(false);
+    }
+    drive::enter_prefix_post(core_end, context_end, cache)
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn cvcy_cvv_core_before_end(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // CVV_final_rafsi <- consonant stressed_vowel h &final_syllable vowel &post_word
     let core_end = index + 4;
-    core_end < context_end
+    if !(core_end < context_end
         && is_consonant(chars[index])
-        && vowel_production_end(chars, index + 1, context_end) == Some(index + 2)
+        && vowel_production_end(&cache.char_state(), index + 1, context_end) == Some(index + 2)
         && chars[index + 2] == '\''
-        && vowel_production_end(chars, index + 3, context_end) == Some(index + 4)
-        && vowel_is_stressed_in_context(chars, index + 1, context_end, cache)
-        && final_syllable_slice(chars, index + 3, core_end)
-        && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
+        && vowel_production_end(&cache.char_state(), index + 3, context_end) == Some(index + 4)
+        && final_syllable_slice(&cache.char_state(), index + 3, core_end))
+    {
+        return Ok(false);
+    }
+    if !vowel_is_stressed_in_context(index + 1, context_end, cache) {
+        return Ok(false);
+    }
+    drive::enter_prefix_post(core_end, context_end, cache)
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn cvcy_stressed_initial_short_final_before_end(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     // stressed_initial_rafsi short_final_rafsi, ending before `context_end`.
     // The stressed rafsi reads stress from `context_end`, not from its own end.
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
-    let mut splits = stressed_y_rafsi_ends_in_context(chars, index, context_end, cache);
+    let mut splits = stressed_y_rafsi_ends_in_context(index, context_end, cache)?;
     splits.extend(stressed_y_less_rafsi_ends_in_context(
-        chars,
         index,
         context_end,
         cache,
-    ));
+    )?);
     splits.extend(stressed_extended_rafsi_ends_until_with_cache(
-        chars,
         index,
         context_end,
         cache,
-    ));
-    splits.into_iter().any(|split| {
+    )?);
+    for split in splits {
         let core_end = split.saturating_add(3);
-        split > index
+        if !(split > index
             && core_end < context_end
-            && is_unaccented_short_final_rafsi_slice(chars, split, core_end)
-            && prefix_post_word_slice_with_cache(chars, core_end, context_end, cache)
-    })
+            && is_unaccented_short_final_rafsi_slice(&cache.char_state(), split, core_end))
+        {
+            continue;
+        }
+        if drive::enter_prefix_post(core_end, context_end, cache)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn prefix_post_word_slice_with_cache(
-    chars: &[char],
-    index: usize,
-    end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    // post_word <- pause / !nucleus lojban_word
-    // `pause` is a separator or the end of this slice. `end` stays the stress
-    // context and the lookahead. This result stays out of the whole-slice
-    // `post_word` table. A recursive call starts later, so one key runs once.
-    if cache.is_cancelled() {
-        return false;
-    }
-    if let Some(result) = cache.prefix_post_word(index, end) {
-        return result;
-    }
-    let result = match next_non_comma_index(chars, index) {
-        None => true,
-        Some(next) if next >= end || is_separator(chars[next]) => true,
-        Some(next) if starts_with_nucleus(chars, next) => false,
-        Some(next) => prefix_lojban_word_slice_with_cache(chars, next, end, cache),
-    };
-    cache.record_prefix_post_word(index, end, result);
-    result
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn prefix_lojban_word_slice_with_cache(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    // lojban_word <- cmevla / cmavo / brivla
-    // The cmavo arm continues with the prefix post_word. The brivla arm accepts
-    // a brivla that ends before `end` when explicit stress makes that end valid.
-    // This result stays out of the whole-slice `lojban_word` and `cmavo_word`
-    // tables. A recursive call starts later, so one key runs once.
-    if cache.is_cancelled() {
-        return false;
-    }
-    if let Some(result) = cache.prefix_lojban_word(start, end) {
-        return result;
-    }
-    #[allow(unused_mut)]
-    let mut recognize = || {
-        start < end
-            && (is_cmevla_slice(chars, start, end)
-                || prefix_cmavo_word_before_end(chars, start, end, cache)
-                || prefix_brivla_word_before_end(chars, start, end, cache))
-    };
-    // One word calls the next word before this call returns. Grow the native
-    // stack when less than 64 KiB remains. wasm32 has no auxiliary stack, so
-    // the call stays on the host stack.
-    #[cfg(not(target_arch = "wasm32"))]
-    let result = stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
-    #[cfg(target_arch = "wasm32")]
-    let result = recognize();
-    cache.record_prefix_lojban_word(start, end, result);
-    result
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn prefix_cmavo_word_before_end(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    // cmavo <- !cmevla !CVCy_lujvo cmavo_form &post_word
-    // Both exclusions use this candidate. The continuation is the prefix post_word.
-    if start >= end
-        || is_cmevla_slice(chars, start, end)
-        || starts_with_cvcy_lujvo_chars_with_cache(chars, start, end, cache)
-    {
-        return false;
-    }
-    ((start + 1)..=end).any(|word_end| {
-        is_cmavo_form_span(chars, start, word_end, end)
-            && prefix_cmavo_post_word_before_end(chars, word_end, end, cache)
-    })
-}
-
-#[requires(prefix_end <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn prefix_cmavo_post_word_before_end(
-    chars: &[char],
-    prefix_end: usize,
-    end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    // The next word uses the cached post_word predicate.
-    prefix_post_word_slice_with_cache(chars, prefix_end, end, cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn prefix_brivla_word_before_end(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    // A brivla that runs to `end` meets `post_word` at that pause.
-    // A brivla that ends earlier needs the explicit-stress rule from
-    // `post_word_ok_for_brivla`, then this same post_word.
-    if start >= end {
-        return false;
-    }
-    if brivla_word_slice_with_cache(chars, start, end, cache) {
-        return true;
-    }
-    cvcy_stressable_nucleus_ends(chars, start, end)
-        .into_iter()
-        .skip(1)
-        .any(|brivla_end| {
-            let prefix = &chars[start..brivla_end];
-            crate::grammar::has_explicit_brivla_stress_chars(prefix)
-                && crate::grammar::explicit_brivla_stress_is_valid_chars(prefix)
-                && !crate::grammar::boundary_repeats_diphthong_semivowel_chars(
-                    prefix,
-                    &chars[brivla_end..end],
-                )
-                && brivla_word_slice_with_cache(chars, start, brivla_end, cache)
-                && prefix_post_word_slice_with_cache(chars, brivla_end, end, cache)
-        })
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
-#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end)))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().as_ref().is_none_or(|ranges| !ranges.is_empty())))]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end))))]
 fn lujvo_core_part_ranges_until(
-    chars: &[char],
     index: usize,
     end: usize,
     failure: &mut Option<LujvoParseFailure>,
-    cache: &mut MorphologyRecognitionCache,
-) -> Option<Vec<LujvoPartRange>> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Option<Vec<LujvoPartRange>>, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if is_gismu_slice(chars, index, end)
-        || is_unaccented_short_final_rafsi_slice(chars, index, end)
-        || is_cvv_final_rafsi_slice(chars, index, end)
-        || is_fuhivla_shape_slice_with_cache(chars, index, end, cache)
+        || is_unaccented_short_final_rafsi_slice(&cache.char_state(), index, end)
+        || is_cvv_final_rafsi_slice(&cache.char_state(), index, end)
     {
-        return Some(vec![LujvoPartRange::rafsi(index, end)]);
+        return Ok(Some(vec![LujvoPartRange::rafsi(index, end)]));
+    }
+    let fuhivla = is_fuhivla_shape_slice_with_cache(index, end, cache)?;
+    if fuhivla {
+        return Ok(Some(vec![LujvoPartRange::rafsi(index, end)]));
     }
     // brivla_core <- ... / stressed_initial_rafsi short_final_rafsi
-    if let Some(split) =
-        stressed_initial_rafsi_short_final_split_with_cache(chars, index, end, cache)
-    {
-        let mut ranges = initial_rafsi_ranges(chars, index, split)?;
+    if let Some(split) = stressed_initial_rafsi_short_final_split_with_cache(index, end, cache)? {
+        let mut ranges = match initial_rafsi_ranges(&cache.char_state(), index, split) {
+            Some(value) => value,
+            None => return Ok(None),
+        };
         ranges.push(LujvoPartRange::rafsi(split, end));
-        return Some(ranges);
+        return Ok(Some(ranges));
     }
-    record_stressed_extended_short_final_failure(chars, index, end, failure, cache);
-    None
+    record_stressed_extended_short_final_failure(index, end, failure, cache)?;
+    Ok(None)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn record_stressed_extended_short_final_failure(
-    chars: &[char],
     index: usize,
     end: usize,
     failure: &mut Option<LujvoParseFailure>,
-    cache: &mut MorphologyRecognitionCache,
-) {
+    cache: &MorphologyRecognitionCache,
+) -> Result<(), drive::Blocked> {
     // brivla_core <- ... / stressed_initial_rafsi short_final_rafsi.
     // stressed_initial_rafsi is a stressed extended rafsi, a stressed y-rafsi,
     // or a stressed y-less rafsi. The split search above returns only a match
@@ -3621,9 +3619,8 @@ fn record_stressed_extended_short_final_failure(
     // stressed initial rafsi. Input after it is a bad tail. No input after it
     // means the short final is missing. Stress uses the parser predicate in
     // this span. A rafsi shape alone does not decide stress.
-    let Some((split, ends_on_y)) = stressed_initial_rafsi_failure_split(chars, index, end, cache)
-    else {
-        return;
+    let Some((split, ends_on_y)) = stressed_initial_rafsi_failure_split(index, end, cache)? else {
+        return Ok(());
     };
     // `index` is the start of this stressed rafsi. `split` is its end.
     // The diagnostic names that span. It does not rebuild the boundary.
@@ -3637,19 +3634,18 @@ fn record_stressed_extended_short_final_failure(
         ends_on_y,
     );
     merge_lujvo_failure(failure, Some(candidate));
+    Ok(())
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.is_none_or(|(split, _ends_on_y)| split > index && split <= end))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().is_none_or(|(split, _ends_on_y)| split > index && split <= end)))]
 fn stressed_initial_rafsi_failure_split(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Option<(usize, bool)> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Option<(usize, bool)>, drive::Blocked> {
     if cache.is_cancelled() {
-        return None;
+        return Ok(None);
     }
     // The bool is true when that production ends on y.
     // A later candidate replaces an earlier one only when its end is greater.
@@ -3658,88 +3654,86 @@ fn stressed_initial_rafsi_failure_split(
     let mut consider = |split: usize, ends_on_y: bool| {
         if split > index
             && split <= end
-            && !is_unaccented_short_final_rafsi_slice(chars, split, end)
+            && !is_unaccented_short_final_rafsi_slice(&cache.char_state(), split, end)
             && best.is_none_or(|(current, _)| split > current)
         {
             best = Some((split, ends_on_y));
         }
     };
-    for split in stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache) {
+    for split in stressed_extended_rafsi_ends_until_with_cache(index, end, cache)? {
         consider(split, true);
     }
-    for split in stressed_y_rafsi_ends_in_context(chars, index, end, cache) {
+    for split in stressed_y_rafsi_ends_in_context(index, end, cache)? {
         consider(split, true);
     }
     // stressed_y_less_rafsi has no y. A tail after it, as in `klá'y`, is
     // invalid. No tail means the short final is missing.
-    for split in stressed_y_less_rafsi_ends_in_context(chars, index, end, cache) {
+    for split in stressed_y_less_rafsi_ends_in_context(index, end, cache)? {
         consider(split, false);
     }
-    best
+    Ok(best)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn stressed_y_ending_rafsi_in_context(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() || index >= end {
-        return false;
+        return Ok(false);
     }
     // stressed_extended_rafsi and stressed_y_rafsi end on y.
     // The vowel stress predicate runs in this span. The rafsi shape is not
     // evidence that the rafsi is unstressed.
-    stressed_extended_rafsi_slice_with_cache(chars, index, end, end, cache)
-        || stressed_y_rafsi_ends_in_context(chars, index, end, cache).contains(&end)
+    let extended = stressed_extended_rafsi_slice_with_cache(index, end, end, cache)?;
+    Ok(extended || stressed_y_rafsi_ends_in_context(index, end, cache)?.contains(&end))
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|next| *next > index && *next <= end)))]
 fn stressed_y_rafsi_ends_in_context(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Vec<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Vec<usize>, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // stressed_y_rafsi <- (stressed_long_rafsi / stressed_CVC_rafsi) y
     if cache.is_cancelled() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
     let mut ends = Vec::new();
-    for base_end in stressed_long_rafsi_ends_in_context(chars, index, end, cache) {
+    for base_end in stressed_long_rafsi_ends_in_context(index, end, cache)? {
         if chars.get(base_end).is_some_and(|value| is_y(*value)) && base_end + 1 <= end {
             ends.push(base_end + 1);
         }
     }
-    if let Some(base_end) = stressed_cvc_rafsi_end_in_context(chars, index, end, cache)
+    if let Some(base_end) = stressed_cvc_rafsi_end_in_context(index, end, cache)?
         && chars.get(base_end).is_some_and(|value| is_y(*value))
         && base_end + 1 <= end
     {
         ends.push(base_end + 1);
     }
-    ends
+    Ok(ends)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|next| *next > index && *next <= end)))]
 fn stressed_y_less_rafsi_ends_in_context(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Vec<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Vec<usize>, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // stressed_y_less_rafsi <- stressed_CVC_rafsi !y / stressed_CCV_rafsi / stressed_CVV_rafsi
     if cache.is_cancelled() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
     let mut ends = Vec::new();
-    if let Some(cvc_end) = stressed_cvc_rafsi_end_in_context(chars, index, end, cache)
+    if let Some(cvc_end) = stressed_cvc_rafsi_end_in_context(index, end, cache)?
         && !chars.get(cvc_end).is_some_and(|value| is_y(*value))
     {
         ends.push(cvc_end);
@@ -3749,99 +3743,99 @@ fn stressed_y_less_rafsi_ends_in_context(
     // In `flai` the `a` starts the diphthong `ai`, so `fla` is not a CCV.
     if index + 3 <= end
         && initial_pair_chars(chars[index], chars[index + 1])
-        && vowel_production_end(chars, index + 2, end) == Some(index + 3)
-        && vowel_is_stressed_in_context(chars, index + 2, end, cache)
+        && vowel_production_end(&cache.char_state(), index + 2, end) == Some(index + 3)
+        && vowel_is_stressed_in_context(index + 2, end, cache)
     {
         ends.push(index + 3);
     }
-    ends.extend(stressed_cvv_rafsi_ends_in_context(chars, index, end, cache));
-    ends
+    ends.extend(stressed_cvv_rafsi_ends_in_context(index, end, cache)?);
+    Ok(ends)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|next| *next > index && *next <= end)))]
 fn stressed_long_rafsi_ends_in_context(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Vec<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Vec<usize>, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // stressed_long_rafsi <- initial_pair stressed_vowel consonant
     //                      / consonant stressed_vowel consonant consonant
     if cache.is_cancelled() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
     let mut ends = Vec::new();
     if index + 4 <= end
         && initial_pair_chars(chars[index], chars[index + 1])
-        && vowel_production_end(chars, index + 2, end) == Some(index + 3)
+        && vowel_production_end(&cache.char_state(), index + 2, end) == Some(index + 3)
         && is_consonant(chars[index + 3])
-        && vowel_is_stressed_in_context(chars, index + 2, end, cache)
+        && vowel_is_stressed_in_context(index + 2, end, cache)
     {
         ends.push(index + 4);
     }
     if index + 4 <= end
         && is_consonant(chars[index])
-        && vowel_production_end(chars, index + 1, end) == Some(index + 2)
+        && vowel_production_end(&cache.char_state(), index + 1, end) == Some(index + 2)
         && is_consonant(chars[index + 2])
         && is_consonant(chars[index + 3])
-        && vowel_is_stressed_in_context(chars, index + 1, end, cache)
+        && vowel_is_stressed_in_context(index + 1, end, cache)
     {
         ends.push(index + 4);
     }
-    ends
+    Ok(ends)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.is_none_or(|next| next > index && next <= end))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().is_none_or(|next| next > index && next <= end)))]
 fn stressed_cvc_rafsi_end_in_context(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Option<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Option<usize>, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // stressed_CVC_rafsi <- consonant stressed_vowel consonant
     // The consonant after the vowel is not a nucleus. The vowel production
     // still applies, with this candidate as the lookahead bound.
-    (index + 3 <= end
+    Ok((index + 3 <= end
         && is_consonant(chars[index])
-        && vowel_production_end(chars, index + 1, end) == Some(index + 2)
+        && vowel_production_end(&cache.char_state(), index + 1, end) == Some(index + 2)
         && is_consonant(chars[index + 2])
-        && vowel_is_stressed_in_context(chars, index + 1, end, cache))
-    .then_some(index + 3)
+        && vowel_is_stressed_in_context(index + 1, end, cache))
+    .then_some(index + 3))
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|next| *next > index && *next <= end)))]
 fn stressed_cvv_rafsi_ends_in_context(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Vec<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Vec<usize>, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // stressed_CVV_rafsi <- consonant (unstressed_vowel h stressed_vowel / stressed_diphthong) r_hyphen?
     if cache.is_cancelled() || index >= end || !is_consonant(chars[index]) {
-        return Vec::new();
+        return Ok(Vec::new());
     }
     let mut ends = Vec::new();
     if index + 4 <= end
-        && vowel_production_end(chars, index + 1, end) == Some(index + 2)
+        && vowel_production_end(&cache.char_state(), index + 1, end) == Some(index + 2)
         && chars[index + 2] == '\''
-        && vowel_production_end(chars, index + 3, end) == Some(index + 4)
-        && !vowel_is_stressed_in_context(chars, index + 1, end, cache)
-        && vowel_is_stressed_in_context(chars, index + 3, end, cache)
+        && vowel_production_end(&cache.char_state(), index + 3, end) == Some(index + 4)
+        && !vowel_is_stressed_in_context(index + 1, end, cache)
+        && vowel_is_stressed_in_context(index + 3, end, cache)
     {
         push_rafsi_with_optional_r_hyphen(&mut ends, chars, index + 4, end);
     }
-    if diphthong_production_end(chars, index + 1, end) == Some(index + 3)
-        && nucleus_is_stressed_in_context(chars, index + 1, index + 3, end, cache)
+    if diphthong_production_end(&cache.char_state(), index + 1, end) == Some(index + 3)
+        && nucleus_is_stressed_in_context(index + 1, index + 3, end, cache)
     {
         push_rafsi_with_optional_r_hyphen(&mut ends, chars, index + 3, end);
     }
-    ends
+    Ok(ends)
 }
 
 #[requires(base_end <= end && end <= chars.len())]
@@ -3861,80 +3855,87 @@ fn push_rafsi_with_optional_r_hyphen(
     }
 }
 
-#[requires(vowel_index < context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(vowel_index < context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn vowel_is_stressed_in_context(
-    chars: &[char],
     vowel_index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
+    cache: &MorphologyRecognitionCache,
 ) -> bool {
     // stressed_vowel <- &stressed vowel / vowel &stress
-    nucleus_is_stressed_in_context(chars, vowel_index, vowel_index + 1, context_end, cache)
+    nucleus_is_stressed_in_context(vowel_index, vowel_index + 1, context_end, cache)
 }
 
-#[requires(index < end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index < end && end <= cache.char_count)]
 #[ensures(true)]
 fn initial_rafsi_reaches_end_on_y(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     // The end came from a rafsi recognizer. y-rafsi, hy-rafsi, brivla rafsi,
     // and fu'ivla rafsi all end on y. A y-less rafsi does not.
-    y_rafsi_slice(chars, index, end)
-        || hy_rafsi_slice(chars, index, end)
-        || extended_rafsi_ends_until_with_cache(chars, index, end, cache).contains(&end)
-        || stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache).contains(&end)
+    if y_rafsi_slice(&cache.char_state(), index, end)
+        || hy_rafsi_slice(&cache.char_state(), index, end)
+    {
+        return Ok(true);
+    }
+    let extended = extended_rafsi_ends_until_with_cache(index, end, cache)?.contains(&end);
+    Ok(
+        extended
+            || stressed_extended_rafsi_ends_until_with_cache(index, end, cache)?.contains(&end),
+    )
 }
 
-#[requires(index <= end && end <= chars.len())]
+#[requires(index <= end && end <= state.len())]
 #[ensures(true)]
-fn is_lujvo_final_rafsi_alone_until(chars: &[char], index: usize, end: usize) -> bool {
-    is_cvv_final_rafsi_slice(chars, index, end)
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
-fn initial_rafsi_ends_until_with_cache(
-    chars: &[char],
+fn is_lujvo_final_rafsi_alone_until(
+    state: &crate::recog_state::CharState,
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Vec<usize> {
+) -> bool {
+    is_cvv_final_rafsi_slice(state, index, end)
+}
+
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|next| *next > index && *next <= end)))]
+fn initial_rafsi_ends_until_with_cache(
+    index: usize,
+    end: usize,
+    cache: &MorphologyRecognitionCache,
+) -> Result<Vec<usize>, drive::Blocked> {
     if cache.is_cancelled() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     if let Some(ends) = cache.initial_rafsi_ends(index, end) {
-        return ends.to_vec();
+        return Ok(ends.to_vec());
     }
     let mut ends = Vec::new();
-    let extended = extended_rafsi_ends_until_with_cache(chars, index, end, cache);
+    let extended = extended_rafsi_ends_until_with_cache(index, end, cache)?;
     ends.extend(extended.iter().copied());
     // y_rafsi <- (long_rafsi / CVC_rafsi) y h?
     // Both rafsi forms require an unstressed vowel. A stressed y-rafsi is
     // only stressed_initial_rafsi before short_final_rafsi. The predicate
     // reads this span. An accent mark alone does not decide stress.
-    for next in y_rafsi_ends(chars, index) {
-        if next <= end && y_rafsi_vowel_is_unstressed_in_context(chars, index, next, end, cache) {
+    for next in y_rafsi_ends(&cache.char_state(), index) {
+        if next <= end && y_rafsi_vowel_is_unstressed_in_context(index, next, end, cache)? {
             ends.push(next);
         }
     }
-    if !any_extended_rafsi_starts_until_with_cache(chars, index, end, cache) {
+    if !any_extended_rafsi_starts_until_with_cache(index, end, cache)? {
         // y_less_rafsi <- CVC_rafsi !y / CCV_rafsi / CVV_rafsi
         // Each form requires an unstressed vowel. A stressed y-less rafsi is
         // only stressed_initial_rafsi before short_final_rafsi. The predicate
         // reads this span, so implicit stress counts.
-        ends.extend(y_less_rafsi_ends(chars, index).into_iter().filter(|next| {
-            *next <= end
-                && y_less_rafsi_is_unstressed_in_context(chars, index, *next, end, cache)
-                && !any_extended_rafsi_starts_until_with_cache(chars, *next, end, cache)
-        }));
+        for next in y_less_rafsi_ends(&cache.char_state(), index) {
+            if next <= end
+                && y_less_rafsi_is_unstressed_in_context(index, next, end, cache)?
+                && !any_extended_rafsi_starts_until_with_cache(next, end, cache)?
+            {
+                ends.push(next);
+            }
+        }
     }
 
     let mut preferred_ends = Vec::new();
@@ -3944,75 +3945,88 @@ fn initial_rafsi_ends_until_with_cache(
         }
     }
     cache.record_initial_rafsi_ends(index, end, &preferred_ends);
-    preferred_ends
+    Ok(preferred_ends)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn any_extended_rafsi_starts_until_with_cache(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.any_extended_rafsi_starts(index, end) {
-        return result;
+        return Ok(result);
     }
-    let result = index < end
-        && (is_fuhivla_shape_slice_with_cache(chars, index, end, cache)
-            || !extended_rafsi_ends_until_with_cache(chars, index, end, cache).is_empty()
-            || !stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache).is_empty());
+    // A blocked callee is `Err`. The next arm does not run.
+    let result = if index >= end {
+        false
+    } else {
+        let shape = is_fuhivla_shape_slice_with_cache(index, end, cache)?;
+        if shape {
+            true
+        } else {
+            let extended = !extended_rafsi_ends_until_with_cache(index, end, cache)?.is_empty();
+            if extended {
+                true
+            } else {
+                let stressed =
+                    !stressed_extended_rafsi_ends_until_with_cache(index, end, cache)?.is_empty();
+                stressed
+            }
+        }
+    };
     cache.record_any_extended_rafsi_starts(index, end, result);
-    result
+    Ok(result)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|next| *next > index && *next <= end)))]
 fn stressed_extended_rafsi_ends_until_with_cache(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Vec<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Vec<usize>, drive::Blocked> {
     if cache.is_cancelled() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     if let Some(ends) = cache.stressed_extended_rafsi_ends(index, end) {
-        return ends.to_vec();
+        return Ok(ends.to_vec());
     }
-    let ends = ((index + 1)..=end)
-        .filter(|next| stressed_extended_rafsi_slice_with_cache(chars, index, *next, end, cache))
-        .collect::<Vec<_>>();
+    let mut ends = Vec::new();
+    for next in (index + 1)..=end {
+        if stressed_extended_rafsi_slice_with_cache(index, next, end, cache)? {
+            ends.push(next);
+        }
+    }
     cache.record_stressed_extended_rafsi_ends(index, end, &ends);
-    ends
+    Ok(ends)
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|next| *next > index && *next <= end))]
+#[requires(index <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|next| *next > index && *next <= end)))]
 fn extended_rafsi_ends_until_with_cache(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Vec<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Vec<usize>, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     if let Some(ends) = cache.extended_rafsi_ends(index, end) {
-        return ends.to_vec();
+        return Ok(ends.to_vec());
     }
     let mut ends = Vec::new();
-    for base_end in fuhivla_rafsi_base_ends_until_with_cache(chars, index, end, cache) {
-        if let Some(next) = rafsi_hyphen_end(chars, base_end)
+    for base_end in fuhivla_rafsi_base_ends_until_with_cache(index, end, cache)? {
+        if let Some(next) = rafsi_hyphen_end(&cache.char_state(), base_end)
             && next <= end
         {
             ends.push(next);
@@ -4020,15 +4034,15 @@ fn extended_rafsi_ends_until_with_cache(
     }
     // brivla_rafsi <- &(syllable consonantal_syllable* syllable) brivla_head h y h?
     // The `&` is at the rafsi start and reads to the classified end.
-    if brivla_rafsi_two_syllable_lookahead(chars, index, end) {
-        for base_end in brivla_head_ends_until_with_cache(chars, index, end, end, cache)
+    if brivla_rafsi_two_syllable_lookahead(&cache.char_state(), index, end) {
+        for base_end in brivla_head_ends_until_with_cache(index, end, end, cache)?
             .iter()
             .copied()
         {
             if chars[index..base_end].iter().any(|value| is_y(*value)) {
                 continue;
             }
-            if let Some(next) = hy_rafsi_hyphen_end(chars, base_end)
+            if let Some(next) = hy_rafsi_hyphen_end(&cache.char_state(), base_end)
                 && next <= end
             {
                 ends.push(next);
@@ -4036,322 +4050,375 @@ fn extended_rafsi_ends_until_with_cache(
         }
     }
     cache.record_extended_rafsi_ends(index, end, &ends);
-    ends
+    Ok(ends)
 }
 
-#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
-fn brivla_rafsi_two_syllable_lookahead(chars: &[char], index: usize, lookahead_end: usize) -> bool {
+fn brivla_rafsi_two_syllable_lookahead(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    lookahead_end: usize,
+) -> bool {
     // &(syllable consonantal_syllable* syllable)
     // `syllable` excludes a `y` nucleus. Try the second vowel syllable before
     // a consonantal syllable, so the consonantal syllable cannot consume it.
     if index >= lookahead_end {
         return false;
     }
-    syllable_ends(chars, index, lookahead_end, lookahead_end)
-        .into_iter()
-        .any(|first_end| syllable_after_consonantal_chain(chars, first_end, lookahead_end))
-}
-
-#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
-#[ensures(true)]
-fn syllable_after_consonantal_chain(chars: &[char], index: usize, lookahead_end: usize) -> bool {
-    if syllable_ends(chars, index, lookahead_end, lookahead_end)
-        .iter()
-        .any(|syllable_end| *syllable_end > index)
-    {
-        return true;
+    for first_end in syllable_ends(state, index, lookahead_end, lookahead_end) {
+        if drive::cons_after(state, first_end, lookahead_end) {
+            return true;
+        }
     }
-    consonantal_syllable_ends(chars, index, lookahead_end, lookahead_end)
-        .into_iter()
-        .any(|next| next > index && syllable_after_consonantal_chain(chars, next, lookahead_end))
+    false
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.is_none_or(|split| split > start && split < end))]
+#[requires(start <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().is_none_or(|split| split > start && split < end)))]
 fn stressed_initial_rafsi_short_final_split_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Option<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Option<usize>, drive::Blocked> {
     if cache.is_cancelled() {
-        return None;
+        return Ok(None);
     }
 
-    (start + 1..end).rev().find(|split| {
-        is_unaccented_short_final_rafsi_slice(chars, *split, end)
-            && stressed_initial_rafsi_slice_with_cache(chars, start, *split, end, cache)
-    })
+    for split in (start + 1..end).rev() {
+        if is_unaccented_short_final_rafsi_slice(&cache.char_state(), split, end)
+            && stressed_initial_rafsi_slice_with_cache(start, split, end, cache)?
+        {
+            return Ok(Some(split));
+        }
+    }
+    Ok(None)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn stressed_initial_rafsi_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
-    stressed_extended_rafsi_slice_with_cache(chars, start, end, lookahead_end, cache)
-        || stressed_y_rafsi_slice(chars, start, end)
-        || stressed_y_less_rafsi_slice(chars, start, end)
+    let extended = stressed_extended_rafsi_slice_with_cache(start, end, lookahead_end, cache)?;
+    Ok(extended
+        || stressed_y_rafsi_slice(&cache.char_state(), start, end)
+        || stressed_y_less_rafsi_slice(&cache.char_state(), start, end))
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn stressed_extended_rafsi_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
-    stressed_brivla_rafsi_slice_with_cache(chars, start, end, lookahead_end, cache)
-        || stressed_fuhivla_rafsi_slice_with_cache(chars, start, end, lookahead_end, cache)
+    let brivla = stressed_brivla_rafsi_slice_with_cache(start, end, lookahead_end, cache)?;
+    if brivla {
+        return Ok(true);
+    }
+    stressed_fuhivla_rafsi_slice_with_cache(start, end, lookahead_end, cache)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn stressed_y_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    y_rafsi_slice(chars, start, end)
+fn stressed_y_rafsi_slice(state: &crate::recog_state::CharState, start: usize, end: usize) -> bool {
+    y_rafsi_slice(state, start, end)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn stressed_y_less_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    y_less_rafsi_ends(chars, start)
+fn stressed_y_less_rafsi_slice(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+) -> bool {
+    y_less_rafsi_ends(state, start)
         .into_iter()
         .any(|rafsi_end| rafsi_end == end)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn stressed_brivla_rafsi_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     // stressed_brivla_rafsi <- &unstressed_syllable brivla_head stressed_syllable h y
     // The two-syllable lookahead is only on unstressed `brivla_rafsi`.
     // This rule keeps `&unstressed_syllable`, which reads to the pause, not to `'`.
+    // The `h y` test does not read that pause. A slice that fails it is false,
+    // so the syllable scan does not run.
+    let chars: &[char] = cache.char_state().chars();
     if end < start + 3
         || chars.get(end - 2) != Some(&'\'')
         || !chars.get(end - 1).is_some_and(|value| is_y(*value))
-        || unstressed_syllable_ends_for_fuhivla(chars, start, lookahead_end, lookahead_end)
-            .is_empty()
     {
-        return false;
+        return Ok(false);
+    }
+    let unstressed = unstressed_syllable_ends_for_fuhivla(
+        &cache.char_state(),
+        start,
+        lookahead_end,
+        lookahead_end,
+    );
+    if unstressed.is_empty() {
+        return Ok(false);
     }
     let stress_end = end - 2;
-    brivla_head_ends_until_with_cache(chars, start, stress_end, lookahead_end, cache)
+    for head_end in brivla_head_ends_until_with_cache(start, stress_end, lookahead_end, cache)?
         .iter()
         .copied()
-        .filter(|head_end| *head_end < stress_end)
-        .any(|head_end| {
-            stressed_syllable_ends_for_fuhivla(chars, head_end, stress_end, lookahead_end)
-                .into_iter()
-                .any(|syllable_end| syllable_end == stress_end)
-        })
+    {
+        if head_end >= stress_end {
+            continue;
+        }
+        for syllable_end in stressed_syllable_ends_for_fuhivla(
+            &cache.char_state(),
+            head_end,
+            stress_end,
+            lookahead_end,
+        ) {
+            if syllable_end == stress_end {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn stressed_fuhivla_rafsi_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     // stressed_fuhivla_rafsi <- fuhivla_head stressed_syllable consonantal_syllable* !h onset y
     // `end` is the `y`. Lookaheads read to `lookahead_end`, where pause applies.
     // The onset and the `y` stay inside this rafsi.
     if end < start + 2 || !chars.get(end - 1).is_some_and(|value| is_y(*value)) {
-        return false;
+        return Ok(false);
     }
     let base_end = end - 1;
-    fuhivla_head_ends_until_with_cache(chars, start, base_end, lookahead_end, cache)
+    for head_end in fuhivla_head_ends_until_with_cache(start, base_end, lookahead_end, cache)?
         .iter()
         .copied()
-        .filter(|head_end| *head_end < base_end)
-        .any(|head_end| {
-            stressed_syllable_ends_for_fuhivla(chars, head_end, base_end, lookahead_end)
-                .into_iter()
-                .any(|stressed_end| {
-                    consonantal_chain_then_onset(chars, stressed_end, base_end, lookahead_end)
-                })
-        })
+    {
+        if head_end >= base_end {
+            continue;
+        }
+        for stressed_end in stressed_syllable_ends_for_fuhivla(
+            &cache.char_state(),
+            head_end,
+            base_end,
+            lookahead_end,
+        ) {
+            if consonantal_chain_then_onset(
+                &cache.char_state(),
+                stressed_end,
+                base_end,
+                lookahead_end,
+            ) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
 fn consonantal_chain_then_onset(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     span_end: usize,
     lookahead_end: usize,
 ) -> bool {
-    if chars.get(index) != Some(&'\'') && has_parse_onset_end(chars, index, span_end) {
-        return true;
-    }
-    consonantal_syllable_ends(chars, index, span_end, lookahead_end)
-        .into_iter()
-        .any(|next| {
-            next > index && consonantal_chain_then_onset(chars, next, span_end, lookahead_end)
-        })
+    drive::cons_onset(state, index, span_end, lookahead_end)
 }
 
-#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end < lookahead_end))]
+#[requires(index <= lookahead_end && lookahead_end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|end| *end > index && *end < lookahead_end)))]
 fn fuhivla_rafsi_base_ends_until_with_cache(
-    chars: &[char],
     index: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Vec<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Vec<usize>, drive::Blocked> {
     if cache.is_cancelled() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     if let Some(ends) = cache.fuhivla_rafsi_base_ends(index, lookahead_end) {
-        return ends.to_vec();
+        return Ok(ends.to_vec());
     }
     let mut ends = Vec::new();
+    // `&unstressed_syllable` reads to the pause. It does not depend on the hyphen.
+    // The first base that can hold a fu'ivla scans it once. Later bases reuse that bit.
+    let mut unstressed_ok: Option<bool> = None;
+    let chars: &[char] = cache.char_state().chars();
     for base_end in (index + 1)..lookahead_end {
-        if rafsi_hyphen_end(chars, base_end).is_some()
-            && fuhivla_rafsi_base_slice_with_cache(chars, index, base_end, lookahead_end, cache)
-        {
+        if rafsi_hyphen_end(&cache.char_state(), base_end).is_none() {
+            continue;
+        }
+        if index >= base_end || chars[index..base_end].iter().any(|value| is_y(*value)) {
+            continue;
+        }
+        if unstressed_ok.is_none() {
+            unstressed_ok = Some(
+                !unstressed_syllable_ends_for_fuhivla(
+                    &cache.char_state(),
+                    index,
+                    lookahead_end,
+                    lookahead_end,
+                )
+                .is_empty(),
+            );
+        }
+        if unstressed_ok != Some(true) {
+            break;
+        }
+        if fuhivla_rafsi_base_slice_with_cache(index, base_end, lookahead_end, cache)? {
             ends.push(base_end);
         }
     }
     cache.record_fuhivla_rafsi_base_ends(index, lookahead_end, &ends);
-    ends
+    Ok(ends)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn fuhivla_rafsi_base_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     // fuhivla_rafsi <- &unstressed_syllable fuhivla_head !h onset y h?
-    // `&unstressed_syllable` and `!rafsi_string` read to `lookahead_end`.
+    // `head_end > start` follows one or more unstressed syllables from `start`.
+    // `syllable_ends`, `coda_ends`, and `consonantal_syllable_ends` only grow
+    // as the span end grows. A head inside this base implies `&unstressed_syllable`
+    // at `start`. A second caller does not repeat that test.
+    // `!rafsi_string` reads to `lookahead_end`.
     // The head stops before the onset. The onset stays inside this base.
-    if start >= end
-        || chars[start..end].iter().any(|value| is_y(*value))
-        || unstressed_syllable_ends_for_fuhivla(chars, start, lookahead_end, lookahead_end)
-            .is_empty()
-    {
-        return false;
+    if start >= end || chars[start..end].iter().any(|value| is_y(*value)) {
+        return Ok(false);
     }
-    fuhivla_head_ends_until_with_cache(chars, start, end, lookahead_end, cache)
+    for head_end in fuhivla_head_ends_until_with_cache(start, end, lookahead_end, cache)?
         .iter()
         .copied()
-        .filter(|head_end| *head_end > start && *head_end < end)
-        .any(|head_end| {
-            chars.get(head_end) != Some(&'\'') && has_parse_onset_end(chars, head_end, end)
-        })
+    {
+        if head_end > start
+            && head_end < end
+            && chars.get(head_end) != Some(&'\'')
+            && has_parse_onset_end(&cache.char_state(), head_end, end)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= span_end))]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|head_end| *head_end >= index && *head_end <= span_end)))]
 fn brivla_head_ends_until_with_cache(
-    chars: &[char],
     index: usize,
     span_end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Rc<[usize]> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Rc<[usize]>, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return Rc::from([]);
+        return Ok(Rc::from([]));
     }
 
     if let Some(ends) = cache.brivla_head_ends(index, span_end, lookahead_end) {
-        return ends;
+        return Ok(ends);
     }
     // brivla_head <- !cmavo !slinkuhi !h &onset unstressed_syllable*
     // The three predicates are lookaheads. They read to `lookahead_end`.
     // The syllables themselves stop at `span_end`.
-    let ends = if index > span_end
+    // A blocked callee is `Err`. The next predicate does not run.
+    if index > span_end
         || chars.get(index) == Some(&'\'')
-        || !starts_with_onset(chars, index)
-        || cmavo_word_slice_with_cache(chars, index, lookahead_end, cache)
-        || slinkuhi_slice_with_cache(chars, index, lookahead_end, cache)
+        || !starts_with_onset(&cache.char_state(), index)
     {
+        return Ok(cache.record_brivla_head_ends(index, span_end, lookahead_end, &[]));
+    }
+    let cmavo = drive::enter_cmavo(index, lookahead_end, cache)?;
+    if cmavo {
+        return Ok(cache.record_brivla_head_ends(index, span_end, lookahead_end, &[]));
+    }
+    let slinkuhi = slinkuhi_slice_with_cache(index, lookahead_end, cache)?;
+    let ends = if slinkuhi {
         Vec::new()
     } else {
-        brivla_head_ends_without_lookahead(chars, index, span_end, lookahead_end)
+        brivla_head_ends_without_lookahead(&cache.char_state(), index, span_end, lookahead_end)
     };
-    cache.record_brivla_head_ends(index, span_end, lookahead_end, &ends)
+    Ok(cache.record_brivla_head_ends(index, span_end, lookahead_end, &ends))
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= span_end))]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|head_end| *head_end >= index && *head_end <= span_end)))]
 fn fuhivla_head_ends_until_with_cache(
-    chars: &[char],
     index: usize,
     span_end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Rc<[usize]> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Rc<[usize]>, drive::Blocked> {
     if cache.is_cancelled() {
-        return Rc::from([]);
+        return Ok(Rc::from([]));
     }
 
     if let Some(ends) = cache.fuhivla_head_ends(index, span_end, lookahead_end) {
-        return ends;
+        return Ok(ends);
     }
     // fuhivla_head <- !rafsi_string brivla_head
     // `!rafsi_string` reads past the head, through a following `y`.
-    if rafsi_string_starts_slice_with_cache(chars, index, lookahead_end, cache) {
-        cache.record_fuhivla_head_ends(index, span_end, lookahead_end, &[])
+    if rafsi_string_starts_slice_with_cache(index, lookahead_end, cache)? {
+        Ok(cache.record_fuhivla_head_ends(index, span_end, lookahead_end, &[]))
     } else {
-        let shared =
-            brivla_head_ends_until_with_cache(chars, index, span_end, lookahead_end, cache);
-        cache.record_fuhivla_head_ends_shared(index, span_end, lookahead_end, shared)
+        let shared = brivla_head_ends_until_with_cache(index, span_end, lookahead_end, cache)?;
+        Ok(cache.record_fuhivla_head_ends_shared(index, span_end, lookahead_end, shared))
     }
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= span_end))]
 fn brivla_head_ends_without_lookahead(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     span_end: usize,
     lookahead_end: usize,
@@ -4360,7 +4427,7 @@ fn brivla_head_ends_without_lookahead(
     let mut stack = vec![index];
     while let Some(start) = stack.pop() {
         for syllable_end in
-            unstressed_syllable_ends_for_fuhivla(chars, start, span_end, lookahead_end)
+            unstressed_syllable_ends_for_fuhivla(state, start, span_end, lookahead_end)
         {
             if syllable_end > start && !ends.contains(&syllable_end) {
                 ends.push(syllable_end);
@@ -4375,192 +4442,173 @@ fn brivla_head_ends_without_lookahead(
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn slinkuhi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    slinkuhi_slice_with_cache(chars, start, end, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(slinkuhi_slice_with_cache(start, end, &cache))
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn slinkuhi_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.slinkuhi(start, end) {
-        return result;
+        return Ok(result);
+    }
+    if start >= end {
+        cache.record_slinkuhi(start, end, false);
+        return Ok(false);
     }
     // slinkuhi <- !rafsi_string consonant rafsi_string
     // The caller strips commas. This recognizer reads letters only.
-    let result = start < end
-        && !rafsi_string_starts_slice_with_cache(chars, start, end, cache)
+    let head = rafsi_string_starts_slice_with_cache(start, end, cache)?;
+    if cache.is_cancelled() {
+        return Ok(false);
+    }
+    let result = !head
         && is_consonant(chars[start])
-        && rafsi_string_starts_slice_with_cache(chars, start + 1, end, cache);
+        && rafsi_string_starts_slice_with_cache(start + 1, end, cache)?;
     cache.record_slinkuhi(start, end, result);
-    result
+    Ok(result)
 }
 
 #[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn rafsi_string_starts_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    rafsi_string_starts_slice_with_cache(chars, start, end, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(rafsi_string_starts_slice_with_cache(start, end, &cache))
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn rafsi_string_starts_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.rafsi_string_starts(start, end) {
-        return result;
+        return Ok(result);
     }
-    let result = start < end
-        && ((start + 1)..=end).any(|word_end| {
-            rafsi_string_slice_for_lookahead_with_cache(chars, start, word_end, end, cache)
-        });
+    // `Err` is not a real miss. Stop the scan and store nothing.
+    let mut result = false;
+    if start < end {
+        for word_end in (start + 1)..=end {
+            if rafsi_string_slice_for_lookahead_with_cache(start, word_end, end, cache)? {
+                result = true;
+                break;
+            }
+            if cache.is_cancelled() {
+                return Ok(false);
+            }
+        }
+    }
     cache.record_rafsi_string_starts(start, end, result);
-    result
+    Ok(result)
 }
 
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn rafsi_string_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    rafsi_string_slice_for_lookahead_with_cache(chars, start, end, end, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(rafsi_string_slice_for_lookahead_with_cache(
+        start, end, end, &cache,
+    ))
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn rafsi_string_slice_for_lookahead_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     // The lookahead span is already the third key of `rafsi_string_from`.
     // A second table stored the same bool again.
-    rafsi_string_from_with_cache(chars, start, end, lookahead_end, cache)
+    rafsi_string_from_with_cache(start, end, lookahead_end, cache)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn rafsi_string_from_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.rafsi_string_from(start, end, lookahead_end) {
-        return result;
+        return Ok(result);
     }
     let result = if start >= end {
         false
     } else {
-        let cursor = greedy_landing_cursor(chars, start, end, lookahead_end, cache);
-        rafsi_string_ending_with_cache(chars, cursor, end, lookahead_end, cache)
+        let cursor = drive::greedy_loop(start, end, lookahead_end, cache)?;
+        rafsi_string_ending_with_cache(cursor, end, lookahead_end, cache)?
     };
     cache.record_rafsi_string_from(start, end, lookahead_end, result);
-    result
+    Ok(result)
 }
 
-/// Cursor where the greedy y-less walk from `start` stops under `end`.
-///
-/// For one lookahead, the first unstressed y-less end that fits is stable as
-/// the cap grows. The walk capped at the lookahead is therefore a chain. A
-/// shorter cap follows that chain until the next jump would pass the cap. The
-/// only departure is a lower-priority end that still fits under the shorter cap.
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret >= start && ret <= end)]
-fn greedy_landing_cursor(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> usize {
-    let chain = greedy_max_chain(chars, start, lookahead_end, cache);
-    let index = chain
-        .partition_point(|cursor| *cursor <= end)
-        .saturating_sub(1);
-    let cursor = chain[index];
-    if let Some(&jump) = chain.get(index + 1)
-        && jump > end
-        && let Some(shorter) = greedy_shorter_rafsi_end(chars, cursor, end, lookahead_end, cache)
-    {
-        return greedy_landing_cursor(chars, shorter, end, lookahead_end, cache);
-    }
-    cursor
-}
-
-#[requires(start <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.first().copied() == Some(start))]
-#[ensures(ret.windows(2).all(|pair| pair[0] < pair[1] && pair[1] <= lookahead_end))]
+#[requires(start <= lookahead_end && lookahead_end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().first().copied() == Some(start)))]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().windows(2).all(|pair| pair[0] < pair[1] && pair[1] <= lookahead_end)))]
 fn greedy_max_chain(
-    chars: &[char],
     start: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Rc<[usize]> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Rc<[usize]>, drive::Blocked> {
     if let Some(chain) = cache.greedy_rafsi_chain(start, lookahead_end) {
-        return chain;
+        return Ok(chain);
+    }
+    // A blocked caller would throw this walk away. Do not scan.
+    if cache.is_cancelled() {
+        return Ok(Rc::from(vec![start]));
     }
     let mut cursors = vec![start];
     let mut cursor = start;
     while cursor < lookahead_end {
-        let Some(next) =
-            greedy_y_less_rafsi_end(chars, cursor, lookahead_end, lookahead_end, cache)
+        let Some(next) = greedy_y_less_rafsi_end(cursor, lookahead_end, lookahead_end, cache)?
         else {
             break;
         };
         cursor = next;
         cursors.push(cursor);
     }
-    cache.record_greedy_rafsi_chain(start, lookahead_end, &cursors)
+    Ok(cache.record_greedy_rafsi_chain(start, lookahead_end, &cursors))
 }
 
-#[requires(index <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.is_none_or(|next| next > index && next <= end))]
+#[requires(index <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().is_none_or(|next| next > index && next <= end)))]
 fn greedy_shorter_rafsi_end(
-    chars: &[char],
     index: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Option<usize> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Option<usize>, drive::Blocked> {
     let mut passed_primary = false;
-    for next in y_less_rafsi_ends(chars, index) {
+    for next in y_less_rafsi_ends(&cache.char_state(), index) {
         if next > lookahead_end
-            || !y_less_rafsi_is_unstressed_in_context(chars, index, next, lookahead_end, cache)
+            || !y_less_rafsi_is_unstressed_in_context(index, next, lookahead_end, cache)?
         {
             continue;
         }
@@ -4569,84 +4617,81 @@ fn greedy_shorter_rafsi_end(
             continue;
         }
         if next <= end {
-            return Some(next);
+            return Ok(Some(next));
         }
     }
-    None
+    Ok(None)
 }
 
-#[requires(index <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.is_none_or(|next| next > index && next <= end))]
+#[requires(index <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().is_none_or(|next| next > index && next <= end)))]
 fn greedy_y_less_rafsi_end(
-    chars: &[char],
     index: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> Option<usize> {
-    y_less_rafsi_ends(chars, index).into_iter().find(|next| {
-        *next <= end
-            && y_less_rafsi_is_unstressed_in_context(chars, index, *next, lookahead_end, cache)
-    })
+    cache: &MorphologyRecognitionCache,
+) -> Result<Option<usize>, drive::Blocked> {
+    for next in y_less_rafsi_ends(&cache.char_state(), index) {
+        if next <= end && y_less_rafsi_is_unstressed_in_context(index, next, lookahead_end, cache)?
+        {
+            return Ok(Some(next));
+        }
+    }
+    Ok(None)
 }
 
-#[requires(start <= end && end <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn y_less_rafsi_is_unstressed_in_context(
-    chars: &[char],
     start: usize,
     end: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if let Some(result) = cache.y_less_rafsi_unstressed(start, end, context_end) {
-        return result;
+        return Ok(result);
     }
-    let result = if cvc_rafsi_end(chars, start) == Some(end) {
-        !nucleus_is_stressed_in_context(chars, start + 1, start + 2, context_end, cache)
-    } else if ccv_rafsi_end(chars, start) == Some(end) {
-        !nucleus_is_stressed_in_context(chars, start + 2, start + 3, context_end, cache)
+    let result = if cvc_rafsi_end(&cache.char_state(), start) == Some(end) {
+        !nucleus_is_stressed_in_context(start + 1, start + 2, context_end, cache)
+    } else if ccv_rafsi_end(&cache.char_state(), start) == Some(end) {
+        !nucleus_is_stressed_in_context(start + 2, start + 3, context_end, cache)
     } else {
-        cvv_rafsi_is_unstressed_in_context(chars, start, end, context_end, cache)
+        cvv_rafsi_is_unstressed_in_context(start, end, context_end, cache)?
     };
     cache.record_y_less_rafsi_unstressed(start, end, context_end, result);
-    result
+    Ok(result)
 }
 
-#[requires(start <= end && end <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn cvv_rafsi_is_unstressed_in_context(
-    chars: &[char],
     start: usize,
     end: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if let Some(result) = cache.cvv_rafsi_unstressed(start, end, context_end) {
-        return result;
+        return Ok(result);
     }
-    let result = cvv_rafsi_is_unstressed_uncached(chars, start, end, context_end, cache);
+    let result = cvv_rafsi_is_unstressed_uncached(start, end, context_end, cache)?;
     cache.record_cvv_rafsi_unstressed(start, end, context_end, result);
-    result
+    Ok(result)
 }
 
-#[requires(start <= end && end <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn cvv_rafsi_is_unstressed_uncached(
-    chars: &[char],
     start: usize,
     end: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if start >= end || !is_consonant(chars[start]) {
-        return false;
+        return Ok(false);
     }
-    for vowel_end in vowel_pair_ends(chars, start + 1) {
+    for vowel_end in vowel_pair_ends(&cache.char_state(), start + 1) {
         let rafsi_end = if end == vowel_end {
             Some(vowel_end)
         } else if r_hyphen_end(chars, vowel_end) == Some(end) {
@@ -4660,78 +4705,66 @@ fn cvv_rafsi_is_unstressed_uncached(
             continue;
         }
         if chars.get(start + 2) == Some(&'\'') && vowel_end == start + 4 {
-            return !nucleus_is_stressed_in_context(
-                chars,
-                start + 1,
-                start + 2,
-                context_end,
-                cache,
-            ) && !nucleus_is_stressed_in_context(
-                chars,
-                start + 3,
-                start + 4,
-                context_end,
-                cache,
+            return Ok(
+                !nucleus_is_stressed_in_context(start + 1, start + 2, context_end, cache)
+                    && !nucleus_is_stressed_in_context(start + 3, start + 4, context_end, cache),
             );
         }
         if vowel_end == start + 3 {
-            return !nucleus_is_stressed_in_context(
-                chars,
+            return Ok(!nucleus_is_stressed_in_context(
                 start + 1,
                 vowel_end,
                 context_end,
                 cache,
-            );
+            ));
         }
     }
-    false
+    Ok(false)
 }
 
-#[requires(start < end && end <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start < end && end <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn nucleus_is_stressed_in_context(
-    chars: &[char],
     start: usize,
     end: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
+    cache: &MorphologyRecognitionCache,
 ) -> bool {
+    let chars: &[char] = cache.char_state().chars();
+
     if let Some(result) = cache.nucleus_is_stressed(start, end, context_end) {
         return result;
     }
     let result = syllable_has_explicit_stress(chars, start, end)
-        || nucleus_has_implicit_stress(chars, end, context_end, cache);
+        || nucleus_has_implicit_stress(end, context_end, cache);
     cache.record_nucleus_is_stressed(start, end, context_end, result);
     result
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn nucleus_has_implicit_stress(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
+    cache: &MorphologyRecognitionCache,
 ) -> bool {
     if let Some(result) = cache.nucleus_has_implicit_stress(index, context_end) {
         return result;
     }
-    let result = nucleus_has_implicit_stress_uncached(chars, index, context_end, cache);
+    let result = nucleus_has_implicit_stress_uncached(index, context_end, cache);
     cache.record_nucleus_has_implicit_stress(index, context_end, result);
     result
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn nucleus_has_implicit_stress_uncached(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
+    cache: &MorphologyRecognitionCache,
 ) -> bool {
+    let chars: &[char] = cache.char_state().chars();
+
     let mut stack = vec![index];
     let mut after_consonants_or_glides = Vec::new();
     while let Some(cursor) = stack.pop() {
@@ -4742,249 +4775,291 @@ fn nucleus_has_implicit_stress_uncached(
         if cursor < context_end && is_consonant(chars[cursor]) {
             stack.push(cursor + 1);
         }
-        if let Some(glide_end) = parse_glide_end(chars, cursor)
+        if let Some(glide_end) = parse_glide_end(&cache.char_state(), cursor)
             && glide_end <= context_end
         {
             stack.push(glide_end);
         }
     }
 
-    after_consonants_or_glides
-        .into_iter()
-        .any(|cursor| stress_tail_reaches_boundary(chars, cursor, context_end, cache))
+    for cursor in after_consonants_or_glides {
+        if stress_tail_reaches_boundary(cursor, context_end, cache) {
+            return true;
+        }
+    }
+    false
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn stress_tail_reaches_boundary(
-    chars: &[char],
     index: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
+    cache: &MorphologyRecognitionCache,
 ) -> bool {
     if let Some(result) = cache.stress_tail_reaches_boundary(index, context_end) {
         return result;
     }
-    let result = stress_tail_reaches_boundary_uncached(chars, index, context_end);
+    let result = stress_tail_reaches_boundary_uncached(&cache.char_state(), index, context_end);
     cache.record_stress_tail_reaches_boundary(index, context_end, result);
     result
 }
 
-#[requires(index <= context_end && context_end <= chars.len())]
+#[requires(index <= context_end && context_end <= state.len())]
 #[ensures(true)]
-fn stress_tail_reaches_boundary_uncached(chars: &[char], index: usize, context_end: usize) -> bool {
+fn stress_tail_reaches_boundary_uncached(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    context_end: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
     let mut after_h = vec![index];
     if index < context_end && chars.get(index) == Some(&'\'') {
         after_h.push(index + 1);
     }
-    after_h.into_iter().any(|cursor| {
+    for cursor in after_h {
         let mut after_y = vec![cursor];
         if cursor < context_end && chars.get(cursor).is_some_and(|value| is_y(*value)) {
             after_y.push(cursor + 1);
         }
-        after_y.into_iter().any(|syllable_start| {
-            syllable_ends(chars, syllable_start, context_end, context_end)
-                .into_iter()
-                .any(|syllable_end| syllable_end == context_end)
-        })
-    })
+        for syllable_start in after_y {
+            for syllable_end in syllable_ends(state, syllable_start, context_end, context_end) {
+                if syllable_end == context_end {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn initial_pair_y_ending_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     // rafsi_string end: stressed_y_less_rafsi? initial_pair y
     // The pair is the two consonants immediately before `y`.
     // A stressed CCV rafsi ends in a vowel, so it cannot eat that pair.
     if end - start < 3 || !chars.get(end - 1).is_some_and(|value| is_y(*value)) {
-        return false;
+        return Ok(false);
     }
     let pair_start = end - 3;
     if !initial_pair_chars(chars[pair_start], chars[pair_start + 1]) {
-        return false;
+        return Ok(false);
     }
     if pair_start == start {
-        return true;
+        return Ok(true);
     }
-    y_less_rafsi_ends(chars, start).into_iter().any(|mid| {
-        mid == pair_start
-            && !y_less_rafsi_is_unstressed_in_context(chars, start, mid, lookahead_end, cache)
-    })
+    for mid in y_less_rafsi_ends(&cache.char_state(), start) {
+        if mid == pair_start
+            && !y_less_rafsi_is_unstressed_in_context(start, mid, lookahead_end, cache)?
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= cache.char_count)]
 #[ensures(true)]
 fn rafsi_string_ending_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     lookahead_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.rafsi_string_ending(start, end, lookahead_end) {
-        return result;
+        return Ok(result);
     }
-    let result = (is_gismu_slice_for_rafsi_string(chars, start, end, lookahead_end)
-        && post_word_slice_with_cache(chars, end, lookahead_end, cache))
-        || (is_cvv_final_rafsi_slice_for_rafsi_string(chars, start, end, lookahead_end)
-            && post_word_slice_with_cache(chars, end, lookahead_end, cache))
-        || y_less_rafsi_ends(chars, start).into_iter().any(|mid| {
-            mid > start
+    let mut result = false;
+    if is_gismu_slice_for_rafsi_string(&cache.char_state(), start, end, lookahead_end) {
+        result = post_word_slice_with_cache(end, lookahead_end, cache)?;
+    }
+    if !result
+        && is_cvv_final_rafsi_slice_for_rafsi_string(&cache.char_state(), start, end, lookahead_end)
+    {
+        result = post_word_slice_with_cache(end, lookahead_end, cache)?;
+    }
+    if !result {
+        for mid in y_less_rafsi_ends(&cache.char_state(), start) {
+            if mid > start
                 && mid < end
-                && is_short_final_rafsi_slice_for_rafsi_string(chars, mid, end, lookahead_end)
-                && post_word_slice_with_cache(chars, end, lookahead_end, cache)
-        })
-        || y_rafsi_slice(chars, start, end)
-        || hy_rafsi_slice(chars, start, end)
-        || initial_pair_y_ending_with_cache(chars, start, end, lookahead_end, cache);
+                && is_short_final_rafsi_slice_for_rafsi_string(
+                    &cache.char_state(),
+                    mid,
+                    end,
+                    lookahead_end,
+                )
+                && post_word_slice_with_cache(end, lookahead_end, cache)?
+            {
+                result = true;
+                break;
+            }
+        }
+    }
+    if !result {
+        result = y_rafsi_slice(&cache.char_state(), start, end)
+            || hy_rafsi_slice(&cache.char_state(), start, end)
+            || initial_pair_y_ending_with_cache(start, end, lookahead_end, cache)?;
+    }
     cache.record_rafsi_string_ending(start, end, lookahead_end, result);
-    result
+    Ok(result)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
 fn is_gismu_slice_for_rafsi_string(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     end: usize,
     lookahead_end: usize,
 ) -> bool {
+    let chars: &[char] = state.chars();
+
     // `is_gismu_slice` owns the two gismu shapes. The final syllable starts at start + 3.
     if !is_gismu_slice(chars, start, end) {
         return false;
     }
     let final_start = start + 3;
-    syllable_is_stressed_in_context(chars, start, final_start, lookahead_end)
-        && final_syllable_slice_in_context(chars, final_start, end, lookahead_end)
+    syllable_is_stressed_in_context(state, start, final_start, lookahead_end)
+        && final_syllable_slice_in_context(state, final_start, end, lookahead_end)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
 fn is_cvv_final_rafsi_slice_for_rafsi_string(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     end: usize,
     lookahead_end: usize,
 ) -> bool {
+    let chars: &[char] = state.chars();
+
     end == start + 4
         && is_consonant(chars[start])
-        && vowel_production_end(chars, start + 1, lookahead_end) == Some(start + 2)
+        && vowel_production_end(state, start + 1, lookahead_end) == Some(start + 2)
         && chars[start + 2] == '\''
-        && vowel_production_end(chars, start + 3, lookahead_end) == Some(start + 4)
-        && syllable_is_stressed_in_context(chars, start, start + 2, lookahead_end)
-        && final_syllable_slice_in_context(chars, start + 3, end, lookahead_end)
+        && vowel_production_end(state, start + 3, lookahead_end) == Some(start + 4)
+        && syllable_is_stressed_in_context(state, start, start + 2, lookahead_end)
+        && final_syllable_slice_in_context(state, start + 3, end, lookahead_end)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
 fn is_short_final_rafsi_slice_for_rafsi_string(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     end: usize,
     lookahead_end: usize,
 ) -> bool {
-    is_short_final_rafsi_slice(chars, start, end)
-        && final_syllable_slice_in_context(chars, start, end, lookahead_end)
+    is_short_final_rafsi_slice(state, start, end)
+        && final_syllable_slice_in_context(state, start, end, lookahead_end)
 }
 
-#[requires(start <= syllable_end && syllable_end <= context_end && context_end <= chars.len())]
+#[requires(start <= syllable_end && syllable_end <= context_end && context_end <= state.len())]
 #[ensures(true)]
 fn syllable_is_stressed_in_context(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     syllable_end: usize,
     context_end: usize,
 ) -> bool {
+    let chars: &[char] = state.chars();
+
     syllable_has_explicit_stress(chars, start, syllable_end)
-        || stressed_syllable_has_implicit_stress(chars, syllable_end, context_end)
+        || stressed_syllable_has_implicit_stress(state, syllable_end, context_end)
 }
 
-#[requires(start <= end && end <= context_end && context_end <= chars.len())]
+#[requires(start <= end && end <= context_end && context_end <= state.len())]
 #[ensures(true)]
 fn final_syllable_slice_in_context(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     end: usize,
     context_end: usize,
 ) -> bool {
-    final_syllable_slice(chars, start, end)
-        && !stressed_syllable_has_implicit_stress(chars, end, context_end)
+    final_syllable_slice(state, start, end)
+        && !stressed_syllable_has_implicit_stress(state, end, context_end)
 }
 
 #[cfg(test)]
 #[requires(index <= end && end <= chars.len())]
 #[ensures(true)]
 fn post_word_slice(chars: &[char], index: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    post_word_slice_with_cache(chars, index, end, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(post_word_slice_with_cache(index, end, &cache))
 }
 
-#[requires(index <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn post_word_slice_with_cache(
-    chars: &[char],
     index: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.post_word(index, end) {
-        return result;
+        return Ok(result);
     }
     let result = match next_non_comma_index(chars, index) {
         None => true,
         Some(next) => {
             next >= end
-                || (!starts_with_nucleus(chars, next)
-                    && lojban_word_slice_with_cache(chars, next, end, cache))
+                || (!starts_with_nucleus(&cache.char_state(), next)
+                    && drive::enter_lojban(next, end, cache)?)
         }
     };
     cache.record_post_word(index, end, result);
-    result
+    Ok(result)
 }
 
-#[requires(index <= rafsi_end && rafsi_end <= context_end && context_end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(index <= rafsi_end && rafsi_end <= context_end && context_end <= cache.char_count)]
 #[ensures(true)]
 fn y_rafsi_vowel_is_unstressed_in_context(
-    chars: &[char],
     index: usize,
     rafsi_end: usize,
     context_end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    let Some((vowel_start, vowel_end)) = y_rafsi_vowel_span(chars, index, rafsi_end, context_end)
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let Some((vowel_start, vowel_end)) =
+        y_rafsi_vowel_span(&cache.char_state(), index, rafsi_end, context_end)
     else {
-        return false;
+        return Ok(false);
     };
-    !nucleus_is_stressed_in_context(chars, vowel_start, vowel_end, context_end, cache)
+    Ok(!nucleus_is_stressed_in_context(
+        vowel_start,
+        vowel_end,
+        context_end,
+        cache,
+    ))
 }
 
-#[requires(index <= rafsi_end && rafsi_end <= context_end && context_end <= chars.len())]
+#[requires(index <= rafsi_end && rafsi_end <= context_end && context_end <= state.len())]
 #[ensures(ret.is_none_or(|(start, end)| index <= start && start < end && end <= rafsi_end))]
 fn y_rafsi_vowel_span(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     rafsi_end: usize,
     context_end: usize,
 ) -> Option<(usize, usize)> {
+    let chars: &[char] = state.chars();
+
     // (long_rafsi / CVC_rafsi) y h?
     // The recognizer names the base that ends at y. The vowel is that base's nucleus.
     if rafsi_end <= index {
@@ -4998,10 +5073,10 @@ fn y_rafsi_vowel_span(
     if y_index <= index || !chars.get(y_index).is_some_and(|value| is_y(*value)) {
         return None;
     }
-    let vowel_start = if cvc_rafsi_end(chars, index) == Some(y_index) {
+    let vowel_start = if cvc_rafsi_end(state, index) == Some(y_index) {
         // CVC_rafsi <- consonant vowel consonant
         index + 1
-    } else if long_rafsi_ends(chars, index).contains(&y_index) {
+    } else if long_rafsi_ends(state, index).contains(&y_index) {
         // long_rafsi <- initial_pair vowel consonant
         //             / consonant vowel consonant consonant
         if chars
@@ -5017,7 +5092,7 @@ fn y_rafsi_vowel_span(
     };
     // The base rafsi vowel uses `vowel <- (a / e / i / o / u) !nucleus`.
     // The lookahead bound is the candidate, which reaches past this vowel.
-    if vowel_production_end(chars, vowel_start, context_end) != Some(vowel_start + 1)
+    if vowel_production_end(state, vowel_start, context_end) != Some(vowel_start + 1)
         || vowel_start + 1 > y_index
     {
         return None;
@@ -5025,16 +5100,18 @@ fn y_rafsi_vowel_span(
     Some((vowel_start, vowel_start + 1))
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn y_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn y_rafsi_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     let mut ends = Vec::new();
-    for base_end in long_rafsi_ends(chars, index)
+    for base_end in long_rafsi_ends(state, index)
         .into_iter()
-        .chain(cvc_rafsi_end(chars, index))
+        .chain(cvc_rafsi_end(state, index))
     {
         if chars.get(base_end).is_some_and(|value| is_y(*value)) {
-            ends.push(optional_rafsi_h_end(chars, base_end + 1, chars.len()));
+            ends.push(optional_rafsi_h_end(state, base_end + 1, chars.len()));
         }
     }
     ends
@@ -5069,116 +5146,131 @@ fn rafsi_hyphen_start(chars: &[char], start: usize, end: usize) -> Option<usize>
     (start + 1..end).find(|index| is_rafsi_hyphen_start(chars, *index))
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn y_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    long_rafsi_ends(chars, start)
+fn y_rafsi_slice(state: &crate::recog_state::CharState, start: usize, end: usize) -> bool {
+    long_rafsi_ends(state, start)
         .into_iter()
-        .chain(cvc_rafsi_end(chars, start))
-        .any(|base_end| rafsi_hyphen_end(chars, base_end) == Some(end))
+        .chain(cvc_rafsi_end(state, start))
+        .any(|base_end| rafsi_hyphen_end(state, base_end) == Some(end))
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn y_less_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
-    if !y_rafsi_ends(chars, index).is_empty() || !hy_rafsi_ends(chars, index).is_empty() {
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn y_less_rafsi_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
+    if !y_rafsi_ends(state, index).is_empty() || !hy_rafsi_ends(state, index).is_empty() {
         return Vec::new();
     }
 
     let mut ends = Vec::new();
-    if let Some(end) = cvc_rafsi_end(chars, index) {
+    if let Some(end) = cvc_rafsi_end(state, index) {
         ends.push(end);
     }
-    if let Some(end) = ccv_rafsi_end(chars, index) {
+    if let Some(end) = ccv_rafsi_end(state, index) {
         ends.push(end);
     }
-    ends.extend(initial_cvv_rafsi_ends(chars, index));
+    ends.extend(initial_cvv_rafsi_ends(state, index));
     ends.retain(|end| chars.get(*end) != Some(&'\''));
     ends
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn hy_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    hy_rafsi_ends(chars, start)
+fn hy_rafsi_slice(state: &crate::recog_state::CharState, start: usize, end: usize) -> bool {
+    hy_rafsi_ends(state, start)
         .into_iter()
         .any(|hy_rafsi_end| hy_rafsi_end == end)
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn hy_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn hy_rafsi_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     let mut ends = Vec::new();
-    for base_end in long_rafsi_ends(chars, index) {
+    for base_end in long_rafsi_ends(state, index) {
         if chars.get(base_end).is_some_and(|value| is_vowel(*value))
-            && let Some(end) = hy_rafsi_hyphen_end(chars, base_end + 1)
+            && let Some(end) = hy_rafsi_hyphen_end(state, base_end + 1)
         {
             ends.push(end);
         }
     }
-    for base_end in ccv_rafsi_end(chars, index)
+    for base_end in ccv_rafsi_end(state, index)
         .into_iter()
-        .chain(cvv_rafsi_base_ends(chars, index))
+        .chain(cvv_rafsi_base_ends(state, index))
     {
-        if let Some(end) = hy_rafsi_hyphen_end(chars, base_end) {
+        if let Some(end) = hy_rafsi_hyphen_end(state, base_end) {
             ends.push(end);
         }
     }
     ends
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
-fn rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= state.len()))]
+fn rafsi_hyphen_end(state: &crate::recog_state::CharState, index: usize) -> Option<usize> {
+    let chars: &[char] = state.chars();
     if chars.get(index).is_some_and(|value| is_y(*value)) {
-        Some(optional_rafsi_h_end(chars, index + 1, chars.len()))
+        Some(optional_rafsi_h_end(state, index + 1, chars.len()))
     } else {
         None
     }
 }
 
-#[requires(index <= limit && limit <= chars.len())]
+#[requires(index <= limit && limit <= state.len())]
 #[ensures(ret >= index && ret <= limit)]
-fn optional_rafsi_h_end(chars: &[char], index: usize, limit: usize) -> usize {
+fn optional_rafsi_h_end(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    limit: usize,
+) -> usize {
     // `h <- comma* ['h] &nucleus`. The apostrophe counts only when a nucleus follows.
+    // The window shares the parent buffer. The nucleus check cannot read past `limit`.
+    let chars: &[char] = state.chars();
     let Some(apostrophe_at) = next_non_comma_index(chars, index) else {
         return index;
     };
     if apostrophe_at >= limit || chars[apostrophe_at] != '\'' {
         return index;
     }
-    if starts_with_nucleus(chars, apostrophe_at + 1) {
+    let window = state.subspan(0, limit);
+    if apostrophe_at + 1 <= limit && starts_with_nucleus(&window, apostrophe_at + 1) {
         return apostrophe_at + 1;
     }
     index
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
-fn hy_rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= state.len()))]
+fn hy_rafsi_hyphen_end(state: &crate::recog_state::CharState, index: usize) -> Option<usize> {
+    let chars: &[char] = state.chars();
     // The first apostrophe of `hy` takes `y` as its nucleus. `klama'ybra` is the case.
     // The second apostrophe still uses `optional_rafsi_h_end`.
     if chars.get(index) == Some(&'\'') && chars.get(index + 1).is_some_and(|value| is_y(*value)) {
-        Some(optional_rafsi_h_end(chars, index + 2, chars.len()))
+        Some(optional_rafsi_h_end(state, index + 2, chars.len()))
     } else {
         None
     }
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn long_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn long_rafsi_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     let mut ends = Vec::new();
     if index + 4 <= chars.len()
         && initial_pair_chars(chars[index], chars[index + 1])
-        && vowel_production_end(chars, index + 2, chars.len()) == Some(index + 3)
+        && vowel_production_end(state, index + 2, chars.len()) == Some(index + 3)
         && is_consonant(chars[index + 3])
     {
         ends.push(index + 4);
     }
     if index + 4 <= chars.len()
         && is_consonant(chars[index])
-        && vowel_production_end(chars, index + 1, chars.len()) == Some(index + 2)
+        && vowel_production_end(state, index + 1, chars.len()) == Some(index + 2)
         && is_consonant(chars[index + 2])
         && is_consonant(chars[index + 3])
     {
@@ -5187,43 +5279,49 @@ fn long_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
-fn cvc_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= state.len()))]
+fn cvc_rafsi_end(state: &crate::recog_state::CharState, index: usize) -> Option<usize> {
+    let chars: &[char] = state.chars();
+
     // CVC_rafsi <- consonant unstressed_vowel consonant
     // unstressed_vowel uses vowel, so the letter needs !nucleus.
     // The following consonant is not a nucleus. The bound is the whole buffer.
     (index + 3 <= chars.len()
         && is_consonant(chars[index])
-        && vowel_production_end(chars, index + 1, chars.len()) == Some(index + 2)
+        && vowel_production_end(state, index + 1, chars.len()) == Some(index + 2)
         && is_consonant(chars[index + 2]))
     .then_some(index + 3)
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
-fn ccv_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= state.len()))]
+fn ccv_rafsi_end(state: &crate::recog_state::CharState, index: usize) -> Option<usize> {
+    let chars: &[char] = state.chars();
+
     // CCV_rafsi <- initial_pair unstressed_vowel
     // vowel <- (a / e / i / o / u) !nucleus
     // `flai` fails: `a` is followed by `i`, and `ai` is a nucleus.
     // The bound is this buffer, not the third letter.
     (index + 3 <= chars.len()
         && initial_pair_chars(chars[index], chars[index + 1])
-        && vowel_production_end(chars, index + 2, chars.len()) == Some(index + 3))
+        && vowel_production_end(state, index + 2, chars.len()) == Some(index + 3))
     .then_some(index + 3)
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
-    cvv_rafsi_base_ends(chars, index)
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn cvv_rafsi_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    cvv_rafsi_base_ends(state, index)
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn initial_cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn initial_cvv_rafsi_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     let mut ends = Vec::new();
-    for base_end in cvv_rafsi_base_ends(chars, index) {
+    for base_end in cvv_rafsi_base_ends(state, index) {
         if let Some(end) = r_hyphen_end(chars, base_end).or_else(|| n_hyphen_end(chars, base_end)) {
             ends.push(end);
         }
@@ -5232,24 +5330,28 @@ fn initial_cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn cvv_rafsi_base_ends(chars: &[char], index: usize) -> Vec<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn cvv_rafsi_base_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     let mut ends = Vec::new();
     if index < chars.len() && is_consonant(chars[index]) {
-        ends.extend(vowel_pair_ends(chars, index + 1));
+        ends.extend(vowel_pair_ends(state, index + 1));
     }
     ends
 }
 
-#[requires(start < end && end <= chars.len())]
+#[requires(start < end && end <= state.len())]
 #[ensures(ret.is_none_or(|hyphen_start| start < hyphen_start && hyphen_start < end))]
 fn cvv_rafsi_hyphen_start_for_initial_end(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     start: usize,
     end: usize,
 ) -> Option<usize> {
-    cvv_rafsi_base_ends(chars, start)
+    let chars: &[char] = state.chars();
+
+    cvv_rafsi_base_ends(state, start)
         .into_iter()
         .find(|base_end| {
             r_hyphen_end(chars, *base_end) == Some(end)
@@ -5273,20 +5375,22 @@ fn n_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
     (chars.get(index) == Some(&'n') && chars.get(index + 1) == Some(&'r')).then_some(index + 1)
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn vowel_pair_ends(chars: &[char], index: usize) -> Vec<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= state.len()))]
+fn vowel_pair_ends(state: &crate::recog_state::CharState, index: usize) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     // CVV_rafsi uses unstressed_vowel h unstressed_vowel, or unstressed_diphthong.
     // Both vowel and diphthong stop before a following nucleus.
     let mut ends = Vec::new();
     let limit = chars.len();
-    if vowel_production_end(chars, index, limit) == Some(index + 1)
+    if vowel_production_end(state, index, limit) == Some(index + 1)
         && chars.get(index + 1) == Some(&'\'')
-        && vowel_production_end(chars, index + 2, limit) == Some(index + 3)
+        && vowel_production_end(state, index + 2, limit) == Some(index + 3)
     {
         ends.push(index + 3);
     }
-    if diphthong_production_end(chars, index, limit) == Some(index + 2) {
+    if diphthong_production_end(state, index, limit) == Some(index + 2) {
         ends.push(index + 2);
     }
     ends
@@ -5298,22 +5402,34 @@ fn is_gismu_slice(chars: &[char], start: usize, end: usize) -> bool {
     end > start && is_gismu_chars(&chars[start..end])
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn is_unaccented_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+fn is_unaccented_short_final_rafsi_slice(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
     // final_syllable <- onset !y !stressed nucleus
     // short_final_rafsi is that one syllable: consonant plus diphthong, or
     // an initial pair plus a vowel.
     // A capital or acute nucleus is not a short final. `klá` keeps the
     // stressed rafsi in front of it, and the tail stays a failure.
     // CV'V is two syllables. It is CVV_final_rafsi, not a short final.
-    is_short_final_rafsi_slice(chars, start, end)
+    is_short_final_rafsi_slice(state, start, end)
         && !syllable_has_explicit_stress(chars, start, end)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+fn is_short_final_rafsi_slice(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
     if start >= end {
         return false;
     }
@@ -5321,22 +5437,28 @@ fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool 
     // `end` is the candidate bound. The vowel or diphthong reads through it.
     if end == start + 3
         && is_consonant(chars[start])
-        && diphthong_production_end(chars, start + 1, end) == Some(start + 3)
+        && diphthong_production_end(state, start + 1, end) == Some(start + 3)
     {
         return true;
     }
     end == start + 3
         && initial_pair_chars(chars[start], chars[start + 1])
-        && vowel_production_end(chars, start + 2, end) == Some(start + 3)
+        && vowel_production_end(state, start + 2, end) == Some(start + 3)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn is_cvv_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+fn is_cvv_final_rafsi_slice(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
     if start >= end || !is_consonant(chars[start]) {
         return false;
     }
-    vowel_pair_ends(chars, start + 1)
+    vowel_pair_ends(state, start + 1)
         .into_iter()
         .any(|vowel_end| vowel_end == end)
 }
@@ -5344,82 +5466,91 @@ fn is_cvv_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    is_fuhivla_shape_slice_with_cache(chars, start, end, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(is_fuhivla_shape_slice_with_cache(start, end, &cache))
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn is_fuhivla_shape_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
-    is_fuhivla_shape_slice_with_y_policy_with_cache(chars, start, end, false, cache)
+    is_fuhivla_shape_slice_with_y_policy_with_cache(start, end, false, cache)
 }
 
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn fuhivla_shape_slice_rejected_by_y(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    fuhivla_shape_slice_rejected_by_y_with_cache(chars, start, end, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(fuhivla_shape_slice_rejected_by_y_with_cache(
+        start, end, &cache,
+    ))
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn fuhivla_shape_slice_rejected_by_y_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
-    start < end
-        && chars[start..end].iter().any(|value| is_y(*value))
-        && is_fuhivla_shape_slice_with_y_policy_with_cache(chars, start, end, true, cache)
+    if !(start < end && chars[start..end].iter().any(|value| is_y(*value))) {
+        return Ok(false);
+    }
+    is_fuhivla_shape_slice_with_y_policy_with_cache(start, end, true, cache)
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn is_fuhivla_shape_slice_with_y_policy_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     allows_y: bool,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.fuhivla_shape_y(start, end, allows_y) {
-        return result;
+        return Ok(result);
     }
     // The checks stay in the original order. Each one can call back into this
     // cycle, so a later check must not run when an earlier check already failed.
+    // A blocked callee is `Err`, not a real miss.
+    // The next check does not run and this function does not store.
     let result = if end <= start
         || end - start < 4
         || !ends_with_vocalic_nucleus(chars, start, end)
-        || count_vocalic_nuclei(chars, start, end) < 2
+        || count_vocalic_nuclei(&cache.char_state(), start, end) < 2
         || (!allows_y && chars[start..end].iter().any(|value| is_y(*value)))
-        || has_vowel_hiatus(&chars[start..end])
-        || !parse_fuhivla_shape_with_cache(chars, start, end, cache)
-        || rafsi_string_slice_for_lookahead_with_cache(chars, start, end, end, cache)
-        || slinkuhi_slice_with_cache(chars, start, end, cache)
-        || has_blocking_cmavo_prefix_slice_with_cache(chars, start, end, cache)
-        || invalid_initial_rafsi_continuation(chars, start, end)
-        || invalid_vowel_initial_fuhivla_shape_with_cache(chars, start, end, cache)
+        || has_vowel_hiatus(&cache.char_state().subspan(start, end))
+    {
+        false
+    } else if !parse_fuhivla_shape_with_cache(start, end, cache)? {
+        false
+    } else if rafsi_string_slice_for_lookahead_with_cache(start, end, end, cache)? {
+        false
+    } else if slinkuhi_slice_with_cache(start, end, cache)? {
+        false
+    } else if has_blocking_cmavo_prefix_slice_with_cache(start, end, cache)? {
+        false
+    } else if invalid_initial_rafsi_continuation(&cache.char_state(), start, end)
+        || invalid_vowel_initial_fuhivla_shape_with_cache(start, end, cache)?
         || !starts_with_valid_word_onset(chars, start)
     {
         false
@@ -5427,250 +5558,142 @@ fn is_fuhivla_shape_slice_with_y_policy_with_cache(
         let slice = &chars[start..end];
         slice.iter().any(|value| is_consonant(*value))
             && has_consonant_cluster(slice)
-            && !is_cmavo_slice(chars, start, end)
+            && !is_cmavo_slice(&cache.char_state(), start, end)
     };
     cache.record_fuhivla_shape_y(start, end, allows_y, result);
-    result
+    Ok(result)
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn has_blocking_cmavo_prefix_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if start >= end {
-        return false;
+        return Ok(false);
     }
-    cmavo_word_slice_with_cache(chars, start, end, cache)
-}
-
-#[requires(prefix_start <= prefix_end && prefix_end <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn cmavo_post_word_slice_with_cache(
-    chars: &[char],
-    prefix_start: usize,
-    prefix_end: usize,
-    end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    if cache.is_cancelled() {
-        return false;
-    }
-
-    // `mut` is used on wasm32, where the closure is called in place. Native
-    // code moves the closure into `stacker::maybe_grow`.
-    #[allow(unused_mut)]
-    let mut recognize = || {
-        if let Some(result) = cache.cmavo_post_word(prefix_start, prefix_end, end) {
-            return result;
-        }
-        let result = match next_non_comma_index(chars, prefix_end) {
-            None => true,
-            Some(index) if index >= end => true,
-            Some(index) if starts_with_nucleus(chars, index) => false,
-            Some(index) => lojban_word_slice_with_cache(chars, index, end, cache),
-        };
-        cache.record_cmavo_post_word(prefix_start, prefix_end, end, result);
-        result
-    };
-    // The post-word check calls `lojban_word` on the next word and stays on
-    // the stack until that word returns. Grow the native stack when less than
-    // 64 KiB remains. wasm32 has no auxiliary stack, so the call stays on the
-    // host stack.
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        return stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        recognize()
-    }
+    drive::enter_cmavo(start, end, cache)
 }
 
 #[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn lojban_word_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    lojban_word_slice_with_cache(chars, start, end, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn lojban_word_slice_with_cache(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    if cache.is_cancelled() {
-        return false;
-    }
-
-    // `mut` is used on wasm32, where the closure is called in place. Native
-    // code moves the closure into `stacker::maybe_grow`.
-    #[allow(unused_mut)]
-    let mut recognize = || {
-        if let Some(result) = cache.lojban_word(start, end) {
-            return result;
-        }
-        let result = start < end
-            && (is_cmevla_slice(chars, start, end)
-                || cmavo_word_slice_with_cache(chars, start, end, cache)
-                || brivla_word_slice_with_cache(chars, start, end, cache));
-        cache.record_lojban_word(start, end, result);
-        result
-    };
-    // Classifying one word calls back into `cmavo_word` for the same span and
-    // for each later word. Grow the native stack when less than 64 KiB remains.
-    // wasm32 has no auxiliary stack, so the call stays on the host stack.
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        return stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        recognize()
-    }
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(drive::enter_lojban(start, end, &cache))
 }
 
 #[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn cmavo_word_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    cmavo_word_slice_with_cache(chars, start, end, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(true)]
-fn cmavo_word_slice_with_cache(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    if cache.is_cancelled() {
-        return false;
-    }
-
-    // `mut` is used on wasm32, where the closure is called in place. Native
-    // code moves the closure into `stacker::maybe_grow`.
-    #[allow(unused_mut)]
-    let mut recognize = || {
-        if let Some(result) = cache.cmavo_word(start, end) {
-            return result;
-        }
-        let result = if start >= end
-            || is_cmevla_slice(chars, start, end)
-            || starts_with_cvcy_lujvo_chars_with_cache(chars, start, end, cache)
-        {
-            false
-        } else {
-            ((start + 1)..=end).any(|word_end| {
-                is_cmavo_form_span(chars, start, word_end, end)
-                    && cmavo_post_word_slice_with_cache(chars, start, word_end, end, cache)
-            })
-        };
-        cache.record_cmavo_word(start, end, result);
-        result
-    };
-    // Each accepted cmavo calls `cmavo_post_word`, which recognizes the next
-    // word before this call returns. Grow the native stack when less than 64
-    // KiB remains. wasm32 has no auxiliary stack, so the call stays on the
-    // host stack.
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        return stacker::maybe_grow(64 * 1024, 1024 * 1024, recognize);
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        recognize()
-    }
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(drive::enter_cmavo(start, end, &cache))
 }
 
 #[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn brivla_word_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    brivla_word_slice_with_cache(chars, start, end, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(brivla_word_slice_with_cache(start, end, &cache))
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn brivla_word_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.brivla_word(start, end) {
-        return result;
+        return Ok(result);
     }
-    let result = !cmavo_word_slice_with_cache(chars, start, end, cache)
-        && (is_gismu_slice(chars, start, end)
-            || is_lujvo_slice_with_cache(chars, start, end, cache)
-            || is_fuhivla_shape_slice_with_cache(chars, start, end, cache));
-    cache.record_brivla_word(start, end, result);
-    result
+    // A blocked callee is `Err`. That is not a cmavo miss.
+    // Stop before the next arm. The retry runs this check again.
+    let cmavo = drive::enter_cmavo(start, end, cache)?;
+    if cmavo || is_gismu_slice(chars, start, end) {
+        cache.record_brivla_word(start, end, !cmavo);
+        return Ok(!cmavo);
+    }
+    let lujvo = is_lujvo_slice_with_cache(start, end, cache)?;
+    if lujvo {
+        cache.record_brivla_word(start, end, true);
+        return Ok(true);
+    }
+    let fuhivla = is_fuhivla_shape_slice_with_cache(start, end, cache)?;
+    cache.record_brivla_word(start, end, fuhivla);
+    Ok(fuhivla)
 }
 
 #[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_lujvo_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = MorphologyRecognitionCache::new(chars.len());
-    is_lujvo_slice_with_cache(chars, start, end, &mut cache)
+    let cache = MorphologyRecognitionCache::new(&chars);
+    drive::ready(is_lujvo_slice_with_cache(start, end, &cache))
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn is_lujvo_slice_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
+
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.lujvo_slice(start, end) {
-        return result;
+        return Ok(result);
     }
-    let result = chars[start..end].iter().all(|value| is_lujvo_char(*value))
-        && !cmavo_word_slice_with_cache(chars, start, end, cache)
-        && !is_fuhivla_shape_slice_with_cache(chars, start, end, cache)
-        && lujvo_from_until_with_cache(chars, start, end, false, cache);
+    // A blocked callee is `Err`. Stop before the next arm.
+    if !chars[start..end].iter().all(|value| is_lujvo_char(*value)) {
+        cache.record_lujvo_slice(start, end, false);
+        return Ok(false);
+    }
+    let cmavo = drive::enter_cmavo(start, end, cache)?;
+    if cmavo {
+        cache.record_lujvo_slice(start, end, false);
+        return Ok(false);
+    }
+    let fuhivla = is_fuhivla_shape_slice_with_cache(start, end, cache)?;
+    if fuhivla {
+        cache.record_lujvo_slice(start, end, false);
+        return Ok(false);
+    }
+    let result = lujvo_from_until_with_cache(start, end, false, cache)?;
     cache.record_lujvo_slice(start, end, result);
-    result
+    Ok(result)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn is_cmevla_slice(chars: &[char], start: usize, end: usize) -> bool {
-    start < end
-        && chars[end - 1].is_ascii_lowercase()
-        && is_consonant(chars[end - 1])
-        && !blocks_word_shape(&chars[start..end])
+fn is_cmevla_slice(state: &crate::recog_state::CharState, start: usize, end: usize) -> bool {
+    let chars: &[char] = state.chars();
+    if start >= end || !chars[end - 1].is_ascii_lowercase() || !is_consonant(chars[end - 1]) {
+        return false;
+    }
+    // A mid-buffer span has its own indexes. The parent table stays on the parent.
+    if start == 0 && end == chars.len() {
+        return !blocks_word_shape(state);
+    }
+    !blocks_word_shape(&state.subspan(start, end))
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -5682,18 +5705,18 @@ fn ends_with_vocalic_nucleus(chars: &[char], start: usize, end: usize) -> bool {
             .is_some_and(|value| is_vowel(*value) || matches!(*value, 'ĭ' | 'ŭ'))
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn count_vocalic_nuclei(chars: &[char], start: usize, end: usize) -> usize {
+fn count_vocalic_nuclei(state: &crate::recog_state::CharState, start: usize, end: usize) -> usize {
     let mut count = 0;
     let mut index = start;
     while index < end {
-        if let Some((_, nucleus_end)) = parse_diphthong_end(chars, index)
+        if let Some((_, nucleus_end)) = drive::diphthong_iter(state, index)
             && nucleus_end <= end
         {
             count += 1;
             index = nucleus_end;
-        } else if let Some(nucleus_end) = parse_single_vowel_end(chars, index)
+        } else if let Some(nucleus_end) = drive::single_vowel_iter(state, index)
             && nucleus_end <= end
         {
             count += 1;
@@ -5705,19 +5728,29 @@ fn count_vocalic_nuclei(chars: &[char], start: usize, end: usize) -> usize {
     count
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn invalid_initial_rafsi_continuation(chars: &[char], start: usize, end: usize) -> bool {
-    let prefix_end = cvc_rafsi_end(chars, start).or_else(|| ccv_rafsi_end(chars, start));
+fn invalid_initial_rafsi_continuation(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+) -> bool {
+    let prefix_end = cvc_rafsi_end(state, start).or_else(|| ccv_rafsi_end(state, start));
     let Some(prefix_end) = prefix_end else {
         return false;
     };
-    bad_lujvo_prefix_continuation(chars, prefix_end, end)
+    bad_lujvo_prefix_continuation(state, prefix_end, end)
 }
 
-#[requires(index <= end && end <= chars.len())]
+#[requires(index <= end && end <= state.len())]
 #[ensures(true)]
-fn bad_lujvo_prefix_continuation(chars: &[char], index: usize, end: usize) -> bool {
+fn bad_lujvo_prefix_continuation(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    end: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
     if index >= end {
         return false;
     }
@@ -5734,122 +5767,134 @@ fn bad_lujvo_prefix_continuation(chars: &[char], index: usize, end: usize) -> bo
     // `glide <- (i / u) &nucleus`.
     // `j` or `g` before that glide is the same test. `cmajria` and `cmagnia`
     // take the warning. `cmajriti` and `cmagniti` have a vowel, not a glide.
-    starts_cgv_sequence(chars, index, end)
+    starts_cgv_sequence(state, index, end)
 }
 
-#[requires(index <= end && end <= chars.len())]
+#[requires(index <= end && end <= state.len())]
 #[ensures(true)]
-fn starts_cgv_sequence(chars: &[char], index: usize, end: usize) -> bool {
-    index < end && is_consonant(chars[index]) && starts_glide(chars, index + 1)
+fn starts_cgv_sequence(state: &crate::recog_state::CharState, index: usize, end: usize) -> bool {
+    let chars: &[char] = state.chars();
+
+    index < end && is_consonant(chars[index]) && starts_glide(state, index + 1)
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn invalid_vowel_initial_fuhivla_shape_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
-    if cache.is_cancelled() {
-        return false;
-    }
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
+    let chars: &[char] = cache.char_state().chars();
 
-    chars
+    if cache.is_cancelled() {
+        return Ok(false);
+    }
+    if !chars
         .get(start)
         .is_some_and(|value| is_vowel(*value) || matches!(value, 'ĭ' | 'ŭ'))
-        && !parse_fuhivla_shape_with_cache(chars, start, end, cache)
+    {
+        return Ok(false);
+    }
+    Ok(!parse_fuhivla_shape_with_cache(start, end, cache)?)
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn parse_fuhivla_shape_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.fuhivla_shape(start, end) {
-        return result;
+        return Ok(result);
     }
-    let result = parse_fuhivla_shape_with_head_policy_with_cache(
-        chars,
+    // A blocked standard parse is `Err`. The experimental arm does not run.
+    let standard = parse_fuhivla_shape_with_head_policy_with_cache(
         start,
         end,
         FuhivlaHeadPolicy::Standard,
         cache,
-    ) || parse_experimental_cgv_fuhivla_shape_with_cache(chars, start, end, cache);
+    )?;
+    let result = if standard {
+        true
+    } else {
+        let experimental = parse_experimental_cgv_fuhivla_shape_with_cache(start, end, cache)?;
+        experimental
+    };
     cache.record_fuhivla_shape(start, end, result);
-    result
+    Ok(result)
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn parse_experimental_cgv_fuhivla_shape_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.experimental_cgv(start, end) {
-        return result;
+        return Ok(result);
     }
-    let result = has_cgv_sequence_slice(chars, start, end)
+    let result = has_cgv_sequence_slice(&cache.char_state(), start, end)
         && parse_fuhivla_shape_with_head_policy_with_cache(
-            chars,
             start,
             end,
             FuhivlaHeadPolicy::ExperimentalCgv,
             cache,
-        );
+        )?;
     cache.record_experimental_cgv(start, end, result);
-    result
+    Ok(result)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn has_cgv_sequence_slice(chars: &[char], start: usize, end: usize) -> bool {
-    cgv_range(&chars[start..end]).is_some()
+fn has_cgv_sequence_slice(state: &crate::recog_state::CharState, start: usize, end: usize) -> bool {
+    cgv_range(&state.subspan(start, end)).is_some()
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
+#[requires(start <= end && end <= cache.char_count)]
 #[ensures(true)]
 fn parse_fuhivla_shape_with_head_policy_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     head_policy: FuhivlaHeadPolicy,
-    cache: &mut MorphologyRecognitionCache,
-) -> bool {
+    cache: &MorphologyRecognitionCache,
+) -> Result<bool, drive::Blocked> {
     if cache.is_cancelled() {
-        return false;
+        return Ok(false);
     }
 
     if let Some(result) = cache.fuhivla_head_policy(start, end, head_policy) {
-        return result;
+        return Ok(result);
     }
-    let result = fuhivla_head_ends_for_fuhivla_with_cache(chars, start, end, head_policy, cache)
+    let mut result = false;
+    for head_end in fuhivla_head_ends_for_fuhivla_with_cache(start, end, head_policy, cache)?
         .iter()
         .copied()
-        .any(|head_end| {
-            stressed_syllable_ends_for_fuhivla(chars, head_end, end, end)
-                .into_iter()
-                .any(|stressed_end| consonantal_chain_then_final(chars, stressed_end, end))
-        });
+    {
+        for stressed_end in
+            stressed_syllable_ends_for_fuhivla(&cache.char_state(), head_end, end, end)
+        {
+            if drive::cons_final(&cache.char_state(), stressed_end, end) {
+                result = true;
+                break;
+            }
+        }
+        if result {
+            break;
+        }
+    }
     cache.record_fuhivla_head_policy(start, end, head_policy, result);
-    result
+    Ok(result)
 }
 
 #[invariant(true)]
@@ -5859,47 +5904,46 @@ pub(crate) enum FuhivlaHeadPolicy {
     ExperimentalCgv,
 }
 
-#[requires(start <= end && end <= chars.len())]
-#[requires(cache.char_count == chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= start && *head_end <= end))]
+#[requires(start <= end && end <= cache.char_count)]
+#[ensures(ret.is_err() || (ret.as_ref().unwrap().iter().all(|head_end| *head_end >= start && *head_end <= end)))]
 fn fuhivla_head_ends_for_fuhivla_with_cache(
-    chars: &[char],
     start: usize,
     end: usize,
     head_policy: FuhivlaHeadPolicy,
-    cache: &mut MorphologyRecognitionCache,
-) -> Rc<[usize]> {
+    cache: &MorphologyRecognitionCache,
+) -> Result<Rc<[usize]>, drive::Blocked> {
     if cache.is_cancelled() {
-        return Rc::from([]);
+        return Ok(Rc::from([]));
     }
 
     match head_policy {
-        FuhivlaHeadPolicy::Standard => {
-            fuhivla_head_ends_until_with_cache(chars, start, end, end, cache)
-        }
+        FuhivlaHeadPolicy::Standard => fuhivla_head_ends_until_with_cache(start, end, end, cache),
         FuhivlaHeadPolicy::ExperimentalCgv => {
-            brivla_head_ends_until_with_cache(chars, start, end, end, cache)
+            brivla_head_ends_until_with_cache(start, end, end, cache)
         }
     }
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= span_end))]
 fn unstressed_syllable_ends_for_fuhivla(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     span_end: usize,
     lookahead_end: usize,
 ) -> Vec<usize> {
-    let mut ends: Vec<usize> = syllable_ends(chars, index, span_end, lookahead_end)
-        .into_iter()
-        .filter(|syllable_end| {
-            !syllable_has_explicit_stress(chars, index, *syllable_end)
-                && !stressed_syllable_has_implicit_stress(chars, *syllable_end, lookahead_end)
-        })
-        .collect();
+    let chars: &[char] = state.chars();
+
+    let mut ends = Vec::new();
+    for syllable_end in syllable_ends(state, index, span_end, lookahead_end) {
+        if !syllable_has_explicit_stress(chars, index, syllable_end)
+            && !stressed_syllable_has_implicit_stress(state, syllable_end, lookahead_end)
+        {
+            ends.push(syllable_end);
+        }
+    }
     ends.extend(consonantal_syllable_ends(
-        chars,
+        state,
         index,
         span_end,
         lookahead_end,
@@ -5909,27 +5953,31 @@ fn unstressed_syllable_ends_for_fuhivla(
     ends
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= span_end))]
 fn stressed_syllable_ends_for_fuhivla(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     span_end: usize,
     lookahead_end: usize,
 ) -> Vec<usize> {
-    syllable_ends(chars, index, span_end, lookahead_end)
-        .into_iter()
-        .filter(|syllable_end| {
-            syllable_has_explicit_stress(chars, index, *syllable_end)
-                || stressed_syllable_has_implicit_stress(chars, *syllable_end, lookahead_end)
-        })
-        .collect()
+    let chars: &[char] = state.chars();
+
+    let mut ends = Vec::new();
+    for syllable_end in syllable_ends(state, index, span_end, lookahead_end) {
+        if syllable_has_explicit_stress(chars, index, syllable_end)
+            || stressed_syllable_has_implicit_stress(state, syllable_end, lookahead_end)
+        {
+            ends.push(syllable_end);
+        }
+    }
+    ends
 }
 
-#[requires(syllable_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(syllable_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
 fn stressed_syllable_has_implicit_stress(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     syllable_end: usize,
     lookahead_end: usize,
 ) -> bool {
@@ -5938,21 +5986,26 @@ fn stressed_syllable_has_implicit_stress(
     // `lookahead_end` is that pause. The coda stays in this syllable.
     // The tail is one final syllable, or consonantal syllables and then one
     // final syllable. `h? y?` covers an apostrophe or a y before that syllable.
-    if final_syllable_slice(chars, syllable_end, lookahead_end) {
+    if final_syllable_slice(state, syllable_end, lookahead_end) {
         return true;
     }
-    if consonantal_syllable_ends(chars, syllable_end, lookahead_end, lookahead_end)
-        .into_iter()
-        .any(|next| next > syllable_end && consonantal_chain_then_final(chars, next, lookahead_end))
-    {
-        return true;
+    for next in consonantal_syllable_ends(state, syllable_end, lookahead_end, lookahead_end) {
+        if next > syllable_end && drive::cons_final(state, next, lookahead_end) {
+            return true;
+        }
     }
-    stress_tail_through_hyphen(chars, syllable_end, lookahead_end)
+    stress_tail_through_hyphen(state, syllable_end, lookahead_end)
 }
 
-#[requires(syllable_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(syllable_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
-fn stress_tail_through_hyphen(chars: &[char], syllable_end: usize, lookahead_end: usize) -> bool {
+fn stress_tail_through_hyphen(
+    state: &crate::recog_state::CharState,
+    syllable_end: usize,
+    lookahead_end: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
     // `(consonant / glide)* h? y? syllable pause`, and the tail uses `h` or `y`.
     let mut cursors = vec![syllable_end];
     let mut seen = vec![syllable_end];
@@ -5967,7 +6020,7 @@ fn stress_tail_through_hyphen(chars: &[char], syllable_end: usize, lookahead_end
                 cursors.push(next);
             }
         }
-        if let Some(glide_end) = parse_glide_end(chars, cursor)
+        if let Some(glide_end) = parse_glide_end(state, cursor)
             && glide_end <= lookahead_end
             && !seen.contains(&glide_end)
         {
@@ -5975,14 +6028,23 @@ fn stress_tail_through_hyphen(chars: &[char], syllable_end: usize, lookahead_end
             cursors.push(glide_end);
         }
     }
-    cursors
-        .into_iter()
-        .any(|cursor| hyphen_then_final_syllable(chars, cursor, lookahead_end))
+    for cursor in cursors {
+        if hyphen_then_final_syllable(state, cursor, lookahead_end) {
+            return true;
+        }
+    }
+    false
 }
 
-#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
-fn hyphen_then_final_syllable(chars: &[char], index: usize, lookahead_end: usize) -> bool {
+fn hyphen_then_final_syllable(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    lookahead_end: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
     let mut syllable_starts = Vec::new();
     if index < lookahead_end && chars[index] == '\'' {
         let after_h = index + 1;
@@ -5995,56 +6057,54 @@ fn hyphen_then_final_syllable(chars: &[char], index: usize, lookahead_end: usize
     } else {
         return false;
     }
-    syllable_starts.into_iter().any(|syllable_start| {
-        syllable_start <= lookahead_end
-            && syllable_ends(chars, syllable_start, lookahead_end, lookahead_end)
-                .into_iter()
-                .any(|syllable_end| syllable_end == lookahead_end)
-    })
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(true)]
-fn consonantal_chain_then_final(chars: &[char], index: usize, end: usize) -> bool {
-    if final_syllable_slice(chars, index, end) {
-        return true;
+    for syllable_start in syllable_starts {
+        if syllable_start > lookahead_end {
+            continue;
+        }
+        for syllable_end in syllable_ends(state, syllable_start, lookahead_end, lookahead_end) {
+            if syllable_end == lookahead_end {
+                return true;
+            }
+        }
     }
-    consonantal_syllable_ends(chars, index, end, end)
-        .into_iter()
-        .any(|next| next > index && consonantal_chain_then_final(chars, next, end))
+    false
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn final_syllable_slice(chars: &[char], start: usize, end: usize) -> bool {
+fn final_syllable_slice(state: &crate::recog_state::CharState, start: usize, end: usize) -> bool {
+    let chars: &[char] = state.chars();
+
     !syllable_has_explicit_stress(chars, start, end)
-        && brivla_onset_has_nucleus_end(chars, start, end, true)
+        && brivla_onset_has_nucleus_end(state, start, end, true)
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= span_end))]
 fn syllable_ends(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     span_end: usize,
     lookahead_end: usize,
 ) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     let mut ends = Vec::new();
     let mut onset_ends = Vec::with_capacity(6);
     let mut nucleus_ends = Vec::with_capacity(2);
-    append_brivla_onset_ends_unsorted(chars, index, &mut onset_ends);
+    append_brivla_onset_ends_unsorted(state, index, &mut onset_ends);
     for onset_end in onset_ends.iter().copied() {
         if chars.get(onset_end).is_some_and(|value| is_y(*value)) {
             continue;
         }
         nucleus_ends.clear();
-        append_parse_nucleus_ends(chars, onset_end, &mut nucleus_ends);
+        append_parse_nucleus_ends(state, onset_end, &mut nucleus_ends);
         for nucleus_end in nucleus_ends.iter().copied() {
             // syllable <- onset !y nucleus coda?
             // The nucleus is inside the span. Coda lookahead reads further.
             if nucleus_end <= span_end {
                 ends.push(nucleus_end);
-                ends.extend(coda_ends(chars, nucleus_end, span_end, lookahead_end));
+                ends.extend(coda_ends(state, nucleus_end, span_end, lookahead_end));
             }
         }
     }
@@ -6066,9 +6126,15 @@ struct SyllableFlags {
     coda_takes_next: bool,
 }
 
-#[requires(index <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
-fn syllable_flags_at(chars: &[char], index: usize, lookahead_end: usize) -> SyllableFlags {
+fn syllable_flags_at(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    lookahead_end: usize,
+) -> SyllableFlags {
+    let chars: &[char] = state.chars();
+
     let end = lookahead_end;
     if index >= end {
         return SyllableFlags {
@@ -6085,8 +6151,9 @@ fn syllable_flags_at(chars: &[char], index: usize, lookahead_end: usize) -> Syll
                 coda_takes_next: false,
             };
         }
-        recognition_cache::note_syllable_step();
-        let onset = brivla_onset_has_nucleus_end_at_or_before(chars, cursor, end);
+        #[cfg(test)]
+        recognition_cache::count_syllable_step();
+        let onset = brivla_onset_has_nucleus_end_at_or_before(state, cursor, end);
         let consonant = is_consonant(chars[cursor]);
         let next_inside = cursor + 1 < end;
         if !consonant || onset || !next_inside {
@@ -6111,14 +6178,16 @@ fn syllable_flags_at(chars: &[char], index: usize, lookahead_end: usize) -> Syll
     next_flags
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= span_end))]
 fn consonantal_syllable_ends(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     span_end: usize,
     lookahead_end: usize,
 ) -> Vec<usize> {
+    let chars: &[char] = state.chars();
+
     if index >= span_end
         || !is_consonant(chars[index])
         || !chars
@@ -6132,42 +6201,53 @@ fn consonantal_syllable_ends(
     // The filter keeps only the second of those. The coda consonant stays in
     // the span. `&any_syllable` reads to `lookahead_end`, so a later `y`
     // nucleus still counts.
-    if index + 2 <= span_end && syllable_flags_at(chars, index + 1, lookahead_end).coda_takes_next {
+    if index + 2 <= span_end && syllable_flags_at(state, index + 1, lookahead_end).coda_takes_next {
         vec![index + 2]
     } else {
         Vec::new()
     }
 }
 
-#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(index <= span_end && span_end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(ret.iter().all(|coda_end| *coda_end >= index && *coda_end <= span_end))]
-fn coda_ends(chars: &[char], index: usize, span_end: usize, lookahead_end: usize) -> Vec<usize> {
+fn coda_ends(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    span_end: usize,
+    lookahead_end: usize,
+) -> Vec<usize> {
     let mut ends = Vec::with_capacity(2);
     ends.push(index);
     // coda <- !any_syllable consonant &any_syllable / syllabic? consonant? &pause
     // The consonant stays in the span. Both syllable tests read to the lookahead.
-    if index < span_end && syllable_flags_at(chars, index, lookahead_end).coda_takes_next {
+    if index < span_end && syllable_flags_at(state, index, lookahead_end).coda_takes_next {
         ends.push(index + 1);
     }
     ends
 }
 
 #[cfg(test)]
-#[requires(index <= end && end <= chars.len())]
+#[requires(index <= end && end <= state.len())]
 #[ensures(true)]
-fn starts_any_syllable(chars: &[char], index: usize, end: usize) -> bool {
+fn starts_any_syllable(state: &crate::recog_state::CharState, index: usize, end: usize) -> bool {
     if index >= end {
         return false;
     }
-    syllable_flags_at(chars, index, end).starts_any
+    syllable_flags_at(state, index, end).starts_any
 }
 
-#[requires(index <= chars.len())]
-#[requires(ends.iter().all(|end| *end <= chars.len()))]
-#[ensures(ends.iter().all(|end| *end <= chars.len()))]
-fn append_brivla_onset_ends_unsorted(chars: &[char], index: usize, ends: &mut Vec<usize>) {
-    append_parse_onset_ends(chars, index, ends);
-    if let Some(end) = experimental_cgv_brivla_onset_end(chars, index) {
+#[requires(index <= state.len())]
+#[requires(ends.iter().all(|end| *end <= state.len()))]
+#[ensures(ends.iter().all(|end| *end <= state.len()))]
+fn append_brivla_onset_ends_unsorted(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    ends: &mut Vec<usize>,
+) {
+    let chars: &[char] = state.chars();
+
+    append_parse_onset_ends(state, index, ends);
+    if let Some(end) = experimental_cgv_brivla_onset_end(state, index) {
         ends.push(end);
     }
     if chars.get(index) == Some(&'\'') {
@@ -6175,79 +6255,94 @@ fn append_brivla_onset_ends_unsorted(chars: &[char], index: usize, ends: &mut Ve
     }
 }
 
-#[requires(index <= chars.len())]
-#[requires(nucleus_end <= chars.len())]
+#[requires(index <= state.len())]
+#[requires(nucleus_end <= state.len())]
 #[ensures(true)]
 fn brivla_onset_has_nucleus_end(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     index: usize,
     nucleus_end: usize,
     skip_y_onset: bool,
 ) -> bool {
-    if let Some(onset_end) = parse_glide_end(chars, index)
-        && brivla_onset_candidate_has_nucleus_end(chars, onset_end, nucleus_end, skip_y_onset)
+    let chars: &[char] = state.chars();
+
+    if let Some(onset_end) = parse_glide_end(state, index)
+        && brivla_onset_candidate_has_nucleus_end(state, onset_end, nucleus_end, skip_y_onset)
     {
         return true;
     }
     for onset_end in (index..=max_initial_end(chars, index)).rev() {
-        if parse_initial_end(chars, index, onset_end).is_some()
-            && brivla_onset_candidate_has_nucleus_end(chars, onset_end, nucleus_end, skip_y_onset)
+        if parse_initial_end(state, index, onset_end).is_some()
+            && brivla_onset_candidate_has_nucleus_end(state, onset_end, nucleus_end, skip_y_onset)
         {
             return true;
         }
     }
-    if let Some(onset_end) = experimental_cgv_brivla_onset_end(chars, index)
-        && brivla_onset_candidate_has_nucleus_end(chars, onset_end, nucleus_end, skip_y_onset)
+    if let Some(onset_end) = experimental_cgv_brivla_onset_end(state, index)
+        && brivla_onset_candidate_has_nucleus_end(state, onset_end, nucleus_end, skip_y_onset)
     {
         return true;
     }
     chars.get(index) == Some(&'\'')
-        && brivla_onset_candidate_has_nucleus_end(chars, index + 1, nucleus_end, skip_y_onset)
+        && brivla_onset_candidate_has_nucleus_end(state, index + 1, nucleus_end, skip_y_onset)
 }
 
-#[requires(onset_end <= chars.len())]
-#[requires(nucleus_end <= chars.len())]
+#[requires(onset_end <= state.len())]
+#[requires(nucleus_end <= state.len())]
 #[ensures(true)]
 fn brivla_onset_candidate_has_nucleus_end(
-    chars: &[char],
+    state: &crate::recog_state::CharState,
     onset_end: usize,
     nucleus_end: usize,
     skip_y_onset: bool,
 ) -> bool {
+    let chars: &[char] = state.chars();
+
     (!skip_y_onset || !chars.get(onset_end).is_some_and(|value| is_y(*value)))
-        && has_parse_nucleus_end(chars, onset_end, nucleus_end)
+        && has_parse_nucleus_end(state, onset_end, nucleus_end)
 }
 
-#[requires(index <= chars.len())]
-#[requires(limit <= chars.len())]
+#[requires(index <= state.len())]
+#[requires(limit <= state.len())]
 #[ensures(true)]
-fn brivla_onset_has_nucleus_end_at_or_before(chars: &[char], index: usize, limit: usize) -> bool {
-    if let Some(onset_end) = parse_glide_end(chars, index)
-        && has_parse_nucleus_end_at_or_before(chars, onset_end, limit)
+fn brivla_onset_has_nucleus_end_at_or_before(
+    state: &crate::recog_state::CharState,
+    index: usize,
+    limit: usize,
+) -> bool {
+    let chars: &[char] = state.chars();
+
+    if let Some(onset_end) = parse_glide_end(state, index)
+        && has_parse_nucleus_end_at_or_before(state, onset_end, limit)
     {
         return true;
     }
     for onset_end in (index..=max_initial_end(chars, index)).rev() {
-        if parse_initial_end(chars, index, onset_end).is_some()
-            && has_parse_nucleus_end_at_or_before(chars, onset_end, limit)
+        if parse_initial_end(state, index, onset_end).is_some()
+            && has_parse_nucleus_end_at_or_before(state, onset_end, limit)
         {
             return true;
         }
     }
-    if let Some(onset_end) = experimental_cgv_brivla_onset_end(chars, index)
-        && has_parse_nucleus_end_at_or_before(chars, onset_end, limit)
+    if let Some(onset_end) = experimental_cgv_brivla_onset_end(state, index)
+        && has_parse_nucleus_end_at_or_before(state, onset_end, limit)
     {
         return true;
     }
-    chars.get(index) == Some(&'\'') && has_parse_nucleus_end_at_or_before(chars, index + 1, limit)
+    chars.get(index) == Some(&'\'') && has_parse_nucleus_end_at_or_before(state, index + 1, limit)
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
-fn experimental_cgv_brivla_onset_end(chars: &[char], index: usize) -> Option<usize> {
+#[requires(index <= state.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= state.len()))]
+fn experimental_cgv_brivla_onset_end(
+    state: &crate::recog_state::CharState,
+    index: usize,
+) -> Option<usize> {
+    let chars: &[char] = state.chars();
+
     let max_initial_end = (index + 3).min(chars.len());
     (index + 1..=max_initial_end).rev().find_map(|initial_end| {
-        (valid_initial_shape(chars, index, initial_end) && starts_glide(chars, initial_end))
+        (valid_initial_shape(chars, index, initial_end) && starts_glide(state, initial_end))
             .then(|| next_non_comma_index(chars, initial_end + 1))
             .flatten()
     })
@@ -6280,13 +6375,15 @@ fn has_consonant_cluster(chars: &[char]) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn has_vowel_hiatus(chars: &[char]) -> bool {
-    vowel_hiatus_range(chars).is_some()
+fn has_vowel_hiatus(state: &crate::recog_state::CharState) -> bool {
+    vowel_hiatus_range(state).is_some()
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
-fn vowel_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= state.len()))]
+fn vowel_hiatus_range(state: &crate::recog_state::CharState) -> Option<Range<usize>> {
+    let chars: &[char] = state.chars();
+
     for index in 0..chars.len() {
         if !is_vowel(chars[index]) && !matches!(chars[index], 'ĭ' | 'ŭ') {
             continue;
@@ -6295,17 +6392,17 @@ fn vowel_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
             let next = next_non_comma_index(chars, index + 1).unwrap_or(index + 1);
             return Some(index..nucleus_end_for_span(chars, next));
         }
-        if starts_glide(chars, index) {
+        if starts_glide(state, index) {
             continue;
         }
-        if parse_diphthong_end(chars, index).is_some() {
+        if drive::diphthong_iter(state, index).is_some() {
             continue;
         }
-        if next_non_comma_index(chars, index + 1).is_some_and(|next| starts_glide(chars, next)) {
+        if next_non_comma_index(chars, index + 1).is_some_and(|next| starts_glide(state, next)) {
             continue;
         }
         if let Some(next) = next_non_comma_index(chars, index + 1)
-            && starts_with_nucleus(chars, next)
+            && starts_with_nucleus(state, next)
         {
             return Some(index..nucleus_end_for_span(chars, next));
         }
@@ -6358,30 +6455,45 @@ pub(crate) fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<u
     (index < chars.len()).then_some(index)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= state.len())]
 #[ensures(true)]
-fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
+fn is_cmavo_slice(state: &crate::recog_state::CharState, start: usize, end: usize) -> bool {
     // A closed slice cannot see past its end. Callers that classify one
     // finished span, including a fu'ivla shape, stay on that bound.
-    is_cmavo_form_span(chars, start, end, end)
+    is_cmavo_form_span(state, start, end, end)
 }
 
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= state.len())]
 #[ensures(true)]
-fn is_cmavo_form_span(chars: &[char], start: usize, end: usize, lookahead_end: usize) -> bool {
+fn is_cmavo_form_span(
+    state: &crate::recog_state::CharState,
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> bool {
     if start >= end {
         return false;
     }
+    // The work driver reruns this body. The span answer does not change, so
+    // the second walk would repeat the whole tail.
+    if let Some(answer) = state.cmavo_get(start, end, lookahead_end) {
+        return answer;
+    }
     let mut output = None;
-    parse_cmavo_form_span_into(chars, start, end, lookahead_end, &mut output).is_some()
+    let answer =
+        parse_cmavo_form_span_into(state, start, end, lookahead_end, &mut output).is_some();
+    state.cmavo_set(start, end, lookahead_end, answer);
+    return answer;
 }
 
-#[requires(index <= chars.len())]
+#[requires(index <= state.len())]
 #[ensures(true)]
-fn starts_with_onset(chars: &[char], index: usize) -> bool {
+fn starts_with_onset(state: &crate::recog_state::CharState, index: usize) -> bool {
+    let chars: &[char] = state.chars();
+
     index <= chars.len()
-        && (has_parse_onset(chars, index)
-            || experimental_cgv_brivla_onset_end(chars, index).is_some())
+        && (has_parse_onset(state, index)
+            || experimental_cgv_brivla_onset_end(state, index).is_some())
 }
 
 #[requires(index <= chars.len())]
@@ -7092,6 +7204,35 @@ mod tests {
         assert_eq!(diagnostic.code, "morphology.slinkuhi", "brá'i");
     }
 
+    /// A resumed lujvo keeps the failure from branches that already finished.
+    /// `kairbaly` records an incomplete y-ending rafsi before a later branch.
+    /// `kairmeimá` stays an invalid lujvo. Main reports both texts.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn resumed_lujvo_failure_keeps_the_finished_branch() {
+        let incomplete = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "kairbaly",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("kairbaly");
+        assert_eq!(
+            incomplete.to_string(),
+            "incomplete lujvo at character 0: `kairbaly`"
+        );
+        let invalid = crate::segment_words_with_modifiers_with_options_and_source_id(
+            "kairmeimá",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("kairmeimá");
+        assert_eq!(
+            invalid.to_string(),
+            "invalid lujvo decomposition at character 0: `kairmeimá`"
+        );
+    }
+
     #[requires(!source.is_empty() && !prefix.is_empty() && !rafsi.is_empty())]
     #[ensures(true)]
     fn assert_incomplete_y_less_short_final(source: &str, prefix: &str, rafsi: &str) {
@@ -7393,50 +7534,6 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn explicit_stress_mark_on_either_diphthong_vowel_counts() {
-        // `syllable_has_explicit_stress` reads every vowel of the nucleus.
-        // The nucleus of `kaí` is `aí`, so the mark on the second vowel counts.
-        // Camxes `stressed` reads only the first vowel, so `kaI` is not stressed.
-        // That difference is issue 1103. This predicate stays as it is.
-        let kai = text_chars("kaí");
-        assert!(syllable_has_explicit_stress(&kai, 1, 3));
-        let unmarked = text_chars("kai");
-        assert!(!syllable_has_explicit_stress(&unmarked, 1, 3));
-        let first = text_chars("kái");
-        assert!(syllable_has_explicit_stress(&first, 1, 3));
-        let cluster = text_chars("káibrodybra");
-        assert!(consonant_cluster_follows(&cluster, 3, cluster.len()));
-        let spaced = text_chars("kái brodybra");
-        assert!(!consonant_cluster_follows(&spaced, 3, spaced.len()));
-        let single = text_chars("tádyba'i");
-        assert!(!consonant_cluster_follows(&single, 2, single.len()));
-        let ended = text_chars("kái");
-        assert!(!consonant_cluster_follows(&ended, ended.len(), ended.len()));
-        // A comma is not a pause. It can sit before the cluster or between
-        // the two consonants. Camxes consonant productions start with comma*.
-        let comma_before = text_chars("kái,klama");
-        assert!(consonant_cluster_follows(
-            &comma_before,
-            3,
-            comma_before.len()
-        ));
-        let comma_between = text_chars("káik,lama");
-        assert!(consonant_cluster_follows(
-            &comma_between,
-            3,
-            comma_between.len()
-        ));
-        let commas_around = text_chars("kái,k,lama");
-        assert!(consonant_cluster_follows(
-            &commas_around,
-            3,
-            commas_around.len()
-        ));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn comma_inside_a_cmavo_form_matches_the_letters() {
         // A comma marks a syllable. The letters are the same cmavo either way.
         assert_eq!(parse_cmavo_form("c,oi"), parse_cmavo_form("coi"));
@@ -7458,8 +7555,14 @@ mod tests {
         // The parser sees letters only. `parse_cmavo_form` strips the commas.
         // `y+` consumes the following y. The first y of `yyy` is not a cmavo.
         let yyy = text_chars("yyy");
-        assert!(!super::is_cmavo_form_span(&yyy, 0, 1, yyy.len()));
-        assert!(super::is_cmavo_form_span(&yyy, 0, yyy.len(), yyy.len()));
+        let yyy_state = crate::recog_state::CharState::new(&yyy);
+        assert!(!super::is_cmavo_form_span(&yyy_state, 0, 1, yyy.len()));
+        assert!(super::is_cmavo_form_span(
+            &yyy_state,
+            0,
+            yyy.len(),
+            yyy.len()
+        ));
         for word in comma_property_words() {
             let Some(plain) = parse_cmavo_form(&word) else {
                 continue;
@@ -7502,110 +7605,6 @@ mod tests {
                     }
                 }
             }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn acute_on_a_diphthong_offglide_matches_the_first_vowel() {
-        // Issue #1103. The mark on either vowel of ai, ei, oi, or au is the same stress.
-        // Issue #1099. Canonical text keeps that mark on the first vowel.
-        for (offglide, first) in [
-            ("baúrbro", "báurbro"),
-            ("baúrba'i", "báurba'i"),
-            ("baúrbrodybra", "báurbrodybra"),
-            ("baúnrbro", "báunrbro"),
-            ("baúnrba'i", "báunrba'i"),
-            ("baúnrbrodybra", "báunrbrodybra"),
-            ("maí'ybroda", "mái'ybroda"),
-            ("maí'y", "mái'y"),
-            ("baúr", "báur"),
-            ("baún", "báun"),
-            ("baúr", "báúr"),
-        ] {
-            assert_eq!(
-                acute_signature(offglide),
-                acute_signature(first),
-                "{offglide} and {first}"
-            );
-        }
-        assert_eq!(stress_marked_output("mái'ybroda"), "máĭ'y bróda");
-        assert_eq!(stress_marked_output("maí'ybroda"), "máĭ'y bróda");
-        assert_eq!(
-            stress_marked_output("báurbro"),
-            stress_marked_output("baúrbro")
-        );
-        // Issue #1099. The canonical spelling and a second lex of that spelling
-        // name the same words.
-        let maiy = stress_marked_output("mái'y");
-        assert_eq!(maiy, stress_marked_output("maí'y"));
-        assert_eq!(maiy, "máĭ'y");
-        assert_eq!(word_kind_phonemes(&maiy), word_kind_phonemes("mái'y"));
-        assert_eq!(word_kind_phonemes(&maiy), word_kind_phonemes("maí'y"));
-        let phrase = stress_marked_output("mái'ybroda");
-        assert_eq!(phrase, stress_marked_output("maí'ybroda"));
-        assert_eq!(
-            word_kind_phonemes(&phrase),
-            word_kind_phonemes("mái'ybroda")
-        );
-        assert_eq!(stress_marked_output(&phrase), phrase);
-        // A rising pair is a glide plus a vowel. A mark on the glide stays dropped.
-        assert_eq!(acute_signature("íabu"), acute_signature("iabu"));
-        assert_eq!(acute_signature("úa"), acute_signature("ua"));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn moving_an_offglide_acute_keeps_the_segmentation() {
-        let mut sources = Vec::new();
-        for head in [
-            "", "b", "m", "kl", "t", "br", "k", "brod", "brodyb", "tadyk", "citkak", "bi'", "klam",
-        ] {
-            for (first, second) in [("a", "i"), ("e", "i"), ("o", "i"), ("a", "u")] {
-                for tail in [
-                    "", "bro", "ba'i", "brodybra", "nrbro", "nrba'i", "'y", "'ybroda", "rbro", "r",
-                    "n", "broda", "'ybra", "nbrtybra",
-                ] {
-                    let acute_second = if second == "i" { "í" } else { "ú" };
-                    let acute_first: String = first.chars().map(acute_vowel).collect();
-                    sources.push(format!("{head}{first}{acute_second}{tail}"));
-                    sources.push(format!("{head}{first},{acute_second}{tail}"));
-                    sources.push(format!("{head}{acute_first}{acute_second}{tail}"));
-                }
-            }
-        }
-        assert!(
-            sources.len() > 100,
-            "the generated diphthong set is too small"
-        );
-        for required in [
-            "brodaí",
-            "citkakeí",
-            "bi'aíbroda",
-            "brodybaúrbro",
-            "tadykaíbro",
-            "baúrbro",
-            "baúr",
-            "klamaí'ybra",
-            "kaúnbrtybra",
-            "brodaín",
-            "bi'aí",
-        ] {
-            assert!(
-                sources.iter().any(|source| source == required),
-                "{required} is missing from the diphthong set"
-            );
-        }
-        for source in sources {
-            let moved = relocate_offglide_acute(&source);
-            assert_ne!(moved, source, "{source} has an off-glide acute to move");
-            assert_eq!(
-                acute_signature(&source),
-                acute_signature(&moved),
-                "{source} -> {moved}"
-            );
         }
     }
 
@@ -7712,6 +7711,32 @@ mod tests {
         } else {
             signature
         }
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn relocate_offglide_acute(source: &str) -> String {
+        let mut chars: Vec<char> = source.chars().collect();
+        let mut index = 0;
+        while index < chars.len() {
+            let semivowel = match chars[index] {
+                'í' => 'i',
+                'ú' => 'u',
+                _ => {
+                    index += 1;
+                    continue;
+                }
+            };
+            let state = crate::recog_state::CharState::new(&chars);
+            if is_diphthong_semivowel(&state, index, semivowel)
+                && let Some((vowel_index, vowel)) = previous_non_comma(&chars, index)
+            {
+                chars[vowel_index] = acute_vowel(vowel);
+                chars[index] = semivowel;
+            }
+            index += 1;
+        }
+        chars.into_iter().collect()
     }
 
     #[requires(!source.is_empty())]
@@ -7915,31 +7940,6 @@ mod tests {
         text.chars().filter(|value| *value != ',').collect()
     }
 
-    #[requires(!source.is_empty())]
-    #[ensures(!ret.is_empty())]
-    fn relocate_offglide_acute(source: &str) -> String {
-        let mut chars: Vec<char> = source.chars().collect();
-        let mut index = 0;
-        while index < chars.len() {
-            let semivowel = match chars[index] {
-                'í' => 'i',
-                'ú' => 'u',
-                _ => {
-                    index += 1;
-                    continue;
-                }
-            };
-            if is_diphthong_semivowel(&chars, index, semivowel)
-                && let Some((vowel_index, vowel)) = previous_non_comma(&chars, index)
-            {
-                chars[vowel_index] = acute_vowel(vowel);
-                chars[index] = semivowel;
-            }
-            index += 1;
-        }
-        chars.into_iter().collect()
-    }
-
     #[requires(true)]
     #[ensures(ret.len() > 100)]
     fn comma_property_words() -> Vec<String> {
@@ -8048,6 +8048,50 @@ mod tests {
         words.sort();
         words.dedup();
         words
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_stress_mark_on_either_diphthong_vowel_counts() {
+        // `syllable_has_explicit_stress` reads every vowel of the nucleus.
+        // The nucleus of `kaí` is `aí`, so the mark on the second vowel counts.
+        // Camxes `stressed` reads only the first vowel, so `kaI` is not stressed.
+        // That difference is issue 1103. This predicate stays as it is.
+        let kai = text_chars("kaí");
+        assert!(syllable_has_explicit_stress(&kai, 1, 3));
+        let unmarked = text_chars("kai");
+        assert!(!syllable_has_explicit_stress(&unmarked, 1, 3));
+        let first = text_chars("kái");
+        assert!(syllable_has_explicit_stress(&first, 1, 3));
+        let cluster = text_chars("káibrodybra");
+        assert!(consonant_cluster_follows(&cluster, 3, cluster.len()));
+        let spaced = text_chars("kái brodybra");
+        assert!(!consonant_cluster_follows(&spaced, 3, spaced.len()));
+        let single = text_chars("tádyba'i");
+        assert!(!consonant_cluster_follows(&single, 2, single.len()));
+        let ended = text_chars("kái");
+        assert!(!consonant_cluster_follows(&ended, ended.len(), ended.len()));
+        // A comma is not a pause. It can sit before the cluster or between
+        // the two consonants. Camxes consonant productions start with comma*.
+        let comma_before = text_chars("kái,klama");
+        assert!(consonant_cluster_follows(
+            &comma_before,
+            3,
+            comma_before.len()
+        ));
+        let comma_between = text_chars("káik,lama");
+        assert!(consonant_cluster_follows(
+            &comma_between,
+            3,
+            comma_between.len()
+        ));
+        let commas_around = text_chars("kái,k,lama");
+        assert!(consonant_cluster_follows(
+            &commas_around,
+            3,
+            commas_around.len()
+        ));
     }
 
     #[test]
@@ -8215,11 +8259,11 @@ mod tests {
         // Camxes reads only the first vowel and splits `kaI` plus `brodybra`.
         for source in [
             "káibrodybra",
-            "kaíbrodybra",
             "báibrodybra",
             "káubrodybra",
             "péibrodybra",
             "sóibrodybra",
+            "kaíbrodybra",
             "kái,brodybra",
         ] {
             assert_unrecognized_word_tail(source, "bra");
@@ -8343,7 +8387,8 @@ mod tests {
     #[ensures(true)]
     fn morphology_recognition_cache_starts_with_no_slots() {
         for char_count in [0, 1, 5, 32, 4_000] {
-            let cache = MorphologyRecognitionCache::new(char_count);
+            let sample = vec!['a'; char_count];
+            let cache = MorphologyRecognitionCache::new(&sample);
 
             assert_eq!(cache.char_count, char_count);
             assert_eq!(
@@ -8373,8 +8418,8 @@ mod tests {
         for source in cases {
             let chars = text_chars(source);
             let expected = analyze_lujvo_part_ranges_chars(&chars);
-            let mut cache = MorphologyRecognitionCache::new(chars.len());
-            let actual = analyze_lujvo_part_ranges_chars_with_cache(&chars, &mut cache);
+            let cache = MorphologyRecognitionCache::new(&chars);
+            let actual = analyze_lujvo_part_ranges_chars_with_cache(&cache);
 
             assert_eq!(actual, expected, "{source}");
         }
@@ -8412,49 +8457,49 @@ mod tests {
         start: usize,
         end: usize,
     ) {
-        let mut cache = MorphologyRecognitionCache::new(chars.len());
+        let cache = MorphologyRecognitionCache::new(&chars);
         assert_eq!(
-            cmavo_word_slice_with_cache(chars, start, end, &mut cache),
+            drive::ready(drive::enter_cmavo(start, end, &cache)),
             cmavo_word_slice(chars, start, end),
             "{source} {start}..{end} cmavo"
         );
         assert_eq!(
-            brivla_word_slice_with_cache(chars, start, end, &mut cache),
+            drive::ready(brivla_word_slice_with_cache(start, end, &cache)),
             brivla_word_slice(chars, start, end),
             "{source} {start}..{end} brivla"
         );
         assert_eq!(
-            is_lujvo_slice_with_cache(chars, start, end, &mut cache),
+            drive::ready(is_lujvo_slice_with_cache(start, end, &cache)),
             is_lujvo_slice(chars, start, end),
             "{source} {start}..{end} lujvo"
         );
         assert_eq!(
-            is_fuhivla_shape_slice_with_cache(chars, start, end, &mut cache),
+            drive::ready(is_fuhivla_shape_slice_with_cache(start, end, &cache)),
             is_fuhivla_shape_slice(chars, start, end),
             "{source} {start}..{end} fuhivla"
         );
         assert_eq!(
-            lojban_word_slice_with_cache(chars, start, end, &mut cache),
+            drive::ready(drive::enter_lojban(start, end, &cache)),
             lojban_word_slice(chars, start, end),
             "{source} {start}..{end} word"
         );
         assert_eq!(
-            slinkuhi_slice_with_cache(chars, start, end, &mut cache),
+            drive::ready(slinkuhi_slice_with_cache(start, end, &cache)),
             slinkuhi_slice(chars, start, end),
             "{source} {start}..{end} slinkuhi"
         );
         assert_eq!(
-            rafsi_string_starts_slice_with_cache(chars, start, end, &mut cache),
+            drive::ready(rafsi_string_starts_slice_with_cache(start, end, &cache)),
             rafsi_string_starts_slice(chars, start, end),
             "{source} {start}..{end} rafsi string"
         );
         assert_eq!(
-            post_word_slice_with_cache(chars, start, end, &mut cache),
+            drive::ready(post_word_slice_with_cache(start, end, &cache)),
             post_word_slice(chars, start, end),
             "{source} {start}..{end} post-word"
         );
         assert_eq!(
-            starts_with_cvcy_lujvo_chars_with_cache(chars, start, end, &mut cache),
+            drive::ready(starts_with_cvcy_lujvo_chars_with_cache(start, end, &cache)),
             starts_with_cvcy_lujvo_chars(&chars[..end], start),
             "{source} {start}..{end} CVC-y lujvo"
         );
@@ -8621,6 +8666,200 @@ mod tests {
         );
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn acute_on_a_diphthong_offglide_matches_the_first_vowel() {
+        // Issue #1103. The mark on either vowel of ai, ei, oi, or au is the same stress.
+        // Issue #1099. Canonical text keeps that mark on the first vowel.
+        for (offglide, first) in [
+            ("baúrbro", "báurbro"),
+            ("baúrba'i", "báurba'i"),
+            ("baúrbrodybra", "báurbrodybra"),
+            ("baúnrbro", "báunrbro"),
+            ("baúnrba'i", "báunrba'i"),
+            ("baúnrbrodybra", "báunrbrodybra"),
+            ("maí'ybroda", "mái'ybroda"),
+            ("maí'y", "mái'y"),
+            ("baúr", "báur"),
+            ("baún", "báun"),
+            ("baúr", "báúr"),
+        ] {
+            assert_eq!(
+                acute_signature(offglide),
+                acute_signature(first),
+                "{offglide} and {first}"
+            );
+        }
+        assert_eq!(stress_marked_output("mái'ybroda"), "máĭ'y bróda");
+        assert_eq!(stress_marked_output("maí'ybroda"), "máĭ'y bróda");
+        assert_eq!(
+            stress_marked_output("báurbro"),
+            stress_marked_output("baúrbro")
+        );
+        // Issue #1099. The canonical spelling and a second lex of that spelling
+        // name the same words.
+        let maiy = stress_marked_output("mái'y");
+        assert_eq!(maiy, stress_marked_output("maí'y"));
+        assert_eq!(maiy, "máĭ'y");
+        assert_eq!(word_kind_phonemes(&maiy), word_kind_phonemes("mái'y"));
+        assert_eq!(word_kind_phonemes(&maiy), word_kind_phonemes("maí'y"));
+        let phrase = stress_marked_output("mái'ybroda");
+        assert_eq!(phrase, stress_marked_output("maí'ybroda"));
+        assert_eq!(
+            word_kind_phonemes(&phrase),
+            word_kind_phonemes("mái'ybroda")
+        );
+        assert_eq!(stress_marked_output(&phrase), phrase);
+        // A rising pair is a glide plus a vowel. A mark on the glide stays dropped.
+        assert_eq!(acute_signature("íabu"), acute_signature("iabu"));
+        assert_eq!(acute_signature("úa"), acute_signature("ua"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn moving_an_offglide_acute_keeps_the_segmentation() {
+        let mut sources = Vec::new();
+        for head in [
+            "", "b", "m", "kl", "t", "br", "k", "brod", "brodyb", "tadyk", "citkak", "bi'", "klam",
+        ] {
+            for (first, second) in [("a", "i"), ("e", "i"), ("o", "i"), ("a", "u")] {
+                for tail in [
+                    "", "bro", "ba'i", "brodybra", "nrbro", "nrba'i", "'y", "'ybroda", "rbro", "r",
+                    "n", "broda", "'ybra", "nbrtybra",
+                ] {
+                    let acute_second = if second == "i" { "í" } else { "ú" };
+                    let acute_first: String = first.chars().map(acute_vowel).collect();
+                    sources.push(format!("{head}{first}{acute_second}{tail}"));
+                    sources.push(format!("{head}{first},{acute_second}{tail}"));
+                    sources.push(format!("{head}{acute_first}{acute_second}{tail}"));
+                }
+            }
+        }
+        assert!(
+            sources.len() > 100,
+            "the generated diphthong set is too small"
+        );
+        for required in [
+            "brodaí",
+            "citkakeí",
+            "bi'aíbroda",
+            "brodybaúrbro",
+            "tadykaíbro",
+            "baúrbro",
+            "baúr",
+            "klamaí'ybra",
+            "kaúnbrtybra",
+            "brodaín",
+            "bi'aí",
+        ] {
+            assert!(
+                sources.iter().any(|source| source == required),
+                "{required} is missing from the diphthong set"
+            );
+        }
+        for source in sources {
+            let moved = relocate_offglide_acute(&source);
+            assert_ne!(moved, source, "{source} has an off-glide acute to move");
+            assert_eq!(
+                acute_signature(&source),
+                acute_signature(&moved),
+                "{source} -> {moved}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn long_ua_and_ai_runs_stay_inside_a_quadratic_nucleus_bound() {
+        // Issue #1133. A long `ua` run or a long `ai` run visits each nucleus
+        // index a polynomial number of times. When the pair count doubles, the
+        // step count stays inside four fifths of the square ratio. Eight times
+        // that ratio is the cubic shape this guard rejects. A debug build and
+        // a release build use the same count. Repeated `ua` is the one-pair
+        // word each time. Repeated `ai` is one `a`, then `ia`, then one `iai`.
+        // A failed parse stops in `display_words`.
+        let ai_head = display_words("a");
+        let ai_pair = display_words("ia");
+        let ai_tail = display_words("iai");
+        assert_eq!(ai_head.as_slice(), ["cmavo:a"]);
+        assert_eq!(ai_pair.len(), 1, "{ai_pair:?}");
+        assert_eq!(ai_tail.len(), 1, "{ai_tail:?}");
+        for unit in ["ua", "ai"] {
+            let one = display_words(unit);
+            assert_eq!(one.len(), 1, "{unit}");
+            let expected = one[0].clone();
+            let mut previous_steps = 0u64;
+            let mut previous_n = 0u64;
+            for copies in [20usize, 40, 80] {
+                let word = unit.repeat(copies);
+                let n = u64::try_from(word.chars().count()).unwrap_or(u64::MAX);
+                let cap = n.saturating_mul(n).saturating_mul(64);
+                let steps = super::recognition_cache::NucleusStepCount::begin(cap);
+                let words = display_words(&word);
+                let got = steps.get();
+                assert_eq!(words.len(), copies, "{unit} {words:?}");
+                if unit == "ua" {
+                    assert!(
+                        words.iter().all(|parsed| parsed == &expected),
+                        "{unit} {words:?}"
+                    );
+                } else {
+                    assert!(copies >= 2, "{unit}");
+                    assert_ne!(ai_pair[0], expected, "{unit}");
+                    assert_eq!(words.first(), ai_head.first(), "{unit} {words:?}");
+                    assert!(
+                        words[1..copies - 1]
+                            .iter()
+                            .all(|parsed| parsed == &ai_pair[0]),
+                        "{unit} {words:?}"
+                    );
+                    assert_eq!(words.last(), ai_tail.first(), "{unit} {words:?}");
+                }
+                assert!(got > 0, "{unit} copies={copies} scanned no indexes");
+                assert!(
+                    got <= cap,
+                    "{unit} copies={copies} chars={n} steps={got} cap={cap}"
+                );
+                if previous_steps > 0 {
+                    assert!(
+                        got.saturating_mul(previous_n.saturating_pow(2))
+                            .saturating_mul(4)
+                            <= previous_steps
+                                .saturating_mul(n.saturating_pow(2))
+                                .saturating_mul(5),
+                        "{unit} steps={got} previous={previous_steps} n={n} previous_n={previous_n}"
+                    );
+                }
+                previous_steps = got;
+                previous_n = n;
+            }
+        }
+    }
+
+    /// An acute on the off-glide of a cmavo diphthong moves to the first vowel.
+    /// `baú` is `báŭ`. `saí` is `sáĭ`. `meí` is `méĭ`. The same move applies
+    /// before an apostrophe, so `baú'i` is `báŭ'i`.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_acute_on_a_cmavo_offglide_moves_to_the_first_vowel() {
+        assert_eq!(display_words("baudaú"), ["cmavo:baŭ", "cmavo:dáŭ"]);
+        assert_eq!(display_words("saí"), ["cmavo:sáĭ"]);
+        assert_eq!(display_words("meí"), ["cmavo:méĭ"]);
+        assert_eq!(display_words("baú'i"), ["cmavo:báŭ'i"]);
+        assert_eq!(
+            display_words("baubaúgenykla"),
+            ["cmavo:baŭ", "cmavo:báŭ", "lujvo:génykla"]
+        );
+        assert_eq!(
+            display_words("balybalysaí"),
+            ["cmavo:ba", "cmavo:ly", "cmavo:ba", "cmavo:ly", "cmavo:sáĭ",]
+        );
+    }
+
     /// Issue #1119. U+02BC is an apostrophe in a Lojban word. It reads as the
     /// ASCII apostrophe. A longer word with several U+02BC marks normalizes
     /// the same way. The displayed text matches the U+2019 form.
@@ -8740,7 +8979,7 @@ mod tests {
             let (old_ends, old_calls, old_starts) = legacy_coda_ends(&chars, 0, chars.len());
             let start_steps = super::recognition_cache::SyllableStepCount::begin(length as u64);
             assert_eq!(
-                starts_any_syllable(&chars, 0, chars.len()),
+                starts_any_syllable(&crate::recog_state::CharState::new(&chars), 0, chars.len()),
                 old_starts,
                 "length {length}"
             );
@@ -8751,7 +8990,12 @@ mod tests {
             );
             drop(start_steps);
             let steps = super::recognition_cache::SyllableStepCount::begin(length as u64);
-            let new_ends = coda_ends(&chars, 0, chars.len(), chars.len());
+            let new_ends = coda_ends(
+                &crate::recog_state::CharState::new(&chars),
+                0,
+                chars.len(),
+                chars.len(),
+            );
             assert_eq!(new_ends, old_ends, "length {length}");
             assert!(
                 steps.get() <= length as u64,
@@ -8771,7 +9015,12 @@ mod tests {
         }
         let chars = vec!['l'; 64];
         let steps = super::recognition_cache::SyllableStepCount::begin(chars.len() as u64);
-        let ends = coda_ends(&chars, 0, chars.len(), chars.len());
+        let ends = coda_ends(
+            &crate::recog_state::CharState::new(&chars),
+            0,
+            chars.len(),
+            chars.len(),
+        );
         assert_eq!(ends.first().copied(), Some(0));
         assert!(ends.len() <= 2, "{ends:?}");
         assert!(steps.get() <= chars.len() as u64, "steps={}", steps.get());
@@ -8939,12 +9188,17 @@ mod tests {
         }
     }
 
-    /// 3,200 copies of `lo`, then 800 copies of `lo'a`, on a 256 KiB thread.
+    /// Long unspaced words on a 160 KiB thread.
     ///
-    /// A Rust stack overflow aborts the process. The segmentation runs in a
-    /// child process, so an abort fails this test and leaves the test binary
-    /// alive. Native morphology grows the stack at each per-word call. On the
-    /// head before that growth, this child aborts.
+    /// A Rust stack overflow aborts the process. Each case runs on its own
+    /// 160 KiB thread inside a child process, so an abort fails this test
+    /// and leaves the test binary alive. The sizes are the ones where main
+    /// aborted on that stack. Display of repeated `lo`, `lo'a`, and
+    /// `kánykla` did not overflow before the time limit, so those rows are
+    /// not in this test. Unspaced `mi` x 800 is many cmavo. Main finishes
+    /// that row. `stacker` grows `lojban_word_starts_at` on main. The wasm
+    /// probe `recognizer-mi` is the row main overflows. The other rows are
+    /// one word.
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     #[requires(true)]
@@ -8952,12 +9206,19 @@ mod tests {
     fn long_unspaced_cmavo_chain_finishes_on_a_small_stack() {
         const CHILD: &str = "JBOTCI_MORPHOLOGY_SMALL_STACK_CHILD";
         if std::env::var_os(CHILD).is_some() {
-            let lo = segment_on_small_stack("lo".repeat(3_200));
-            assert_eq!(lo.len(), 3_200);
-            assert!(lo.iter().all(|word| word == "cmavo:lo"));
-            let loa = segment_on_small_stack("lo'a".repeat(800));
-            assert_eq!(loa.len(), 800);
-            assert!(loa.iter().all(|word| word == "cmavo:lo'a"));
+            for case in [
+                "display-kany",
+                "display-apostrophe",
+                "display-rl",
+                "display-mi",
+                "analyze-kany",
+                "lex-kany",
+                "lujvo-parts-kany",
+                "lujvo-parts-kanykla",
+                "cmevla-parts-kan",
+            ] {
+                run_small_stack_case(case);
+            }
             return;
         }
         let exe = std::env::current_exe().unwrap_or_else(|error| panic!("{error}"));
@@ -8981,16 +9242,80 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[requires(!input.is_empty())]
-    #[ensures(!ret.is_empty())]
-    fn segment_on_small_stack(input: String) -> Vec<String> {
+    #[requires(!case.is_empty())]
+    #[ensures(true)]
+    fn run_small_stack_case(case: &'static str) {
+        eprintln!("{case}");
+        let _ = std::io::Write::flush(&mut std::io::stderr());
+        let owned = case.to_owned();
         let handle = std::thread::Builder::new()
-            .stack_size(256 * 1024)
-            .spawn(move || display_words(&input))
-            .unwrap_or_else(|error| panic!("{error}"));
+            .stack_size(160 * 1024)
+            .spawn(move || check_small_stack_case(&owned))
+            .unwrap_or_else(|error| panic!("{case}: {error}"));
         handle
             .join()
-            .unwrap_or_else(|_| panic!("small-stack thread panicked"))
+            .unwrap_or_else(|_| panic!("{case}: small-stack thread panicked"));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[requires(!case.is_empty())]
+    #[ensures(true)]
+    fn check_small_stack_case(case: &str) {
+        let kany = format!("{}klama", "kany".repeat(512));
+        match case {
+            "display-kany" => {
+                let words = display_words(&kany);
+                assert_eq!(words.len(), 1, "{words:?}");
+                assert!(words[0].starts_with("lujvo:"), "{words:?}");
+            }
+            "display-apostrophe" => {
+                let words = display_words(&format!("{}a", "a'".repeat(2048)));
+                assert_eq!(words.len(), 1, "{words:?}");
+                assert!(words[0].starts_with("cmavo:"), "{words:?}");
+            }
+            "display-rl" => {
+                let words = display_words(&format!("bá{}ba", "rl".repeat(2048)));
+                assert_eq!(words.len(), 1, "{words:?}");
+                assert!(words[0].starts_with("fu'ivla:"), "{words:?}");
+            }
+            "display-mi" => {
+                let words = display_words(&"mi".repeat(800));
+                assert_eq!(words.len(), 800, "{words:?}");
+                assert!(words.iter().all(|word| word == "cmavo:mi"), "{words:?}");
+            }
+            "analyze-kany" => {
+                let analysis = crate::analyze_valsi(&kany);
+                assert!(analysis.result.is_valid(), "{case}");
+                assert!(analysis.result.word.is_some(), "{case}");
+            }
+            "lex-kany" => {
+                let found = crate::lex_single_word(&kany, &crate::MorphologyOptions::default())
+                    .unwrap_or_else(|error| panic!("{case}: {error}"));
+                let word = found.unwrap_or_else(|| panic!("{case}: lex returned none"));
+                let shown = word.to_string();
+                assert!(shown.starts_with("lujvo:"), "{shown}");
+            }
+            "lujvo-parts-kany" => {
+                let parts = crate::parse_lujvo_word_parts(&kany);
+                assert!(
+                    parts.as_ref().is_some_and(|parts| !parts.is_empty()),
+                    "{case}"
+                );
+            }
+            "lujvo-parts-kanykla" => {
+                let text = format!("{}klama", "kánykla".repeat(256));
+                let parts = crate::parse_lujvo_word_parts(&text);
+                assert!(
+                    parts.as_ref().is_some_and(|parts| !parts.is_empty()),
+                    "{case}"
+                );
+            }
+            "cmevla-parts-kan" => {
+                let parts = crate::parse_cmevla_lujvo_word_part_candidates(&"kan".repeat(800));
+                assert!(!parts.is_empty(), "{case}");
+            }
+            _ => panic!("unknown small-stack case {case}"),
+        }
     }
 
     #[test]
@@ -8998,9 +9323,13 @@ mod tests {
     #[ensures(true)]
     fn fuhivla_head_miss_shares_the_brivla_allocation() {
         let chars = ['z'];
-        let mut cache = MorphologyRecognitionCache::new(chars.len());
-        let shared =
-            fuhivla_head_ends_until_with_cache(&chars, 0, chars.len(), chars.len(), &mut cache);
+        let cache = MorphologyRecognitionCache::new(&chars);
+        let shared = drive::ready(fuhivla_head_ends_until_with_cache(
+            0,
+            chars.len(),
+            chars.len(),
+            &cache,
+        ));
         let brivla = cache
             .brivla_head_ends(0, chars.len(), chars.len())
             .unwrap_or_else(|| panic!("brivla head list is missing"));
@@ -9042,7 +9371,11 @@ mod tests {
             if !consonantal(chars, index, end, calls).is_empty() {
                 return true;
             }
-            brivla_onset_has_nucleus_end_at_or_before(chars, index, end)
+            brivla_onset_has_nucleus_end_at_or_before(
+                &crate::recog_state::CharState::new(chars),
+                index,
+                end,
+            )
         }
         #[requires(end <= chars.len())]
         #[ensures(true)]
