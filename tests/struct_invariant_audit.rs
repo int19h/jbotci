@@ -2771,6 +2771,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask/src/main.rs:ServeWebReleaseArgs",
         "xtask release web server args delegate validation to clap defaults and command code",
     ),
+    (
+        "crates/jbotci-output/src/diagnostics.rs:LabelRng",
+        "The generator state is one integer. The shift updates that integer and has no other field.",
+    ),
+    (
+        "crates/jbotci-output/src/diagnostics.rs:LabelSet",
+        "The generator stores the source, the labels, the width, and the flags. The Rust types already bound those fields.",
+    ),
 ];
 
 #[test]

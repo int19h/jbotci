@@ -130,6 +130,8 @@ struct RetainedWindow<'source> {
     source_end: usize,
     /// This window holds the primary label. The renderer shows it first.
     owns_primary: bool,
+    /// Labels whose display anchor is this window.
+    label_indexes: Vec<usize>,
 }
 
 #[invariant(*line_start >= 1 && *primary_line >= 1 && *primary_column >= 1)]
@@ -158,7 +160,9 @@ fn diagnostic_source_excerpt<'source>(
         .bytes()
         .filter(|byte| *byte == b'\n')
         .count();
-    let (primary_line, primary_column) = primary_source_position(source, diagnostic);
+    // Anchors exist before the copy and before the escape.
+    let anchors = display_anchors(source, diagnostic);
+    let (primary_line, primary_column) = primary_anchor_position(&anchors);
     let slice = source.get(origin..end).unwrap_or("");
     let cap = excerpt_copy_cap(terminal_width, remaining);
     if slice.len() <= cap {
@@ -173,7 +177,7 @@ fn diagnostic_source_excerpt<'source>(
     }
     let retained = retain_annotated_windows(
         source,
-        diagnostic,
+        &anchors,
         cap,
         terminal_width,
         primary_line,
@@ -258,6 +262,23 @@ fn char_boundary_at(source: &str, index: usize) -> usize {
 struct RawWindow {
     source_start: usize,
     source_end: usize,
+    /// One entry is a label index. A merged window keeps every label it holds.
+    labels: Vec<usize>,
+}
+
+/// One label before clipping and before escaping.
+///
+/// `line` and `column` are the original file position. They start at 1.
+/// An empty line is a real anchor. The point at the end of the file is a real anchor.
+#[invariant(*start <= *end)]
+#[invariant(*line >= 1 && *column >= 1)]
+struct DisplayAnchor {
+    label_index: usize,
+    start: usize,
+    end: usize,
+    line: usize,
+    column: usize,
+    primary: bool,
 }
 
 /// One copied window before its header is known.
@@ -267,29 +288,33 @@ struct CopiedWindow<'source> {
     line_number: usize,
     source_start: usize,
     source_end: usize,
+    label_indexes: Vec<usize>,
 }
 
 /// Keep a bounded piece of each labelled region.
 ///
-/// The main header uses the primary label position from the original source.
-/// Each other window keeps the original position of its own label.
-/// Omitted text stays out of the snippet.
+/// Each label already has a display anchor.
+/// Windows come from those anchors.
+/// An empty anchor stays in the scan.
+/// A label whose mark does not fit gets its own location.
+/// The primary header stays on the window that holds the primary mark.
 #[requires(cap > 0 && terminal_width > 0 && primary_line >= 1 && primary_column >= 1)]
 #[ensures(ret.iter().all(|window| window.line_number >= 1 && window.header_line >= 1 && window.header_column >= 1))]
 fn retain_annotated_windows<'source>(
     source: &'source str,
-    diagnostic: &Diagnostic,
+    anchors: &[DisplayAnchor],
     cap: usize,
     terminal_width: usize,
     primary_line: usize,
     primary_column: usize,
 ) -> Vec<RetainedWindow<'source>> {
-    let windows = clipped_windows(source, diagnostic, cap, terminal_width);
+    let windows = windows_from_anchors(source, anchors, cap, terminal_width);
     let Some(limit) = crate::budget::ByteLimit::new(cap) else {
         return Vec::new();
     };
     let mut budget = crate::budget::SpanBudget::new(limit);
     let mut retained = Vec::new();
+    let mut placed = vec![false; anchors.len()];
     for window in windows {
         if window.source_end > source.len()
             || window.source_start > window.source_end
@@ -298,54 +323,71 @@ fn retain_annotated_windows<'source>(
         {
             continue;
         }
-        let borrowed = &source[window.source_start..window.source_end];
+        // A zero-byte line is a real anchor. It does not stop the scan.
+        if window.source_start == window.source_end {
+            mark_placed(&mut placed, &window.labels);
+            retained.push(copied_window(
+                source,
+                window.source_start,
+                window.source_end,
+                window.labels.clone(),
+            ));
+            continue;
+        }
         let room = budget.remaining();
         if room == 0 {
-            break;
+            continue;
         }
+        let borrowed = &source[window.source_start..window.source_end];
         let take = if borrowed.len() <= room {
             borrowed.len()
         } else {
             bounded_end(borrowed, 0, room)
         };
         if take == 0 {
-            break;
+            continue;
         }
         budget
             .charge(take)
             .expect("the retained excerpt fits in the budget");
         let source_end = window.source_start + take;
-        let line_number = source_line_column(source, window.source_start).0;
-        retained.push(new!(CopiedWindow {
-            escaped: crate::styled::escape_terminal_source(
-                &source[window.source_start..source_end]
-            ),
-            line_number,
-            source_start: window.source_start,
-            source_end,
-        }));
-        if take < borrowed.len() {
-            break;
+        let labels = labels_inside_copy(&window.labels, anchors, window.source_start, source_end);
+        if labels.is_empty() {
+            continue;
         }
+        mark_placed(&mut placed, &labels);
+        retained.push(copied_window(
+            source,
+            window.source_start,
+            source_end,
+            labels,
+        ));
     }
-    let ranges = retained
-        .iter()
-        .map(|window| (window.source_start, window.source_end))
-        .collect::<Vec<_>>();
-    let primary_window = chosen_primary_span(diagnostic)
-        .as_ref()
-        .and_then(|span| label_window_index(span, &ranges));
+    for anchor in anchors {
+        if placed[anchor.label_index] {
+            continue;
+        }
+        // The mark did not fit in a copied window. Show the original location.
+        placed[anchor.label_index] = true;
+        retained.push(copied_window(
+            source,
+            anchor.start,
+            anchor.start,
+            vec![anchor.label_index],
+        ));
+    }
+    let primary_index = chosen_primary_index(anchors);
     retained
         .into_iter()
-        .enumerate()
-        .map(|(index, window)| {
-            let owns_primary = Some(index) == primary_window;
+        .map(|window| {
+            let copied = window.into_data();
+            let owns_primary =
+                primary_index.is_some_and(|index| copied.label_indexes.contains(&index));
             let (header_line, header_column) = if owns_primary {
                 (primary_line, primary_column)
             } else {
-                context_window_header(source, &ranges, index, diagnostic)
+                anchor_window_header(anchors, &copied.label_indexes, source, copied.source_start)
             };
-            let copied = window.into_data();
             new!(RetainedWindow {
                 escaped: copied.escaped,
                 line_number: copied.line_number,
@@ -354,9 +396,68 @@ fn retain_annotated_windows<'source>(
                 source_start: copied.source_start,
                 source_end: copied.source_end,
                 owns_primary,
+                label_indexes: copied.label_indexes,
             })
         })
         .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn copied_window<'source>(
+    source: &'source str,
+    source_start: usize,
+    source_end: usize,
+    label_indexes: Vec<usize>,
+) -> CopiedWindow<'source> {
+    let line_number = source_line_column(source, source_start).0;
+    new!(CopiedWindow {
+        escaped: crate::styled::escape_terminal_source(&source[source_start..source_end]),
+        line_number,
+        source_start,
+        source_end,
+        label_indexes,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn mark_placed(placed: &mut [bool], labels: &[usize]) {
+    for index in labels {
+        if let Some(slot) = placed.get_mut(*index) {
+            *slot = true;
+        }
+    }
+}
+
+/// Labels whose anchor start is still inside the copied bytes.
+#[requires(true)]
+#[ensures(true)]
+fn labels_inside_copy(
+    labels: &[usize],
+    anchors: &[DisplayAnchor],
+    source_start: usize,
+    source_end: usize,
+) -> Vec<usize> {
+    labels
+        .iter()
+        .copied()
+        .filter(|index| {
+            anchors
+                .get(*index)
+                .is_some_and(|anchor| anchor_mark_inside(anchor, source_start, source_end))
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn anchor_mark_inside(anchor: &DisplayAnchor, source_start: usize, source_end: usize) -> bool {
+    if anchor.start == anchor.end {
+        anchor.start >= source_start && anchor.start <= source_end
+    } else {
+        anchor.start >= source_start && anchor.start < source_end
+    }
 }
 
 #[requires(true)]
@@ -372,158 +473,117 @@ fn source_line_column(source: &str, index: usize) -> (usize, usize) {
     (line.max(1), column.max(1))
 }
 
-/// File position of the primary label. The start is an offset in `source`.
+/// Map every label to its original line and column.
+///
+/// The map runs before clipping and before escaping.
+#[requires(true)]
+#[ensures(ret.len() == diagnostic.labels.len())]
+#[ensures(ret.iter().all(|anchor| anchor.line >= 1 && anchor.column >= 1 && anchor.start <= anchor.end))]
+fn display_anchors(source: &str, diagnostic: &Diagnostic) -> Vec<DisplayAnchor> {
+    let mut anchors = Vec::new();
+    for (label_index, label) in diagnostic.labels.iter().enumerate() {
+        let span = label_span(label);
+        let start = char_boundary_at(source, span.start.min(source.len()));
+        let end = char_boundary_at(source, span.end.min(source.len()).max(start));
+        let (line, column) = source_line_column(source, start);
+        anchors.push(new!(DisplayAnchor {
+            label_index,
+            start,
+            end,
+            line,
+            column,
+            primary: label.primary,
+        }));
+    }
+    anchors
+}
+
+/// File position of the primary anchor. The start is an offset in the source.
 #[requires(true)]
 #[ensures(ret.0 >= 1 && ret.1 >= 1)]
-fn primary_source_position(source: &str, diagnostic: &Diagnostic) -> (usize, usize) {
-    let start = chosen_primary_span(diagnostic)
-        .map(|span| span.start)
-        .or_else(|| earliest_label_start(diagnostic));
-    match start {
-        Some(start) => source_line_column(source, start),
-        None => (1, 1),
-    }
+fn primary_anchor_position(anchors: &[DisplayAnchor]) -> (usize, usize) {
+    chosen_primary_index(anchors)
+        .map(|index| {
+            let anchor = &anchors[index];
+            (anchor.line, anchor.column)
+        })
+        .unwrap_or((1, 1))
 }
 
 /// The primary label that starts first in the source.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|span| span.start <= span.end))]
-fn chosen_primary_span(diagnostic: &Diagnostic) -> Option<Range<usize>> {
-    let mut best: Option<(usize, usize, Range<usize>)> = None;
-    for (index, label) in diagnostic.labels.iter().enumerate() {
-        if !label.primary {
-            continue;
-        }
-        let span = label_span(label);
-        let replace = match &best {
-            None => true,
-            Some((best_start, best_index, _)) => (span.start, index) < (*best_start, *best_index),
-        };
-        if replace {
-            best = Some((span.start, index, span));
-        }
-    }
-    best.map(|(_, _, span)| span)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn earliest_label_start(diagnostic: &Diagnostic) -> Option<usize> {
-    diagnostic
-        .labels
-        .iter()
-        .map(|label| label_span(label).start)
-        .min()
-}
-
-/// Original position of the earliest label assigned to this window.
-#[requires(index < windows.len())]
-#[ensures(ret.0 >= 1 && ret.1 >= 1)]
-fn context_window_header(
-    source: &str,
-    windows: &[(usize, usize)],
-    index: usize,
-    diagnostic: &Diagnostic,
-) -> (usize, usize) {
-    let mut best: Option<(usize, usize, usize)> = None;
-    for label in &diagnostic.labels {
-        let span = label_span(label);
-        if label_window_index(&span, windows) != Some(index) {
-            continue;
-        }
-        let (line, column) = source_line_column(source, span.start);
-        let replace = match best {
-            None => true,
-            Some((best_line, best_start, _)) => (line, span.start) < (best_line, best_start),
-        };
-        if replace {
-            best = Some((line, span.start, column));
-        }
-    }
-    best.map(|(line, _, column)| (line, column))
-        .unwrap_or_else(|| source_line_column(source, windows[index].0))
-}
-
-/// The window that contains the label start.
-///
-/// A label whose start was cropped goes to the closest window it still overlaps.
-/// Each label has one window. Each pair is `(source_start, source_end)`.
-#[requires(true)]
-#[ensures(ret.is_none_or(|index| index < windows.len()))]
-fn label_window_index(span: &Range<usize>, windows: &[(usize, usize)]) -> Option<usize> {
-    if let Some(index) = windows
-        .iter()
-        .position(|window| span_starts_in_window(span, window.0, window.1))
-    {
-        return Some(index);
-    }
+#[ensures(ret.is_none_or(|index| index < anchors.len()))]
+fn chosen_primary_index(anchors: &[DisplayAnchor]) -> Option<usize> {
     let mut best: Option<(usize, usize)> = None;
-    for (index, window) in windows.iter().enumerate() {
-        if !span_overlaps_window(span, window.0, window.1) {
+    for anchor in anchors {
+        if !anchor.primary {
             continue;
         }
-        let distance = if span.start < window.0 {
-            window.0 - span.start
-        } else {
-            span.start.saturating_sub(window.1)
-        };
         let replace = match best {
             None => true,
-            Some((best_distance, _)) => distance < best_distance,
+            Some((best_start, best_index)) => {
+                (anchor.start, anchor.label_index) < (best_start, best_index)
+            }
         };
         if replace {
-            best = Some((distance, index));
+            best = Some((anchor.start, anchor.label_index));
         }
     }
     best.map(|(_, index)| index)
 }
 
+/// Original position of the earliest anchor in this window.
 #[requires(true)]
-#[ensures(true)]
-fn span_starts_in_window(span: &Range<usize>, source_start: usize, source_end: usize) -> bool {
-    if span.start == span.end {
-        span.start >= source_start && span.start <= source_end
-    } else {
-        span.start >= source_start && span.start < source_end
+#[ensures(ret.0 >= 1 && ret.1 >= 1)]
+fn anchor_window_header(
+    anchors: &[DisplayAnchor],
+    labels: &[usize],
+    source: &str,
+    source_start: usize,
+) -> (usize, usize) {
+    let mut best: Option<(usize, usize, usize, usize)> = None;
+    for index in labels {
+        let Some(anchor) = anchors.get(*index) else {
+            continue;
+        };
+        let replace = match best {
+            None => true,
+            Some((best_line, best_start, _, _)) => {
+                (anchor.line, anchor.start) < (best_line, best_start)
+            }
+        };
+        if replace {
+            best = Some((anchor.line, anchor.start, anchor.column, anchor.label_index));
+        }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn span_overlaps_window(span: &Range<usize>, source_start: usize, source_end: usize) -> bool {
-    if span.start == span.end {
-        return span.start >= source_start && span.start <= source_end;
-    }
-    span.start < source_end && span.end > source_start
+    best.map(|(line, _, column, _)| (line, column))
+        .unwrap_or_else(|| source_line_column(source, source_start))
 }
 
 #[requires(cap > 0 && terminal_width > 0)]
 #[ensures(true)]
-fn clipped_windows(
+fn windows_from_anchors(
     source: &str,
-    diagnostic: &Diagnostic,
+    anchors: &[DisplayAnchor],
     cap: usize,
     terminal_width: usize,
 ) -> Vec<RawWindow> {
-    let mut labels = Vec::new();
-    for label in &diagnostic.labels {
-        let span = label_span(label);
-        let start = span.start.min(source.len());
-        let end = span.end.min(source.len()).max(start);
-        labels.push((start, end));
-    }
-    if labels.is_empty() {
+    if anchors.is_empty() {
         return Vec::new();
     }
-    labels.sort_by_key(|span| span.0);
-    let count = labels.len();
+    let count = anchors.len();
     let separators = count.saturating_sub(1).saturating_mul(5);
     let body = cap.saturating_sub(separators).max(count);
     // Each label keeps about one terminal line. The byte cap still bounds the copy.
     let share = (body / count).max(1).min(terminal_width);
     let mut windows = Vec::new();
-    for (start, end) in labels {
-        windows.push(label_window(source, start, end, share));
+    for anchor in anchors {
+        let bounds = label_window(source, anchor.start, anchor.end, share);
+        windows.push(new!(RawWindow {
+            source_start: bounds.source_start,
+            source_end: bounds.source_end,
+            labels: vec![anchor.label_index],
+        }));
     }
     merge_windows(windows)
 }
@@ -539,18 +599,21 @@ fn label_window(source: &str, start: usize, end: usize, share: usize) -> RawWind
         return new!(RawWindow {
             source_start: line_start,
             source_end: line_end,
+            labels: Vec::new(),
         });
     }
     if end.saturating_sub(line_start) <= share {
         return new!(RawWindow {
             source_start: line_start,
             source_end: bounded_end(source, line_start, share).min(line_end),
+            labels: Vec::new(),
         });
     }
     if line_end.saturating_sub(start) <= share {
         return new!(RawWindow {
             source_start: bounded_start(source, line_end, share).max(line_start),
             source_end: line_end,
+            labels: Vec::new(),
         });
     }
     let window_end = bounded_end(source, start, share).min(line_end);
@@ -558,6 +621,7 @@ fn label_window(source: &str, start: usize, end: usize, share: usize) -> RawWind
     new!(RawWindow {
         source_start: window_start,
         source_end: window_end,
+        labels: Vec::new(),
     })
 }
 
@@ -594,10 +658,16 @@ fn merge_windows(mut windows: Vec<RawWindow>) -> Vec<RawWindow> {
                 .then_some((last.source_start, last.source_end.max(window.source_end)))
         });
         if let Some((source_start, source_end)) = extend {
+            let mut labels = merged
+                .last()
+                .map(|last| last.labels.clone())
+                .unwrap_or_default();
+            labels.extend(window.labels.iter().copied());
             merged.pop();
             merged.push(new!(RawWindow {
                 source_start,
                 source_end,
+                labels,
             }));
         } else {
             merged.push(window);
@@ -643,11 +713,6 @@ fn diagnostic_group<'diagnostic>(
                 .annotations(annotations),
         );
     } else {
-        let ranges = excerpt
-            .retained
-            .iter()
-            .map(|window| (window.source_start, window.source_end))
-            .collect::<Vec<_>>();
         let mut order: Vec<usize> = (0..excerpt.retained.len()).collect();
         if let Some(primary_at) = order
             .iter()
@@ -656,31 +721,24 @@ fn diagnostic_group<'diagnostic>(
             let index = order.remove(primary_at);
             order.insert(0, index);
         }
-        for (emit, window_index) in order.into_iter().enumerate() {
-            let (header_line, header_column) = if emit == 0 {
-                (excerpt.primary_line, excerpt.primary_column)
-            } else {
-                let window = &excerpt.retained[window_index];
-                (window.header_line, window.header_column)
-            };
+        for window_index in order {
+            let window = &excerpt.retained[window_index];
             let annotations = diagnostic
                 .labels
                 .iter()
+                .enumerate()
                 .zip(label_messages)
-                .filter(|(label, _)| {
-                    label_window_index(&label_span(label), &ranges) == Some(window_index)
-                })
-                .map(|(label, label_message)| {
+                .filter(|((index, _), _)| window.label_indexes.contains(index))
+                .map(|((_, label), label_message)| {
                     annotation_kind(label.primary)
-                        .span(window_label_span(label, &excerpt.retained[window_index]))
+                        .span(window_label_span(label, window))
                         .label(label_message.as_ref())
                 })
                 .collect::<Vec<_>>();
-            let window = &excerpt.retained[window_index];
             group = group.element(
                 Snippet::source(window.escaped.text.as_ref())
                     .line_start(window.line_number)
-                    .origin_position(header_line, header_column)
+                    .origin_position(window.header_line, window.header_column)
                     .path(source_label)
                     .annotations(annotations),
             );
@@ -1641,6 +1699,465 @@ mod tests {
                     .is_none_or(|character| !character.is_ascii_digit())
             })
         })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_empty_final_line_keeps_the_primary_caret() {
+        let source = "zoi gy\n";
+        let rendered = render_label_set(
+            source,
+            &[
+                (0, 6, "opening gy".to_owned(), false),
+                (
+                    source.len(),
+                    source.len(),
+                    "expected closing delimiter `gy`".to_owned(),
+                    true,
+                ),
+            ],
+            DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            usize::MAX,
+        )
+        .expect("one trailing newline");
+        assert!(location_shows(&rendered, "--> ", 2, 1), "{rendered}");
+        assert_eq!(
+            caret_row(&rendered, "expected closing delimiter `gy`"),
+            Some(2),
+            "{rendered}"
+        );
+        assert_eq!(caret_row(&rendered, "opening gy"), Some(1), "{rendered}");
+        assert_eq!(
+            rendered.matches("expected closing delimiter `gy`").count(),
+            1,
+            "{rendered}"
+        );
+        assert_eq!(rendered.matches("opening gy").count(), 1, "{rendered}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ten_thousand_blank_lines_keep_the_eof_label() {
+        let mut source = String::from("zoi gy");
+        source.push_str(&"\n".repeat(10_000));
+        let line = 10_001;
+        let end = source.len();
+        let rendered = render_label_set(
+            &source,
+            &[
+                (0, 6, "opening gy".to_owned(), false),
+                (end, end, "expected closing delimiter `gy`".to_owned(), true),
+            ],
+            DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            usize::MAX,
+        )
+        .expect("many trailing newlines");
+        assert!(location_shows(&rendered, "--> ", line, 1), "{rendered}");
+        assert_eq!(
+            caret_row(&rendered, "expected closing delimiter `gy`"),
+            Some(line),
+            "{rendered}"
+        );
+        assert_eq!(caret_row(&rendered, "opening gy"), Some(1), "{rendered}");
+        assert_eq!(
+            rendered.matches("expected closing delimiter `gy`").count(),
+            1,
+            "{rendered}"
+        );
+        assert!(rendered.contains("zoi gy"), "{rendered}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_empty_first_label_does_not_hide_a_later_primary() {
+        let mut source = String::from("\n");
+        for _ in 0..9_999 {
+            source.push_str("pad\n");
+        }
+        let far_start = source.len();
+        source.push_str("FAR");
+        let far_line = 1 + source[..far_start]
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count();
+        assert_eq!(far_line, 10_001);
+        let rendered = render_label_set(
+            &source,
+            &[
+                (0, 0, "empty context".to_owned(), false),
+                (far_start, source.len(), "far primary".to_owned(), true),
+            ],
+            DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            usize::MAX,
+        )
+        .expect("empty first label");
+        assert!(location_shows(&rendered, "--> ", far_line, 1), "{rendered}");
+        assert!(!location_shows(&rendered, "--> ", 1, 1), "{rendered}");
+        assert_eq!(
+            caret_row(&rendered, "far primary"),
+            Some(far_line),
+            "{rendered}"
+        );
+        assert_eq!(caret_row(&rendered, "empty context"), Some(1), "{rendered}");
+        assert_eq!(rendered.matches("far primary").count(), 1, "{rendered}");
+        assert_eq!(rendered.matches("empty context").count(), 1, "{rendered}");
+        assert!(source_line_shows(&rendered, far_line, "FAR"), "{rendered}");
+    }
+
+    /// 64 label sets from seed `0x1127_0D13_5A11`.
+    ///
+    /// Widths are 80, 40, and 4.
+    /// The invariant run uses a byte limit of 65536.
+    /// A second run uses a byte limit of 64.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_anchors_keep_the_label_invariants() {
+        const CASES: u32 = 64;
+        const SEED: u64 = 0x1127_0D13_5A11;
+        const LIMIT: usize = 65_536;
+        let mut rng = LabelRng { state: SEED };
+        let mut uncut = 0usize;
+        let mut clipped = 0usize;
+        let mut saw_eof = false;
+        let mut saw_empty_line = false;
+        let mut saw_overlap = false;
+        let mut saw_distant = false;
+        let mut saw_control = false;
+        let mut saw_long_line = false;
+        let mut saw_final_newline = false;
+        let mut saw_no_final_newline = false;
+        let mut saw_location_only = false;
+        for case in 0..CASES {
+            let set = random_label_set(&mut rng, case);
+            let cap = excerpt_copy_cap(set.width, usize::MAX);
+            let (bound_start, bound_end) = label_bound(&set.source, &set.labels);
+            if bound_end.saturating_sub(bound_start) > cap {
+                clipped += 1;
+            } else {
+                uncut += 1;
+            }
+            saw_eof |= set.eof_point;
+            saw_empty_line |= set.empty_line;
+            saw_overlap |= set.overlap;
+            saw_distant |= set.distant;
+            saw_control |= set.control;
+            saw_long_line |= set.long_line;
+            saw_location_only |= set.location_only;
+            if set.source.ends_with('\n') {
+                saw_final_newline = true;
+            } else {
+                saw_no_final_newline = true;
+            }
+            let rendered = render_label_set(&set.source, &set.labels, set.width, LIMIT)
+                .unwrap_or_else(|error| panic!("case {case} failed: {error:?}"));
+            assert!(
+                rendered.len() <= LIMIT,
+                "case {case} length {}",
+                rendered.len()
+            );
+            let primary = set
+                .labels
+                .iter()
+                .find(|label| label.3)
+                .expect("one primary");
+            let (line, column) = source_line_column(&set.source, primary.0);
+            assert!(
+                location_shows(&rendered, "--> ", line, column),
+                "case {case} header {line}:{column}\n{rendered}"
+            );
+            for (start, _, message, _) in &set.labels {
+                let (label_line, _) = source_line_column(&set.source, *start);
+                assert_eq!(
+                    rendered.matches(message).count(),
+                    1,
+                    "case {case} label {message}\n{rendered}"
+                );
+                assert_eq!(
+                    caret_row(&rendered, message),
+                    Some(label_line),
+                    "case {case} caret for {message} wanted line {label_line}\n{rendered}"
+                );
+            }
+            let tight = render_label_set(&set.source, &set.labels, set.width, 64);
+            match tight {
+                Ok(text) => assert!(text.len() <= 64, "case {case} tight {}", text.len()),
+                Err(OutputError::Limit { .. }) => {}
+                Err(error) => panic!("case {case} tight failed: {error:?}"),
+            }
+        }
+        assert!(uncut > 0 && clipped > 0, "uncut {uncut} clipped {clipped}");
+        assert!(saw_eof && saw_empty_line && saw_overlap && saw_distant);
+        assert!(saw_control && saw_long_line && saw_final_newline && saw_no_final_newline);
+        assert!(saw_location_only);
+    }
+
+    #[invariant(true)]
+    struct LabelRng {
+        state: u64,
+    }
+
+    impl LabelRng {
+        #[requires(true)]
+        #[ensures(true)]
+        fn next(&mut self) -> u64 {
+            let mut x = self.state;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            self.state = x;
+            x
+        }
+
+        #[requires(n > 0)]
+        #[ensures(ret < n)]
+        fn below(&mut self, n: usize) -> usize {
+            (self.next() as usize) % n
+        }
+    }
+
+    #[invariant(true)]
+    struct LabelSet {
+        source: String,
+        labels: Vec<(usize, usize, String, bool)>,
+        width: usize,
+        eof_point: bool,
+        empty_line: bool,
+        overlap: bool,
+        distant: bool,
+        control: bool,
+        long_line: bool,
+        location_only: bool,
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn random_label_set(rng: &mut LabelRng, case: u32) -> LabelSet {
+        let shape = case % 8;
+        let width = if shape == 7 {
+            4
+        } else if case % 2 == 0 {
+            80
+        } else {
+            40
+        };
+        let mut eof_point = false;
+        let mut empty_line = false;
+        let mut overlap = false;
+        let mut distant = false;
+        let mut control = false;
+        let mut long_line = false;
+        let mut location_only = false;
+        let mut source = String::new();
+        let mut labels = Vec::new();
+        match shape {
+            0 => {
+                let len = rng.below(60);
+                for _ in 0..len {
+                    source.push(['a', 'b', ' ', '\n'][rng.below(4)]);
+                }
+                if rng.below(2) == 0 {
+                    source.push('\n');
+                }
+                let count = 1 + rng.below(3);
+                push_scattered_labels(rng, &source, &mut labels, count);
+            }
+            1 => {
+                source.push_str("zoi gy");
+                source.push_str(&"\n".repeat(1 + rng.below(40)));
+                labels.push((0, 6, "@@0@@".to_owned(), false));
+                labels.push((source.len(), source.len(), "@@1@@".to_owned(), true));
+                eof_point = true;
+            }
+            2 => {
+                source.push_str(&"x".repeat(500 + rng.below(700)));
+                long_line = true;
+                labels.push((0, 1, "@@0@@".to_owned(), false));
+                let end = source.len();
+                labels.push((end - 1, end, "@@1@@".to_owned(), true));
+                overlap = false;
+            }
+            3 => {
+                source.push('\n');
+                source.push_str(&"pad\n".repeat(40 + rng.below(30)));
+                source.push_str("FAR");
+                let far = source.len() - 3;
+                labels.push((0, 0, "@@0@@".to_owned(), false));
+                labels.push((far, source.len(), "@@1@@".to_owned(), true));
+                empty_line = true;
+                distant = true;
+            }
+            4 => {
+                source.push_str("mi\t#\n");
+                source.push_str(&" \u{85}".repeat(10 + rng.below(20)));
+                if rng.below(2) == 0 {
+                    source.push('\n');
+                }
+                control = true;
+                push_scattered_labels(rng, &source, &mut labels, 2);
+            }
+            5 => {
+                source.push_str("abcdef");
+                source.push_str(&" ".repeat(rng.below(30)));
+                labels.push((0, 3, "@@0@@".to_owned(), true));
+                labels.push((0, 3, "@@1@@".to_owned(), false));
+                labels.push((3, 6, "@@2@@".to_owned(), false));
+                overlap = true;
+            }
+            6 => {
+                source.push_str("head\n");
+                source.push_str(&"\n".repeat(800 + rng.below(400)));
+                source.push_str("tail");
+                if rng.below(2) == 0 {
+                    source.push('\n');
+                    labels.push((source.len(), source.len(), "@@2@@".to_owned(), true));
+                    eof_point = true;
+                } else {
+                    let tail = source.len() - 4;
+                    labels.push((tail, source.len(), "@@2@@".to_owned(), true));
+                }
+                labels.insert(0, (0, 4, "@@0@@".to_owned(), false));
+                labels.insert(1, (5, 5, "@@1@@".to_owned(), false));
+                empty_line = true;
+                distant = true;
+            }
+            _ => {
+                source.push_str(&"q".repeat(240));
+                long_line = true;
+                location_only = true;
+                for index in 0..40 {
+                    let at = (index * 5).min(source.len());
+                    labels.push((at, at, format!("m{index:02}x"), index + 1 == 40));
+                }
+            }
+        }
+        if !labels.iter().any(|label| label.3) {
+            let last = labels.len() - 1;
+            labels[last].3 = true;
+        }
+        if labels
+            .iter()
+            .any(|(start, _, _, _)| *start == source.len() && source.ends_with('\n'))
+        {
+            eof_point = true;
+        }
+        LabelSet {
+            source,
+            labels,
+            width,
+            eof_point,
+            empty_line,
+            overlap,
+            distant,
+            control,
+            long_line,
+            location_only,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_scattered_labels(
+        rng: &mut LabelRng,
+        source: &str,
+        labels: &mut Vec<(usize, usize, String, bool)>,
+        count: usize,
+    ) {
+        let marks = source
+            .char_indices()
+            .map(|(index, _)| index)
+            .chain(std::iter::once(source.len()))
+            .collect::<Vec<_>>();
+        let count = count.max(1).min(6);
+        for slot in 0..count {
+            let start = char_boundary_at(source, marks[rng.below(marks.len())]);
+            let line_end = line_end_at(source, start);
+            let end = if line_end > start && rng.below(2) == 0 {
+                let step = 1 + rng.below(line_end - start);
+                char_boundary_at(source, (start + step).min(line_end)).clamp(start, line_end)
+            } else {
+                start
+            };
+            labels.push((start, end, format!("@@{slot}@@"), slot + 1 == count));
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn label_bound(source: &str, labels: &[(usize, usize, String, bool)]) -> (usize, usize) {
+        let mut start = source.len();
+        let mut end = 0usize;
+        for (label_start, label_end, _, _) in labels {
+            start = start.min(line_start_at(source, *label_start));
+            end = end.max(line_end_at(source, *label_end));
+        }
+        if start > end { (0, 0) } else { (start, end) }
+    }
+
+    #[requires(width > 0 && limit > 0)]
+    #[ensures(true)]
+    fn render_label_set(
+        source: &str,
+        labels: &[(usize, usize, String, bool)],
+        width: usize,
+        limit: usize,
+    ) -> Result<String, OutputError> {
+        let mut diagnostic_labels = Vec::new();
+        for (start, end, message, primary) in labels {
+            let span = source_span_from_byte_offsets(
+                Some(SourceId("<input>".to_owned())),
+                source,
+                *start,
+                *end,
+            )
+            .expect("generated span is on a character boundary");
+            diagnostic_labels.push(DiagnosticLabel::new(span, message.clone(), *primary));
+        }
+        let diagnostic = Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Syntax,
+            "syntax.sample".to_owned(),
+            "sample".to_owned(),
+            diagnostic_labels,
+            Vec::new(),
+            None,
+        );
+        render_diagnostics_with_limit(
+            "<input>",
+            source,
+            &[diagnostic],
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: GlyphStyle::Ascii,
+                terminal_width: width,
+            }),
+            ByteLimit::new(limit).expect("positive limit"),
+        )
+    }
+
+    /// The numbered source row that holds this label text.
+    #[requires(!message.is_empty())]
+    #[ensures(true)]
+    fn caret_row(rendered: &str, message: &str) -> Option<usize> {
+        let mut source_row = None;
+        let mut found = None;
+        for line in rendered.lines() {
+            if let Some((gutter, body)) = line.split_once('|') {
+                if let Ok(number) = gutter.trim().parse::<usize>() {
+                    if !body.contains('^') {
+                        source_row = Some(number);
+                    }
+                }
+            }
+            if line.contains(message) {
+                found = source_row;
+            }
+        }
+        found
     }
 
     #[test]

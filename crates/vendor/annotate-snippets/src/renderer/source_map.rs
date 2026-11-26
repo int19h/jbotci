@@ -48,10 +48,60 @@ impl<'a> SourceMap<'a> {
 
             current_index += line_length + end_line_size;
         }
+        // A final newline starts one more empty line. The point at the end of
+        // the file is that line. A source with no final newline has no extra line.
+        if source.ends_with('\n') {
+            mapping.push(LineInfo {
+                line: source.get(source.len()..).unwrap_or(""),
+                line_index: line_start + mapping.len(),
+                start_byte: source.len(),
+                end_byte: source.len(),
+                end_line_size: 0,
+            });
+        }
         Self {
             lines: mapping,
             source,
         }
+    }
+
+    /// The line that contains `pos`. A zero-width line matches the point at the
+    /// end of the file.
+    fn line_for_start(&self, pos: usize) -> &LineInfo<'a> {
+        if let Some(info) = self
+            .lines
+            .iter()
+            .find(|info| pos >= info.start_byte && pos < info.end_byte)
+        {
+            return info;
+        }
+        if let Some(info) = self
+            .lines
+            .iter()
+            .find(|info| info.start_byte == info.end_byte && pos == info.start_byte)
+        {
+            return info;
+        }
+        self.lines.last().unwrap()
+    }
+
+    /// The line that contains the exclusive end of a span.
+    ///
+    /// The empty point at the end of the file is not that end. The end stays on
+    /// the previous line.
+    fn line_for_end(&self, pos: usize) -> &LineInfo<'a> {
+        if let Some(info) = self
+            .lines
+            .iter()
+            .find(|info| pos >= info.start_byte && pos < info.end_byte)
+        {
+            return info;
+        }
+        self.lines
+            .iter()
+            .rev()
+            .find(|info| info.start_byte < info.end_byte)
+            .unwrap_or(self.lines.last().unwrap())
     }
 
     pub(crate) fn get_line(&self, idx: usize) -> Option<&'a str> {
@@ -62,11 +112,7 @@ impl<'a> SourceMap<'a> {
     }
 
     pub(crate) fn span_to_locations(&self, span: Range<usize>) -> (Loc, Loc) {
-        let start_info = self
-            .lines
-            .iter()
-            .find(|info| span.start >= info.start_byte && span.start < info.end_byte)
-            .unwrap_or(self.lines.last().unwrap());
+        let start_info = self.line_for_start(span.start);
         let (mut start_char_pos, start_display_pos) = start_info.line
             [0..(span.start - start_info.start_byte).min(start_info.line.len())]
             .chars()
@@ -89,11 +135,7 @@ impl<'a> SourceMap<'a> {
             return (start, start);
         }
 
-        let end_info = self
-            .lines
-            .iter()
-            .find(|info| span.end >= info.start_byte && span.end < info.end_byte)
-            .unwrap_or(self.lines.last().unwrap());
+        let end_info = self.line_for_end(span.end);
         let (end_char_pos, end_display_pos) = end_info.line
             [0..(span.end - end_info.start_byte).min(end_info.line.len())]
             .chars()
@@ -125,6 +167,10 @@ impl<'a> SourceMap<'a> {
         let start = span.start;
         let end = span.end;
         for line_info in &self.lines {
+            // A span that only ends at the empty EOF point does not include it.
+            if line_info.start_byte == line_info.end_byte && start != line_info.start_byte {
+                continue;
+            }
             if start >= line_info.end_byte {
                 continue;
             }
