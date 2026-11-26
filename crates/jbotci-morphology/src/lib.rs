@@ -5064,14 +5064,42 @@ mod tests {
                     .map(|(index, _)| index + 1),
             )
             .collect::<std::collections::BTreeSet<_>>();
-        for (end, letters) in grammar::normalized_prefix_letter_counts(count, chars)
+        // The source span of each unit: its least start and its end.
+        let mut unit_spans = Vec::new();
+        let mut unit_start = None::<usize>;
+        for source_char in &chars {
+            let start = unit_start.map_or(source_char.source_start, |start: usize| {
+                start.min(source_char.source_start)
+            });
+            unit_start = Some(start);
+            if source_char.ends_unit {
+                unit_spans.push((start, source_char.source_end));
+                unit_start = None;
+            }
+        }
+        for (position, letters) in grammar::normalized_prefix_letter_counts(count, chars)
             .into_iter()
             .enumerate()
         {
-            assert!(
-                unit_ends.contains(&letters),
-                "{text:?}: the prefix to {end} ends inside a unit, after {letters} letters"
-            );
+            let inside = unit_spans
+                .iter()
+                .any(|(start, end)| *start < position && position < *end);
+            match letters {
+                None => assert!(
+                    inside,
+                    "{text:?}: position {position} is a boundary but has no prefix"
+                ),
+                Some(letters) => {
+                    assert!(
+                        !inside,
+                        "{text:?}: position {position} is inside a unit but has a prefix"
+                    );
+                    assert!(
+                        unit_ends.contains(&letters),
+                        "{text:?}: the prefix to {position} ends inside a unit, after {letters} letters"
+                    );
+                }
+            }
         }
     }
 
@@ -5131,6 +5159,30 @@ mod tests {
             })
         }
 
+        // The same for an attached word: `do` and `klama` right after the
+        // input, with no space, so a word boundary inside the input's last
+        // unit would show.
+        #[requires(true)]
+        #[ensures(true)]
+        fn attached(input: &str) -> [Option<Vec<(String, usize)>>; 2] {
+            ["do", "klama"].map(|next| {
+                let text = format!("{input}{next}");
+                let length = text.chars().count();
+                segment_words_with_modifiers(&text).ok().map(|words| {
+                    words
+                        .iter()
+                        .filter_map(base_word)
+                        .map(|word| {
+                            (
+                                word.phonemes().as_str().to_owned(),
+                                length - word.span().char_end,
+                            )
+                        })
+                        .collect()
+                })
+            })
+        }
+
         let options = MorphologyOptions::default();
         let strict = |text: &str| {
             segment::normalize_source_chars_checked(text.chars().enumerate(), &options)
@@ -5180,6 +5232,11 @@ mod tests {
                 composed_strict, decomposed_strict,
                 "{composed:?} {decomposed:?}"
             );
+            assert_eq!(
+                attached(&format!("a{composed_text}")),
+                attached(&format!("a{decomposed}")),
+                "{composed:?} {decomposed:?}"
+            );
             checked += 1;
         }
         // Mark sequences in either canonical order give one result, for the
@@ -5202,6 +5259,11 @@ mod tests {
                         assert_prefixes_end_at_unit_ends(&other);
                         assert_eq!(kept(&forward), kept(&other), "{forward:?} {other:?}");
                         assert_eq!(parse(&forward), parse(&other), "{forward:?} {other:?}");
+                        assert_eq!(
+                            attached(&forward),
+                            attached(&other),
+                            "{forward:?} {other:?}"
+                        );
                         assert_eq!(strict(&forward), strict(&other), "{forward:?} {other:?}");
                     }
                     pairs += 1;
@@ -5364,6 +5426,111 @@ mod tests {
         // starts the next word.
         let carrier = words("\u{ed8c}\u{eda4}\u{edaa}\u{ed8c}\u{eda6}");
         assert_eq!(carrier[1].1, 2, "{carrier:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_attached_word_starts_only_at_a_unit_boundary() {
+        // Each multi-character unit kind, with an attached `do` or `klama`
+        // and a cmavo before it. A word boundary inside the unit used to let
+        // the search drop the unit (`as` + U+0301 + `do` read as `a do`). The
+        // phonemes match main, and a composed spelling matches its
+        // decomposed one. Each first word covers its postfix stress mark.
+        #[requires(true)]
+        #[ensures(true)]
+        fn words(text: &str) -> Vec<(String, usize, usize)> {
+            segment_words_with_modifiers(text)
+                .unwrap_or_else(|error| panic!("{text:?}: {error}"))
+                .iter()
+                .map(|word| {
+                    let word = base_word(word).expect("plain word");
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        word.span().char_start,
+                        word.span().char_end,
+                    )
+                })
+                .collect()
+        }
+
+        // A composed letter: `ś` is `s` with U+0301. `asdo` breaks the
+        // voicing rule in both spellings, as on main.
+        for text in ["as\u{0301}do", "aśdo"] {
+            let Err(MorphologyError::Invalid { kind, .. }) = segment_words_with_modifiers(text)
+            else {
+                panic!("{text:?} breaks the voicing rule");
+            };
+            assert_eq!(kind, MorphologyErrorKind::VoicingMismatch, "{text:?}");
+        }
+        let owned = |words: &[(&str, usize, usize)]| {
+            words
+                .iter()
+                .map(|(phonemes, start, end)| ((*phonemes).to_owned(), *start, *end))
+                .collect::<Vec<_>>()
+        };
+        for (text, expected) in [
+            ("as\u{0301}klama", owned(&[("askláma", 0, 8)])),
+            ("aśklama", owned(&[("askláma", 0, 7)])),
+            // A stressed Latin vowel, decomposed and composed, with each mark.
+            ("mi\u{0301}do", owned(&[("mí", 0, 3), ("do", 3, 5)])),
+            ("mído", owned(&[("mí", 0, 2), ("do", 2, 4)])),
+            ("mi\u{0300}do", owned(&[("mí", 0, 3), ("do", 3, 5)])),
+            ("mìdo", owned(&[("mí", 0, 2), ("do", 2, 4)])),
+            ("mi\u{0301}klama", owned(&[("míkla", 0, 6), ("ma", 6, 8)])),
+            ("míklama", owned(&[("míkla", 0, 5), ("ma", 5, 7)])),
+            // A Cyrillic vowel with a stress mark, after a cmavo.
+            ("аи\u{0300}до", owned(&[("a'í", 0, 3), ("do", 3, 5)])),
+            ("аи\u{0301}до", owned(&[("a'í", 0, 3), ("do", 3, 5)])),
+            ("аѝдо", owned(&[("a'í", 0, 2), ("do", 2, 4)])),
+            ("аи\u{0300}клама", owned(&[("a'íkla", 0, 6), ("ma", 6, 8)])),
+            ("аѝклама", owned(&[("a'íkla", 0, 5), ("ma", 5, 7)])),
+            // The implicit Cyrillic apostrophe and its vowel.
+            ("уаи\u{0300}до", owned(&[("u'a'í", 0, 4), ("do", 4, 6)])),
+            ("уаѝдо", owned(&[("u'a'í", 0, 3), ("do", 3, 5)])),
+            (
+                "уаи\u{0300}клама",
+                owned(&[("u'a'íkla", 0, 7), ("ma", 7, 9)]),
+            ),
+            // The Zbalermorna shorthand and its payload, with each mark.
+            (
+                "\u{ed8b}\u{eda2}\u{ed98}\u{eda0}\u{ed91}\u{eda3}",
+                owned(&[("í'a", 0, 4), ("do", 4, 6)]),
+            ),
+            (
+                "\u{ed8b}\u{eda2}\u{0301}\u{eda0}\u{ed91}\u{eda3}",
+                owned(&[("i'a", 0, 4), ("do", 4, 6)]),
+            ),
+            (
+                "\u{ed8b}\u{eda2}\u{ed98}\u{eda0}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+                owned(&[("í'a", 0, 4), ("kláma", 4, 9)]),
+            ),
+            // A Zbalermorna diphthong glyph, with each mark.
+            (
+                "\u{eda6}\u{ed98}\u{ed91}\u{eda3}",
+                owned(&[("áĭ", 0, 2), ("do", 2, 4)]),
+            ),
+            (
+                "\u{eda6}\u{0301}\u{ed91}\u{eda3}",
+                owned(&[("aĭ", 0, 2), ("do", 2, 4)]),
+            ),
+            (
+                "\u{eda6}\u{0300}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+                owned(&[("aĭ", 0, 2), ("kláma", 2, 7)]),
+            ),
+            // A Zbalermorna letter with each mark.
+            (
+                "\u{ed87}\u{eda2}\u{ed98}\u{ed91}\u{eda3}",
+                owned(&[("mí", 0, 3), ("do", 3, 5)]),
+            ),
+            (
+                "\u{ed87}\u{eda2}\u{0301}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+                owned(&[("míkla", 0, 6), ("ma", 6, 8)]),
+            ),
+        ] {
+            assert_eq!(words(text), expected, "{text:?}");
+            assert_prefixes_end_at_unit_ends(text);
+        }
     }
 
     #[test]

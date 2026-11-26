@@ -421,6 +421,7 @@ fn region_accepts_suffix(
         .source_stripped_char_ends
         .get(local)
         .copied()
+        .flatten()
     else {
         return false;
     };
@@ -432,10 +433,12 @@ fn region_accepts_suffix(
 
 #[requires(start >= region.source_start)]
 #[requires(start - region.source_start <= region.normalized.source_char_count)]
+#[requires(region.normalized.source_stripped_char_ends[start - region.source_start].is_some(), "a word starts only at a unit boundary")]
 #[ensures(ret <= region.stripped_chars.len())]
 fn shared_stripped_offset(region: &ActiveWordRegion, start: usize) -> usize {
     let local = start - region.source_start;
     region.normalized.source_stripped_char_ends[local]
+        .expect("the region was opened or reused at a unit boundary")
 }
 
 impl<'a> Segmenter<'a> {
@@ -3445,21 +3448,35 @@ struct StreamingWordCandidate {
     phonemes: String,
 }
 
+/// The normalized text of one source slice, with the normalized prefix that
+/// ends at each source position.
+///
+/// A source position inside an atomic converter unit has no prefix (`None`):
+/// no word can start or end there. Such a position lies inside a base letter
+/// and its combining marks, a unit and its postfix stress marks, or a
+/// Zbalermorna shorthand and its payload. A position after a character that
+/// gives no letter, such as an ignored mark, keeps the prefix before it.
 #[invariant(source_text_byte_ends.len() == source_char_count + 1)]
 #[invariant(source_normalized_char_ends.len() == source_char_count + 1)]
 #[invariant(source_stripped_char_ends.len() == source_char_count + 1)]
-#[invariant(source_text_byte_ends.iter().all(|end| *end <= text.len()))]
-#[invariant(source_normalized_char_ends.iter().all(|end| *end <= normalized_chars.len()))]
-#[invariant(source_stripped_char_ends.iter().all(|end| *end <= stripped_chars.len()))]
+#[invariant(source_text_byte_ends.iter().flatten().all(|end| *end <= text.len()))]
+#[invariant(source_normalized_char_ends.iter().flatten().all(|end| *end <= normalized_chars.len()))]
+#[invariant(source_stripped_char_ends.iter().flatten().all(|end| *end <= stripped_chars.len()))]
+#[invariant(source_text_byte_ends[0] == Some(0) && source_normalized_char_ends[0] == Some(0) && source_stripped_char_ends[0] == Some(0), "the empty prefix is a boundary")]
+#[invariant(
+    source_text_byte_ends.iter().zip(source_normalized_char_ends.iter()).zip(source_stripped_char_ends.iter())
+        .all(|((text_end, normalized_end), stripped_end)| text_end.is_some() == normalized_end.is_some() && normalized_end.is_some() == stripped_end.is_some()),
+    "the three prefix tables agree on which positions are boundaries"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct NormalizedCandidate {
     source_char_count: usize,
     text: String,
     normalized_chars: Vec<char>,
     stripped_chars: Vec<char>,
-    source_text_byte_ends: Vec<usize>,
-    source_normalized_char_ends: Vec<usize>,
-    source_stripped_char_ends: Vec<usize>,
+    source_text_byte_ends: Vec<Option<usize>>,
+    source_normalized_char_ends: Vec<Option<usize>>,
+    source_stripped_char_ends: Vec<Option<usize>>,
 }
 
 impl NormalizedCandidate {
@@ -3478,8 +3495,16 @@ impl NormalizedCandidate {
         source_text_byte_ends[0] = Some(0);
         source_normalized_char_ends[0] = Some(0);
         source_stripped_char_ends[0] = Some(0);
+        // `inside[position]` is true when a unit covers the source characters
+        // on both sides of `position`.
+        let mut inside = vec![false; source_char_count + 1];
+        let mut unit_start = None::<usize>;
 
         for source_char in chars {
+            let start = unit_start.map_or(source_char.source_start, |start| {
+                start.min(source_char.source_start)
+            });
+            unit_start = Some(start);
             text.push(source_char.value);
             normalized_chars.push(source_char.value);
             if source_char.value != ',' {
@@ -3489,16 +3514,25 @@ impl NormalizedCandidate {
             // A prefix that ended inside one would split a Zbalermorna
             // diphthong, a shorthand and its payload, or an implicit
             // apostrophe and its vowel.
-            if source_char.ends_unit && source_char.source_end <= source_char_count {
-                source_text_byte_ends[source_char.source_end] = Some(text.len());
-                source_normalized_char_ends[source_char.source_end] = Some(normalized_chars.len());
-                source_stripped_char_ends[source_char.source_end] = Some(stripped_chars.len());
+            if source_char.ends_unit {
+                let end = source_char.source_end.min(source_char_count);
+                for position in &mut inside[(start + 1).min(end)..end] {
+                    *position = true;
+                }
+                unit_start = None;
+                if source_char.source_end <= source_char_count {
+                    source_text_byte_ends[source_char.source_end] = Some(text.len());
+                    source_normalized_char_ends[source_char.source_end] =
+                        Some(normalized_chars.len());
+                    source_stripped_char_ends[source_char.source_end] = Some(stripped_chars.len());
+                }
             }
         }
 
-        let source_text_byte_ends = fill_source_prefix_ends(source_text_byte_ends);
-        let source_normalized_char_ends = fill_source_prefix_ends(source_normalized_char_ends);
-        let source_stripped_char_ends = fill_source_prefix_ends(source_stripped_char_ends);
+        let source_text_byte_ends = fill_source_prefix_ends(source_text_byte_ends, &inside);
+        let source_normalized_char_ends =
+            fill_source_prefix_ends(source_normalized_char_ends, &inside);
+        let source_stripped_char_ends = fill_source_prefix_ends(source_stripped_char_ends, &inside);
         new!(NormalizedCandidate {
             source_char_count: source_char_count,
             text: text,
@@ -3513,22 +3547,24 @@ impl NormalizedCandidate {
     #[requires(relative_end <= self.source_char_count)]
     #[ensures(true)]
     fn slice_to_source_end(&self, relative_end: usize) -> Option<&str> {
-        let byte_end = *self.source_text_byte_ends.get(relative_end)?;
+        let byte_end = (*self.source_text_byte_ends.get(relative_end)?)?;
         self.text.get(..byte_end)
     }
 
     #[requires(relative_start <= relative_end && relative_end <= self.source_char_count)]
     #[ensures(true)]
     fn slice_source_range(&self, relative_start: usize, relative_end: usize) -> Option<&str> {
-        let byte_start = *self.source_text_byte_ends.get(relative_start)?;
-        let byte_end = *self.source_text_byte_ends.get(relative_end)?;
+        let byte_start = (*self.source_text_byte_ends.get(relative_start)?)?;
+        let byte_end = (*self.source_text_byte_ends.get(relative_end)?)?;
         self.text.get(byte_start..byte_end)
     }
 
     #[requires(relative_end <= self.source_char_count)]
     #[ensures(ret.is_none_or(|end| end <= self.normalized_chars.len()))]
     fn normalized_char_end(&self, relative_end: usize) -> Option<usize> {
-        self.source_normalized_char_ends.get(relative_end).copied()
+        self.source_normalized_char_ends
+            .get(relative_end)
+            .copied()?
     }
 
     #[requires(relative_end <= self.source_char_count)]
@@ -3545,15 +3581,15 @@ impl NormalizedCandidate {
         relative_start: usize,
         relative_end: usize,
     ) -> Option<&[char]> {
-        let char_start = *self.source_normalized_char_ends.get(relative_start)?;
-        let char_end = *self.source_normalized_char_ends.get(relative_end)?;
+        let char_start = (*self.source_normalized_char_ends.get(relative_start)?)?;
+        let char_end = (*self.source_normalized_char_ends.get(relative_end)?)?;
         self.normalized_chars.get(char_start..char_end)
     }
 
     #[requires(relative_end <= self.source_char_count)]
     #[ensures(ret.is_none_or(|end| end <= self.stripped_chars.len()))]
     fn stripped_end_to_source_end(&self, relative_end: usize) -> Option<usize> {
-        self.source_stripped_char_ends.get(relative_end).copied()
+        self.source_stripped_char_ends.get(relative_end).copied()?
     }
 
     #[requires(relative_start <= relative_end && relative_end <= self.source_char_count)]
@@ -3575,30 +3611,35 @@ impl NormalizedCandidate {
 }
 
 /// The number of normalized letters before each source prefix end, as the
-/// word candidates see them. Tests use it to check that no prefix ends
-/// inside a converter unit.
+/// word candidates see them, or `None` inside a unit. Tests use it to check
+/// that no prefix ends inside a converter unit.
 #[cfg(test)]
 #[requires(source_char_count > 0)]
 #[ensures(ret.len() == source_char_count + 1)]
 pub(crate) fn normalized_prefix_letter_counts(
     source_char_count: usize,
     chars: Vec<NormalizedSourceChar>,
-) -> Vec<usize> {
+) -> Vec<Option<usize>> {
     NormalizedCandidate::from_normalized_source_chars(source_char_count, chars)
         .source_normalized_char_ends
         .clone()
 }
 
-#[requires(!ends.is_empty())]
-#[ensures(!ret.is_empty())]
-fn fill_source_prefix_ends(ends: Vec<Option<usize>>) -> Vec<usize> {
+/// Fill the positions that no letter ends at. A position inside a unit gets
+/// no prefix. Any other position keeps the prefix before it, because the
+/// characters between give no letters.
+#[requires(!ends.is_empty() && ends.len() == inside.len())]
+#[ensures(ret.len() == inside.len())]
+#[ensures(ret.iter().zip(inside).all(|(end, inside)| end.is_none() == *inside))]
+fn fill_source_prefix_ends(ends: Vec<Option<usize>>, inside: &[bool]) -> Vec<Option<usize>> {
     let mut current = 0;
     ends.into_iter()
-        .map(|end| {
+        .zip(inside)
+        .map(|(end, inside)| {
             if let Some(end) = end {
                 current = end;
             }
-            current
+            (!*inside).then_some(current)
         })
         .collect()
 }
