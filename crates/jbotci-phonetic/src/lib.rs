@@ -2647,61 +2647,81 @@ fn append_word_like_ipa<'word>(
     leading_pause_context: LeadingPauseContext,
     chunks: &mut Vec<IpaSurfaceChunk<'word>>,
 ) {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => chunks.push(IpaSurfaceChunk::Word {
-            word,
-            leading_pause_context,
-        }),
-        data!(WordLike::QuotedWord { zo, word }) => {
-            chunks.extend([word_ipa_chunk(zo), word_ipa_chunk(word)])
-        }
-        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-            chunks.extend([word_ipa_chunk(mahoi), word_ipa_chunk(word)])
-        }
-        data!(WordLike::DelimitedNonLojbanQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter
-        }) => chunks.extend([
-            word_ipa_chunk(zoi),
-            word_ipa_chunk(opening_delimiter),
-            IpaSurfaceChunk::Text(&quoted_text.text),
-            word_ipa_chunk(closing_delimiter),
-        ]),
-        data!(WordLike::QuotedWords {
-            lohu,
-            quoted_words,
-            lehu
-        }) => {
-            chunks.push(word_ipa_chunk(lohu));
-            chunks.extend(quoted_words.iter().map(word_ipa_chunk));
-            chunks.push(word_ipa_chunk(lehu));
-        }
-        data!(WordLike::ReplacementQuote { runs, lehai }) => {
-            for run in runs {
-                chunks.push(word_ipa_chunk(&run.marker));
-                for word in &run.words {
-                    append_word_like_ipa(&word.word, LeadingPauseContext::IndependentWord, chunks);
+    #[invariant(true)]
+    #[invariant(::Node(_, _) => true)]
+    #[invariant(::Chunk(_) => true)]
+    enum IpaJob<'word> {
+        Node(&'word WordLike, LeadingPauseContext),
+        Chunk(IpaSurfaceChunk<'word>),
+    }
+    let mut jobs = vec![IpaJob::Node(word_like, leading_pause_context)];
+    while let Some(job) = jobs.pop() {
+        match job {
+            IpaJob::Chunk(chunk) => chunks.push(chunk),
+            IpaJob::Node(word_like, leading_pause_context) => match word_like.as_data() {
+                data!(WordLike::PlainWord(word)) => chunks.push(IpaSurfaceChunk::Word {
+                    word,
+                    leading_pause_context,
+                }),
+                data!(WordLike::QuotedWord { zo, word }) => {
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(word)));
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(zo)));
                 }
-            }
-            chunks.push(word_ipa_chunk(lehai));
-        }
-        data!(WordLike::DelimitedWordQuote {
-            marker,
-            quoted_text
-        }) => chunks.extend([
-            word_ipa_chunk(marker),
-            IpaSurfaceChunk::Text(&quoted_text.text),
-        ]),
-        data!(WordLike::LerfuWord { base, bu }) => {
-            append_word_like_ipa(base, LeadingPauseContext::BuLetterBase, chunks);
-            chunks.push(word_ipa_chunk(bu));
-        }
-        data!(WordLike::ZeiCompound { left, zei, right }) => {
-            append_word_like_ipa(left, LeadingPauseContext::IndependentWord, chunks);
-            chunks.push(word_ipa_chunk(zei));
-            chunks.push(word_ipa_chunk(right));
+                data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(word)));
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(mahoi)));
+                }
+                data!(WordLike::DelimitedNonLojbanQuote {
+                    zoi,
+                    opening_delimiter,
+                    quoted_text,
+                    closing_delimiter,
+                }) => {
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(closing_delimiter)));
+                    jobs.push(IpaJob::Chunk(IpaSurfaceChunk::Text(&quoted_text.text)));
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(opening_delimiter)));
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(zoi)));
+                }
+                data!(WordLike::QuotedWords {
+                    lohu,
+                    quoted_words,
+                    lehu,
+                }) => {
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(lehu)));
+                    for word in quoted_words.iter().rev() {
+                        jobs.push(IpaJob::Chunk(word_ipa_chunk(word)));
+                    }
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(lohu)));
+                }
+                data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(lehai)));
+                    for run in runs.iter().rev() {
+                        for word in run.words.iter().rev() {
+                            jobs.push(IpaJob::Node(
+                                &word.word,
+                                LeadingPauseContext::IndependentWord,
+                            ));
+                        }
+                        jobs.push(IpaJob::Chunk(word_ipa_chunk(&run.marker)));
+                    }
+                }
+                data!(WordLike::DelimitedWordQuote {
+                    marker,
+                    quoted_text,
+                }) => {
+                    jobs.push(IpaJob::Chunk(IpaSurfaceChunk::Text(&quoted_text.text)));
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(marker)));
+                }
+                data!(WordLike::LerfuWord { base, bu }) => {
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(bu)));
+                    jobs.push(IpaJob::Node(base, LeadingPauseContext::BuLetterBase));
+                }
+                data!(WordLike::ZeiCompound { left, zei, right }) => {
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(right)));
+                    jobs.push(IpaJob::Chunk(word_ipa_chunk(zei)));
+                    jobs.push(IpaJob::Node(left, LeadingPauseContext::IndependentWord));
+                }
+            },
         }
     }
 }
@@ -4183,6 +4203,64 @@ mod tests {
             |token| prepare_sound_query(&query, token),
             |error| matches!(error, jbotci_interrupt::Interrupted),
         );
+    }
+}
+
+#[cfg(test)]
+mod deep_links {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::{WordLike, segment_words_with_modifiers};
+
+    use super::flatten_word_like_ipa;
+
+    #[requires(links > 0)]
+    #[ensures(true)]
+    fn parse_chain(kind: &str, links: usize) -> WordLike {
+        let mut text = if kind == "bu" {
+            String::from("a")
+        } else {
+            String::from("broda")
+        };
+        let piece = if kind == "bu" { " bu" } else { " zei broda" };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        let kind = kind.to_owned();
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let words = segment_words_with_modifiers(&text)
+                    .unwrap_or_else(|error| panic!("{kind} parse {error}"));
+                assert_eq!(words.len(), 1);
+                words.into_iter().next().expect("one word")
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ipa_chunks_fit_in_160kib() {
+        let bu = parse_chain("bu", 2666);
+        let zei = parse_chain("zei", 799);
+        let bu_len = thread::Builder::new()
+            .stack_size(160 * 1024)
+            .spawn(move || flatten_word_like_ipa(&bu).len())
+            .expect("ipa thread")
+            .join()
+            .expect("ipa join");
+        let zei_len = thread::Builder::new()
+            .stack_size(160 * 1024)
+            .spawn(move || flatten_word_like_ipa(&zei).len())
+            .expect("ipa thread")
+            .join()
+            .expect("ipa join");
+        assert_eq!(bu_len, 2667);
+        assert_eq!(zei_len, 1599);
     }
 }
 

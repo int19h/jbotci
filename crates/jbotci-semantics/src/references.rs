@@ -8030,20 +8030,43 @@ fn generated_letter_string_tokens(letters: &generated::LetterStringSyntax) -> Ve
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn generated_letter_tokens(letter: &generated::LetterTokensSyntax) -> Vec<Token> {
-    match letter {
-        generated::LetterTokensSyntax::SimpleLerfuWord(word) => vec![word.0.clone()],
-        generated::LetterTokensSyntax::LauLerfuWord(word) => {
-            let mut tokens = vec![word.lau.clone()];
-            tokens.extend(generated_letter_tokens(&word.letter));
-            tokens
-        }
-        generated::LetterTokensSyntax::TeiLerfuWord(word) => {
-            let mut tokens = vec![word.tei.clone()];
-            tokens.extend(generated_letter_string_tokens(&word.letters));
-            tokens.push(word.foi.clone());
-            tokens
+    #[invariant(true)]
+    #[invariant(::Letter(_) => true)]
+    #[invariant(::Token(_) => true)]
+    enum LetterJob<'a> {
+        Letter(&'a generated::LetterTokensSyntax),
+        Token(&'a Token),
+    }
+    let mut jobs = vec![LetterJob::Letter(letter)];
+    let mut tokens = Vec::new();
+    while let Some(job) = jobs.pop() {
+        match job {
+            LetterJob::Token(token) => tokens.push(token.clone()),
+            LetterJob::Letter(generated::LetterTokensSyntax::SimpleLerfuWord(word)) => {
+                tokens.push(word.0.clone());
+            }
+            LetterJob::Letter(generated::LetterTokensSyntax::LauLerfuWord(word)) => {
+                jobs.push(LetterJob::Letter(word.letter.as_ref()));
+                tokens.push(word.lau.clone());
+            }
+            LetterJob::Letter(generated::LetterTokensSyntax::TeiLerfuWord(word)) => {
+                jobs.push(LetterJob::Token(&word.foi));
+                for continuation in word.letters.continuations.iter().rev() {
+                    match continuation.as_ref() {
+                        generated::LetterStringContinuationSyntax::LetterStringPaContinuation(
+                            continuation,
+                        ) => jobs.push(LetterJob::Token(&continuation.0)),
+                        generated::LetterStringContinuationSyntax::LetterStringLerfuContinuation(
+                            continuation,
+                        ) => jobs.push(LetterJob::Letter(continuation.0.as_ref())),
+                    }
+                }
+                jobs.push(LetterJob::Letter(word.letters.first_letter.as_ref()));
+                tokens.push(word.tei.clone());
+            }
         }
     }
+    tokens
 }
 
 #[requires(true)]
@@ -8312,10 +8335,13 @@ fn token_base_letter(word: &Token) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
 fn word_like_base_letter(word_like: &WordLike) -> Option<String> {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => word_phoneme_base_letter(word),
-        data!(WordLike::LerfuWord { base, .. }) => word_like_base_letter(base),
-        _ => None,
+    let mut current = word_like;
+    loop {
+        match current.as_data() {
+            data!(WordLike::PlainWord(word)) => return word_phoneme_base_letter(word),
+            data!(WordLike::LerfuWord { base, .. }) => current = base,
+            _ => return None,
+        }
     }
 }
 
@@ -9081,5 +9107,120 @@ mod tests {
             assert!(!json.contains('\n'));
             assert!(json.contains("assignments"));
         });
+    }
+}
+
+#[cfg(test)]
+mod deep_links {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::{WordLike, segment_words_with_modifiers};
+
+    use super::word_like_base_letter;
+
+    #[requires(links > 0)]
+    #[ensures(true)]
+    fn parse_chain(kind: &str, links: usize) -> WordLike {
+        let mut text = if kind == "bu" {
+            String::from("a")
+        } else {
+            String::from("broda")
+        };
+        let piece = if kind == "bu" { " bu" } else { " zei broda" };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        let kind = kind.to_owned();
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let words = segment_words_with_modifiers(&text)
+                    .unwrap_or_else(|error| panic!("{kind} parse {error}"));
+                assert_eq!(words.len(), 1);
+                words.into_iter().next().expect("one word")
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn base_letter_fits_in_160kib() {
+        let bu = parse_chain("bu", 2666);
+        let zei = parse_chain("zei", 799);
+        let bu_letter = thread::Builder::new()
+            .stack_size(160 * 1024)
+            .spawn(move || word_like_base_letter(&bu))
+            .expect("letter thread")
+            .join()
+            .expect("letter join");
+        let zei_letter = thread::Builder::new()
+            .stack_size(160 * 1024)
+            .spawn(move || word_like_base_letter(&zei))
+            .expect("letter thread")
+            .join()
+            .expect("letter join");
+        assert_eq!(bu_letter.as_deref(), Some("a"));
+        assert_eq!(zei_letter, None);
+    }
+
+    #[requires(depth > 0)]
+    #[ensures(true)]
+    fn nested_lau(depth: usize) -> jbotci_syntax::generated_model::LetterTokensSyntax {
+        use jbotci_syntax::Token;
+        use jbotci_syntax::generated_model::{
+            LauLerfuWordSyntax, LetterTokensSyntax, SimpleLerfuWordSyntax,
+        };
+
+        let one = |text: &str| {
+            let words = segment_words_with_modifiers(text)
+                .unwrap_or_else(|error| panic!("{text} parse {error}"));
+            assert_eq!(words.len(), 1, "{text}");
+            Token::bare(words.into_iter().next().expect("one word"))
+        };
+        let lau = one("lau");
+        let letter = one("by");
+        let mut node =
+            LetterTokensSyntax::SimpleLerfuWord(std::sync::Arc::new(SimpleLerfuWordSyntax(letter)));
+        for _ in 0..depth {
+            node = LetterTokensSyntax::LauLerfuWord(std::sync::Arc::new(LauLerfuWordSyntax {
+                lau: lau.clone(),
+                letter: std::sync::Arc::new(node),
+            }));
+        }
+        node
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_lau_fits_in_160kib() {
+        let depth = 1999usize;
+        let node = thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || nested_lau(depth))
+            .expect("build thread")
+            .join()
+            .expect("build join");
+        // The value stays on this thread. The small thread only borrows it.
+        // A derived drop of the chain runs on the large thread after the borrow ends.
+        let count = thread::scope(|scope| {
+            thread::Builder::new()
+                .stack_size(160 * 1024)
+                .spawn_scoped(scope, || super::generated_letter_tokens(&node).len())
+                .expect("letter thread")
+                .join()
+                .expect("letter join")
+        });
+        assert_eq!(count, depth + 1);
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || drop(node))
+            .expect("drop thread")
+            .join()
+            .expect("drop join");
     }
 }

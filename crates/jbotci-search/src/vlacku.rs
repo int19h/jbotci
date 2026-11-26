@@ -829,55 +829,66 @@ fn dictionary_lookup_targets(word_like: &WordLike) -> Vec<ParsedWordLookupTarget
 #[requires(true)]
 #[ensures(true)]
 fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<ParsedWordLookupTarget>) {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => {
-            push_word_lookup_target(word, targets);
-        }
-        data!(WordLike::QuotedWord { zo, word }) => {
-            push_word_lookup_target(zo, targets);
-            push_word_lookup_target(word, targets);
-        }
-        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-            push_word_lookup_target(mahoi, targets);
-            push_word_lookup_target(word, targets);
-        }
-        data!(WordLike::DelimitedNonLojbanQuote {
-            zoi,
-            opening_delimiter,
-            closing_delimiter,
-            ..
-        }) => {
-            push_word_lookup_target(zoi, targets);
-            push_word_lookup_target(opening_delimiter, targets);
-            push_word_lookup_target(closing_delimiter, targets);
-        }
-        data!(WordLike::QuotedWords {
-            lohu,
-            quoted_words,
-            lehu,
-        }) => {
-            push_word_lookup_target(lohu, targets);
-            for word in quoted_words {
-                push_word_lookup_target(word, targets);
-            }
-            push_word_lookup_target(lehu, targets);
-        }
-        data!(WordLike::DelimitedWordQuote { marker, .. }) => {
-            push_word_lookup_target(marker, targets);
-        }
-        data!(WordLike::ReplacementQuote { runs, lehai }) => {
-            for run in runs {
-                push_word_lookup_target(&run.marker, targets);
-                for word in &run.words {
-                    push_dictionary_lookup_targets(&word.word, targets);
+    #[invariant(true)]
+    #[invariant(::Like(_) => true)]
+    #[invariant(::Word(_) => true)]
+    enum LookupJob<'a> {
+        Like(&'a WordLike),
+        Word(&'a Word),
+    }
+    let mut jobs = vec![LookupJob::Like(word_like)];
+    while let Some(job) = jobs.pop() {
+        match job {
+            LookupJob::Word(word) => push_word_lookup_target(word, targets),
+            LookupJob::Like(word_like) => match word_like.as_data() {
+                data!(WordLike::PlainWord(word)) => push_word_lookup_target(word, targets),
+                data!(WordLike::QuotedWord { zo, word }) => {
+                    jobs.push(LookupJob::Word(word));
+                    jobs.push(LookupJob::Word(zo));
                 }
-            }
-            push_word_lookup_target(lehai, targets);
-        }
-        data!(WordLike::LerfuWord { .. }) | data!(WordLike::ZeiCompound { .. }) => {
-            if let Some(target) = word_like_lookup_target(word_like) {
-                targets.push(target);
-            }
+                data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                    jobs.push(LookupJob::Word(word));
+                    jobs.push(LookupJob::Word(mahoi));
+                }
+                data!(WordLike::DelimitedNonLojbanQuote {
+                    zoi,
+                    opening_delimiter,
+                    closing_delimiter,
+                    ..
+                }) => {
+                    jobs.push(LookupJob::Word(closing_delimiter));
+                    jobs.push(LookupJob::Word(opening_delimiter));
+                    jobs.push(LookupJob::Word(zoi));
+                }
+                data!(WordLike::QuotedWords {
+                    lohu,
+                    quoted_words,
+                    lehu,
+                }) => {
+                    jobs.push(LookupJob::Word(lehu));
+                    for word in quoted_words.iter().rev() {
+                        jobs.push(LookupJob::Word(word));
+                    }
+                    jobs.push(LookupJob::Word(lohu));
+                }
+                data!(WordLike::DelimitedWordQuote { marker, .. }) => {
+                    push_word_lookup_target(marker, targets);
+                }
+                data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                    jobs.push(LookupJob::Word(lehai));
+                    for run in runs.iter().rev() {
+                        for word in run.words.iter().rev() {
+                            jobs.push(LookupJob::Like(&word.word));
+                        }
+                        jobs.push(LookupJob::Word(&run.marker));
+                    }
+                }
+                data!(WordLike::LerfuWord { .. }) | data!(WordLike::ZeiCompound { .. }) => {
+                    if let Some(target) = word_like_lookup_target(word_like) {
+                        targets.push(target);
+                    }
+                }
+            },
         }
     }
 }
@@ -927,21 +938,42 @@ fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarge
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
 pub fn word_like_lookup_text(word_like: &WordLike) -> Option<String> {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => Some(word_lookup_text(word)),
-        data!(WordLike::LerfuWord { base, .. }) => letteral_lookup_text(base),
-        data!(WordLike::ZeiCompound { left, right, .. }) => Some(format!(
-            "{} zei {}",
-            word_like_lookup_text(left)?,
-            word_lookup_text(right)
-        )),
-        data!(WordLike::QuotedWord { .. })
-        | data!(WordLike::SelmahoQuotedWord { .. })
-        | data!(WordLike::DelimitedNonLojbanQuote { .. })
-        | data!(WordLike::ReplacementQuote { .. })
-        | data!(WordLike::QuotedWords { .. })
-        | data!(WordLike::DelimitedWordQuote { .. }) => None,
+    #[invariant(true)]
+    #[invariant(::Zei { right } => true)]
+    enum LookupLayer<'a> {
+        Lerfu,
+        Zei { right: &'a Word },
     }
+    let mut current = word_like;
+    let mut layers = Vec::new();
+    let mut text = loop {
+        match current.as_data() {
+            data!(WordLike::PlainWord(word)) => break word_lookup_text(word),
+            data!(WordLike::LerfuWord { base, .. }) => {
+                layers.push(LookupLayer::Lerfu);
+                current = base;
+            }
+            data!(WordLike::ZeiCompound { left, right, .. }) => {
+                layers.push(LookupLayer::Zei { right });
+                current = left;
+            }
+            data!(WordLike::QuotedWord { .. })
+            | data!(WordLike::SelmahoQuotedWord { .. })
+            | data!(WordLike::DelimitedNonLojbanQuote { .. })
+            | data!(WordLike::ReplacementQuote { .. })
+            | data!(WordLike::QuotedWords { .. })
+            | data!(WordLike::DelimitedWordQuote { .. }) => return None,
+        }
+    };
+    while let Some(layer) = layers.pop() {
+        match layer {
+            LookupLayer::Lerfu => text = letteral_lookup_text(&text)?,
+            LookupLayer::Zei { right } => {
+                text = format!("{} zei {}", text, word_lookup_text(right));
+            }
+        }
+    }
+    Some(text)
 }
 
 #[requires(true)]
@@ -952,9 +984,8 @@ fn word_lookup_text(word: &Word) -> String {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
-fn letteral_lookup_text(base: &WordLike) -> Option<String> {
-    let base_text = word_like_lookup_text(base)?;
-    let normalized = normalize_lookup_query(&base_text);
+fn letteral_lookup_text(base_text: &str) -> Option<String> {
+    let normalized = normalize_lookup_query(base_text);
     let mut chars = normalized.chars();
     let first = chars.next()?;
     if chars.next().is_none() {
@@ -1872,66 +1903,80 @@ fn flattened_word_like_phonemes(word_like: &WordLike) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn append_word_like_phonemes(word_like: &WordLike, output: &mut String) {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => append_word_phonemes(word, output),
-        data!(WordLike::QuotedWord { zo, word }) => {
-            append_word_phonemes(zo, output);
-            append_surface_chunk(
-                output,
-                &quoted_words_phonemes(std::iter::once(word.as_ref())),
-            );
-        }
-        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-            append_word_phonemes(mahoi, output);
-            append_surface_chunk(
-                output,
-                &quoted_words_phonemes(std::iter::once(word.as_ref())),
-            );
-        }
-        data!(WordLike::DelimitedNonLojbanQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter,
-        }) => {
-            append_word_phonemes(zoi, output);
-            append_word_phonemes(opening_delimiter, output);
-            append_surface_chunk(output, &quoted_text_phonemes(quoted_text));
-            append_word_phonemes(closing_delimiter, output);
-        }
-        data!(WordLike::QuotedWords {
-            lohu,
-            quoted_words,
-            lehu,
-        }) => {
-            append_word_phonemes(lohu, output);
-            append_surface_chunk(output, &quoted_words_phonemes(quoted_words.iter()));
-            append_word_phonemes(lehu, output);
-        }
-        data!(WordLike::DelimitedWordQuote {
-            marker,
-            quoted_text,
-        }) => {
-            append_word_phonemes(marker, output);
-            append_surface_chunk(output, &quoted_text_phonemes(quoted_text));
-        }
-        data!(WordLike::ReplacementQuote { runs, lehai }) => {
-            for run in runs {
-                append_word_phonemes(&run.marker, output);
-                for word in &run.words {
-                    append_word_like_phonemes(&word.word, output);
+    #[invariant(true)]
+    #[invariant(::Node(_) => true)]
+    #[invariant(::Word(_) => true)]
+    #[invariant(::Text(_) => true)]
+    enum PhoneJob<'a> {
+        Node(&'a WordLike),
+        Word(&'a Word),
+        Text(String),
+    }
+    let mut jobs = vec![PhoneJob::Node(word_like)];
+    while let Some(job) = jobs.pop() {
+        match job {
+            PhoneJob::Word(word) => append_word_phonemes(word, output),
+            PhoneJob::Text(text) => append_surface_chunk(output, &text),
+            PhoneJob::Node(word_like) => match word_like.as_data() {
+                data!(WordLike::PlainWord(word)) => append_word_phonemes(word, output),
+                data!(WordLike::QuotedWord { zo, word }) => {
+                    jobs.push(PhoneJob::Text(quoted_words_phonemes(std::iter::once(
+                        word.as_ref(),
+                    ))));
+                    jobs.push(PhoneJob::Word(zo));
                 }
-            }
-            append_word_phonemes(lehai, output);
-        }
-        data!(WordLike::LerfuWord { base, bu }) => {
-            append_word_like_phonemes(base, output);
-            append_word_phonemes(bu, output);
-        }
-        data!(WordLike::ZeiCompound { left, zei, right }) => {
-            append_word_like_phonemes(left, output);
-            append_word_phonemes(zei, output);
-            append_word_phonemes(right, output);
+                data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                    jobs.push(PhoneJob::Text(quoted_words_phonemes(std::iter::once(
+                        word.as_ref(),
+                    ))));
+                    jobs.push(PhoneJob::Word(mahoi));
+                }
+                data!(WordLike::DelimitedNonLojbanQuote {
+                    zoi,
+                    opening_delimiter,
+                    quoted_text,
+                    closing_delimiter,
+                }) => {
+                    jobs.push(PhoneJob::Word(closing_delimiter));
+                    jobs.push(PhoneJob::Text(quoted_text_phonemes(quoted_text)));
+                    jobs.push(PhoneJob::Word(opening_delimiter));
+                    jobs.push(PhoneJob::Word(zoi));
+                }
+                data!(WordLike::QuotedWords {
+                    lohu,
+                    quoted_words,
+                    lehu,
+                }) => {
+                    jobs.push(PhoneJob::Word(lehu));
+                    jobs.push(PhoneJob::Text(quoted_words_phonemes(quoted_words.iter())));
+                    jobs.push(PhoneJob::Word(lohu));
+                }
+                data!(WordLike::DelimitedWordQuote {
+                    marker,
+                    quoted_text,
+                }) => {
+                    jobs.push(PhoneJob::Text(quoted_text_phonemes(quoted_text)));
+                    jobs.push(PhoneJob::Word(marker));
+                }
+                data!(WordLike::ReplacementQuote { runs, lehai }) => {
+                    jobs.push(PhoneJob::Word(lehai));
+                    for run in runs.iter().rev() {
+                        for word in run.words.iter().rev() {
+                            jobs.push(PhoneJob::Node(&word.word));
+                        }
+                        jobs.push(PhoneJob::Word(&run.marker));
+                    }
+                }
+                data!(WordLike::LerfuWord { base, bu }) => {
+                    jobs.push(PhoneJob::Word(bu));
+                    jobs.push(PhoneJob::Node(base));
+                }
+                data!(WordLike::ZeiCompound { left, zei, right }) => {
+                    jobs.push(PhoneJob::Word(right));
+                    jobs.push(PhoneJob::Word(zei));
+                    jobs.push(PhoneJob::Node(left));
+                }
+            },
         }
     }
 }
@@ -3935,5 +3980,91 @@ mod bounded_dictionary_tests {
             dictionary_cards_for_word_likes_with_limit(dictionary, &repeated, exact).unwrap(),
             expected
         );
+    }
+}
+
+#[cfg(test)]
+mod deep_links {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::{WordLike, segment_words_with_modifiers};
+
+    use super::{flattened_word_like_phonemes, word_like_lookup_text};
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn chain_text(kind: &str, links: usize) -> String {
+        let (mut text, piece) = if kind == "bu" {
+            (String::from("a"), " bu")
+        } else {
+            (String::from("broda"), " zei broda")
+        };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        text
+    }
+
+    #[requires(links > 0)]
+    #[ensures(true)]
+    fn parse_chain(kind: &str, links: usize) -> WordLike {
+        let text = chain_text(kind, links);
+        let kind = kind.to_owned();
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let words = segment_words_with_modifiers(&text)
+                    .unwrap_or_else(|error| panic!("{kind} {links} parse {error}"));
+                assert_eq!(words.len(), 1, "{kind} {links}");
+                words.into_iter().next().expect("one word")
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn on_small<T: Send + 'static>(
+        label: &'static str,
+        work: impl FnOnce() -> T + Send + 'static,
+    ) -> T {
+        thread::Builder::new()
+            .name(label.into())
+            .stack_size(160 * 1024)
+            .spawn(work)
+            .unwrap_or_else(|error| panic!("spawn {label}: {error}"))
+            .join()
+            .unwrap_or_else(|_| panic!("{label} failed"))
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_and_phonemes_fit_in_160kib() {
+        let bu = parse_chain("bu", 2666);
+        let zei = parse_chain("zei", 799);
+        let bu_lookup = on_small("lookup-bu", move || word_like_lookup_text(&bu));
+        let zei = zei;
+        let zei_lookup = on_small("lookup-zei", move || word_like_lookup_text(&zei));
+        let expect_bu = format!("abu{}", " bu".repeat(2665));
+        let expect_zei = format!("broda{}", " zei broda".repeat(799));
+        assert_eq!(bu_lookup.as_deref(), Some(expect_bu.as_str()));
+        assert_eq!(zei_lookup.as_deref(), Some(expect_zei.as_str()));
+        let bu = parse_chain("bu", 2666);
+        let zei = parse_chain("zei", 799);
+        let bu_phones = on_small("phones-bu", move || flattened_word_like_phonemes(&bu));
+        let zei_phones = on_small("phones-zei", move || flattened_word_like_phonemes(&zei));
+        assert_eq!(bu_phones.matches("bu").count(), 2666);
+        let one = flattened_word_like_phonemes(&parse_chain("zei", 1));
+        let mut chunks = one.split('-');
+        let left = chunks.next().expect("left phonemes");
+        let link = chunks.next().expect("zei phonemes");
+        let right = chunks.next().expect("right phonemes");
+        assert_eq!(chunks.next(), None, "{one}");
+        assert_eq!(left, right, "{one}");
+        assert_eq!(zei_phones.matches(link).count(), 799, "{one}");
+        assert_eq!(zei_phones.matches(left).count(), 800, "{one}");
     }
 }

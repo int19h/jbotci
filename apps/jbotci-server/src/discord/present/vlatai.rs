@@ -1,6 +1,8 @@
 //! Vlatai presentation: validity, class, phonemes and formation facts of one
 //! word; parser-derived segmentation when the input is several words.
 
+#[cfg(test)]
+use bityzba::try_new;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{
@@ -139,7 +141,18 @@ pub(crate) fn render_in_scope(
     rendered
 }
 
-/// Lines describing a classification; `prefix` labels nested parts.
+/// A suffix frame names a cmavo. A zei frame names a cmavo link and a word with phonemes.
+#[invariant(::Suffix(suffix) => suffix.category == WordKind::Cmavo)]
+#[invariant(::Zei { link, right } => link.category == WordKind::Cmavo && !right.phonemes.is_empty())]
+enum ClassAfter<'a> {
+    Suffix(&'a PlainWordClassification),
+    Zei {
+        link: &'a PlainWordClassification,
+        right: &'a PlainWordClassification,
+    },
+}
+
+/// Lines describing a classification. `prefix` labels nested parts.
 #[requires(true)]
 #[ensures(text_scope.is_exceeded() || (!ret.is_empty()))]
 fn classification_lines_in_scope(
@@ -151,128 +164,142 @@ fn classification_lines_in_scope(
     text_scope: &jbotci_output::budget::TextScope,
 ) -> Vec<String> {
     let mut lines = Vec::new();
-    match classification.kind() {
-        ValsiClassificationKind::PlainWord => {
-            let word = classification
-                .word()
-                .expect("plain-word classification carries word");
-            lines.extend(plain_word_lines_in_scope(
-                word,
-                possible_rafsi,
-                phonemes,
-                show_details,
-                prefix,
-                text_scope,
-            ));
+    let mut current = classification;
+    let mut prefix_now = prefix.to_owned();
+    let mut afters = Vec::new();
+    let mut pass_rafsi = true;
+    loop {
+        if current.kind() == ValsiClassificationKind::LerfuWord {
+            lines.push(text_scope.format(format_args!("{prefix_now}lerfu word")));
+            let base = current.base().expect("base");
+            let suffix = current.suffix().expect("suffix");
+            afters.push(new!(ClassAfter::Suffix(suffix)));
+            current = base;
+            prefix_now = "base: ".to_owned();
+            pass_rafsi = false;
+            continue;
         }
-        ValsiClassificationKind::QuotedWord => {
-            lines.push(text_scope.format(format_args!("{prefix}quoted word")));
-            lines.extend(plain_word_lines_in_scope(
-                classification.marker().expect("marker"),
-                &[],
-                phonemes,
-                show_details,
-                "marker: ",
-                text_scope,
-            ));
-            lines.extend(plain_word_lines_in_scope(
-                classification.quoted_word().expect("quoted"),
-                &[],
-                phonemes,
-                show_details,
-                "quoted: ",
-                text_scope,
-            ));
+        if current.kind() == ValsiClassificationKind::ZeiCompound {
+            lines.push(text_scope.format(format_args!("{prefix_now}zei compound")));
+            let left = current.left().expect("left");
+            let link = current.link().expect("link");
+            let right = current.right().expect("right");
+            afters.push(new!(ClassAfter::Zei { link, right }));
+            current = left;
+            prefix_now = "left: ".to_owned();
+            pass_rafsi = false;
+            continue;
         }
-        ValsiClassificationKind::DelimitedNonLojbanQuote => {
-            lines.push(text_scope.format(format_args!("{prefix}delimited non-Lojban quote")));
-            lines.extend(plain_word_lines_in_scope(
-                classification.marker().expect("marker"),
-                &[],
-                phonemes,
-                show_details,
-                "marker: ",
-                text_scope,
-            ));
-            lines.push(text_scope.format(format_args!(
-                "delimiter: {}",
-                inline_code_in_scope(classification.delimiter().expect("delimiter"), text_scope)
-            )));
+        let prefix = prefix_now.as_str();
+        let rafsi: &[String] = if pass_rafsi { possible_rafsi } else { &[] };
+        match current.kind() {
+            ValsiClassificationKind::PlainWord => {
+                let word = current
+                    .word()
+                    .expect("plain-word classification carries word");
+                lines.extend(plain_word_lines_in_scope(
+                    word,
+                    rafsi,
+                    phonemes,
+                    show_details,
+                    prefix,
+                    text_scope,
+                ));
+            }
+            ValsiClassificationKind::QuotedWord => {
+                lines.push(text_scope.format(format_args!("{prefix}quoted word")));
+                lines.extend(plain_word_lines_in_scope(
+                    current.marker().expect("marker"),
+                    &[],
+                    phonemes,
+                    show_details,
+                    "marker: ",
+                    text_scope,
+                ));
+                lines.extend(plain_word_lines_in_scope(
+                    current.quoted_word().expect("quoted"),
+                    &[],
+                    phonemes,
+                    show_details,
+                    "quoted: ",
+                    text_scope,
+                ));
+            }
+            ValsiClassificationKind::DelimitedNonLojbanQuote => {
+                lines.push(text_scope.format(format_args!("{prefix}delimited non-Lojban quote")));
+                lines.extend(plain_word_lines_in_scope(
+                    current.marker().expect("marker"),
+                    &[],
+                    phonemes,
+                    show_details,
+                    "marker: ",
+                    text_scope,
+                ));
+                lines.push(text_scope.format(format_args!(
+                    "delimiter: {}",
+                    inline_code_in_scope(current.delimiter().expect("delimiter"), text_scope)
+                )));
+            }
+            ValsiClassificationKind::QuotedWords => {
+                lines.push(text_scope.format(format_args!(
+                    "{prefix}quoted words ({})",
+                    current.quoted_words().len()
+                )));
+                lines.extend(plain_word_lines_in_scope(
+                    current.marker().expect("marker"),
+                    &[],
+                    phonemes,
+                    show_details,
+                    "marker: ",
+                    text_scope,
+                ));
+            }
+            ValsiClassificationKind::ReplacementQuote => {
+                lines.push(text_scope.format(format_args!(
+                    "{prefix}replacement quote ({} raw words)",
+                    current.replacement_words().len()
+                )));
+            }
+            ValsiClassificationKind::DelimitedWordQuote => {
+                lines.push(text_scope.format(format_args!(
+                    "{prefix}delimited word quote, marker {}",
+                    inline_code_in_scope(current.marker_text().expect("marker text"), text_scope)
+                )));
+            }
+            ValsiClassificationKind::LerfuWord | ValsiClassificationKind::ZeiCompound => {
+                unreachable!("lerfu and zei stay on the classification spine");
+            }
         }
-        ValsiClassificationKind::QuotedWords => {
-            lines.push(text_scope.format(format_args!(
-                "{prefix}quoted words ({})",
-                classification.quoted_words().len()
-            )));
-            lines.extend(plain_word_lines_in_scope(
-                classification.marker().expect("marker"),
-                &[],
-                phonemes,
-                show_details,
-                "marker: ",
-                text_scope,
-            ));
-        }
-        ValsiClassificationKind::ReplacementQuote => {
-            lines.push(text_scope.format(format_args!(
-                "{prefix}replacement quote ({} raw words)",
-                classification.replacement_words().len()
-            )));
-        }
-        ValsiClassificationKind::DelimitedWordQuote => {
-            lines.push(text_scope.format(format_args!(
-                "{prefix}delimited word quote, marker {}",
-                inline_code_in_scope(
-                    classification.marker_text().expect("marker text"),
-                    text_scope
-                )
-            )));
-        }
-        ValsiClassificationKind::LerfuWord => {
-            lines.push(text_scope.format(format_args!("{prefix}lerfu word")));
-            lines.extend(classification_lines_in_scope(
-                classification.base().expect("base"),
-                &[],
-                phonemes,
-                show_details,
-                "base: ",
-                text_scope,
-            ));
-            lines.extend(plain_word_lines_in_scope(
-                classification.suffix().expect("suffix"),
+        break;
+    }
+    while let Some(after) = afters.pop() {
+        match after.into_data() {
+            ClassAfterData::Suffix(suffix) => lines.extend(plain_word_lines_in_scope(
+                suffix,
                 &[],
                 phonemes,
                 show_details,
                 "suffix: ",
                 text_scope,
-            ));
-        }
-        ValsiClassificationKind::ZeiCompound => {
-            lines.push(text_scope.format(format_args!("{prefix}zei compound")));
-            lines.extend(classification_lines_in_scope(
-                classification.left().expect("left"),
-                &[],
-                phonemes,
-                show_details,
-                "left: ",
-                text_scope,
-            ));
-            lines.extend(plain_word_lines_in_scope(
-                classification.link().expect("link"),
-                &[],
-                phonemes,
-                show_details,
-                "link: ",
-                text_scope,
-            ));
-            lines.extend(plain_word_lines_in_scope(
-                classification.right().expect("right"),
-                &[],
-                phonemes,
-                show_details,
-                "right: ",
-                text_scope,
-            ));
+            )),
+            ClassAfterData::Zei { link, right } => {
+                lines.extend(plain_word_lines_in_scope(
+                    link,
+                    &[],
+                    phonemes,
+                    show_details,
+                    "link: ",
+                    text_scope,
+                ));
+                lines.extend(plain_word_lines_in_scope(
+                    right,
+                    &[],
+                    phonemes,
+                    show_details,
+                    "right: ",
+                    text_scope,
+                ));
+            }
         }
     }
     lines
@@ -400,6 +427,42 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
+    fn gismu() -> PlainWordClassification {
+        new!(PlainWordClassification {
+            category: WordKind::Gismu,
+            phonemes: "broda".to_owned(),
+            selmaho: None,
+            split: None,
+            parts: Vec::new(),
+            stage: None,
+        })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_suffix_frame_rejects_a_gismu() {
+        let word = gismu();
+        assert!(try_new!(ClassAfter::Suffix(&word)).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_zei_frame_rejects_a_gismu_link() {
+        let link = gismu();
+        let right = gismu();
+        assert!(
+            try_new!(ClassAfter::Zei {
+                link: &link,
+                right: &right
+            })
+            .is_err()
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn request(text: &str, options: VlataiOptions) -> VlataiRequest {
         VlataiRequest {
             text: SourceText::new(text).expect("text"),
@@ -487,5 +550,80 @@ mod tests {
         let body = lujvo.body.join("\n");
         assert!(body.contains("lujvo"), "{body}");
         assert!(body.contains("parts\\:"), "{body}");
+    }
+}
+
+#[cfg(test)]
+mod deep_links {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::{PhonemeRenderOptions, ValsiClassification, analyze_valsi};
+
+    use super::classification_lines_in_scope;
+
+    #[requires(links > 0)]
+    #[ensures(true)]
+    fn classification(kind: &str, links: usize) -> ValsiClassification {
+        let mut text = if kind == "bu" {
+            String::from("a")
+        } else {
+            String::from("broda")
+        };
+        let piece = if kind == "bu" { " bu" } else { " zei broda" };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        let kind = kind.to_owned();
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                analyze_valsi(&text)
+                    .result
+                    .classification
+                    .clone()
+                    .unwrap_or_else(|| panic!("{kind} has no classification"))
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn classification_lines_fit_in_160kib() {
+        let bu = classification("bu", 2666);
+        let zei = classification("zei", 799);
+        let options = PhonemeRenderOptions::default();
+        let render = |word: ValsiClassification| {
+            thread::Builder::new()
+                .stack_size(160 * 1024)
+                .spawn(move || {
+                    let scope = jbotci_output::budget::TextScope::new(
+                        jbotci_output::budget::ByteLimit::new(usize::MAX).expect("limit"),
+                    );
+                    classification_lines_in_scope(&word, &[], options, false, "", &scope)
+                })
+                .expect("line thread")
+                .join()
+                .expect("line join")
+        };
+        let bu_lines = render(bu);
+        let zei_lines = render(zei);
+        assert_eq!(
+            bu_lines
+                .iter()
+                .filter(|line| line.contains("lerfu word"))
+                .count(),
+            2666
+        );
+        assert_eq!(
+            zei_lines
+                .iter()
+                .filter(|line| line.contains("zei compound"))
+                .count(),
+            799
+        );
     }
 }

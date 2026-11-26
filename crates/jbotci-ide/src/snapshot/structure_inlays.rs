@@ -358,17 +358,22 @@ fn sort_decoration_fragments(fragments: &mut [DecorationFragment]) {
 fn collect_decoration_fragments(fragments: Vec<BracketSourceFragment>) -> Vec<DecorationFragment> {
     fragments
         .into_iter()
-        .filter_map(|fragment| match fragment {
+        .filter_map(|mut fragment| match &mut fragment {
             BracketSourceFragment::Text { .. } => None,
             BracketSourceFragment::Span {
                 range,
                 constructs,
                 children,
-            } => Some(new!(DecorationFragment {
-                range,
-                constructs,
-                children: collect_decoration_fragments(children),
-            })),
+            } => {
+                let range = *range;
+                let constructs = std::mem::take(constructs);
+                let children = std::mem::take(children);
+                Some(new!(DecorationFragment {
+                    range,
+                    constructs,
+                    children: collect_decoration_fragments(children),
+                }))
+            }
         })
         .collect()
 }

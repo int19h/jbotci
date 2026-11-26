@@ -1,4 +1,7 @@
 use super::super::*;
+use bityzba::new;
+#[cfg(test)]
+use bityzba::try_new;
 use jbotci_output::Indentation;
 
 #[requires(diagnostic_terminal_width > 0)]
@@ -223,6 +226,17 @@ fn render_vlatai_classification_text(
     render_vlatai_classification_text_with_prefix(out, classification, phoneme_options, "");
 }
 
+/// A suffix frame names a cmavo. A zei frame names a cmavo link and a word with phonemes.
+#[invariant(::Suffix(suffix) => suffix.category == WordKind::Cmavo)]
+#[invariant(::Zei { link, right } => link.category == WordKind::Cmavo && !right.phonemes.is_empty())]
+enum ClassAfter<'a> {
+    Suffix(&'a PlainWordClassification),
+    Zei {
+        link: &'a PlainWordClassification,
+        right: &'a PlainWordClassification,
+    },
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn render_vlatai_classification_text_with_prefix(
@@ -231,109 +245,111 @@ fn render_vlatai_classification_text_with_prefix(
     phoneme_options: PhonemeRenderOptions,
     prefix: &str,
 ) {
-    match classification.kind() {
-        ValsiClassificationKind::PlainWord => {
-            render_plain_word_classification_text(
-                out,
-                classification
-                    .word()
-                    .expect("plain-word classification carries word"),
-                phoneme_options,
-                prefix,
-            );
+    let mut current = classification;
+    let mut prefix_now = prefix.to_owned();
+    let mut afters = Vec::new();
+    loop {
+        if current.kind() == ValsiClassificationKind::LerfuWord {
+            out.push_str(&format!("{prefix_now}category: lerfu-word\n"));
+            let base = current.base().expect("lerfu base");
+            let suffix = current.suffix().expect("lerfu suffix");
+            afters.push(new!(ClassAfter::Suffix(suffix)));
+            current = base;
+            prefix_now = "base ".to_owned();
+            continue;
         }
-        ValsiClassificationKind::QuotedWord => {
-            out.push_str(&format!("{prefix}category: quoted-word\n"));
-            render_plain_word_classification_text(
-                out,
-                classification.marker().expect("quoted word marker"),
-                phoneme_options,
-                "marker ",
-            );
-            render_plain_word_classification_text(
-                out,
-                classification.quoted_word().expect("quoted word payload"),
-                phoneme_options,
-                "quoted ",
-            );
+        if current.kind() == ValsiClassificationKind::ZeiCompound {
+            out.push_str(&format!("{prefix_now}category: zei-compound\n"));
+            let left = current.left().expect("zei left");
+            let link = current.link().expect("zei link");
+            let right = current.right().expect("zei right");
+            afters.push(new!(ClassAfter::Zei { link, right }));
+            current = left;
+            prefix_now = "left ".to_owned();
+            continue;
         }
-        ValsiClassificationKind::DelimitedNonLojbanQuote => {
-            out.push_str(&format!("{prefix}category: delimited-non-lojban-quote\n"));
-            render_plain_word_classification_text(
-                out,
-                classification.marker().expect("quote marker"),
-                phoneme_options,
-                "marker ",
-            );
-            let delimiter = classification
-                .delimiter()
-                .expect("delimited quote carries delimiter");
-            out.push_str(&format!("{prefix}delimiter: {delimiter}\n"));
+        let prefix = prefix_now.as_str();
+        match current.kind() {
+            ValsiClassificationKind::PlainWord => {
+                render_plain_word_classification_text(
+                    out,
+                    current
+                        .word()
+                        .expect("plain-word classification carries word"),
+                    phoneme_options,
+                    prefix,
+                );
+            }
+            ValsiClassificationKind::QuotedWord => {
+                out.push_str(&format!("{prefix}category: quoted-word\n"));
+                render_plain_word_classification_text(
+                    out,
+                    current.marker().expect("quoted word marker"),
+                    phoneme_options,
+                    "marker ",
+                );
+                render_plain_word_classification_text(
+                    out,
+                    current.quoted_word().expect("quoted word payload"),
+                    phoneme_options,
+                    "quoted ",
+                );
+            }
+            ValsiClassificationKind::DelimitedNonLojbanQuote => {
+                out.push_str(&format!("{prefix}category: delimited-non-lojban-quote\n"));
+                render_plain_word_classification_text(
+                    out,
+                    current.marker().expect("quote marker"),
+                    phoneme_options,
+                    "marker ",
+                );
+                let delimiter = current
+                    .delimiter()
+                    .expect("delimited quote carries delimiter");
+                out.push_str(&format!("{prefix}delimiter: {delimiter}\n"));
+            }
+            ValsiClassificationKind::QuotedWords => {
+                out.push_str(&format!("{prefix}category: quoted-words\n"));
+                render_plain_word_classification_text(
+                    out,
+                    current.marker().expect("quoted words marker"),
+                    phoneme_options,
+                    "marker ",
+                );
+                out.push_str(&format!(
+                    "{prefix}quoted word count: {}\n",
+                    current.quoted_words().len()
+                ));
+            }
+            ValsiClassificationKind::ReplacementQuote => {
+                out.push_str(&format!("{prefix}category: replacement-quote\n"));
+                out.push_str(&format!(
+                    "{prefix}raw word count: {}\n",
+                    current.replacement_words().len()
+                ));
+            }
+            ValsiClassificationKind::DelimitedWordQuote => {
+                out.push_str(&format!("{prefix}category: delimited-word-quote\n"));
+                out.push_str(&format!(
+                    "{prefix}marker: {}\n",
+                    current.marker_text().expect("delimited word quote marker")
+                ));
+            }
+            ValsiClassificationKind::LerfuWord | ValsiClassificationKind::ZeiCompound => {
+                unreachable!("lerfu and zei stay on the classification spine");
+            }
         }
-        ValsiClassificationKind::QuotedWords => {
-            out.push_str(&format!("{prefix}category: quoted-words\n"));
-            render_plain_word_classification_text(
-                out,
-                classification.marker().expect("quoted words marker"),
-                phoneme_options,
-                "marker ",
-            );
-            out.push_str(&format!(
-                "{prefix}quoted word count: {}\n",
-                classification.quoted_words().len()
-            ));
-        }
-        ValsiClassificationKind::ReplacementQuote => {
-            out.push_str(&format!("{prefix}category: replacement-quote\n"));
-            out.push_str(&format!(
-                "{prefix}raw word count: {}\n",
-                classification.replacement_words().len()
-            ));
-        }
-        ValsiClassificationKind::DelimitedWordQuote => {
-            out.push_str(&format!("{prefix}category: delimited-word-quote\n"));
-            out.push_str(&format!(
-                "{prefix}marker: {}\n",
-                classification
-                    .marker_text()
-                    .expect("delimited word quote marker")
-            ));
-        }
-        ValsiClassificationKind::LerfuWord => {
-            out.push_str(&format!("{prefix}category: lerfu-word\n"));
-            render_vlatai_classification_text_with_prefix(
-                out,
-                classification.base().expect("lerfu base"),
-                phoneme_options,
-                "base ",
-            );
-            render_plain_word_classification_text(
-                out,
-                classification.suffix().expect("lerfu suffix"),
-                phoneme_options,
-                "suffix ",
-            );
-        }
-        ValsiClassificationKind::ZeiCompound => {
-            out.push_str(&format!("{prefix}category: zei-compound\n"));
-            render_vlatai_classification_text_with_prefix(
-                out,
-                classification.left().expect("zei left"),
-                phoneme_options,
-                "left ",
-            );
-            render_plain_word_classification_text(
-                out,
-                classification.link().expect("zei link"),
-                phoneme_options,
-                "link ",
-            );
-            render_plain_word_classification_text(
-                out,
-                classification.right().expect("zei right"),
-                phoneme_options,
-                "right ",
-            );
+        break;
+    }
+    while let Some(after) = afters.pop() {
+        match after.into_data() {
+            ClassAfterData::Suffix(suffix) => {
+                render_plain_word_classification_text(out, suffix, phoneme_options, "suffix ");
+            }
+            ClassAfterData::Zei { link, right } => {
+                render_plain_word_classification_text(out, link, phoneme_options, "link ");
+                render_plain_word_classification_text(out, right, phoneme_options, "right ");
+            }
         }
     }
 }
@@ -502,4 +518,113 @@ fn render_vlatai_phonemes(phonemes: &str, options: PhonemeRenderOptions) -> Stri
     Phonemes::from_canonical(phonemes.to_owned())
         .map(|value| value.render(options))
         .unwrap_or_else(|_| phonemes.to_owned())
+}
+
+#[cfg(test)]
+mod class_after_invariants {
+    use super::*;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn gismu() -> PlainWordClassification {
+        new!(PlainWordClassification {
+            category: WordKind::Gismu,
+            phonemes: "broda".to_owned(),
+            selmaho: None,
+            split: None,
+            parts: Vec::new(),
+            stage: None,
+        })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_suffix_frame_rejects_a_gismu() {
+        let word = gismu();
+        assert!(try_new!(ClassAfter::Suffix(&word)).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_zei_frame_rejects_a_gismu_link() {
+        let link = gismu();
+        let right = gismu();
+        assert!(
+            try_new!(ClassAfter::Zei {
+                link: &link,
+                right: &right
+            })
+            .is_err()
+        );
+    }
+}
+
+#[cfg(test)]
+mod deep_links {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::{PhonemeRenderOptions, ValsiClassification, analyze_valsi};
+
+    use super::render_vlatai_classification_text;
+
+    #[requires(links > 0)]
+    #[ensures(true)]
+    fn classification(kind: &str, links: usize) -> ValsiClassification {
+        let mut text = if kind == "bu" {
+            String::from("a")
+        } else {
+            String::from("broda")
+        };
+        let piece = if kind == "bu" { " bu" } else { " zei broda" };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        let kind = kind.to_owned();
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                analyze_valsi(&text)
+                    .result
+                    .classification
+                    .clone()
+                    .unwrap_or_else(|| panic!("{kind} has no classification"))
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn classification_text_fits_in_160kib() {
+        let bu = classification("bu", 2666);
+        let zei = classification("zei", 799);
+        let options = PhonemeRenderOptions::default();
+        let bu_text = thread::Builder::new()
+            .stack_size(160 * 1024)
+            .spawn(move || {
+                let mut out = String::new();
+                render_vlatai_classification_text(&mut out, &bu, options);
+                out
+            })
+            .expect("render thread")
+            .join()
+            .expect("render join");
+        let zei_text = thread::Builder::new()
+            .stack_size(160 * 1024)
+            .spawn(move || {
+                let mut out = String::new();
+                render_vlatai_classification_text(&mut out, &zei, options);
+                out
+            })
+            .expect("render thread")
+            .join()
+            .expect("render join");
+        assert_eq!(bu_text.matches("category: lerfu-word\n").count(), 2666);
+        assert_eq!(zei_text.matches("category: zei-compound\n").count(), 799);
+    }
 }
