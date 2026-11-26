@@ -10,6 +10,8 @@ use std::{
     sync::Arc,
 };
 
+use jbotci_tree::debug_emit::Emit;
+
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
@@ -454,35 +456,76 @@ impl<T: fmt::Debug> fmt::Debug for WithIndicators<T> {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_data() {
+        let mut layers = Vec::new();
+        let mut current = self;
+        let core = loop {
+            match current.as_data() {
+                data!(WithIndicators::WithIndicator { base, .. }) => {
+                    layers.push(current);
+                    current = base.as_ref();
+                }
+                _ => break current,
+            }
+        };
+        let mut emit = Emit::new(formatter.alternate());
+        for _layer in &layers {
+            emit.begin_struct("WithIndicator");
+            emit.begin_field("base");
+        }
+        match core.as_data() {
             data!(WithIndicators::Plain(word_like)) => {
-                formatter.debug_tuple("Plain").field(word_like).finish()
+                emit.begin_tuple("Plain");
+                emit.begin_tuple_field();
+                emit.debug_value(word_like);
+                emit.end_tuple_field();
+                emit.end_tuple();
             }
             data!(WithIndicators::Emphasized {
                 bahe,
                 extra_bahe,
                 word_like,
-            }) => formatter
-                .debug_struct("Emphasized")
-                .field("bahe", bahe)
-                .field("extra_bahe", extra_bahe)
-                .field("word_like", word_like)
-                .finish(),
-            data!(WithIndicators::WithIndicator {
-                base,
+            }) => {
+                emit.begin_struct("Emphasized");
+                emit.begin_field("bahe");
+                emit.debug_value(bahe);
+                emit.end_field();
+                emit.begin_field("extra_bahe");
+                emit.debug_value(extra_bahe);
+                emit.end_field();
+                emit.begin_field("word_like");
+                emit.debug_value(word_like);
+                emit.end_field();
+                emit.end_struct();
+            }
+            data!(WithIndicators::WithIndicator { .. }) => {}
+        }
+        for layer in layers.iter().rev() {
+            let data!(WithIndicators::WithIndicator {
                 indicator_bahe,
                 indicator,
                 nai_bahe,
                 nai,
-            }) => formatter
-                .debug_struct("WithIndicator")
-                .field("base", base)
-                .field("indicator_bahe", indicator_bahe)
-                .field("indicator", indicator)
-                .field("nai_bahe", nai_bahe)
-                .field("nai", nai)
-                .finish(),
+                ..
+            }) = layer.as_data()
+            else {
+                continue;
+            };
+            emit.end_field();
+            emit.begin_field("indicator_bahe");
+            emit.debug_value(indicator_bahe);
+            emit.end_field();
+            emit.begin_field("indicator");
+            emit.debug_value(indicator);
+            emit.end_field();
+            emit.begin_field("nai_bahe");
+            emit.debug_value(nai_bahe);
+            emit.end_field();
+            emit.begin_field("nai");
+            emit.debug_value(nai);
+            emit.end_field();
+            emit.end_struct();
         }
+        formatter.write_str(&emit.finish())
     }
 }
 
@@ -490,32 +533,49 @@ impl<T: Clone> WithIndicators<T> {
     #[requires(is_bahe_modifier_word(&bahe))]
     #[ensures(true)]
     pub fn with_prepended_bahe(&self, bahe: Word) -> Self {
-        match self.as_data() {
-            data!(WithIndicators::Plain(word_like)) => Self::emphasized(bahe, word_like.clone()),
-            data!(WithIndicators::Emphasized {
-                bahe: first_bahe,
-                extra_bahe,
-                word_like,
-            }) => {
-                let mut new_extra = Vec::with_capacity(extra_bahe.len() + 1);
-                new_extra.push(first_bahe.clone());
-                new_extra.extend(extra_bahe.iter().cloned());
-                Self::emphasized_with_extra_bahe(bahe, new_extra, word_like.clone())
+        let mut layers = Vec::new();
+        let mut current = self;
+        let mut built = loop {
+            match current.as_data() {
+                data!(WithIndicators::WithIndicator { base, .. }) => {
+                    layers.push(current);
+                    current = base.as_ref();
+                }
+                data!(WithIndicators::Plain(word_like)) => {
+                    break Self::emphasized(bahe, word_like.clone());
+                }
+                data!(WithIndicators::Emphasized {
+                    bahe: first_bahe,
+                    extra_bahe,
+                    word_like,
+                }) => {
+                    let mut new_extra = Vec::with_capacity(extra_bahe.len() + 1);
+                    new_extra.push(first_bahe.clone());
+                    new_extra.extend(extra_bahe.iter().cloned());
+                    break Self::emphasized_with_extra_bahe(bahe, new_extra, word_like.clone());
+                }
             }
-            data!(WithIndicators::WithIndicator {
-                base,
+        };
+        for layer in layers.into_iter().rev() {
+            let data!(WithIndicators::WithIndicator {
                 indicator_bahe,
                 indicator,
                 nai_bahe,
                 nai,
-            }) => new!(WithIndicators::WithIndicator {
-                base: Arc::new(base.with_prepended_bahe(bahe)),
+                ..
+            }) = layer.as_data()
+            else {
+                continue;
+            };
+            built = new!(WithIndicators::WithIndicator {
+                base: Arc::new(built),
                 indicator_bahe: indicator_bahe.clone(),
                 indicator: indicator.clone(),
                 nai_bahe: nai_bahe.clone(),
                 nai: nai.clone(),
-            }),
+            });
         }
+        built
     }
 }
 
@@ -736,10 +796,13 @@ impl WithIndicators<WordLike> {
     #[requires(true)]
     #[ensures(true)]
     pub fn core_word(&self) -> &WordLike {
-        match self.as_data() {
-            data!(WithIndicators::Plain(word_like))
-            | data!(WithIndicators::Emphasized { word_like, .. }) => word_like,
-            data!(WithIndicators::WithIndicator { base, .. }) => base.core_word(),
+        let mut current = self;
+        loop {
+            match current.as_data() {
+                data!(WithIndicators::Plain(word_like))
+                | data!(WithIndicators::Emphasized { word_like, .. }) => return word_like,
+                data!(WithIndicators::WithIndicator { base, .. }) => current = base.as_ref(),
+            }
         }
     }
 
@@ -797,37 +860,52 @@ impl WithIndicators<WordLike> {
     #[requires(true)]
     #[ensures(true)]
     pub fn source_spans_into<'a>(&'a self, out: &mut Vec<&'a jbotci_source::SourceSpan>) {
-        match self.as_data() {
-            data!(WithIndicators::Plain(word_like)) => word_like.source_spans_into(out),
-            data!(WithIndicators::Emphasized {
-                bahe,
-                extra_bahe,
-                word_like,
-            }) => {
-                out.push(bahe.span());
-                for bahe in extra_bahe {
-                    out.push(bahe.span());
+        let mut layers = Vec::new();
+        let mut current = self;
+        loop {
+            match current.as_data() {
+                data!(WithIndicators::WithIndicator { base, .. }) => {
+                    layers.push(current);
+                    current = base.as_ref();
                 }
-                word_like.source_spans_into(out);
+                data!(WithIndicators::Plain(word_like)) => {
+                    word_like.source_spans_into(out);
+                    break;
+                }
+                data!(WithIndicators::Emphasized {
+                    bahe,
+                    extra_bahe,
+                    word_like,
+                }) => {
+                    out.push(bahe.span());
+                    for bahe in extra_bahe {
+                        out.push(bahe.span());
+                    }
+                    word_like.source_spans_into(out);
+                    break;
+                }
             }
-            data!(WithIndicators::WithIndicator {
-                base,
+        }
+        for layer in layers.iter().rev() {
+            let data!(WithIndicators::WithIndicator {
                 indicator_bahe,
                 indicator,
                 nai_bahe,
                 nai,
-            }) => {
-                base.source_spans_into(out);
-                for bahe in indicator_bahe {
-                    out.push(bahe.span());
-                }
-                out.push(indicator.span());
-                for bahe in nai_bahe {
-                    out.push(bahe.span());
-                }
-                if let Some(nai) = nai {
-                    out.push(nai.span());
-                }
+                ..
+            }) = layer.as_data()
+            else {
+                continue;
+            };
+            for bahe in indicator_bahe {
+                out.push(bahe.span());
+            }
+            out.push(indicator.span());
+            for bahe in nai_bahe {
+                out.push(bahe.span());
+            }
+            if let Some(nai) = nai {
+                out.push(nai.span());
             }
         }
     }
@@ -887,40 +965,55 @@ impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_data() {
-            data!(WithIndicators::Plain(word_like)) => write!(f, "{word_like}"),
-            data!(WithIndicators::Emphasized {
-                bahe,
-                extra_bahe,
-                word_like,
-            }) => {
-                write!(f, "{bahe}")?;
-                for bahe in extra_bahe {
-                    write!(f, "-{bahe}")?;
+        let mut layers = Vec::new();
+        let mut current = self;
+        loop {
+            match current.as_data() {
+                data!(WithIndicators::WithIndicator { base, .. }) => {
+                    layers.push(current);
+                    current = base.as_ref();
                 }
-                write!(f, "-{word_like}")
+                data!(WithIndicators::Plain(word_like)) => {
+                    write!(f, "{word_like}")?;
+                    break;
+                }
+                data!(WithIndicators::Emphasized {
+                    bahe,
+                    extra_bahe,
+                    word_like,
+                }) => {
+                    write!(f, "{bahe}")?;
+                    for bahe in extra_bahe {
+                        write!(f, "-{bahe}")?;
+                    }
+                    write!(f, "-{word_like}")?;
+                    break;
+                }
             }
-            data!(WithIndicators::WithIndicator {
-                base,
+        }
+        for layer in layers.iter().rev() {
+            let data!(WithIndicators::WithIndicator {
                 indicator_bahe,
                 indicator,
                 nai_bahe,
                 nai,
-            }) => {
-                write!(f, "{base}")?;
-                for bahe in indicator_bahe {
+                ..
+            }) = layer.as_data()
+            else {
+                continue;
+            };
+            for bahe in indicator_bahe {
+                write!(f, "-{bahe}")?;
+            }
+            write!(f, "-{indicator}")?;
+            if let Some(nai) = nai {
+                for bahe in nai_bahe {
                     write!(f, "-{bahe}")?;
                 }
-                write!(f, "-{indicator}")?;
-                if let Some(nai) = nai {
-                    for bahe in nai_bahe {
-                        write!(f, "-{bahe}")?;
-                    }
-                    write!(f, "-{nai}")?;
-                }
-                Ok(())
+                write!(f, "-{nai}")?;
             }
         }
+        Ok(())
     }
 }
 
@@ -932,4 +1025,87 @@ pub fn elidable_terminator_for_absent_field_ref(field: FieldRef) -> Option<Cmavo
         .iter()
         .find(|terminator| terminator.field == name)
         .map(|terminator| terminator.cmavo)
+}
+
+#[cfg(test)]
+mod indicator_spine {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::segment_words_with_modifiers;
+
+    #[requires(count > 0)]
+    #[ensures(ret.len() <= 8000)]
+    fn indicator_text(count: usize) -> String {
+        let mut text = String::from("a");
+        for _ in 0..count {
+            text.push_str(" ui");
+        }
+        text
+    }
+
+    #[inline(never)]
+    #[requires(true)]
+    #[ensures(true)]
+    fn indicator_shape(token: &crate::Token) {
+        assert!(!crate::grammar::tokens::is_relation_word(token));
+        assert!(!crate::grammar::tokens::is_cmevla_word(token));
+        assert!(!crate::grammar::tokens::is_letter_word(token));
+        let shown = token.to_string();
+        assert!(shown.starts_with("cmavo:a-"), "len {}", shown.len());
+        assert_eq!(shown.matches("ŭi").count(), 2666, "len {}", shown.len());
+        let debug = format!("{token:?}");
+        assert!(debug.starts_with("WithIndicator"), "len {}", debug.len());
+        assert!(debug.contains("Plain"), "len {}", debug.len());
+    }
+
+    #[inline(never)]
+    #[requires(true)]
+    #[ensures(true)]
+    fn indicator_range_only(token: &crate::Token) -> Option<std::ops::Range<usize>> {
+        crate::grammar::tokens::word_byte_range(token)
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn indicator_spine_fits_in_160kib() {
+        let text = indicator_text(2666);
+        let owned = text.clone();
+        let token = thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let words = segment_words_with_modifiers(&owned)
+                    .unwrap_or_else(|error| panic!("ui parse {error}"));
+                let tokens = crate::syntax_tokens(&words);
+                assert_eq!(tokens.len(), 1);
+                tokens.into_iter().next().expect("one token")
+            })
+            .expect("parse thread")
+            .join()
+            .expect("parse join");
+        // The value stays on this thread. The small threads only borrow it.
+        // Drop of the chain runs on the large thread after the borrows end.
+        let range = thread::scope(|scope| {
+            thread::Builder::new()
+                .stack_size(160 * 1024)
+                .spawn_scoped(scope, || indicator_shape(&token))
+                .expect("shape thread")
+                .join()
+                .expect("shape join");
+            thread::Builder::new()
+                .stack_size(160 * 1024)
+                .spawn_scoped(scope, || indicator_range_only(&token))
+                .expect("range thread")
+                .join()
+                .expect("range join")
+        });
+        assert_eq!(range, Some(0..text.len()));
+        thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || drop(token))
+            .expect("drop thread")
+            .join()
+            .expect("drop join");
+    }
 }

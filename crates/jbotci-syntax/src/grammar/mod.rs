@@ -1873,23 +1873,54 @@ impl<'tokens> ParserState<'tokens> {
             return *cached;
         }
 
-        let observation = &store.rule_observation_nodes[node].observation;
-        let mut latest = self
-            .recovery_rule_target_last_indices
-            .get(observation)
-            .copied();
-        for child_index in 0..store.rule_observation_nodes[node].children.len() {
-            let child = store.rule_observation_nodes[node].children[child_index];
-            if let Some(child_latest) =
-                self.syntax_rule_observation_latest_recovery_target_index(store, child)
-            {
+        // The walk used to recurse once per nested rule. That frame stayed on
+        // the call stack. The heap stack visits each node after its children
+        // and stores the same cache entry. A chain of 100,000 nodes finishes
+        // on a 160 KiB thread.
+        let mut cache = self
+            .syntax_rule_observation_latest_recovery_target_indices
+            .borrow_mut();
+        let node_count = store.rule_observation_nodes.len();
+        let mut stack = vec![(node, 0usize)];
+        while let Some((current, mut child_cursor)) = stack.pop() {
+            if cache.contains_key(&current) {
+                continue;
+            }
+            let child_count = store.rule_observation_nodes[current].children.len();
+            if child_cursor < child_count {
+                let child = store.rule_observation_nodes[current].children[child_cursor];
+                child_cursor += 1;
+                stack.push((current, child_cursor));
+                if !cache.contains_key(&child) {
+                    if stack.len() > node_count.saturating_mul(2) {
+                        panic!("rule observation walk found a cycle");
+                    }
+                    stack.push((child, 0));
+                }
+                continue;
+            }
+            let observation_node = &store.rule_observation_nodes[current];
+            let mut latest = self
+                .recovery_rule_target_last_indices
+                .get(&observation_node.observation)
+                .copied();
+            for child_index in 0..observation_node.children.len() {
+                let child = observation_node.children[child_index];
+                let Some(child_latest) = cache
+                    .get(&child)
+                    .copied()
+                    .expect("child recovery target was computed")
+                else {
+                    continue;
+                };
                 latest = Some(latest.map_or(child_latest, |index| index.max(child_latest)));
             }
+            cache.insert(current, latest);
         }
-        self.syntax_rule_observation_latest_recovery_target_indices
-            .borrow_mut()
-            .insert(node, latest);
-        latest
+        cache
+            .get(&node)
+            .copied()
+            .expect("recovery target was computed")
     }
 
     #[requires(start_location <= end_location)]
@@ -8253,6 +8284,65 @@ mod tests {
         state.consumed_recovery_directives = 3;
         state.effective_fail_token_indices = vec![0; 3];
         assert!(state.syntax_rule_observations_are_insensitive(&store, 0));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_observation_target_walk_finishes_a_deep_chain_on_a_small_stack() {
+        let joined = std::thread::Builder::new()
+            .stack_size(160 * 1024)
+            .name("observation-walk".to_string())
+            .spawn(|| {
+                let source = "mi klama";
+                let words = segment_words_with_modifiers(source).expect("valid morphology");
+                let tokens = syntax_tokens(&words);
+                let directives = [RecoveryDirective::new(
+                    "leaf",
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    SyntaxError::NotImplemented,
+                )];
+                let mut session = SyntaxRecoveryMemoSession::new();
+                let trial = session.begin_trial();
+                let store = Rc::clone(&trial.store);
+                let state = ParserState::new_with_recovery(
+                    &tokens,
+                    Some(source),
+                    &ParseOptions::default(),
+                    &directives,
+                    trial,
+                    None,
+                    None,
+                );
+                let chain_len = 100_000usize;
+                let mut nodes = Vec::with_capacity(chain_len);
+                for index in 0..chain_len - 1 {
+                    nodes.push(SyntaxRuleObservationNode {
+                        observation: new!(SyntaxRuleObservation {
+                            rule: "chain",
+                            instance_byte_start: 1,
+                        }),
+                        children: vec![index + 1],
+                    });
+                }
+                nodes[0].children.push(chain_len - 1);
+                nodes.push(SyntaxRuleObservationNode {
+                    observation: new!(SyntaxRuleObservation {
+                        rule: "leaf",
+                        instance_byte_start: 0,
+                    }),
+                    children: Vec::new(),
+                });
+                store.borrow_mut().rule_observation_nodes = nodes;
+                let store = store.borrow();
+                state.syntax_rule_observation_latest_recovery_target_index(&store, 0)
+            })
+            .expect("small stack thread");
+        assert_eq!(joined.join().expect("observation walk"), Some(0));
     }
 
     #[test]

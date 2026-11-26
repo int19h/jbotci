@@ -276,32 +276,33 @@ fn warn_experimental_indicators_inner(
     word: &WithIndicators<WordLike>,
     context: &Token,
 ) {
-    let data!(WithIndicators::WithIndicator {
-        base,
-        indicator,
-        nai,
-        ..
-    }) = word.as_data()
-    else {
-        return;
-    };
-
-    warn_experimental_indicators_inner(state, base, context);
-
-    if let Some(cmavo_context) = indicator_cmavo_context(indicator)
-        && let Some(cmavo) = indicator.cmavo()
-        && let Some(construct) = experimental_construct_for_cmavo(cmavo_context, cmavo)
-    {
-        state.warn_word(construct, context, indicator);
+    let mut layers = Vec::new();
+    let mut current = word;
+    loop {
+        let data!(WithIndicators::WithIndicator { base, .. }) = current.as_data() else {
+            break;
+        };
+        layers.push(current);
+        current = base.as_ref();
     }
-
-    if let Some(nai) = nai
-        && let Some(construct) = experimental_construct_for_cmavo(
-            ExperimentalCmavoContext::Selmaho(Selmaho::Nai),
-            Cmavo::Nai,
-        )
-    {
-        state.warn_word(construct, context, nai);
+    for layer in layers.into_iter().rev() {
+        let data!(WithIndicators::WithIndicator { indicator, nai, .. }) = layer.as_data() else {
+            continue;
+        };
+        if let Some(cmavo_context) = indicator_cmavo_context(indicator)
+            && let Some(cmavo) = indicator.cmavo()
+            && let Some(construct) = experimental_construct_for_cmavo(cmavo_context, cmavo)
+        {
+            state.warn_word(construct, context, indicator);
+        }
+        if let Some(nai) = nai
+            && let Some(construct) = experimental_construct_for_cmavo(
+                ExperimentalCmavoContext::Selmaho(Selmaho::Nai),
+                Cmavo::Nai,
+            )
+        {
+            state.warn_word(construct, context, nai);
+        }
     }
 }
 
@@ -508,10 +509,7 @@ pub(crate) fn is_relation_word(word: &Token) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_relation_indicators(word: &WithIndicators<WordLike>) -> bool {
-    if let data!(WithIndicators::WithIndicator { base, .. }) = word.as_data() {
-        return is_relation_indicators(base);
-    }
-
+    let word = indicator_core(word);
     if word.is_selmaho(Selmaho::Goha) {
         return true;
     }
@@ -555,12 +553,12 @@ pub(crate) fn is_cmevla_word(word: &Token) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_cmevla_indicators(word: &WithIndicators<WordLike>) -> bool {
-    match word.as_data() {
+    match indicator_core(word).as_data() {
         data!(WithIndicators::Plain(word_like))
         | data!(WithIndicators::Emphasized { word_like, .. }) => {
             word_like_kind(word_like).is_some_and(|kind| kind == WordKind::Cmevla)
         }
-        data!(WithIndicators::WithIndicator { base, .. }) => is_cmevla_indicators(base),
+        data!(WithIndicators::WithIndicator { .. }) => false,
     }
 }
 
@@ -573,22 +571,23 @@ pub(crate) fn is_letter_word(word: &Token) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_letter_indicators(word: &WithIndicators<WordLike>) -> bool {
-    match word.as_data() {
+    let word_like = match indicator_core(word).as_data() {
         data!(WithIndicators::Plain(word_like))
-        | data!(WithIndicators::Emphasized { word_like, .. }) => match word_like.as_data() {
-            data!(WordLike::LerfuWord { .. }) => true,
-            data!(WordLike::PlainWord(word)) => {
-                word.kind() == WordKind::Cmavo
-                    && word.cmavo().is_some_and(|cmavo| {
-                        (!matches!(cmavo, Cmavo::A | Cmavo::E | Cmavo::I | Cmavo::O | Cmavo::U)
-                            && cmavo.is_selmaho(Selmaho::By))
-                            || cmavo == Cmavo::Sehe
-                            || cmavo == Cmavo::Y
-                    })
-            }
-            _ => false,
-        },
-        data!(WithIndicators::WithIndicator { base, .. }) => is_letter_indicators(base),
+        | data!(WithIndicators::Emphasized { word_like, .. }) => word_like,
+        data!(WithIndicators::WithIndicator { .. }) => return false,
+    };
+    match word_like.as_data() {
+        data!(WordLike::LerfuWord { .. }) => true,
+        data!(WordLike::PlainWord(word)) => {
+            word.kind() == WordKind::Cmavo
+                && word.cmavo().is_some_and(|cmavo| {
+                    (!matches!(cmavo, Cmavo::A | Cmavo::E | Cmavo::I | Cmavo::O | Cmavo::U)
+                        && cmavo.is_selmaho(Selmaho::By))
+                        || cmavo == Cmavo::Sehe
+                        || cmavo == Cmavo::Y
+                })
+        }
+        _ => false,
     }
 }
 
@@ -619,20 +618,57 @@ pub(super) fn spanned_tokens(words: &[Token]) -> Vec<SpannedToken> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
-pub(super) fn word_byte_range(word: &Token) -> Option<Range<usize>> {
+pub(crate) fn word_byte_range(word: &Token) -> Option<Range<usize>> {
     word_indicators_byte_range(word.as_indicators())
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_indicators_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<usize>> {
-    match word.as_data() {
-        data!(WithIndicators::Plain(word_like)) => word_like_byte_range(word_like),
+    // Call the morphology walk after the layer walk returns.
+    // A combined frame overflows a 160 KiB stack.
+    let (core, layers) = indicator_layers(word);
+    let (word_like, bahe) = core_word_bounds(core)?;
+    let range = word_like_byte_range(word_like)?;
+    let range = match bahe {
+        Some((start, end)) => start.min(range.start)..end.max(range.end),
+        None => range,
+    };
+    extend_indicator_layers(range, &layers)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_layers<'a>(
+    word: &'a WithIndicators<WordLike>,
+) -> (
+    &'a WithIndicators<WordLike>,
+    Vec<&'a WithIndicators<WordLike>>,
+) {
+    let mut layers = Vec::new();
+    let mut current = word;
+    loop {
+        if let data!(WithIndicators::WithIndicator { base, .. }) = current.as_data() {
+            layers.push(current);
+            current = base.as_ref();
+            continue;
+        }
+        return (current, layers);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn core_word_bounds(
+    core: &WithIndicators<WordLike>,
+) -> Option<(&WordLike, Option<(usize, usize)>)> {
+    match core.as_data() {
+        data!(WithIndicators::Plain(word_like)) => Some((word_like, None)),
         data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        }) => word_like_byte_range(word_like).map(|range| {
+        }) => {
             let start = extra_bahe
                 .iter()
                 .fold(bahe.span().byte_start, |start, bahe| {
@@ -641,71 +677,66 @@ fn word_indicators_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<u
             let end = extra_bahe.iter().fold(bahe.span().byte_end, |end, bahe| {
                 end.max(bahe.span().byte_end)
             });
-            start.min(range.start)..end.max(range.end)
-        }),
-        data!(WithIndicators::WithIndicator {
-            base,
-            indicator_bahe,
-            indicator,
-            nai_bahe,
-            nai,
-        }) => word_indicators_byte_range(base).map(|range| {
-            let indicator_start = indicator_bahe
-                .iter()
-                .fold(indicator.span().byte_start, |start, bahe| {
-                    start.min(bahe.span().byte_start)
-                });
-            let end = nai
-                .as_ref()
-                .map(|nai| {
-                    nai_bahe.iter().fold(nai.span().byte_end, |end, bahe| {
-                        end.max(bahe.span().byte_end)
-                    })
-                })
-                .unwrap_or_else(|| indicator.span().byte_end);
-            range.start
-                ..end
-                    .max(indicator_start)
-                    .max(indicator.span().byte_end)
-                    .max(range.end)
-        }),
+            Some((word_like, Some((start, end))))
+        }
+        data!(WithIndicators::WithIndicator { .. }) => None,
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
-fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => Some(word.span().byte_start..word.span().byte_end),
-        data!(WordLike::QuotedWord { zo, word }) => {
-            Some(zo.span().byte_start..word.span().byte_end)
-        }
-        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-            Some(mahoi.span().byte_start..word.span().byte_end)
-        }
-        data!(WordLike::DelimitedNonLojbanQuote {
-            zoi,
-            closing_delimiter,
+fn extend_indicator_layers(
+    mut range: Range<usize>,
+    layers: &[&WithIndicators<WordLike>],
+) -> Option<Range<usize>> {
+    for layer in layers.iter().rev() {
+        let data!(WithIndicators::WithIndicator {
+            indicator_bahe,
+            indicator,
+            nai_bahe,
+            nai,
             ..
-        }) => Some(zoi.span().byte_start..closing_delimiter.span().byte_end),
-        data!(WordLike::QuotedWords { lohu, lehu, .. }) => {
-            Some(lohu.span().byte_start..lehu.span().byte_end)
-        }
-        data!(WordLike::DelimitedWordQuote {
-            marker,
-            quoted_text,
-        }) => Some(marker.span().byte_start..quoted_text.span.byte_end),
-        data!(WordLike::ReplacementQuote { runs, lehai }) => Some(
-            runs.first()
-                .map_or(lehai.span().byte_start, |run| run.marker.span().byte_start)
-                ..lehai.span().byte_end,
-        ),
-        data!(WordLike::LerfuWord { base, bu }) => {
-            word_like_byte_range(base).map(|range| range.start..bu.span().byte_end.max(range.end))
-        }
-        data!(WordLike::ZeiCompound { left, right, .. }) => word_like_byte_range(left)
-            .map(|range| range.start..right.span().byte_end.max(range.end)),
+        }) = layer.as_data()
+        else {
+            continue;
+        };
+        let indicator_start = indicator_bahe
+            .iter()
+            .fold(indicator.span().byte_start, |start, bahe| {
+                start.min(bahe.span().byte_start)
+            });
+        let end = nai
+            .as_ref()
+            .map(|nai| {
+                nai_bahe.iter().fold(nai.span().byte_end, |end, bahe| {
+                    end.max(bahe.span().byte_end)
+                })
+            })
+            .unwrap_or_else(|| indicator.span().byte_end);
+        range = range.start
+            ..end
+                .max(indicator_start)
+                .max(indicator.span().byte_end)
+                .max(range.end);
     }
+    Some(range)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_core<'a>(word: &'a WithIndicators<WordLike>) -> &'a WithIndicators<WordLike> {
+    let mut current = word;
+    while let data!(WithIndicators::WithIndicator { base, .. }) = current.as_data() {
+        current = base.as_ref();
+    }
+    current
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
+fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
+    // The morphology owner already walks `bu` and `zei` on a heap spine.
+    word_like.byte_range()
 }
 
 #[requires(true)]
@@ -1153,4 +1184,58 @@ fn merge_farthest_errors(errors: Vec<SyntaxParseError<'_>>) -> Option<SyntaxPars
         .into_iter()
         .filter(|error| error.span().start == farthest_start)
         .reduce(SyntaxParseError::merge_for_parser)
+}
+
+#[cfg(test)]
+mod deep_links {
+    use std::thread;
+
+    use bityzba::requires;
+    use jbotci_morphology::segment_words_with_modifiers;
+
+    use super::word_like_byte_range;
+
+    #[requires(links > 0)]
+    #[ensures(!ret.is_empty())]
+    fn chain_text(kind: &str, links: usize) -> String {
+        let mut text = if kind == "bu" {
+            String::from("a")
+        } else {
+            String::from("broda")
+        };
+        let piece = if kind == "bu" { " bu" } else { " zei broda" };
+        for _ in 0..links {
+            text.push_str(piece);
+        }
+        text
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn byte_range_fits_in_160kib() {
+        for (kind, links) in [("bu", 2666usize), ("zei", 799usize)] {
+            let text = chain_text(kind, links);
+            let owned = text.clone();
+            let label = kind.to_owned();
+            let word = thread::Builder::new()
+                .stack_size(64 * 1024 * 1024)
+                .spawn(move || {
+                    let words = segment_words_with_modifiers(&owned)
+                        .unwrap_or_else(|error| panic!("{label} parse {error}"));
+                    assert_eq!(words.len(), 1);
+                    words.into_iter().next().expect("one word")
+                })
+                .expect("parse thread")
+                .join()
+                .expect("parse join");
+            let range = thread::Builder::new()
+                .stack_size(160 * 1024)
+                .spawn(move || word_like_byte_range(&word))
+                .expect("range thread")
+                .join()
+                .expect("range join");
+            assert_eq!(range, Some(0..text.len()), "{kind}");
+        }
+    }
 }

@@ -3191,6 +3191,9 @@ pub fn parse_syntax_tree_generated_model_with_source_and_options(
 }
 
 #[cfg(test)]
+mod raw_debug_pin;
+
+#[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 

@@ -207,7 +207,7 @@ fn project(token: &Token) -> model::TextReplacementFreeModifierSyntax {
             let mut old_words: Vec<_> = first
                 .words
                 .iter()
-                .map(|word| Token::bare(word.word.clone()))
+                .map(|word| Token::bare(word.word.as_ref().clone()))
                 .collect();
             let mut sahai = None;
             let mut new_words = Vec::new();
@@ -218,7 +218,7 @@ fn project(token: &Token) -> model::TextReplacementFreeModifierSyntax {
                         second
                             .words
                             .iter()
-                            .map(|word| Token::bare(word.word.clone())),
+                            .map(|word| Token::bare(word.word.as_ref().clone())),
                     );
                 } else {
                     old_words.push(raw(&second.marker));
@@ -226,7 +226,7 @@ fn project(token: &Token) -> model::TextReplacementFreeModifierSyntax {
                         second
                             .words
                             .iter()
-                            .map(|word| Token::bare(word.word.clone())),
+                            .map(|word| Token::bare(word.word.as_ref().clone())),
                     );
                 }
             }
@@ -244,7 +244,7 @@ fn project(token: &Token) -> model::TextReplacementFreeModifierSyntax {
             let mut new_words: Vec<_> = first
                 .words
                 .iter()
-                .map(|word| Token::bare(word.word.clone()))
+                .map(|word| Token::bare(word.word.as_ref().clone()))
                 .collect();
             if let Some(second) = runs.get(1) {
                 new_words.push(raw(&second.marker));
@@ -252,7 +252,7 @@ fn project(token: &Token) -> model::TextReplacementFreeModifierSyntax {
                     second
                         .words
                         .iter()
-                        .map(|word| Token::bare(word.word.clone())),
+                        .map(|word| Token::bare(word.word.as_ref().clone())),
                 );
             }
             model::TextReplacementFreeModifierSyntax::NewOnlyTextReplacementFreeModifier(Arc::new(
