@@ -792,6 +792,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed lujvo index segments are static generated data validated as part of the dictionary-wide lujvo index",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSource",
+        "Dictionary::validate checks that the index and word identify the same entry",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:DictionaryPatternEntry",
         "borrowed pattern index entries are static generated data validated against dictionary entries and normalized key generation",
     ),

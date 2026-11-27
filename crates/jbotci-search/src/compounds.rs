@@ -115,7 +115,7 @@ pub fn compound_cards(
                     .entry_for_index(*index)
                     .expect("attested entry index"),
                 None,
-                false,
+                true,
             )
         })
         .collect()

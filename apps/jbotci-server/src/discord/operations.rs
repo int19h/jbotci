@@ -538,7 +538,8 @@ pub(crate) enum CuktaOutcome {
 pub(crate) struct JvozbaConstituent {
     pub(crate) text: String,
     pub(crate) is_hyphen: bool,
-    pub(crate) source: Option<String>,
+    pub(crate) sources: Vec<jbotci_search::vlacku::VlackuCompositionSource>,
+    pub(crate) is_fuivla_rafsi: bool,
 }
 
 #[invariant(!word.is_empty())]
@@ -1488,7 +1489,18 @@ fn constituents_for(
                 new!(JvozbaConstituent {
                     text,
                     is_hyphen,
-                    source: segment.source.map(str::to_owned),
+                    sources: segment
+                        .sources
+                        .iter()
+                        .map(
+                            |source| new!(jbotci_search::vlacku::VlackuCompositionSource {
+                                entry_index: source.entry_index,
+                                word: source.word.to_owned(),
+                            })
+                        )
+                        .collect(),
+                    is_fuivla_rafsi: segment.kind
+                        == jbotci_dictionary::DictionaryLujvoSegmentKind::FuivlaRafsi,
                 })
             })
             .collect());
@@ -1500,7 +1512,8 @@ fn constituents_for(
                 new!(JvozbaConstituent {
                     text: segment.text.clone(),
                     is_hyphen: segment.kind == jbotci_jvozba::JvozbaSegmentKind::Hyphen,
-                    source: None,
+                    sources: Vec::new(),
+                    is_fuivla_rafsi: false,
                 })
             })
             .collect())
@@ -2243,8 +2256,22 @@ mod tests {
             .filter(|constituent| !constituent.is_hyphen)
             .collect::<Vec<_>>();
         assert_eq!(rafsi.len(), 2);
-        assert_eq!(rafsi[0].source.as_deref(), Some("klama"));
-        assert_eq!(rafsi[1].source.as_deref(), Some("bajra"));
+        assert_eq!(
+            rafsi[0]
+                .sources
+                .iter()
+                .map(|source| source.word.as_str())
+                .collect::<Vec<_>>(),
+            ["klama"]
+        );
+        assert_eq!(
+            rafsi[1]
+                .sources
+                .iter()
+                .map(|source| source.word.as_str())
+                .collect::<Vec<_>>(),
+            ["bajra"]
+        );
 
         // A literal rafsi keeps the place it was written in, before the word
         // that follows it.

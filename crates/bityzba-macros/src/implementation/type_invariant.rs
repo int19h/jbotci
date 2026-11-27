@@ -1286,6 +1286,8 @@ impl TypeShape {
         let data_ident = &self.data_ident;
         let mut generics = self.generics.clone();
         let (_, ty_generics, _) = self.generics.split_for_impl();
+        let formatter = Ident::new("formatter", proc_macro2::Span::mixed_site());
+        let debug = Ident::new("debug", proc_macro2::Span::mixed_site());
         let mut arms = Vec::new();
         let mut field_types = Vec::new();
         for variant in variants {
@@ -1293,7 +1295,7 @@ impl TypeShape {
             match &variant.fields {
                 Fields::Unit => {
                     arms.push(quote! {
-                        #data_ident::#variant_ident => formatter.write_str(::std::stringify!(#variant_ident))
+                        #data_ident::#variant_ident => #formatter.write_str(::std::stringify!(#variant_ident))
                     });
                 }
                 Fields::Unnamed(fields) => {
@@ -1303,11 +1305,11 @@ impl TypeShape {
                     field_types.extend(fields.unnamed.iter().map(|field| field.ty.clone()));
                     arms.push(quote! {
                         #data_ident::#variant_ident(#(#binding_idents,)*) => {
-                            let mut debug = formatter.debug_tuple(::std::stringify!(#variant_ident));
+                            let mut #debug = #formatter.debug_tuple(::std::stringify!(#variant_ident));
                             #(
-                                debug.field(#binding_idents);
+                                #debug.field(#binding_idents);
                             )*
-                            debug.finish()
+                            #debug.finish()
                         }
                     });
                 }
@@ -1320,11 +1322,11 @@ impl TypeShape {
                     field_types.extend(fields.named.iter().map(|field| field.ty.clone()));
                     arms.push(quote! {
                         #data_ident::#variant_ident { #(#field_idents,)* } => {
-                            let mut debug = formatter.debug_struct(::std::stringify!(#variant_ident));
+                            let mut #debug = #formatter.debug_struct(::std::stringify!(#variant_ident));
                             #(
-                                debug.field(::std::stringify!(#field_idents), #field_idents);
+                                #debug.field(::std::stringify!(#field_idents), #field_idents);
                             )*
-                            debug.finish()
+                            #debug.finish()
                         }
                     });
                 }
@@ -1339,7 +1341,7 @@ impl TypeShape {
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         quote! {
             impl #impl_generics ::std::fmt::Debug for #wrapper_ident #ty_generics #where_clause {
-                fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                fn fmt(&self, #formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                     match self.as_data() {
                         #(#arms,)*
                     }

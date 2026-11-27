@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{FnArg, ImplItem, ItemImpl, ItemTrait, Pat, TraitItem, TraitItemFn, spanned::Spanned};
 
@@ -80,9 +80,10 @@ pub(crate) fn contract_trait_item_trait(_attrs: TokenStream, mut trait_: ItemTra
                 Pat::Wild(wild) => {
                     let index = *next_synthetic;
                     *next_synthetic += 1;
+                    // Keep the generated name context, and point at the `_`.
                     let ident = syn::Ident::new(
                         &format!("__bityzba_contract_arg_{index}"),
-                        wild.underscore_token.span,
+                        Span::mixed_site().located_at(wild.underscore_token.span),
                     );
                     *pat = syn::parse_quote!(#ident);
                     Ok(ArgInfo {

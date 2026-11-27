@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use proc_macro2::{Spacing, TokenStream, TokenTree};
+use proc_macro2::{Spacing, Span, TokenStream, TokenTree};
 use syn::{Expr, ExprLit, Lit};
 
 /// Parse attributes into a list of expression and an optional description of
@@ -81,9 +81,26 @@ fn missing_contract_predicate_error(attrs: TokenStream) -> Expr {
 // This also has the effect that implication is right-associative, which is the
 // expected behaviour.
 fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
+    rewrite_segments(segments).tokens
+}
+
+/// The rewritten tokens of one segment list.
+///
+/// `implication` is true when the whole list is one implication. A
+/// parenthesis group around such a list is grouping that the implication
+/// needs, so the rewrite gives the group a macro span (see `rewrite_segments`).
+struct Rewritten {
+    tokens: TokenStream,
+    implication: bool,
+}
+
+fn rewrite_segments(segments: Vec<TokenTree>) -> Rewritten {
     let original = segments.iter().cloned().collect::<TokenStream>();
     if syn::parse2::<Expr>(original.clone()).is_ok() {
-        return original;
+        return Rewritten {
+            tokens: original,
+            implication: false,
+        };
     }
 
     let mut lhs = vec![];
@@ -98,13 +115,30 @@ fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
                 let stream: Vec<_> = group.stream().into_iter().collect();
 
                 let new_stream = if matches!(group.delimiter(), proc_macro2::Delimiter::Brace) {
-                    stream.into_iter().collect()
+                    Rewritten {
+                        tokens: stream.into_iter().collect(),
+                        implication: false,
+                    }
                 } else {
-                    rewrite(stream)
+                    rewrite_segments(stream)
                 };
 
-                let mut new_group = proc_macro2::Group::new(group.delimiter(), new_stream);
-                new_group.set_span(group.span());
+                // The user must write parentheses around an implication in a
+                // closure body, a call argument or an `if` condition. The
+                // rewrite puts its own parentheses inside them, so the compiler
+                // would report the user's pair as unused. A macro span on the
+                // user's pair keeps that lint quiet, and the location stays on
+                // the source group. Other groups keep their source span, so the
+                // lint still reports parentheses that are really redundant.
+                let group_span = if new_stream.implication
+                    && group.delimiter() == proc_macro2::Delimiter::Parenthesis
+                {
+                    Span::call_site().located_at(group.span())
+                } else {
+                    group.span()
+                };
+                let mut new_group = proc_macro2::Group::new(group.delimiter(), new_stream.tokens);
+                new_group.set_span(group_span);
 
                 lhs.push(TokenTree::Group(new_group));
                 idx += 1;
@@ -173,7 +207,10 @@ fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
     }
 
     match (rhs, span) {
-        (None, None) => lhs.into_iter().collect(),
+        (None, None) => Rewritten {
+            tokens: lhs.into_iter().collect(),
+            implication: false,
+        },
         (None, Some(_)) => {
             unreachable!("If there's a span there should be an implication")
         }
@@ -181,9 +218,14 @@ fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
         (Some(rhs), Some(span)) => {
             let lhs: TokenStream = lhs.into_iter().collect();
 
-            quote::quote_spanned! {
-                span =>
-                (!(#lhs) || #rhs)
+            // Keep the arrow location for diagnostics. Give the generated
+            // parentheses a macro span and keep the source spans on the operands.
+            Rewritten {
+                tokens: quote::quote_spanned! {
+                    Span::call_site().located_at(span) =>
+                    (!(#lhs) || #rhs)
+                },
+                implication: true,
             }
         }
     }

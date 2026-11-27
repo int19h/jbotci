@@ -10,9 +10,8 @@ use sha2::{Digest, Sha256};
 
 use super::*;
 use crate::cmavo_table::{
-    LujvoInlineData, bracketed_dictionary_word, cmavo_or_gismu_cell_inlines,
-    cmavo_valsi_part_inline, dictionary_word_link, lujvo_cell_inlines, lujvo_inline_choice,
-    marked_unlinked_cell_inlines, marked_valsi_span,
+    bracketed_dictionary_word, cmavo_or_gismu_cell_inlines, cmavo_valsi_part_inline,
+    lujvo_cell_inlines, lujvo_word_inline, marked_unlinked_cell_inlines, marked_valsi_span,
 };
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
@@ -2529,6 +2528,13 @@ pub(crate) fn cmavo_or_gismu_cell_text(cell: Node<'_, '_>) -> String {
     normalized_plain_text(&text)
 }
 
+/// True for an index term, an anchor, or a display-none element.
+#[requires(node.is_element())]
+#[ensures((node.has_tag_name("indexterm") || node.has_tag_name("anchor")) -> ret)]
+fn is_skipped_text_child(node: Node<'_, '_>) -> bool {
+    node.has_tag_name("indexterm") || node.has_tag_name("anchor") || is_display_none_element(node)
+}
+
 /// Append the cell text into `text`.
 ///
 /// Child elements add their text with no extra string of their own. Index
@@ -2539,13 +2545,7 @@ fn append_cmavo_or_gismu_cell_text(node: Node<'_, '_>, text: &mut String) {
     for child in node.children() {
         if child.is_text() {
             text.push_str(child.text().unwrap_or_default());
-        } else if child.is_element() {
-            if child.has_tag_name("indexterm")
-                || child.has_tag_name("anchor")
-                || is_display_none_element(child)
-            {
-                continue;
-            }
+        } else if child.is_element() && !is_skipped_text_child(child) {
             append_cmavo_or_gismu_cell_text(child, text);
         }
     }
@@ -2615,9 +2615,8 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
             let cell_text = cmavo_or_gismu_cell_text(cell);
             // Rule 12 renders each part as its own span. A bracket pair in
             // that spelling is not the single-word bracket form, so the cell
-            // mark judges the joined text. The builder passes the parts it
-            // already has. The audit calls the same choice function.
-            let cell_choice = cmavo_cell_link_choice(cell, &cell_text, Some(&parts));
+            // mark judges the joined text.
+            let cell_choice = cmavo_cell_link_choice(cell, &cell_text, true);
             let inlines = parts
                 .iter()
                 .map(|part| rule12_part_inline(part, cell_choice))
@@ -2628,7 +2627,7 @@ fn parse_cmavo_entry_cell(cell: Node<'_, '_>) -> CllCmavoListCell {
             });
         }
         let text = cmavo_or_gismu_cell_text(cell);
-        let inlines = match cmavo_cell_link_choice(cell, &text, None) {
+        let inlines = match cmavo_cell_link_choice(cell, &text, false) {
             MarkedWordLink::Unlinked => marked_unlinked_cell_inlines(&text),
             MarkedWordLink::Lujvo => lujvo_cell_inlines(&text),
             MarkedWordLink::Ordinary => cmavo_or_gismu_cell_inlines(&text),
@@ -2662,12 +2661,9 @@ fn rule12_part_inline(part: &AdjacentValsiPart, cell_choice: MarkedWordLink) -> 
         return marked_valsi_span(&part.text);
     }
     if lujvo {
-        return match lujvo_inline_choice(&part.text).as_data() {
-            data!(LujvoInline::Link(target)) => dictionary_word_link(target, &part.text),
-            data!(LujvoInline::Marked) | data!(LujvoInline::Plain) => marked_valsi_span(&part.text),
-        };
+        return lujvo_word_inline(&part.text);
     }
-    cmavo_valsi_part_inline(&part.text, true)
+    cmavo_valsi_part_inline(&part.text)
 }
 
 /// The text of each visible `valsi` element under `cell`.
@@ -2689,13 +2685,7 @@ fn valsi_element_words(cell: Node<'_, '_>) -> Vec<String> {
 #[ensures(words.iter().skip(old(words.len())).all(|word| !word.is_empty()))]
 fn collect_valsi_element_words(node: Node<'_, '_>, words: &mut Vec<String>) {
     for child in node.children() {
-        if !child.is_element() {
-            continue;
-        }
-        if child.has_tag_name("indexterm")
-            || child.has_tag_name("anchor")
-            || is_display_none_element(child)
-        {
+        if !child.is_element() || is_skipped_text_child(child) {
             continue;
         }
         if child.has_tag_name("valsi") {
@@ -2750,13 +2740,7 @@ fn adjacent_valsi_parts(cell: Node<'_, '_>) -> Option<Vec<AdjacentValsiPart>> {
             }
             continue;
         }
-        if !child.is_element() {
-            continue;
-        }
-        if child.has_tag_name("indexterm")
-            || child.has_tag_name("anchor")
-            || is_display_none_element(child)
-        {
+        if !child.is_element() || is_skipped_text_child(child) {
             continue;
         }
         if !child.has_tag_name("valsi") {
@@ -2793,10 +2777,7 @@ fn hidden_mark_element(cell: Node<'_, '_>, element: Node<'_, '_>) -> bool {
             return false;
         };
         if parent == cell {
-            return cursor.is_element()
-                && (cursor.has_tag_name("indexterm")
-                    || cursor.has_tag_name("anchor")
-                    || is_display_none_element(cursor));
+            return is_skipped_text_child(cursor);
         }
         if !parent.is_element() {
             return false;
@@ -2807,14 +2788,13 @@ fn hidden_mark_element(cell: Node<'_, '_>, element: Node<'_, '_>) -> bool {
 
 /// The link choice for one cmavo or gismu cell.
 ///
-/// `parts` is the rule-12 list when the caller already has it. `None` means
-/// the cell is not rule 12. A rule-12 cell folds the cell mark and every
-/// mark under a skipped hidden child. The spelling is the joined cell text.
+/// A rule-12 cell folds the cell mark and every mark under a skipped child.
+/// The spelling is the joined cell text.
 /// That fold uses `TreeSpelling::Raw`. A single-word cell uses the tree
 /// choice and unwraps one bracket pair. Both paths call `fold_marked_links`.
 /// The builder and the audit both call this function.
 #[requires(cell.is_element())]
-#[requires(parts.is_none() || cell.has_tag_name("cmavo") || cell.has_tag_name("gismu"))]
+#[requires(is_rule12 -> (cell.has_tag_name("cmavo") || cell.has_tag_name("gismu")))]
 #[ensures(attr_value(cell, "glossary") == Some("false") -> matches!(ret, MarkedWordLink::Unlinked))]
 #[bityzba::expensive_ensures(matches!(ret, MarkedWordLink::Lujvo) -> cell.descendants().any(
     |element| {
@@ -2823,12 +2803,8 @@ fn hidden_mark_element(cell: Node<'_, '_>, element: Node<'_, '_>) -> bool {
             && matches!(attr_value(element, "valid"), Some("false" | "maybe"))
     }
 ))]
-fn cmavo_cell_link_choice(
-    cell: Node<'_, '_>,
-    text: &str,
-    parts: Option<&[AdjacentValsiPart]>,
-) -> MarkedWordLink {
-    if parts.is_some() {
+fn cmavo_cell_link_choice(cell: Node<'_, '_>, text: &str, is_rule12: bool) -> MarkedWordLink {
+    if is_rule12 {
         return fold_marked_links(cell, text, TreeSpelling::Raw, |element| {
             hidden_mark_element(cell, element)
         });
@@ -2853,9 +2829,9 @@ fn cmavo_cell_link_choice(
 }))]
 pub(crate) fn cmavo_cell_opted_out(cell: Node<'_, '_>) -> bool {
     let text = cmavo_or_gismu_cell_text(cell);
-    let parts = adjacent_valsi_parts(cell);
+    let is_rule12 = adjacent_valsi_parts(cell).is_some();
     matches!(
-        cmavo_cell_link_choice(cell, &text, parts.as_deref()),
+        cmavo_cell_link_choice(cell, &text, is_rule12),
         MarkedWordLink::Unlinked
     )
 }
@@ -3275,13 +3251,7 @@ pub(crate) fn visible_text_raw(node: Node<'_, '_>) -> String {
     for child in node.children() {
         if child.is_text() {
             output.push_str(child.text().unwrap_or_default());
-        } else if child.is_element() {
-            if child.has_tag_name("indexterm")
-                || child.has_tag_name("anchor")
-                || is_display_none_element(child)
-            {
-                continue;
-            }
+        } else if child.is_element() && !is_skipped_text_child(child) {
             output.push(' ');
             output.push_str(&visible_text_raw(child));
             output.push(' ');

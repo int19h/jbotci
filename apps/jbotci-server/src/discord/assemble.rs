@@ -1020,6 +1020,7 @@ mod tests {
     fn a_dictionary_card_cut_short_is_attached_in_full() {
         let definition = format!("x1 {} x2", "very long gloss ".repeat(40));
         let card = new!(jbotci_search::vlacku::VlackuCard {
+            entry_index: None,
             word: "brodavla".to_owned(),
             word_type: "gismu".to_owned(),
             known: true,

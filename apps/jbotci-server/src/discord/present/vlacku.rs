@@ -225,17 +225,28 @@ fn card_markdown(
     }
     if decompose_lujvo && !card.decomposition.is_empty() {
         let pieces = text_scope.join(
-            card.decomposition
-                .iter()
-                .map(|piece| match (piece.kind, &piece.source) {
-                    (VlackuCompositionKind::Hyphen, _) => {
-                        text_scope.format(format_args!("-{}-", piece.surface))
+            card.decomposition.iter().map(|piece| match piece.kind {
+                VlackuCompositionKind::Hyphen => {
+                    text_scope.format(format_args!("-{}-", piece.surface))
+                }
+                VlackuCompositionKind::FuivlaRafsi if piece.sources.is_empty() => {
+                    text_scope.format(format_args!("{} (fu'ivla rafsi)", piece.surface))
+                }
+                VlackuCompositionKind::FuivlaRafsi => {
+                    let sources =
+                        text_scope.join(piece.sources.iter().map(|source| &source.word), " / ");
+                    text_scope.format(format_args!(
+                        "{} (fu'ivla rafsi of {sources})",
+                        piece.surface
+                    ))
+                }
+                VlackuCompositionKind::Rafsi => match piece.sources.first() {
+                    Some(source) if source.word != piece.surface => {
+                        text_scope.format(format_args!("{} ({})", piece.surface, source.word))
                     }
-                    (VlackuCompositionKind::Rafsi, Some(source)) if source != &piece.surface => {
-                        text_scope.format(format_args!("{} ({source})", piece.surface))
-                    }
-                    (VlackuCompositionKind::Rafsi, _) => text_scope.copy(&piece.surface),
-                }),
+                    _ => text_scope.copy(&piece.surface),
+                },
+            }),
             " + ",
         );
         lines.push(subtext_in_scope(

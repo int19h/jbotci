@@ -4,7 +4,7 @@
 
 use std::collections::BTreeSet;
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream, Parser};
 use syn::punctuated::Punctuated;
@@ -69,8 +69,9 @@ fn data_expression(assignments: DataAssignments) -> TokenStream {
         Err(error) => return error.to_compile_error(),
     };
 
+    let data = Ident::new("__bityzba_data", Span::mixed_site());
     quote! {
-        |__bityzba_data| __bityzba_data #setters
+        |#data| #data #setters
     }
 }
 
@@ -139,8 +140,9 @@ fn construct_struct(expression: ExprStruct, mode: ConstructionMode) -> TokenStre
         ConstructionMode::Fallible => quote! { __bityzba_try_from_data_builder },
     };
 
+    let data = Ident::new("__bityzba_data", Span::mixed_site());
     quote! {
-        #type_path::#method(|__bityzba_data| __bityzba_data #setters)
+        #type_path::#method(|#data| #data #setters)
     }
 }
 

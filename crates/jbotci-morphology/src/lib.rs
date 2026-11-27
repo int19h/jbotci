@@ -87,10 +87,10 @@ pub use lujvo::{
     ConsonantPairClass, GismuShape, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData,
     LujvoCandidate, LujvoCandidateData, RafsiShape, ShortRafsiForm, ShortRafsiFormData,
     ShortRafsiShape, bond_rafsis, choose_best_lujvo_candidate,
-    choose_best_lujvo_candidate_from_parts, consonant_pair_class, ends_with_consonant,
-    ends_with_vowel, ensure_cmevla_word, is_bonding_hyphen, is_cmevla, is_consonant,
-    is_valid_lujvo_candidate_word, is_vowel, permissible_consonant_pair,
-    possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
+    choose_best_lujvo_candidate_from_parts, choose_best_lujvo_candidate_from_parts_with_filter,
+    consonant_pair_class, ends_with_consonant, ends_with_vowel, ensure_cmevla_word,
+    is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
+    permissible_consonant_pair, possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
 };
 #[cfg(any(test, feature = "recognition_work_counter"))]
 #[doc(hidden)]
@@ -787,6 +787,7 @@ define_string_enum_metadata! {
         Long => ("LONG", "long"),
         Gismu => ("GISMU", "gismu"),
         Fuhivla => ("FUIVLA", "fuhivla"),
+        FuhivlaRafsi => ("FUIVLARAFSI", "fuhivla-rafsi"),
         Cultural => ("CULTURAL", "cultural"),
         Extended => ("EXTENDED", "extended"),
         Unknown => ("UNKNOWN", "unknown"),
@@ -1189,6 +1190,29 @@ impl Word {
 }
 
 impl LujvoPart {
+    /// Return whether this part is a fu'ivla rafsi followed by its hyphen.
+    ///
+    /// A consonant-final stem takes `y` (`ierx-y`). A vowel-final part takes
+    /// `'y`: the full fu'ivla (`spageti'y`), or the short form of a fu'ivla
+    /// whose final vowel follows an apostrophe (`actce'y` from `actce'o`) or
+    /// a glide (`barbekei'y` from `barbekeiu`, read `barbekéĭu`).
+    #[requires(true)]
+    #[ensures(ret -> matches!(self, Self::Rafsi(_)))]
+    pub fn is_fuhivla_rafsi_before(&self, next: Option<&Self>) -> bool {
+        let Self::Rafsi(stem) = self else {
+            return false;
+        };
+        let Some(Self::Hyphen(hyphen)) = next else {
+            return false;
+        };
+        let stem = canonicalize_text(stem.as_str());
+        match hyphen.as_str() {
+            "y" | "y'" => is_fuhivla_rafsi_stem(&stem),
+            "'y" | "'y'" => segment::is_fuhivla_rafsi_head_before_apostrophe_y(&stem),
+            _ => false,
+        }
+    }
+
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|part| matches!(part, LujvoPart::Rafsi(_))) || ret.is_err())]
     pub fn parse_bare_rafsi(text: &str) -> Result<Self, LujvoFragmentError> {
@@ -2874,12 +2898,15 @@ fn plain_word_classification(word: &Word) -> PlainWordClassification {
             stage: None,
         }),
         WordKind::Lujvo => {
-            let parts = word
+            let parsed = word
                 .lujvo_parts()
-                .expect("lujvo words carry parsed lujvo parts")
-                .iter()
-                .map(valsi_lujvo_part)
-                .collect::<Vec<_>>();
+                .expect("lujvo words carry parsed lujvo parts");
+            let mut remaining = parsed.iter().peekable();
+            let parts = std::iter::from_fn(|| {
+                let part = remaining.next()?;
+                Some(valsi_lujvo_part(part, remaining.peek().copied()))
+            })
+            .collect::<Vec<_>>();
             let split = parts
                 .iter()
                 .map(|part| part.text.as_str())
@@ -2915,13 +2942,19 @@ fn plain_word_classification(word: &Word) -> PlainWordClassification {
 
 #[requires(true)]
 #[ensures(!ret.text.is_empty())]
-fn valsi_lujvo_part(part: &LujvoPart) -> ValsiLujvoPart {
+fn valsi_lujvo_part(part: &LujvoPart, next: Option<&LujvoPart>) -> ValsiLujvoPart {
     match part {
         LujvoPart::Rafsi(phonemes) => {
             let text = phonemes.as_str().to_owned();
             new!(ValsiLujvoPart {
                 kind: ValsiLujvoPartKind::Rafsi,
-                rafsi_kind: Some(segment::classify_lujvo_rafsi(&text)),
+                rafsi_kind: Some(if part.is_fuhivla_rafsi_before(next) {
+                    ValsiLujvoRafsiKind::FuhivlaRafsi
+                } else {
+                    // The class rules read unmarked text, as the stem test
+                    // does. `splurtakní` before `'y` is still a full fu'ivla.
+                    segment::classify_lujvo_rafsi(&canonicalize_text(&text))
+                }),
                 text: text,
             })
         }
@@ -3376,7 +3409,7 @@ pub fn is_word_forming_character(value: char) -> bool {
 /// Letters are lowercase. Commas are removed. Stress marks and glide marks
 /// become plain vowels. Each Latin apostrophe spelling becomes `'`.
 #[requires(true)]
-#[ensures(!ret.is_empty() || text.is_empty())]
+#[ensures(!ret.is_empty() || canonical_text_chars(text).next().is_none())]
 #[bityzba::expensive_ensures(ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value)))]
 pub fn canonicalize_text(text: &str) -> String {
     canonical_text_chars(text).collect()
@@ -3390,6 +3423,33 @@ fn canonical_text_chars(text: &str) -> impl Iterator<Item = char> + '_ {
         .filter_map(fold_lojban_diacritic)
         .flat_map(char::to_lowercase)
         .map(normalize_latin_apostrophe)
+}
+
+/// Return whether a stem satisfies the fu'ivla rafsi rule before `y`.
+///
+/// The text may carry stress and glide marks or another apostrophe
+/// spelling. The rule reads its canonical letters.
+#[requires(true)]
+#[ensures(ret -> !stem.is_empty())]
+pub fn is_fuhivla_rafsi_stem(stem: &str) -> bool {
+    segment::is_fuhivla_rafsi_stem(stem)
+}
+
+/// Return whether a part is a fu'ivla rafsi with the hyphen that its last
+/// letter takes: `y` after a consonant, `'y` after a vowel (CLL 4.16).
+///
+/// The part is not a fu'ivla rafsi when the morphology reads it as an
+/// ordinary rafsi, a string of rafsi, or a gismu. The rule reads the
+/// canonical letters of `part`.
+#[requires(true)]
+#[ensures(ret -> !part.is_empty())]
+pub fn is_fuhivla_rafsi_form(part: &str) -> bool {
+    let canonical = canonicalize_text(part);
+    if canonical.chars().last().is_some_and(segment::is_vowel) {
+        segment::is_fuhivla_rafsi_head_before_apostrophe_y(&canonical)
+    } else {
+        segment::is_fuhivla_rafsi_stem(&canonical)
+    }
 }
 
 #[requires(true)]
@@ -3436,7 +3496,7 @@ pub fn normalize_lojban_input_text_with_options(
         }
     }
     append_normalized_lojban_input_chunk(&mut output, &chunk, options)?;
-    Some(output)
+    (!output.is_empty() || input.is_empty()).then_some(output)
 }
 
 #[requires(true)]
@@ -3826,6 +3886,116 @@ mod tests {
 
         assert_eq!(base_phoneme_texts(&words), vec!["tci'ilykemcantútra"]);
         assert_eq!(base_word(&words[0]).map(Word::kind), Some(WordKind::Lujvo));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valsi_analysis_names_fuivla_rafsi() {
+        for (lujvo, stem) in [("ierxydatsi'o", "ierx"), ("tci'ilykemcantutra", "tci'il")] {
+            assert!(is_fuhivla_rafsi_stem(stem));
+            let analysis = analyze_valsi(lujvo);
+            let word = analysis
+                .result
+                .classification
+                .as_ref()
+                .and_then(ValsiClassification::word)
+                .expect("plain word classification");
+            assert_eq!(canonicalize_text(&word.parts[0].text), stem);
+            assert_eq!(
+                word.parts[0].rafsi_kind,
+                Some(ValsiLujvoRafsiKind::FuhivlaRafsi)
+            );
+        }
+        assert!(!is_fuhivla_rafsi_stem("spaget"));
+        // A full fu'ivla before `'y` keeps its class when its last syllable
+        // carries the stress mark.
+        for (lujvo, unstressed) in [
+            ("splurtakni'yxau", "splurtakni'yxamgu"),
+            ("actce'ybau", "actce'ybatci"),
+        ] {
+            let kinds = [lujvo, unstressed].map(|text| {
+                analyze_valsi(text)
+                    .result
+                    .classification
+                    .as_ref()
+                    .and_then(ValsiClassification::word)
+                    .expect("plain word classification")
+                    .parts[0]
+                    .rafsi_kind
+            });
+            assert_ne!(kinds[0], Some(ValsiLujvoRafsiKind::Unknown), "{lujvo}");
+            assert_eq!(kinds[0], kinds[1], "{lujvo}");
+        }
+        // A vowel-final part before `'y` is a fu'ivla rafsi: the full form of a
+        // fu'ivla, or the short form of one whose final vowel follows an
+        // apostrophe or a glide (CLL 4.16). `kla'y` stays an ordinary rafsi.
+        for (lujvo, expected) in [
+            ("actce'ybau", ValsiLujvoRafsiKind::FuhivlaRafsi),
+            ("spageti'ykukte", ValsiLujvoRafsiKind::FuhivlaRafsi),
+            ("adzau'ybau", ValsiLujvoRafsiKind::FuhivlaRafsi),
+            ("adzybau", ValsiLujvoRafsiKind::FuhivlaRafsi),
+        ] {
+            let kind = analyze_valsi(lujvo)
+                .result
+                .classification
+                .as_ref()
+                .and_then(ValsiClassification::word)
+                .expect("plain word classification")
+                .parts[0]
+                .rafsi_kind;
+            assert_eq!(kind, Some(expected), "{lujvo}");
+        }
+        // The kind covers short forms and full forms, so its JSON name is
+        // `fuhivla-rafsi`.
+        assert_eq!(
+            serde_json::to_value(ValsiLujvoRafsiKind::FuhivlaRafsi).unwrap(),
+            serde_json::json!("fuhivla-rafsi")
+        );
+        assert_eq!(
+            ValsiLujvoRafsiKind::FuhivlaRafsi.variant_name(),
+            "FUIVLARAFSI"
+        );
+        assert!(is_fuhivla_rafsi_form("actce"));
+        assert!(is_fuhivla_rafsi_form("ierx"));
+        assert!(!is_fuhivla_rafsi_form("kla"));
+        assert!(!is_fuhivla_rafsi_form("klama"));
+        // A string of ordinary rafsi before `y` or `'y` is not a fu'ivla
+        // rafsi, as on main. The classifiers read canonical letters, so marked
+        // text gets the same answer.
+        for (lujvo, part, kind) in [
+            ("velski'y'esku", 0, ValsiLujvoRafsiKind::Extended),
+            ("jbobau'ybra", 0, ValsiLujvoRafsiKind::Extended),
+            ("jbokla'ybangu", 0, ValsiLujvoRafsiKind::Extended),
+            (
+                "facyborselkaizilkanpyborselkaimau'yraunzu",
+                8,
+                ValsiLujvoRafsiKind::Extended,
+            ),
+        ] {
+            let word = analyze_valsi(lujvo);
+            let word = word
+                .result
+                .classification
+                .as_ref()
+                .and_then(ValsiClassification::word)
+                .expect("plain word classification");
+            assert_eq!(word.parts[part].rafsi_kind, Some(kind), "{lujvo}");
+        }
+        for (marked, plain) in [("jbobáŭ", "jbobau"), ("ĭérx", "ierx"), ("áctce", "actce")] {
+            assert_eq!(
+                is_fuhivla_rafsi_form(marked),
+                is_fuhivla_rafsi_form(plain),
+                "{marked}"
+            );
+            assert_eq!(
+                is_fuhivla_rafsi_stem(marked),
+                is_fuhivla_rafsi_stem(plain),
+                "{marked}"
+            );
+        }
+        assert!(!is_fuhivla_rafsi_form("jbobau"));
+        assert!(!is_fuhivla_rafsi_form("velski"));
     }
 
     #[test]
@@ -4757,6 +4927,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn normalizes_lojban_input_text_for_exact_lookups() {
+        assert_eq!(normalize_lojban_input_text("").as_deref(), Some(""));
+        assert_eq!(normalize_lojban_input_text(","), None);
+        assert_eq!(normalize_lojban_input_text("\u{0301},"), None);
         assert_eq!(
             normalize_lojban_input_text("ми клама").as_deref(),
             Some("mi klama")
@@ -5100,35 +5273,51 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn permissive_lexer_leaves_zoi_and_laho_payload_text_untouched() {
-        let options = permissive_lexer_options();
-        let cases = [
+        let permissive = permissive_lexer_options();
+        let unchanged = [
             ("zoi gy !?#🙂 gy", "!?#🙂"),
             ("la'o gy !?#🙂 gy", "!?#🙂"),
-            ("zoi gy @gy gy", "@gy"),
-            ("zoi gy payload@gy gy", "payload@gy"),
             ("zoi gy text gy@tail gy", "text gy@tail"),
+            ("la'o gy text gy@tail gy", "text gy@tail"),
         ];
-        for (source, expected_payload) in cases {
-            for mode in [&MorphologyOptions::default(), &options] {
-                let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
-                    source, mode, None,
-                );
-                let data = attempt.into_data();
-                let words = data.result.expect("valid delimited quote");
-                let [word] = words.as_slice() else {
-                    panic!("expected one quote token: {source}");
-                };
-                let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = word.as_data()
-                else {
-                    panic!("expected delimited quote: {source}");
-                };
-                assert_eq!(quoted_text.text, expected_payload, "{source}");
-                assert!(
-                    data.warnings
-                        .iter()
-                        .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
-                    "quote payload characters must not be counted as ignored: {source}"
-                );
+        for (source, expected_payload) in unchanged {
+            for mode in [&MorphologyOptions::default(), &permissive] {
+                assert_quote_payload_is_not_ignored(source, mode, expected_payload, &[]);
+            }
+        }
+        // The closer search and the closing word ignore the permissive tier,
+        // so a boundary before or after the delimiter letters does not close
+        // the quote in either mode (#1132).
+        let payload_keeps_the_boundary = [
+            ("zoi gy @gy gy", "@gy", 1),
+            ("la'o gy @gy gy", "@gy", 1),
+            ("zoi gy payload@gy gy", "payload@gy", 1),
+            ("la'o gy payload@gy gy", "payload@gy", 1),
+            ("zoi gy a #gy b gy", "a #gy b", 1),
+            ("la'o gy a #gy b gy", "a #gy b", 1),
+            ("zoi gy a gy# b gy", "a gy# b", 1),
+            ("la'o gy a gy# b gy", "a gy# b", 1),
+            ("mi cusku zoi gy. tag: #gy .gy", "tag: #gy", 3),
+        ];
+        for (source, expected_payload, word_count) in payload_keeps_the_boundary {
+            for mode in [&MorphologyOptions::default(), &permissive] {
+                let words =
+                    segment_words_with_modifiers_with_options_and_source_id(source, mode, None)
+                        .unwrap_or_else(|error| panic!("quote parse failed for {source}: {error}"));
+                assert_eq!(words.len(), word_count, "{source}");
+                let quote = words
+                    .iter()
+                    .find_map(|word| match word.as_data() {
+                        data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) => {
+                            Some(quoted_text)
+                        }
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| panic!("expected a delimited quote: {source}"));
+                assert_eq!(quote.text, expected_payload, "{source}");
+                if word_count == 1 {
+                    assert_quote_payload_is_not_ignored(source, mode, expected_payload, &[]);
+                }
             }
         }
     }
@@ -6005,6 +6194,42 @@ mod tests {
             .iter()
             .map(|word| base_phonemes(word).expect("base word"))
             .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_quote_payload_is_not_ignored(
+        source: &str,
+        mode: &MorphologyOptions,
+        expected_payload: &str,
+        following: &[&str],
+    ) {
+        let attempt =
+            segment_words_with_modifiers_with_options_and_source_id_attempt(source, mode, None);
+        let data = attempt.into_data();
+        let words = data
+            .result
+            .unwrap_or_else(|error| panic!("quote parse failed for {source}: {error}"));
+        assert_eq!(words.len(), 1 + following.len(), "{source}");
+        let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = words[0].as_data()
+        else {
+            panic!("expected delimited quote: {source}");
+        };
+        assert_eq!(quoted_text.text, expected_payload, "{source}");
+        assert_eq!(
+            &source[quoted_text.span.byte_start..quoted_text.span.byte_end],
+            expected_payload,
+            "{source}"
+        );
+        for (word, expected) in words[1..].iter().zip(following) {
+            assert_eq!(base_phonemes(word).as_deref(), Some(*expected), "{source}");
+        }
+        assert!(
+            data.warnings
+                .iter()
+                .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+            "quote payload characters must not be counted as ignored: {source}"
+        );
     }
 
     #[requires(true)]

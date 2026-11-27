@@ -4388,6 +4388,9 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .dictionary-page .rafsi-split-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
   padding: 0.2rem 0.58rem;
   border-radius: 999px 0 0 999px;
   border-right: 1px solid var(--app-border-strong);
@@ -4396,12 +4399,21 @@ body::-webkit-scrollbar-thumb:hover,
   font-weight: 700;
 }
 
+.dictionary-page .rafsi-split-left:only-child {
+  border-right: 0;
+  border-radius: 999px;
+}
+
 .dictionary-page .rafsi-split-right {
   display: inline-flex;
   align-items: center;
   padding: 0.2rem 0.58rem;
   font-size: 0.78rem;
   background: color-mix(in srgb, var(--app-surface-1) 76%, var(--app-surface-0));
+}
+
+.dictionary-page .rafsi-split-right + .rafsi-split-right {
+  border-left: 1px solid var(--app-border-strong);
 }
 
 .dictionary-page .rafsi-source-link {
@@ -4517,7 +4529,8 @@ body::-webkit-scrollbar-thumb:hover,
   font-style: italic;
 }
 
-.app-page.orthography-zbalermorna .dictionary-page .dictionary-word-link {
+.app-page.orthography-zbalermorna .dictionary-page .dictionary-word-link,
+.app-page.orthography-zbalermorna .dictionary-page .rafsi-split-surface {
   font-family: var(--lojban-font);
   font-style: normal;
 }
@@ -4604,6 +4617,7 @@ body::-webkit-scrollbar-thumb:hover,
   box-shadow: none;
 }
 
+/* The card follows the stack. The stack keeps the hide delay. */
 .tooltip-stack-card {
   position: static;
   flex-shrink: 0;
@@ -4611,6 +4625,7 @@ body::-webkit-scrollbar-thumb:hover,
   max-height: none;
   overflow: visible;
   visibility: inherit;
+  transition: none;
 }
 
 .dictionary-tooltip-host:hover > .rich-dictionary-tooltip[data-jbotci-position-ready="true"],
