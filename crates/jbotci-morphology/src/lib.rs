@@ -3337,9 +3337,8 @@ fn single_constructor(
     Ok(object.into_iter().next().expect("object has one item"))
 }
 
-/// Return whether phoneme text is legal and not only commas.
-///
-/// One pass reads both rules. A constructor uses this function in every build.
+/// Return whether `value` is a canonical Lojban phoneme character: a letter
+/// with its stress and glide marks, an apostrophe, a comma, or a digit.
 #[requires(true)]
 #[ensures(true)]
 pub fn is_valid_phoneme(value: char) -> bool {

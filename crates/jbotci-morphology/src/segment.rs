@@ -112,9 +112,23 @@ pub enum LookupStep {
 #[requires(true)]
 #[ensures(true)]
 pub fn transcribe_lookup_run(run: &str, mut on_step: impl FnMut(LookupStep)) {
-    let options = MorphologyOptions::default();
-    let units = canonical_converter_units(run.chars().enumerate(), &options);
-    let _ = walk_converter_units::<std::convert::Infallible>(&units, &options, true, |step| {
+    thread_local! {
+        // A key is made for every completion label, so the default options,
+        // which build a compiled dialect, are made once for each thread.
+        static LOOKUP_OPTIONS: MorphologyOptions = MorphologyOptions::default();
+    }
+    LOOKUP_OPTIONS.with(|options| transcribe_lookup_run_with(run, options, &mut on_step));
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn transcribe_lookup_run_with(
+    run: &str,
+    options: &MorphologyOptions,
+    on_step: &mut impl FnMut(LookupStep),
+) {
+    let units = canonical_converter_units(run.chars().enumerate(), options);
+    let _ = walk_converter_units::<std::convert::Infallible>(&units, options, true, |step| {
         match step.into_data() {
             data!(ConverterStep::Letter { value, .. }) => on_step(new!(LookupStep::Letter(value))),
             data!(ConverterStep::Stress { .. }) => {}

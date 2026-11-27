@@ -1108,13 +1108,12 @@ fn cards_for_lujvo(
     };
     // The key is already the lookup key of the query, so it is not keyed again.
     let query = key.as_str();
-    let normalized = query;
     let exact_entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     let exact_found = !exact_entries.is_empty();
     let mut runtime_decomposition = None;
     let mut candidates = if exact_entries.is_empty() {
         let decomposition = decompose_query(dictionary, query, &options.cancellation)?;
-        let candidates = match classify_exact_word(query, &normalized, &options.cancellation)? {
+        let candidates = match classify_exact_word(query, query, &options.cancellation)? {
             Some(classification) => vec![new!(VlackuCandidate::Missing {
                 card: unknown_card(classification, decomposition.as_ref()),
             })],

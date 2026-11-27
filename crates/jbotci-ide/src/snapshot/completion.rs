@@ -8,7 +8,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, LookupKey, LookupPrefix, WordType, normalize_lookup_query};
 use jbotci_morphology::{
     Cmavo, MorphologyContextKind, MorphologyError, NodeRef as MorphologyNodeRef, Selmaho,
@@ -169,6 +169,7 @@ impl CompletionDocumentationHandle {
 #[invariant(replacement_text == label || replacement_text.strip_prefix(' ').is_some_and(|text| text == label.as_str()))]
 #[invariant(replacement_span.byte_start <= replacement_span.byte_end)]
 #[invariant(replacement_span.char_start <= replacement_span.char_end)]
+#[expensive_invariant(*lookup_key == LookupKey::from_stored(label), "the key is the stored-text key of the label")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompletionItem {
     pub label: String,
@@ -183,6 +184,9 @@ pub struct CompletionItem {
     pub document_local: bool,
     pub preselect: bool,
     suffix_consistent: bool,
+    /// The stored-text key of `label`, made once when the item is added, so
+    /// the gloss lookup and the preselect test do not key the label again.
+    lookup_key: LookupKey,
 }
 
 impl CompletionItem {
@@ -451,10 +455,10 @@ impl DocumentSnapshot {
 
         let short_glosses = {
             // The labels are dictionary words and cmavo, which use the
-            // stored-text key.
+            // stored-text key that `add_candidate` made.
             let labels = items
                 .values()
-                .map(|item| LookupKey::from_stored(&item.label))
+                .map(|item| item.lookup_key.clone())
                 .collect::<Vec<_>>();
             dictionary.first_gloss_keywords_for_words(&labels)
         };
@@ -479,7 +483,7 @@ impl DocumentSnapshot {
                     && item.replacement_span == replacement_span
                     && current_word
                         .as_ref()
-                        .is_some_and(|current| normalize_lookup_query(&item.label) == *current);
+                        .is_some_and(|current| item.lookup_key.as_str() == current.as_str());
                 if should_preselect {
                     preselected = true;
                     item.with_data(data! { preselect: true })
@@ -1059,12 +1063,14 @@ impl CompletionContext<'_, '_, '_, '_> {
         if self.cancellation.is_cancelled() {
             return;
         }
-        let normalized_label = normalize_lookup_query(label);
+        // The label is keyed once, here.
+        let lookup_key = LookupKey::from_stored(label);
+        let normalized_label = lookup_key.as_str().to_owned();
         if normalized_label.is_empty()
             || !self
                 .normalized_prefix
                 .as_ref()
-                .is_some_and(|prefix| normalized_label.starts_with(prefix.as_str()))
+                .is_some_and(|prefix| prefix.matches(&normalized_label))
             || !self.snapshot.completion_candidate_surfaces(
                 label,
                 &self.replacement_span,
@@ -1112,6 +1118,7 @@ impl CompletionContext<'_, '_, '_, '_> {
                 document_local,
                 preselect: false,
                 suffix_consistent,
+                lookup_key,
             }),
         );
     }
@@ -1338,11 +1345,20 @@ mod tests {
             !bare.is_empty(),
             "a bare U+ED8B at the end keeps its completions"
         );
-        // A Cyrillic vowel before its breve keys as far as both readings
-        // agree, so `шои` offers `coi`, which `шои` + U+0306 spells.
+        // A Cyrillic vowel before its breve has two readings, so `шои`
+        // offers `co'i` and `coi`, which `шои` + U+0306 spells, and nothing
+        // that continues neither reading, such as `cortu`.
         let before_breve = replaced_words("шои|");
         assert!(
             before_breve.iter().any(|(label, ..)| label == "coi"),
+            "{before_breve:?}"
+        );
+        assert!(
+            before_breve.iter().any(|(label, ..)| label == "co'i"),
+            "{before_breve:?}"
+        );
+        assert!(
+            !before_breve.iter().any(|(label, ..)| label == "cortu"),
             "{before_breve:?}"
         );
     }

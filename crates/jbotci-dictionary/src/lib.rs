@@ -367,10 +367,13 @@ impl<'a> Dictionary<'a> {
             .collect()
     }
 
-    /// Return dictionary entries whose normalized word starts with `prefix`.
+    /// Return dictionary entries whose normalized word starts with a reading
+    /// of `prefix`.
     ///
-    /// Index keys stay in lexicographic order. The iterator reads one key at
-    /// a time. Entries that share one key are ordered by score, from high to
+    /// Each reading selects one run of index keys. With two readings, the
+    /// runs are joined: an overlap is read once, so no entry repeats. Index
+    /// keys stay in lexicographic order. The iterator reads one key at a
+    /// time. Entries that share one key are ordered by score, from high to
     /// low. Entries with the same score stay in source order.
     #[requires(true)]
     #[ensures(true)]
@@ -378,14 +381,27 @@ impl<'a> Dictionary<'a> {
         &'lookup self,
         prefix: &LookupPrefix,
     ) -> impl Iterator<Item = &'lookup DictionaryEntry<'a>> + 'lookup {
-        let normalized = prefix.as_str();
-        let start = self
-            .word_index
-            .partition_point(|entry| entry.key < normalized);
-        let end = self
-            .word_index
-            .partition_point(|entry| entry.key < normalized || entry.key.starts_with(normalized));
-        let mut position = start;
+        let mut runs = prefix
+            .readings()
+            .map(|reading| {
+                let key = reading.as_str();
+                let start = self.word_index.partition_point(|entry| entry.key < key);
+                let end = self
+                    .word_index
+                    .partition_point(|entry| entry.key < key || entry.key.starts_with(key));
+                start..end
+            })
+            .collect::<Vec<_>>();
+        runs.sort_by_key(|run| run.start);
+        // Join the runs that overlap, so each index position is read once.
+        let mut positions = Vec::<std::ops::Range<usize>>::with_capacity(runs.len());
+        for run in runs {
+            match positions.last_mut() {
+                Some(last) if run.start <= last.end => last.end = last.end.max(run.end),
+                _ => positions.push(run),
+            }
+        }
+        let mut positions = positions.into_iter().flatten();
         let mut pending = Vec::new();
         let mut cursor = 0;
         std::iter::from_fn(move || {
@@ -395,11 +411,8 @@ impl<'a> Dictionary<'a> {
                     cursor += 1;
                     return Some(self.entry_at(index));
                 }
-                if position >= end {
-                    return None;
-                }
+                let position = positions.next()?;
                 pending = self.word_index[position].targets.to_vec();
-                position += 1;
                 rank_entry_indices_by_score(self, &mut pending);
                 cursor = 0;
             }
@@ -1241,13 +1254,63 @@ fn rafsi_targets_ranked_by_entry_score(
 /// This is the key of `normalize_lookup_pattern` for `raw` alone, with one
 /// difference: an index key cannot fail, so a character that a lookup rejects
 /// is left out. See `lookup_key_char` for the character rules.
+///
+/// Most stored text, such as a headword or a completion label, is already
+/// plain Lojban in lowercase ASCII. For that text the converter reads each
+/// letter as itself, so the key is the words with commas removed, joined by
+/// one space, and the function takes that short path. The expensive
+/// postcondition checks that the short path gives the converter's key.
 #[requires(true)]
 #[ensures(!ret.starts_with(' ') && !ret.ends_with(' '))]
 #[bityzba::expensive_ensures(!ret.contains("  ") && ret.chars().all(|value| value == ' ' || is_lookup_char(value)))]
+#[bityzba::expensive_ensures(
+    ret == key_text_of(
+        &build_lookup_key::<()>(&[LookupPatternPart::Literal(raw)], LookupKeyMode::Index)
+            .expect("an index key leaves out what a lookup rejects")
+    ),
+    "the short path gives the converter's key"
+)]
 pub fn normalize_lookup_query(raw: &str) -> String {
+    if let Some(key) = plain_lojban_key(raw) {
+        return key;
+    }
     let keyed = build_lookup_key::<()>(&[LookupPatternPart::Literal(raw)], LookupKeyMode::Index)
         .expect("an index key leaves out what a lookup rejects");
     key_text_of(&keyed)
+}
+
+/// The key of text that the converter reads letter by letter as itself, or
+/// `None` for any other text.
+///
+/// That text has only lowercase ASCII letters other than `h`, `q` and `w`,
+/// digits, apostrophes, commas, periods and ASCII whitespace. The Latin
+/// converter reads each such letter, digit and apostrophe as itself and adds
+/// no implicit apostrophe, a comma is a mark inside a word, and a period or a
+/// space is a word break. `h` is an apostrophe spelling, and `q` and `w` are
+/// no Lojban letters, so they take the full path.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|key| !key.starts_with(' ') && !key.ends_with(' ') && !key.contains("  ")))]
+fn plain_lojban_key(raw: &str) -> Option<String> {
+    let plain = raw.bytes().all(|byte| {
+        matches!(byte, b'a'..=b'z' | b'0'..=b'9' | b'\'' | b',' | b'.')
+            && !matches!(byte, b'h' | b'q' | b'w')
+            || byte.is_ascii_whitespace()
+    });
+    if !plain {
+        return None;
+    }
+    let mut key = String::with_capacity(raw.len());
+    for word in raw.split(|value: char| value == '.' || value.is_ascii_whitespace()) {
+        let mut letters = word.chars().filter(|value| *value != ',').peekable();
+        if letters.peek().is_none() {
+            continue;
+        }
+        if !key.is_empty() {
+            key.push(' ');
+        }
+        key.extend(letters);
+    }
+    Some(key)
 }
 
 /// A key of the word index or the rafsi index.
@@ -1262,7 +1325,7 @@ pub fn normalize_lookup_query(raw: &str) -> String {
 /// index through the index rule by accident.
 #[invariant(!text.starts_with(' ') && !text.ends_with(' ') && !text.contains("  "), "one space between key words")]
 #[invariant(text.chars().all(|value| value == ' ' || is_lookup_char(value)), "only key characters")]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LookupKey {
     text: String,
 }
@@ -1276,49 +1339,64 @@ pub struct LookupKey {
 ///
 /// - A Zbalermorna shorthand mark with no payload yet (a bare U+ED8B at the
 ///   end) adds nothing, because its letters come from the payload.
-/// - A vowel that a following breve would turn into a glide keys only as far
-///   as both readings agree. Cyrillic `шои` reads `co'i`, and `шои` + U+0306
-///   reads `coĭ`, so the prefix key is `co`.
+/// - A vowel that a following breve would turn into a glide has two
+///   readings, and the prefix holds the key of each. Cyrillic `шои` reads
+///   `co'i`, and `шои` + U+0306 reads `coĭ`, so the prefix searches for both
+///   `co'i` and `coi`.
 ///
+/// So a prefix has one or two keys, and the type cannot hold more or none.
 /// A prefix with any other character that a lookup rejects is still an
 /// error. This is a separate type, so an exact lookup cannot take a prefix
 /// key, and a prefix search cannot take an exact key.
-#[invariant(key.as_str() == key.as_str().trim(), "a prefix key has no space at either end")]
+#[invariant(glide.as_ref().is_none_or(|glide| glide != typed), "two readings have two different keys")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LookupPrefix {
-    key: LookupKey,
+    /// The reading of the text as typed.
+    typed: LookupKey,
+    /// The reading with a following breve, when it is another key.
+    glide: Option<LookupKey>,
 }
 
 impl LookupPrefix {
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|prefix| LookupKey::from_typed(text).is_ok_and(|exact| exact.as_str().starts_with(prefix.as_str()))) || ret.is_err() || text.trim_end().ends_with(awaits_next_unit))]
+    #[ensures(true)]
+    #[bityzba::expensive_ensures(
+        match (&ret, text.trim_end().strip_suffix(awaits_next_unit)) {
+            (Ok(prefix), Some(rest)) => LookupKey::from_typed(rest).is_ok_and(|key| key == prefix.typed) && prefix.glide.is_none(),
+            (Ok(prefix), None) => LookupKey::from_typed(text).is_ok_and(|key| key == prefix.typed),
+            (Err(_), _) => true,
+        },
+        "the typed reading is the typed key of the text before any waiting shorthand mark"
+    )]
     pub fn from_typed(text: &str) -> Result<Self, LookupPatternError> {
         let text = text.trim_end();
         if let Some(rest) = text.strip_suffix(awaits_next_unit) {
-            let key = LookupKey::from_typed(rest)?;
-            return Ok(new!(LookupPrefix { key }));
+            let typed = LookupKey::from_typed(rest)?;
+            return Ok(new!(LookupPrefix { typed, glide: None }));
         }
-        let exact = LookupKey::from_typed(text)?;
-        let key = match LookupKey::from_typed(&format!("{text}{GLIDE_PARTNER_MARK}")) {
-            Ok(glide) if glide != exact => {
-                let common = exact
-                    .as_str()
-                    .chars()
-                    .zip(glide.as_str().chars())
-                    .take_while(|(left, right)| left == right)
-                    .map(|(value, _)| value)
-                    .collect::<String>();
-                LookupKey::from_stored(common.trim_end())
-            }
-            _ => exact,
-        };
-        Ok(new!(LookupPrefix { key }))
+        let typed = LookupKey::from_typed(text)?;
+        let glide = LookupKey::from_typed(&format!("{text}{GLIDE_PARTNER_MARK}"))
+            .ok()
+            .filter(|glide| *glide != typed);
+        Ok(new!(LookupPrefix { typed, glide }))
     }
 
+    /// The one or two keys of this prefix, the typed reading first.
     #[requires(true)]
     #[ensures(true)]
-    pub fn as_str(&self) -> &str {
-        self.key.as_str()
+    pub fn readings(&self) -> impl Iterator<Item = &LookupKey> {
+        std::iter::once(&self.typed).chain(self.glide.as_ref())
+    }
+
+    /// Whether `key` starts with one of the readings.
+    #[requires(true)]
+    #[ensures(ret == self.readings().any(|reading| key.starts_with(reading.as_str())))]
+    pub fn matches(&self, key: &str) -> bool {
+        key.starts_with(self.typed.as_str())
+            || self
+                .glide
+                .as_ref()
+                .is_some_and(|glide| key.starts_with(glide.as_str()))
     }
 }
 
@@ -1337,7 +1415,7 @@ impl LookupKey {
 
     /// The key of stored text: a headword, a canonical rafsi, or phonemes.
     #[requires(true)]
-    #[ensures(ret.as_str() == normalize_lookup_query(text))]
+    #[ensures(true)]
     pub fn from_stored(text: &str) -> Self {
         new!(LookupKey {
             text: normalize_lookup_query(text),
@@ -2129,26 +2207,81 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn the_plain_lojban_short_path_gives_the_converter_key() {
+        // The short path of `normalize_lookup_query` must give the key of the
+        // full converter path for every text that it takes.
+        let full = |text: &str| {
+            key_text_of(
+                &build_lookup_key::<()>(&[LookupPatternPart::Literal(text)], LookupKeyMode::Index)
+                    .expect("an index key"),
+            )
+        };
+        for text in [
+            "klama",
+            "co'i",
+            "dat,ni",
+            ".bad.",
+            "mi  klama",
+            " lo nu ",
+            "ma,u",
+            ", , ,",
+            "pa re ci 123",
+            "la.djan.",
+            "\tmi\nklama ",
+            "",
+        ] {
+            assert_eq!(plain_lojban_key(text), Some(full(text)), "{text:?}");
+            assert_eq!(normalize_lookup_query(text), full(text), "{text:?}");
+        }
+        // Text with `h`, `q`, `w`, a capital or any other character takes the
+        // full path.
+        for text in ["coha", "klaqma", "wa", "Klama", "bárda", "клама", "ma;u"] {
+            assert_eq!(plain_lojban_key(text), None, "{text:?}");
+            assert_eq!(normalize_lookup_query(text), full(text), "{text:?}");
+        }
+        // Every headword of a small dictionary keys alike on both paths.
+        for word in ["broda", "brode", "lo'e", "nu'e", "zo'u"] {
+            assert_eq!(normalize_lookup_query(word), full(word), "{word:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn a_prefix_key_allows_a_last_unit_that_waits_for_a_partner() {
-        let prefix =
-            |text: &str| LookupPrefix::from_typed(text).map(|prefix| prefix.as_str().to_owned());
+        let prefix = |text: &str| {
+            LookupPrefix::from_typed(text).map(|prefix| {
+                prefix
+                    .readings()
+                    .map(|reading| reading.as_str().to_owned())
+                    .collect::<Vec<_>>()
+            })
+        };
         // A bare shorthand mark waits for its payload. An exact lookup
         // rejects it, and a prefix keys the text before it.
-        assert_eq!(prefix("\u{ed8b}").as_deref(), Ok(""));
-        assert_eq!(prefix("co\u{ed8b}").as_deref(), Ok("co"));
+        assert_eq!(prefix("\u{ed8b}"), Ok(vec![String::new()]));
+        assert_eq!(prefix("co\u{ed8b}"), Ok(vec!["co".to_owned()]));
         assert_eq!(
             LookupKey::from_typed("\u{ed8b}").map_err(|error| error.invalid_character()),
             Err(Some('\u{ed8b}'))
         );
-        // A Cyrillic vowel before a breve keys as far as both readings agree.
-        assert_eq!(prefix("шои").as_deref(), Ok("co"));
-        assert_eq!(prefix("шои\u{0306}").as_deref(), Ok("coi"));
-        // A Latin vowel keys alike with or without the breve.
-        assert_eq!(prefix("coi").as_deref(), Ok("coi"));
+        // A Cyrillic vowel before a breve has two readings: a vowel with an
+        // implicit apostrophe, and a glide.
+        for text in ["шои", "ШОИ"] {
+            assert_eq!(
+                prefix(text),
+                Ok(vec!["co'i".to_owned(), "coi".to_owned()]),
+                "{text}"
+            );
+        }
+        assert_eq!(prefix("шои\u{0306}"), Ok(vec!["coi".to_owned()]));
+        // `шу` reads `cu` with or without the breve, and a Latin vowel keys
+        // alike with or without it, so each has one reading.
+        assert_eq!(prefix("шу"), Ok(vec!["cu".to_owned()]));
+        assert_eq!(prefix("coi"), Ok(vec!["coi".to_owned()]));
         // A base letter before its combining mark, or before a stress mark,
         // is a whole unit.
-        assert_eq!(prefix("kla").as_deref(), Ok("kla"));
-        assert_eq!(prefix("kl").as_deref(), Ok("kl"));
+        assert_eq!(prefix("kla"), Ok(vec!["kla".to_owned()]));
         // Any other rejected character is still an error.
         for (text, character) in [("klâ", 'â'), ("kla#", '#'), ("q", 'q')] {
             assert_eq!(
@@ -2157,6 +2290,34 @@ mod tests {
                 "{text}"
             );
         }
+        // A prefix search returns the union of both readings, with no repeat,
+        // and nothing that starts with `co` but continues neither reading.
+        let entries = &[
+            test_entry("co'i", WordType::Cmavo, &[], None),
+            test_entry("coi", WordType::Cmavo, &[], None),
+            test_entry("coico'u", WordType::Cmavo, &[], None),
+            test_entry("cortu", WordType::Gismu, &[], None),
+        ];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+        let found = |text: &str| {
+            dictionary
+                .entries_by_word_prefix(&LookupPrefix::from_typed(text).expect("prefix"))
+                .map(|entry| entry.word)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(found("шои"), ["co'i", "coi", "coico'u"]);
+        assert_eq!(found("co"), ["co'i", "coi", "coico'u", "cortu"]);
+        assert_eq!(found("coi"), ["coi", "coico'u"]);
     }
 
     #[test]
