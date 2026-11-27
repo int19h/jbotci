@@ -1308,7 +1308,7 @@ mod tests {
             &explosive,
             bounded(),
             &jbotci_interrupt::CancellationToken::never(),
-            |_, _, _| {
+            |_, _, _, _| {
                 evaluations.set(evaluations.get() + 1);
                 Ok(None)
             },
