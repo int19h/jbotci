@@ -301,20 +301,13 @@ impl<T: fmt::Debug, E: fmt::Debug> fmt::Debug for Recovered<T, E> {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // The label is the variant name alone. Derived Debug prints it that way,
+        // and recovered-syntax fixture snapshots compare this text.
         with_tree_stack(|| match self {
-            Self::Valid(value) => formatter
-                .debug_tuple("Recovered::Valid")
-                .field(value)
-                .finish(),
-            Self::Error(error) => formatter
-                .debug_tuple("Recovered::Error")
-                .field(error)
-                .finish(),
-            Self::Prefix(prefix) => formatter
-                .debug_tuple("Recovered::Prefix")
-                .field(prefix)
-                .finish(),
-            Self::Released => formatter.write_str("Recovered::Released"),
+            Self::Valid(value) => formatter.debug_tuple("Valid").field(value).finish(),
+            Self::Error(error) => formatter.debug_tuple("Error").field(error).finish(),
+            Self::Prefix(prefix) => formatter.debug_tuple("Prefix").field(prefix).finish(),
+            Self::Released => formatter.write_str("Released"),
         })
     }
 }
