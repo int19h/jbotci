@@ -448,7 +448,7 @@ fn whole_unclipped_excerpt(
             margin_mark,
             crate::styled::expanded_terminal_control,
         );
-        if laid.clipped || laid.wide {
+        if laid.clipped {
             return None;
         }
     }
@@ -605,7 +605,7 @@ fn push_run_windows(
             margin_mark,
             crate::styled::expanded_terminal_control,
         );
-        if laid.clipped || laid.wide {
+        if laid.clipped {
             any_cut = true;
         }
         layouts.push(laid);
@@ -631,23 +631,8 @@ fn push_run_windows(
         if labels.is_empty() {
             continue;
         }
-        if laid.wide && labels.len() > 1 {
-            for label in labels {
-                push_one_label_window(
-                    source,
-                    anchors,
-                    line,
-                    label,
-                    columns,
-                    margin_mark,
-                    covered,
-                    pieces,
-                );
-            }
-            continue;
-        }
         mark_covered(covered, &labels);
-        if laid.clipped || laid.wide {
+        if laid.clipped {
             pieces.push(clipped_piece(line, laid, labels));
         } else {
             pieces.push(new!(RawPiece {
@@ -660,41 +645,6 @@ fn push_run_windows(
             }));
         }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn push_one_label_window(
-    source: &str,
-    anchors: &[DisplayAnchor],
-    line: &annotate_snippets::renderer::KeptSourceLine,
-    label: usize,
-    columns: usize,
-    margin_mark: &str,
-    covered: &mut [bool],
-    pieces: &mut Vec<RawPiece>,
-) {
-    let Some(anchor) = anchors.get(label) else {
-        return;
-    };
-    let text = source.get(line.start_byte..line.end_byte).unwrap_or("");
-    let local_start = anchor.start.saturating_sub(line.start_byte).min(text.len());
-    let local_end = anchor
-        .end
-        .saturating_sub(line.start_byte)
-        .min(text.len())
-        .max(local_start);
-    let laid = annotate_snippets::renderer::lay_out_line(
-        text,
-        &[(local_start, local_end, anchor.label_columns)],
-        columns,
-        margin_mark,
-        crate::styled::expanded_terminal_control,
-    );
-    if let Some(slot) = covered.get_mut(label) {
-        *slot = true;
-    }
-    pieces.push(clipped_piece(line, laid, vec![label]));
 }
 
 #[requires(true)]
@@ -1628,24 +1578,36 @@ mod tests {
             glyphs: GlyphStyle::Ascii,
             terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
         });
+        // Two short labels do not cut the line. The renderer draws the whole gap.
         let rendered = render_diagnostics("<input>", &source, &[diagnostic.clone()], options)
-            .expect("clipped diagnostic");
-        assert!(rendered.len() < 5_000, "{}", rendered.len());
-        assert!(rendered.len() * 10 < source.len(), "{}", rendered.len());
-        assert!(rendered.contains("\\u{85}"), "{rendered}");
-        assert!(rendered.contains("near"), "{rendered}");
-        assert!(rendered.contains("far"), "{rendered}");
-        assert!(rendered.contains("do"), "{rendered}");
-        assert!(!rendered.contains(&" ".repeat(200)), "{rendered}");
-        let far_column = 1 + source[..far_start].chars().count();
-        assert!(location_shows(&rendered, "--> ", 1, 1), "{rendered}");
+            .expect("unclipped diagnostic");
         assert!(
-            location_shows(&rendered, "::: ", 1, far_column),
-            "{rendered}"
+            rendered.len() > source.len(),
+            "rendered {} source {}",
+            rendered.len(),
+            source.len()
         );
-        assert!(source_line_shows(&rendered, 1, "mi klama"), "{rendered}");
-        assert!(source_line_shows(&rendered, 1, "do"), "{rendered}");
-        assert!(!source_line_shows(&rendered, 3, "do"), "{rendered}");
+        assert!(rendered.contains("\\u{85}"), "missing escape");
+        assert!(rendered.contains("near"), "missing near label");
+        assert!(rendered.contains("far"), "missing far label");
+        assert!(rendered.contains("do"), "missing far word");
+        assert!(!rendered.contains(":::"), "unexpected second window");
+        assert!(
+            location_shows(&rendered, "--> ", 1, 1),
+            "primary location missing"
+        );
+        assert!(
+            source_line_shows(&rendered, 1, "mi klama"),
+            "near word missing from line 1"
+        );
+        assert!(
+            source_line_shows(&rendered, 1, "do"),
+            "far word missing from line 1"
+        );
+        assert!(
+            !source_line_shows(&rendered, 3, "do"),
+            "far word moved to another snippet"
+        );
 
         let limited = render_diagnostics_with_limit(
             "<input>",
@@ -1833,6 +1795,12 @@ mod tests {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn render_parser_diagnostics(source: &str) -> String {
+        render_parser_diagnostics_with(source, GlyphStyle::default())
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn render_parser_diagnostics_with(source: &str, glyphs: GlyphStyle) -> String {
         let source_id = SourceId("<input>".to_owned());
         let morphology = jbotci_morphology::segment_words_with_modifiers_recovered(source);
         let mut diagnostics = Vec::new();
@@ -1874,7 +1842,12 @@ mod tests {
             "<input>",
             source,
             &diagnostics,
-            DiagnosticRenderOptions::default(),
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs,
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            }),
         )
         .expect("diagnostic render")
     }
@@ -2276,6 +2249,59 @@ mod tests {
         assert_one_fitted_window(&rendered, &body);
         assert_caret_on(&rendered, "ku");
         assert_caret_is_not_on_the_leading_ellipsis(&rendered);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_unclipped_multi_label_line_in_the_width_band_stays_one_window() {
+        let source = format!("lo {}ku ku", "barda ".repeat(15));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert_eq!(body, source, "{rendered}");
+        assert!(!rendered.contains('⸬'), "{rendered}");
+        assert!(!rendered.contains(":::"), "{rendered}");
+        assert!(
+            rendered.contains("while parsing term connection"),
+            "{rendered}"
+        );
+        assert_caret_on(&rendered, "ku");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn overlapping_labels_on_a_clipped_line_in_the_width_band_stay_one_window() {
+        let source = format!(
+            "zoi gy. {} .gy {} miamy\u{0301}\u{0308}z {}",
+            "漢".repeat(10),
+            "k".repeat(100),
+            "do citka lo plise .i ".repeat(5)
+        );
+        let rendered = render_parser_diagnostics(&source);
+        assert!(!rendered.contains('⸬'), "{rendered}");
+        assert!(!rendered.contains(":::"), "{rendered}");
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with('…') && body.contains(".gy "), "{body}");
+        assert!(body.matches('k').count() >= 100, "{body}");
+        assert!(!body.contains('漢'), "{body}");
+        assert!(
+            !body.contains("…\u{0301}") && !body.contains("…\u{0308}"),
+            "{body}"
+        );
+        assert_combining_marks_follow_bases(&body);
+        let ascii = render_parser_diagnostics_with(&source, GlyphStyle::Ascii);
+        assert!(!ascii.contains(":::"), "{ascii}");
+        let ascii_body = excerpt_body(&ascii);
+        // The ASCII mark is three columns, so it consumes `.gy` on this straddle.
+        assert!(ascii_body.starts_with("..."), "{ascii_body}");
+        assert!(ascii_body.matches('k').count() >= 100, "{ascii_body}");
+        assert!(!ascii_body.contains('漢'), "{ascii_body}");
+        assert!(
+            !ascii_body.contains("...\u{0301}") && !ascii_body.contains("...\u{0308}"),
+            "{ascii_body}"
+        );
+        assert_combining_marks_follow_bases(&ascii_body);
     }
 
     #[test]

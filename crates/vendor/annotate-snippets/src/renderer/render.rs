@@ -1985,46 +1985,53 @@ fn draw_line(
     let mut left = margin.left(line_len);
     let right = margin.right(line_len);
 
-    let mut taken = 0;
     let mut skipped = 0;
-    let code: String = source_string
-        .chars()
-        .skip_while(|ch| {
-            let w = char_width(*ch);
-            // If `skipped` is less than `left`, always skip the next `ch`,
-            // even if `ch` is a multi-width char that would make `skipped`
-            // exceed `left`. This ensures that we do not exceed term width on
-            // source lines.
-            if skipped < left {
-                skipped += w;
-                true
-            } else {
-                false
-            }
-        })
-        .take_while(|ch| {
-            // Make sure that the trimming on the right will fall within the terminal width.
-            taken += char_width(*ch);
-            taken <= (right - left)
-        })
-        .collect();
-    // If we skipped more than `left`, adjust `left` to account for it.
+    let mut pending = source_string.chars().peekable();
+    while let Some(ch) = pending.peek().copied() {
+        // Skip the next character while `skipped` is still left of the edge,
+        // even when that character is wider than the gap. The edge then moves
+        // forward so the kept columns stay inside the terminal.
+        if skipped >= left {
+            break;
+        }
+        skipped += char_width(ch);
+        pending.next();
+    }
     if skipped > left {
-        left += skipped - left;
+        left = skipped;
+    }
+    let room = right.saturating_sub(left);
+    let mut taken = 0;
+    let mut code = String::new();
+    for ch in pending {
+        let width = char_width(ch);
+        if taken + width > room {
+            break;
+        }
+        taken += width;
+        code.push(ch);
     }
     let placeholder = renderer.decor_style.margin();
     let padding = str_width(placeholder);
     let (width_taken, bytes_taken) = if margin.was_cut_left() {
-        // We have stripped some code/whitespace from the beginning, make it clear.
+        // Replace the cut prefix, and keep a combining mark with that prefix.
         let mut bytes_taken = 0;
         let mut width_taken = 0;
+        let mut index = 0;
         for ch in code.chars() {
             width_taken += char_width(ch);
-            bytes_taken += ch.len_utf8();
-
+            let len = ch.len_utf8();
+            bytes_taken += len;
+            index += len;
             if width_taken >= padding {
                 break;
             }
+        }
+        for ch in code[index..].chars() {
+            if char_width(ch) != 0 {
+                break;
+            }
+            bytes_taken += ch.len_utf8();
         }
 
         buffer.puts(
@@ -2046,7 +2053,8 @@ fn draw_line(
     );
 
     if line_len > right {
-        // We have stripped some code/whitespace from the beginning, make it clear.
+        // Replace every slot the margin mark covers, including a wide
+        // character and the combining marks that sit on it.
         let mut char_taken = 0;
         let mut width_taken_inner = 0;
         for ch in code.chars().rev() {
@@ -2058,12 +2066,11 @@ fn draw_line(
             }
         }
 
-        buffer.puts(
-            line_offset,
-            code_offset + width_taken + code[bytes_taken..].chars().count() - char_taken,
-            placeholder,
-            ElementStyle::LineNumber,
-        );
+        let rest_chars = code[bytes_taken..].chars().count();
+        if rest_chars >= char_taken {
+            let start = code_offset + width_taken + rest_chars - char_taken;
+            buffer.replace(line_offset, start, start + char_taken, placeholder);
+        }
     }
 
     buffer.puts(

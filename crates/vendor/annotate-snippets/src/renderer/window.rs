@@ -41,12 +41,10 @@ pub struct LaidOutLine {
     pub text: String,
     pub origin: Vec<usize>,
     /// The renderer drops or replaces some of this line.
-    pub clipped: bool,
-    /// The laid-out line is still wider than the code column.
     ///
-    /// Two labels that far apart need separate snippets. One long span does not:
-    /// the middle replacement brings it back to the code column.
-    pub wide: bool,
+    /// A line wider than the code column stays one window until a cut actually happens.
+    /// The renderer leaves a single-line span uncut through twice the code column.
+    pub clipped: bool,
 }
 
 /// Display columns the renderer reserves after a span for its label.
@@ -136,10 +134,6 @@ pub fn lay_out_line(
     );
     let mut left = margin.left(display_len);
     let right = margin.right(display_len);
-    // `draw_line` chooses the kept characters with this edge, then moves `left`
-    // forward when a wide character straddles it. The later cut math uses the
-    // moved edge. The character window does not.
-    let window_left = left;
     let mut glyphs = Vec::new();
     for_each_char(line, expand, true, |origin, ch| {
         glyphs.push(Glyph {
@@ -156,10 +150,12 @@ pub fn lay_out_line(
         skipped += cells[start_cell].width;
         start_cell += 1;
     }
+    // A wide character that crosses `left` moves the edge forward.
+    // The kept columns and the later cut math both use that edge.
     if skipped > left {
         left = skipped;
     }
-    let room = right.saturating_sub(window_left);
+    let room = right.saturating_sub(left);
     let mut taken = 0usize;
     let mut end_cell = start_cell;
     while end_cell < cells.len() {
@@ -283,12 +279,10 @@ pub fn lay_out_line(
             push_char(&mut text, &mut origin, glyph.origin, glyph.ch);
         }
     }
-    let wide = str_width(&text) > column_width;
     LaidOutLine {
         text,
         origin,
         clipped: cut_left || cut_right || cut_middle,
-        wide,
     }
 }
 
@@ -513,7 +507,6 @@ mod tests {
         let line = "mi klama";
         let laid = lay_out_line(line, &[(0, 2, 5)], 70, "…", none_expand);
         assert!(!laid.clipped);
-        assert!(!laid.wide);
         assert_eq!(laid.text, line);
     }
 
@@ -629,7 +622,6 @@ mod tests {
         let columns = code_columns(80, 1, 0);
         let laid = lay_out_line(&line, &[(start, end, 2)], columns, "…", none_expand);
         assert!(laid.text.contains(".gy ku ku"), "{}", laid.text);
-        assert!(!laid.wide, "width {} text {}", str_width(&laid.text), laid.text);
         let mut previous_width = 1usize;
         for ch in laid.text.chars() {
             let width = char_width(ch);
@@ -637,6 +629,94 @@ mod tests {
                 assert!(previous_width > 0, "orphan mark in {}", laid.text);
             }
             previous_width = width;
+        }
+    }
+
+    fn render_body(line: &str, start: usize, end: usize, term_width: usize, ascii: bool) -> String {
+        let decor = if ascii {
+            DecorStyle::Ascii
+        } else {
+            DecorStyle::Unicode
+        };
+        let rendered = Renderer::plain()
+            .decor_style(decor)
+            .term_width(term_width)
+            .render(&[crate::Group::with_title(Level::ERROR.primary_title("err")).element(
+                Snippet::source(line)
+                    .line_start(1)
+                    .annotation(AnnotationKind::Primary.span(start..end).label("x")),
+            )]);
+        code_body(&rendered)
+    }
+
+    fn mapped_span(text: &str, origin: &[usize], start: usize, end: usize) -> Option<(usize, usize)> {
+        let mut mapped_start = None;
+        let mut mapped_end = 0usize;
+        let mut byte = 0usize;
+        for ch in text.chars() {
+            let len = ch.len_utf8();
+            let source = origin.get(byte).copied().unwrap_or(usize::MAX);
+            if source != usize::MAX && source >= start && source < end {
+                if mapped_start.is_none() {
+                    mapped_start = Some(byte);
+                }
+                mapped_end = byte + len;
+            }
+            byte += len;
+        }
+        mapped_start.map(|mapped| (mapped, mapped_end))
+    }
+
+    fn assert_marks_follow_bases(text: &str) {
+        let mut previous: Option<char> = None;
+        for ch in text.chars() {
+            if char_width(ch) == 0 {
+                let base = previous.unwrap_or_else(|| panic!("leading mark in {text}"));
+                assert!(
+                    char_width(base) > 0 && base != '…' && base != '.' && !base.is_whitespace(),
+                    "mark after {base:?} in {text}"
+                );
+            }
+            previous = Some(ch);
+        }
+    }
+
+    #[test]
+    fn a_pass_one_window_renders_unchanged() {
+        let term_width = 80;
+        let columns = code_columns(term_width, 1, 0);
+        for span_width in 65..=152 {
+            for skew in 0..4 {
+                for ascii in [false, true] {
+                    let margin = if ascii { "..." } else { "…" };
+                    let prefix = format!("{}{}", "a".repeat(skew), "漢".repeat(6));
+                    let span = "b".repeat(span_width);
+                    let line = format!("{prefix}{span} miamy\u{0301}\u{0308}z漢a");
+                    let start = prefix.len();
+                    let end = start + span.len();
+                    let laid = lay_out_line(&line, &[(start, end, 2)], columns, margin, none_expand);
+                    let body = render_body(&line, start, end, term_width, ascii);
+                    assert_eq!(
+                        laid.text, body,
+                        "span {span_width} skew {skew} ascii {ascii}\n{body}"
+                    );
+                    assert_marks_follow_bases(&laid.text);
+                    let (mapped_start, mapped_end) =
+                        mapped_span(&laid.text, &laid.origin, start, end).unwrap_or_else(|| {
+                            panic!(
+                                "span disappeared at width {span_width} skew {skew} ascii {ascii}: {}",
+                                laid.text
+                            )
+                        });
+                    assert!(mapped_end > mapped_start, "{}", laid.text);
+                    let again = render_body(&laid.text, mapped_start, mapped_end, term_width, ascii);
+                    assert_eq!(
+                        again, laid.text,
+                        "second pass span {span_width} skew {skew} ascii {ascii}\n{again}"
+                    );
+                    assert_marks_follow_bases(&again);
+                }
+            }
         }
     }
 }
