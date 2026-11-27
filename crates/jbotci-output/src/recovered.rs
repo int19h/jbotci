@@ -1719,17 +1719,28 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn a_document_projection_limit_covers_fitting_leaves() {
+    fn a_shared_leaf_budget_stops_when_later_text_no_longer_fits() {
         let source = "mi ku .i mi nelci zoi gy.abcdefghijklmnop.gy";
         let recovered = parse_recovered_syntax(source);
         assert!(!recovered.errors.is_empty());
-        let tree = tree::recovered_generated_model_tree_value(
+        // The recovery text and the quote share one budget. Sixteen bytes
+        // hold either charge alone and do not hold both.
+        let tight = tree::recovered_generated_model_tree_value(
             &recovered,
             source,
             TreeRenderOptions::default(),
             &crate::budget::OutputBudget::new(ByteLimit::new(16).expect("positive leaf budget")),
         );
-        assert!(tree.is_ok(), "{tree:?}");
+        assert!(matches!(tight, Err(OutputError::Limit { .. })), "{tight:?}");
+        let tree = tree::recovered_generated_model_tree_value(
+            &recovered,
+            source,
+            TreeRenderOptions::default(),
+            &crate::budget::OutputBudget::new(ByteLimit::new(64).expect("positive leaf budget")),
+        )
+        .expect("recovery text and quote fit");
+        let rendered = format!("{tree:?}");
+        assert!(rendered.contains("abcdefghijklmnop"), "{rendered}");
         let json = compact_recovered_syntax_json_string_with_limits(
             &recovered,
             source,
