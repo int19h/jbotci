@@ -20,7 +20,7 @@ use async_lsp::{
     Result as LspResult,
 };
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{ensures, expensive_invariant, invariant, new, requires};
 use tokio::sync::oneshot;
 use tower::Service;
 
@@ -39,8 +39,9 @@ struct CancelSlot {
 /// The next token stays above zero.
 /// Every stored token is below the next token.
 /// The counter does not wrap.
+/// The token walk is an expensive contract.
 #[invariant(*next_token > 0)]
-#[invariant(entries.values().all(|slot| slot.token < *next_token))]
+#[expensive_invariant(entries.values().all(|slot| slot.token < *next_token))]
 struct CancelBook {
     next_token: u64,
     entries: HashMap<NumberOrString, CancelSlot>,
@@ -86,7 +87,10 @@ impl CancelBook {
         })
     }
 
-    /// Replace the book, apply `edit`, and check the token relation again.
+    /// Replace the book, apply `edit`, and check the book again.
+    ///
+    /// Every build checks that the next token stays above zero.
+    /// The stored-token walk is an expensive contract.
     #[requires(true)]
     #[ensures(true)]
     fn edit<T>(book: &mut Self, edit: impl FnOnce(&mut CancelBookData) -> T) -> T {
@@ -503,14 +507,21 @@ mod tests {
                 sender: high_sender,
             }),
         );
-        assert!(
-            bityzba::try_new!(super::CancelBook {
-                next_token: 2,
-                entries,
-            })
-            .is_err(),
-            "a stored token must stay below the next token"
-        );
+        let broken = bityzba::try_new!(super::CancelBook {
+            next_token: 2,
+            entries,
+        });
+        if cfg!(feature = "expensive_contracts") {
+            assert!(
+                broken.is_err(),
+                "a stored token must stay below the next token"
+            );
+        } else {
+            assert!(
+                broken.is_ok(),
+                "the token relation runs with expensive contracts"
+            );
+        }
     }
 
     #[requires(true)]

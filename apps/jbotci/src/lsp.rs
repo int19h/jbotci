@@ -25,7 +25,7 @@ use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
 use async_lsp::{ClientSocket, ErrorCode, ResponseError};
 #[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use jbotci_diagnostics::{
     Diagnostic as JbotciDiagnostic, DiagnosticPhase, DiagnosticSeverity as JbotciSeverity,
     diagnostic_text_segments_text,
@@ -212,8 +212,9 @@ struct DocumentStore {
 ///
 /// The next epoch stays above zero.
 /// Every open document uses an epoch below the next epoch.
+/// That walk is an expensive contract.
 #[invariant(*next_epoch > 0)]
-#[invariant(documents.values().all(|document| document.revision.identity.epoch < *next_epoch))]
+#[expensive_invariant(documents.values().all(|document| document.revision.identity.epoch < *next_epoch))]
 struct DocumentTable {
     documents: HashMap<Url, DocumentState>,
     next_epoch: u64,
@@ -502,8 +503,10 @@ impl DocumentStore {
         }
     }
 
-    /// Replace the table, apply `edit`, and check the epoch relation again.
+    /// Replace the table, apply `edit`, and check the table again.
     ///
+    /// Every build checks that the next epoch stays above zero.
+    /// The open-epoch walk is an expensive contract.
     /// The check reads the table fields. It does not lock the map.
     #[requires(true)]
     #[ensures(true)]
@@ -2159,7 +2162,7 @@ mod tests {
     #[requires(!text.is_empty())]
     #[requires(epoch > 0)]
     #[ensures(ret.version == version)]
-    #[ensures(ret.snapshot.text.as_ref() == text)]
+    #[expensive_ensures(ret.snapshot.text.as_ref() == text)]
     fn published_diagnostics_for_text(
         text: &str,
         version: i32,
@@ -2287,14 +2290,21 @@ mod tests {
         assert_eq!(document.revision.identity.epoch, 1);
         let mut documents = HashMap::new();
         documents.insert(uri.clone(), document);
-        assert!(
-            bityzba::try_new!(DocumentTable {
-                documents,
-                next_epoch: 1,
-            })
-            .is_err(),
-            "an open epoch equal to the next epoch is rejected"
-        );
+        let equal_epoch = bityzba::try_new!(DocumentTable {
+            documents,
+            next_epoch: 1,
+        });
+        if cfg!(feature = "expensive_contracts") {
+            assert!(
+                equal_epoch.is_err(),
+                "an open epoch equal to the next epoch is rejected"
+            );
+        } else {
+            assert!(
+                equal_epoch.is_ok(),
+                "the epoch relation runs with expensive contracts"
+            );
+        }
         let document = document_state_with_snapshot(1, None).expect("document");
         let mut documents = HashMap::new();
         documents.insert(uri, document);
