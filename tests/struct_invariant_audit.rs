@@ -524,10 +524,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "completion cancellation guard owns one independently valid shared token and cancels it on drop",
     ),
     (
-        "apps/jbotci/src/lsp.rs:DocumentState",
-        "the revision type holds identity, version, and diagnostic coherence, and the text, confirmed tree, watches, failure flag, and pending task accept every value",
-    ),
-    (
         "apps/jbotci/src/lsp.rs:InlayInitializationOptions",
         "kind enablement booleans and the independently validated structure-bracket value form accept every typed combination",
     ),

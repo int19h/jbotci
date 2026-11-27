@@ -59,7 +59,11 @@ fn burst_len() -> u64 {
     u64::try_from(count).unwrap_or(u64::MAX)
 }
 
+/// A live LSP process started by a test.
+///
+/// `pid` is the process id of `child`.
 #[invariant(*pid > 0)]
+#[invariant(*pid == child.lock().expect("server process lock poisoned").id())]
 struct RunningServer {
     pid: u32,
     child: Mutex<Child>,

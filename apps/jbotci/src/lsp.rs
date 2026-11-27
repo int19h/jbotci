@@ -242,8 +242,13 @@ enum PublishedDiagnosticPhase {
     Confirmed,
 }
 
+/// One published diagnostic set for one analysis.
+///
+/// The result id names this identity, this version, and this phase.
+/// The snapshot uses this version.
 #[invariant(!result_id.is_empty())]
 #[invariant(snapshot.version == i64::from(*version))]
+#[invariant(result_id.as_str() == diagnostic_result_id(identity.epoch, identity.generation, *version, *phase))]
 #[derive(Debug)]
 struct PublishedDiagnostics {
     result_id: String,
@@ -338,10 +343,13 @@ struct DocumentRevision {
 
 /// One open document behind the store lock.
 ///
+/// The confirmed tree is absent, or its version is this revision or an older one.
 /// `revision` keeps the identity, the version, and the diagnostics together.
-/// The confirmed tree may lag that revision.
 /// The text, the failure flag, the watches, and the pending task accept every value.
-#[invariant(true)]
+#[invariant(match confirmed_snapshot.as_ref() {
+    Some(snapshot) => snapshot.version <= i64::from(revision.version),
+    None => true,
+})]
 struct DocumentState {
     text_index: LineIndex,
     revision: DocumentRevision,
@@ -355,6 +363,17 @@ struct DocumentState {
     /// A newer edit clears this flag.
     analysis_failed: bool,
     pending_analysis: Option<AbortHandle>,
+}
+
+impl DocumentState {
+    /// Apply one edit and check the snapshot against the revision.
+    #[requires(true)]
+    #[ensures(true)]
+    fn edit(self, edit: impl FnOnce(&mut DocumentStateData)) -> Self {
+        let mut data = self.into_data();
+        edit(&mut data);
+        Self::from_data(data)
+    }
 }
 
 /// Mark this analysis failed when the task ends before confirmation.
@@ -475,7 +494,7 @@ impl DocumentStore {
         let identity = {
             let mut documents = self.documents.lock().expect("document store poisoned");
             if let Some(previous) = documents.remove(&uri)
-                && let Some(pending) = previous.pending_analysis
+                && let Some(pending) = previous.into_data().pending_analysis
             {
                 pending.abort();
             }
@@ -487,7 +506,7 @@ impl DocumentStore {
             });
             documents.insert(
                 uri.clone(),
-                DocumentState {
+                new!(DocumentState {
                     text_index: LineIndex::new(Arc::from(text)),
                     revision: new!(DocumentRevision {
                         identity,
@@ -499,7 +518,7 @@ impl DocumentStore {
                     diagnostics,
                     analysis_failed: false,
                     pending_analysis: None,
-                },
+                }),
             );
             identity
         };
@@ -526,7 +545,7 @@ impl DocumentStore {
     ) -> bool {
         let identity = {
             let mut documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get_mut(uri) else {
+            let Some(document) = documents.get(uri) else {
                 return false;
             };
             if version <= document.revision.version {
@@ -537,9 +556,6 @@ impl DocumentStore {
             else {
                 return false;
             };
-            if let Some(pending) = document.pending_analysis.take() {
-                pending.abort();
-            }
             let epoch = document.revision.identity.epoch;
             let generation = document
                 .revision
@@ -547,17 +563,27 @@ impl DocumentStore {
                 .generation
                 .checked_add(1)
                 .expect("strictly increasing i32 versions cannot exhaust a u64 generation");
-            document.text_index = next_index;
-            document.revision = new!(DocumentRevision {
-                identity: new!(AnalysisIdentity { epoch, generation }),
-                version,
-                latest_diagnostics: None,
+            let document = documents
+                .remove(uri)
+                .expect("the document stays open until the edit is stored");
+            let document = document.edit(|data| {
+                if let Some(pending) = data.pending_analysis.take() {
+                    pending.abort();
+                }
+                data.text_index = next_index;
+                data.revision = new!(DocumentRevision {
+                    identity: new!(AnalysisIdentity { epoch, generation }),
+                    version,
+                    latest_diagnostics: None,
+                });
+                data.analysis_failed = false;
+                // `send_replace` wakes a waiter when the value is already the signal.
+                data.diagnostics.send_replace(());
+                data.confirmed.send_replace(());
             });
-            document.analysis_failed = false;
-            // `send_replace` wakes a waiter when the value is already the signal.
-            document.diagnostics.send_replace(());
-            document.confirmed.send_replace(());
-            document.revision.identity
+            let identity = document.revision.identity;
+            documents.insert(uri.clone(), document);
+            identity
         };
         self.schedule_analysis(uri.clone(), identity, publisher, prepare);
         true
@@ -570,7 +596,7 @@ impl DocumentStore {
         let Some(document) = documents.remove(uri) else {
             return false;
         };
-        if let Some(pending) = document.pending_analysis {
+        if let Some(pending) = document.into_data().pending_analysis {
             pending.abort();
         }
         true
@@ -648,10 +674,17 @@ impl DocumentStore {
         let abort_handle = task.abort_handle();
 
         let mut documents = self.documents.lock().expect("document store poisoned");
-        if let Some(document) = documents.get_mut(&uri)
-            && document.revision.identity == identity
+        if documents
+            .get(&uri)
+            .is_some_and(|document| document.revision.identity == identity)
         {
-            document.pending_analysis = Some(abort_handle);
+            let document = documents
+                .remove(&uri)
+                .expect("the document stays open until the task is stored");
+            let document = document.edit(|data| {
+                data.pending_analysis = Some(abort_handle);
+            });
+            documents.insert(uri, document);
         } else {
             task.abort();
         }
@@ -687,7 +720,7 @@ impl DocumentStore {
     ) -> bool {
         let publication = {
             let mut documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get_mut(uri) else {
+            let Some(document) = documents.get(uri) else {
                 return false;
             };
             if document.revision.identity != identity || document.revision.version != version {
@@ -705,13 +738,19 @@ impl DocumentStore {
                 phase: PublishedDiagnosticPhase::Provisional,
                 snapshot,
             }));
-            document.revision = new!(DocumentRevision {
-                identity,
-                version,
-                latest_diagnostics: Some(Arc::clone(&publication)),
+            let document = documents
+                .remove(uri)
+                .expect("the document stays open until provisional diagnostics are stored");
+            let document = document.edit(|data| {
+                data.revision = new!(DocumentRevision {
+                    identity,
+                    version,
+                    latest_diagnostics: Some(Arc::clone(&publication)),
+                });
+                data.analysis_failed = false;
+                data.diagnostics.send_replace(());
             });
-            document.analysis_failed = false;
-            document.diagnostics.send_replace(());
+            documents.insert(uri.clone(), document);
             publication
         };
         publisher(publication::DiagnosticPublication::from_analysis(
@@ -734,7 +773,7 @@ impl DocumentStore {
         snapshot: Arc<DocumentSnapshot>,
     ) -> Option<Arc<PublishedDiagnostics>> {
         let mut documents = self.documents.lock().expect("document store poisoned");
-        let document = documents.get_mut(uri)?;
+        let document = documents.get(uri)?;
         if document.revision.identity != identity || document.revision.version != version {
             return None;
         }
@@ -751,16 +790,22 @@ impl DocumentStore {
             phase: PublishedDiagnosticPhase::Confirmed,
             snapshot: diagnostics,
         }));
-        document.confirmed_snapshot = Some(snapshot);
-        document.confirmed.send_replace(());
-        document.revision = new!(DocumentRevision {
-            identity,
-            version,
-            latest_diagnostics: Some(Arc::clone(&publication)),
+        let document = documents
+            .remove(uri)
+            .expect("the document stays open until confirmation is stored");
+        let document = document.edit(|data| {
+            data.confirmed_snapshot = Some(snapshot);
+            data.confirmed.send_replace(());
+            data.revision = new!(DocumentRevision {
+                identity,
+                version,
+                latest_diagnostics: Some(Arc::clone(&publication)),
+            });
+            data.analysis_failed = false;
+            data.diagnostics.send_replace(());
+            data.pending_analysis = None;
         });
-        document.analysis_failed = false;
-        document.diagnostics.send_replace(());
-        document.pending_analysis = None;
+        documents.insert(uri.clone(), document);
         Some(publication)
     }
 
@@ -775,16 +820,20 @@ impl DocumentStore {
             .documents
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let Some(document) = documents.get_mut(uri) else {
+        let Some(document) = documents.remove(uri) else {
             return;
         };
         if document.revision.identity != identity {
+            documents.insert(uri.clone(), document);
             return;
         }
-        document.analysis_failed = true;
-        // `send_replace` wakes a waiter when the value is already the signal.
-        document.confirmed.send_replace(());
-        document.diagnostics.send_replace(());
+        let document = document.edit(|data| {
+            data.analysis_failed = true;
+            // `send_replace` wakes a waiter when the value is already the signal.
+            data.confirmed.send_replace(());
+            data.diagnostics.send_replace(());
+        });
+        documents.insert(uri.clone(), document);
     }
 
     /// Return the last confirmed tree, waiting only when a document has never been confirmed.
@@ -1970,6 +2019,104 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_state_with_snapshot(
+        version: i32,
+        snapshot: Option<Arc<DocumentSnapshot>>,
+    ) -> Result<DocumentState, DocumentStateInvariantError> {
+        let (confirmed, _) = watch::channel(());
+        let (diagnostics, _) = watch::channel(());
+        bityzba::try_new!(DocumentState {
+            text_index: LineIndex::new(Arc::from("coi")),
+            revision: new!(DocumentRevision {
+                identity: new!(AnalysisIdentity {
+                    epoch: 1,
+                    generation: 1,
+                }),
+                version,
+                latest_diagnostics: None,
+            }),
+            confirmed_snapshot: snapshot,
+            confirmed,
+            diagnostics,
+            analysis_failed: false,
+            pending_analysis: None,
+        })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_state_rejects_a_confirmed_snapshot_from_the_future() {
+        let lagging = Arc::new(DocumentSnapshot::new("coi".to_owned(), 1));
+        let current = Arc::new(DocumentSnapshot::new("coi".to_owned(), 2));
+        let future = Arc::new(DocumentSnapshot::new("coi".to_owned(), 3));
+
+        let older = document_state_with_snapshot(2, Some(Arc::clone(&lagging)))
+            .expect("an older confirmed tree is valid");
+        assert_eq!(older.revision.version, 2);
+        assert_eq!(
+            older
+                .confirmed_snapshot
+                .as_ref()
+                .expect("lagging tree")
+                .version,
+            1
+        );
+        let same = document_state_with_snapshot(2, Some(current))
+            .expect("a confirmed tree at the revision version is valid");
+        assert_eq!(
+            same.confirmed_snapshot
+                .as_ref()
+                .expect("current tree")
+                .version,
+            2
+        );
+        let absent = document_state_with_snapshot(2, None).expect("no confirmed tree is valid");
+        assert!(absent.confirmed_snapshot.is_none());
+        assert!(
+            document_state_with_snapshot(2, Some(future)).is_err(),
+            "a confirmed tree newer than the revision is rejected"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn published_diagnostics_reject_a_result_id_for_another_analysis() {
+        let snapshot = Arc::new(DocumentSnapshot::new("coi".to_owned(), 1));
+        let diagnostics = Arc::new(DiagnosticSnapshot::from_confirmed(&snapshot));
+        let identity = new!(AnalysisIdentity {
+            epoch: 4,
+            generation: 2,
+        });
+        let published = new!(PublishedDiagnostics {
+            result_id: diagnostic_result_id(
+                identity.epoch,
+                identity.generation,
+                1,
+                PublishedDiagnosticPhase::Confirmed,
+            ),
+            identity,
+            version: 1,
+            phase: PublishedDiagnosticPhase::Confirmed,
+            snapshot: Arc::clone(&diagnostics),
+        });
+        assert_eq!(published.result_id, "4:2:1:confirmed");
+        assert!(
+            bityzba::try_new!(PublishedDiagnostics {
+                result_id: "other".to_owned(),
+                identity,
+                version: 1,
+                phase: PublishedDiagnosticPhase::Confirmed,
+                snapshot: diagnostics,
+            })
+            .is_err(),
+            "the result id must name this identity, version, and phase"
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -2492,10 +2639,13 @@ mod tests {
             // The edit cleared diagnostics. The previous tree is still stored.
             // Remove that tree so the feature request has to wait.
             let mut documents = store.documents.lock().expect("document store poisoned");
-            let document = documents.get_mut(&uri).expect("open document");
+            let document = documents.remove(&uri).expect("open document");
             assert!(!document.analysis_failed);
             assert!(document.revision.latest_diagnostics.is_none());
-            document.confirmed_snapshot = None;
+            let document = document.edit(|data| {
+                data.confirmed_snapshot = None;
+            });
+            documents.insert(uri.clone(), document);
         }
         let mut feature = std::pin::pin!(store.snapshot_for_features(&uri));
         let mut diagnostics = std::pin::pin!(store.diagnostics_for_current(&uri));
@@ -2823,6 +2973,11 @@ mod tests {
             "last confirmed tree",
         );
         assert_eq!(tree.version, 1);
+        {
+            let documents = store.documents.lock().expect("document store poisoned");
+            let document = documents.get(&uri).expect("open document");
+            assert_eq!(document.revision.version, 2);
+        }
 
         let mut confirmations = {
             let documents = store.documents.lock().expect("document store poisoned");
