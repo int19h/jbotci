@@ -4815,6 +4815,51 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn lujvo_decomposition_agrees_with_jvozba_on_a_self_sourced_final_part() {
+        // #1161: the final part of a lujvo-form input is its own source.
+        // The decomposition view offers that part as a word in its own
+        // right (a missing card when the dictionary has no entry), and
+        // jvozba builds with it, so the two agree.
+        use jbotci_jvozba::{JvozbaInput, JvozbaMode, build_best_jvozba_detailed};
+
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default().with_data(data! {
+            decompose_lujvo: true,
+        });
+        for (lujvo, source_word, final_part, built) in [
+            ("aktyiismu", "akti", "iismu", "bajy'aktyiismu"),
+            ("klalefmo", "klama", "lefmo", "bajyklalefmo"),
+        ] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(lujvo.to_owned())],
+                &options,
+            );
+            let card_words = words(&result.cards);
+            assert!(card_words.contains(&source_word), "{lujvo}: {card_words:?}");
+            let final_card = result
+                .cards
+                .iter()
+                .find(|card| card.word == final_part)
+                .unwrap_or_else(|| panic!("{lujvo}: no card for {final_part}: {card_words:?}"));
+            assert!(!final_card.known, "{lujvo}: {final_part} is unlisted");
+            let built_word = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::Word("bajra".to_owned()),
+                    JvozbaInput::Word(lujvo.to_owned()),
+                ],
+                &options.cancellation,
+            )
+            .expect("jvozba builds with the self-sourced final part");
+            assert_eq!(built_word.word, built, "{lujvo}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn exact_lujvo_search_includes_dictionary_backed_fuhivla_component_card() {
         let result = search(
             jbotci_dictionary_data::english(),
