@@ -516,12 +516,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector is validated by clap and vlatai command execution",
     ),
     (
+        "apps/jbotci/src/lsp.rs:AnalysisExitGuard",
+        "drop hook marks the current analysis failed, and AnalysisIdentity carries the epoch and the generation",
+    ),
+    (
         "apps/jbotci/src/lsp.rs:CompletionCancellationGuard",
         "completion cancellation guard owns one independently valid shared token and cancels it on drop",
     ),
     (
         "apps/jbotci/src/lsp.rs:DocumentState",
-        "document state is mutable under the document-store lock and its transition methods enforce text, version, generation, and snapshot coherence",
+        "document state is mutable under the document-store lock and its transition methods enforce text, version, identity, and snapshot coherence",
     ),
     (
         "apps/jbotci/src/lsp.rs:DocumentStore",
@@ -538,6 +542,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/lsp.rs:ServerState",
         "LSP adapter state combines independently valid transport, document-store, encoding, capability, and callback values",
+    ),
+    (
+        "apps/jbotci/src/lsp_admission.rs:CancelGuard",
+        "drop hook removes one cancel entry, and take_cancel_token and CancelSlot keep the token above zero",
+    ),
+    (
+        "apps/jbotci/src/lsp_admission.rs:PendingService",
+        "test double with an unconstrained call count and a watch",
+    ),
+    (
+        "apps/jbotci/src/lsp_admission.rs:RequestAdmission",
+        "request wrapper adds no second constraint, and CancelBook holds the token invariant",
     ),
     (
         "apps/jbotci/src/tool.rs:StringEnumTypeTransform",

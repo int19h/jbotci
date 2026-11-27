@@ -47,30 +47,38 @@ struct CancelBook {
 /// Removes one cancel entry on drop.
 ///
 /// The id and the token identify that entry.
-struct CancelGuard(Arc<CancelBook>, NumberOrString, u64);
+/// `take_cancel_token` is the only source of the token, and that token stays above zero.
+#[invariant(true)]
+struct CancelGuard {
+    book: Arc<CancelBook>,
+    id: NumberOrString,
+    token: u64,
+}
 
 impl Drop for CancelGuard {
     #[requires(true)]
     #[ensures(true)]
     fn drop(&mut self) {
         let mut entries = self
-            .0
-            .as_data()
+            .book
             .entries
             .lock()
             .expect("LSP cancel map lock poisoned");
         // Drop removes the entry for this token.
         // A newer entry for the same id stays in the map.
         if entries
-            .get(&self.1)
-            .is_some_and(|slot| slot.token == self.2)
+            .get(&self.id)
+            .is_some_and(|slot| slot.token == self.token)
         {
-            entries.remove(&self.1);
+            entries.remove(&self.id);
         }
     }
 }
 
-#[invariant(cancels.as_data().next_token.load(std::sync::atomic::Ordering::Relaxed) > 0)]
+/// Forwards each request and keeps the cancel book.
+///
+/// `CancelBook` checks the token. This layer adds no second constraint.
+#[invariant(true)]
 pub(super) struct RequestAdmission<S> {
     service: S,
     cancels: Arc<CancelBook>,
@@ -78,17 +86,14 @@ pub(super) struct RequestAdmission<S> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn request_admission<S>(service: S) -> RequestAdmissionData<S> {
-    // `new!` checks the cancel-token invariant.
-    // The data value keeps a mutable service and uses no lock.
-    new!(RequestAdmission {
+pub(super) fn request_admission<S>(service: S) -> RequestAdmission<S> {
+    RequestAdmission {
         service,
         cancels: Arc::new(new!(CancelBook {
             next_token: AtomicU64::new(1),
             entries: Mutex::new(HashMap::new()),
         })),
-    })
-    .into_data()
+    }
 }
 
 #[requires(true)]
@@ -98,19 +103,25 @@ fn cancelled_response() -> ResponseError {
     ResponseError::new(ErrorCode::REQUEST_CANCELLED, "Client cancelled the request")
 }
 
-impl<S> RequestAdmissionData<S> {
+impl<S> RequestAdmission<S> {
     #[requires(true)]
     #[ensures(true)]
     fn register_cancel(&self, id: NumberOrString) -> (oneshot::Receiver<()>, CancelGuard) {
         let (sender, receiver) = oneshot::channel();
         let token = take_cancel_token(&self.cancels);
         self.cancels
-            .as_data()
             .entries
             .lock()
             .expect("LSP cancel map lock poisoned")
             .insert(id.clone(), new!(CancelSlot { token, sender }));
-        (receiver, CancelGuard(Arc::clone(&self.cancels), id, token))
+        (
+            receiver,
+            CancelGuard {
+                book: Arc::clone(&self.cancels),
+                id,
+                token,
+            },
+        )
     }
 
     #[requires(true)]
@@ -118,7 +129,6 @@ impl<S> RequestAdmissionData<S> {
     fn cancel_request(&self, id: &NumberOrString) {
         let mut entries = self
             .cancels
-            .as_data()
             .entries
             .lock()
             .expect("LSP cancel map lock poisoned");
@@ -149,7 +159,7 @@ fn take_cancel_token(book: &CancelBook) -> u64 {
     }
 }
 
-impl<S> Service<AnyRequest> for RequestAdmissionData<S>
+impl<S> Service<AnyRequest> for RequestAdmission<S>
 where
     S: Service<AnyRequest, Response = serde_json::Value, Error = ResponseError> + Send + 'static,
     S::Future: Send,
@@ -191,7 +201,7 @@ where
     }
 }
 
-impl<S> LspService for RequestAdmissionData<S>
+impl<S> LspService for RequestAdmission<S>
 where
     S: Service<AnyRequest, Response = serde_json::Value, Error = ResponseError>
         + LspService
@@ -241,21 +251,19 @@ mod tests {
 
     use super::request_admission;
 
-    #[invariant(started.load(Ordering::Relaxed) >= *started_floor)]
+    /// A test service that counts calls and then waits.
+    ///
+    /// The count and the watch have no value constraint.
+    #[invariant(true)]
     struct PendingService {
-        started_floor: usize,
         started: Arc<AtomicUsize>,
         ready: watch::Receiver<bool>,
     }
 
     #[requires(true)]
-    #[ensures(ret.started_floor == 0)]
+    #[ensures(true)]
     fn pending_service(started: Arc<AtomicUsize>, ready: watch::Receiver<bool>) -> PendingService {
-        new!(PendingService {
-            started_floor: 0,
-            started,
-            ready,
-        })
+        PendingService { started, ready }
     }
 
     impl Service<AnyRequest> for PendingService {
@@ -395,13 +403,9 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn cancel_token(
-        admission: &super::RequestAdmissionData<PendingService>,
-        id: i32,
-    ) -> Option<u64> {
+    fn cancel_token(admission: &super::RequestAdmission<PendingService>, id: i32) -> Option<u64> {
         admission
             .cancels
-            .as_data()
             .entries
             .lock()
             .expect("LSP cancel map lock poisoned")

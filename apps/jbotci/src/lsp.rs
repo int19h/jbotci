@@ -5,7 +5,7 @@ use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
 use std::sync::{
     Arc, Mutex,
-    atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering},
+    atomic::{AtomicU64, Ordering as AtomicOrdering},
 };
 use std::time::Duration;
 
@@ -54,6 +54,7 @@ mod lsp_admission;
 const DIAGNOSTIC_IDENTIFIER: &str = "jbotci";
 const SERVER_NAME: &str = "jbotci";
 const COMPLETION_DATA_WORD: &str = "jbotciWord";
+const ANALYSIS_FAILED_MESSAGE: &str = "document analysis failed";
 const DEBOUNCE_DELAY: Duration = Duration::from_millis(200);
 const MIN_WORKER_PERMITS: usize = 2;
 const LEGACY_STRUCTURE_INLAYS_WARNING: &str = "initializationOptions.structureInlays is deprecated; use initializationOptions.inlays.structureBrackets instead";
@@ -70,11 +71,6 @@ struct ServerState {
     completion_grammar_time_limit: Option<Duration>,
     initialization_warnings: Vec<&'static str>,
     diagnostics_publisher: DiagnosticsPublisher,
-    /// Permits for blocking jobs.
-    ///
-    /// A permit covers one running job.
-    /// A request that only waits takes none.
-    worker_permits: Arc<Semaphore>,
 }
 
 #[invariant(true)]
@@ -179,7 +175,36 @@ struct ParsedInlayInitialization {
 struct DocumentStore {
     documents: Arc<Mutex<HashMap<Url, DocumentState>>>,
     next_epoch: Arc<AtomicU64>,
+    /// Permits for blocking jobs.
+    ///
+    /// A permit covers one running job.
+    /// A request that only waits takes none.
+    /// The store is the only owner, so the server has one pool.
     worker_permits: Arc<Semaphore>,
+}
+
+/// The epoch and the generation of one analysis.
+///
+/// A second open uses a new epoch.
+/// An edit uses the next generation in the same epoch.
+#[invariant(*epoch > 0 && *generation > 0)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct AnalysisIdentity {
+    epoch: u64,
+    generation: u64,
+}
+
+/// The answer of a wait for one document.
+#[invariant(true)]
+#[invariant(::Ready(_) => true)]
+#[derive(Debug)]
+enum DocumentWait<T> {
+    /// The document is not open.
+    Closed,
+    /// This generation ended before confirmation.
+    Failed,
+    /// The document has this value.
+    Ready(T),
 }
 
 #[invariant(true)]
@@ -194,8 +219,7 @@ enum PublishedDiagnosticPhase {
 #[derive(Debug)]
 struct PublishedDiagnostics {
     result_id: String,
-    epoch: u64,
-    generation: u64,
+    identity: AnalysisIdentity,
     version: i32,
     phase: PublishedDiagnosticPhase,
     snapshot: Arc<DiagnosticSnapshot>,
@@ -211,33 +235,48 @@ struct PublishedDiagnostics {
 struct DocumentState {
     text_index: LineIndex,
     version: i32,
-    epoch: u64,
-    generation: u64,
+    identity: AnalysisIdentity,
     confirmed_snapshot: Option<Arc<DocumentSnapshot>>,
-    confirmed: watch::Sender<Option<Arc<DocumentSnapshot>>>,
+    /// Wakes a feature request. The value is only a signal.
+    confirmed: watch::Sender<()>,
     latest_diagnostics: Option<Arc<PublishedDiagnostics>>,
-    diagnostics: watch::Sender<Option<Arc<PublishedDiagnostics>>>,
-    /// The current analysis panicked.
+    /// Wakes a diagnostic request. The value is only a signal.
+    diagnostics: watch::Sender<()>,
+    /// This generation ended before confirmation.
     ///
     /// A newer edit clears this flag.
     analysis_failed: bool,
     pending_analysis: Option<AbortHandle>,
 }
 
-/// Fail this generation on task exit until confirmation.
+/// Mark this analysis failed when the task ends before confirmation.
 ///
-/// The fields are the store, the URI, the epoch, the generation, and the flag.
-/// A drop wakes both watches unless the flag is set.
-struct AnalysisExitGuard(DocumentStore, Url, u64, u64, AtomicBool);
+/// The identity carries the epoch and the generation.
+/// `disarm` runs after the confirmed state is stored and before the publisher runs.
+#[invariant(true)]
+struct AnalysisExitGuard {
+    store: DocumentStore,
+    uri: Url,
+    identity: AnalysisIdentity,
+    armed: bool,
+}
+
+impl AnalysisExitGuard {
+    #[requires(true)]
+    #[ensures(true)]
+    fn disarm(mut self) {
+        self.armed = false;
+    }
+}
 
 impl Drop for AnalysisExitGuard {
     #[requires(true)]
     #[ensures(true)]
     fn drop(&mut self) {
-        if self.4.load(AtomicOrdering::SeqCst) {
+        if !self.armed {
             return;
         }
-        self.0.note_analysis_failure(&self.1, self.2, self.3);
+        self.store.note_analysis_failure(&self.uri, self.identity);
     }
 }
 
@@ -293,13 +332,6 @@ where
 }
 
 impl DocumentStore {
-    #[cfg(test)]
-    #[requires(true)]
-    #[ensures(true)]
-    fn new() -> Self {
-        Self::with_worker_permits(Arc::new(Semaphore::new(worker_permit_limit())))
-    }
-
     #[requires(worker_permits.available_permits() > 0)]
     #[ensures(true)]
     fn with_worker_permits(worker_permits: Arc<Semaphore>) -> Self {
@@ -332,23 +364,25 @@ impl DocumentStore {
                 epoch.checked_add(1)
             })
             .expect("document epochs cannot wrap without reusing diagnostic result IDs");
-        let generation = {
+        let identity = {
             let mut documents = self.documents.lock().expect("document store poisoned");
             if let Some(previous) = documents.remove(&uri)
                 && let Some(pending) = previous.pending_analysis
             {
                 pending.abort();
             }
-            let (confirmed, _) = watch::channel(None);
-            let (diagnostics, _) = watch::channel(None);
-            let generation = 1;
+            let (confirmed, _) = watch::channel(());
+            let (diagnostics, _) = watch::channel(());
+            let identity = new!(AnalysisIdentity {
+                epoch,
+                generation: 1,
+            });
             documents.insert(
                 uri.clone(),
                 DocumentState {
                     text_index: LineIndex::new(Arc::from(text)),
                     version,
-                    epoch,
-                    generation,
+                    identity,
                     confirmed_snapshot: None,
                     confirmed,
                     latest_diagnostics: None,
@@ -357,9 +391,9 @@ impl DocumentStore {
                     pending_analysis: None,
                 },
             );
-            generation
+            identity
         };
-        self.schedule_analysis(uri, generation, publisher, prepare);
+        self.schedule_analysis(uri, identity, publisher, prepare);
     }
 
     /// Apply a versioned notification atomically. Stale versions and inverted ranges are rejected.
@@ -380,7 +414,7 @@ impl DocumentStore {
         + Send
         + 'static,
     ) -> bool {
-        let generation = {
+        let identity = {
             let mut documents = self.documents.lock().expect("document store poisoned");
             let Some(document) = documents.get_mut(uri) else {
                 return false;
@@ -398,18 +432,23 @@ impl DocumentStore {
             }
             document.text_index = next_index;
             document.version = version;
-            document.generation = document
+            let generation = document
+                .identity
                 .generation
                 .checked_add(1)
                 .expect("strictly increasing i32 versions cannot exhaust a u64 generation");
+            document.identity = new!(AnalysisIdentity {
+                epoch: document.identity.epoch,
+                generation,
+            });
             document.latest_diagnostics = None;
             document.analysis_failed = false;
-            // `send_replace` wakes a waiter for an unchanged empty value.
-            document.diagnostics.send_replace(None);
-            document.confirmed.send_replace(None);
-            document.generation
+            // `send_replace` wakes a waiter when the value is already the signal.
+            document.diagnostics.send_replace(());
+            document.confirmed.send_replace(());
+            document.identity
         };
-        self.schedule_analysis(uri.clone(), generation, publisher, prepare);
+        self.schedule_analysis(uri.clone(), identity, publisher, prepare);
         true
     }
 
@@ -436,7 +475,7 @@ impl DocumentStore {
     fn schedule_analysis(
         &self,
         uri: Url,
-        generation: u64,
+        identity: AnalysisIdentity,
         publisher: DiagnosticsPublisher,
         prepare: impl for<'snapshot> FnOnce(
             Option<&'snapshot DocumentSnapshot>,
@@ -451,20 +490,17 @@ impl DocumentStore {
         let permits = Arc::clone(&self.worker_permits);
         let task = tokio::spawn(async move {
             let debounce_deadline = tokio::time::Instant::now() + DEBOUNCE_DELAY;
-            let Some((text, version, confirmed, epoch)) =
-                store.analysis_input(&task_uri, generation)
-            else {
+            let Some((text, version, confirmed)) = store.analysis_input(&task_uri, identity) else {
                 return;
             };
-            // The guard owns every exit after this generation is current.
-            // Confirmation stores the flag before the publisher can panic.
-            let guard = AnalysisExitGuard(
-                store.clone(),
-                task_uri.clone(),
-                epoch,
-                generation,
-                AtomicBool::new(false),
-            );
+            // The guard owns every exit after this identity is current.
+            // The task disarms the guard after the confirmed state is stored.
+            let guard = AnalysisExitGuard {
+                store: store.clone(),
+                uri: task_uri.clone(),
+                identity,
+                armed: true,
+            };
             let prepared = match run_with_worker_permit(Arc::clone(&permits), move || {
                 prepare(confirmed.as_deref(), text, i64::from(version))
             })
@@ -474,13 +510,8 @@ impl DocumentStore {
                 Err(_) => return,
             };
             if let Some(provisional) = prepared.provisional() {
-                if !store.install_provisional(
-                    &task_uri,
-                    generation,
-                    version,
-                    provisional,
-                    &publisher,
-                ) {
+                if !store.install_provisional(&task_uri, identity, version, provisional, &publisher)
+                {
                     return;
                 }
                 tokio::time::sleep_until(debounce_deadline).await;
@@ -489,15 +520,19 @@ impl DocumentStore {
                 Ok(snapshot) => Arc::new(snapshot),
                 Err(_) => return,
             };
-            store.complete_confirmation(
-                task_uri, generation, version, snapshot, publisher, &guard.4,
-            );
+            if let Some(publication) =
+                store.store_confirmation(&task_uri, identity, version, snapshot)
+            {
+                let diagnostics = Arc::clone(&publication.snapshot);
+                guard.disarm();
+                publisher(task_uri, version, diagnostics);
+            }
         });
         let abort_handle = task.abort_handle();
 
         let mut documents = self.documents.lock().expect("document store poisoned");
         if let Some(document) = documents.get_mut(&uri)
-            && document.generation == generation
+            && document.identity == identity
         {
             document.pending_analysis = Some(abort_handle);
         } else {
@@ -510,16 +545,15 @@ impl DocumentStore {
     fn analysis_input(
         &self,
         uri: &Url,
-        generation: u64,
-    ) -> Option<(String, i32, Option<Arc<DocumentSnapshot>>, u64)> {
+        identity: AnalysisIdentity,
+    ) -> Option<(String, i32, Option<Arc<DocumentSnapshot>>)> {
         let documents = self.documents.lock().expect("document store poisoned");
         let document = documents.get(uri)?;
-        (document.generation == generation).then(|| {
+        (document.identity == identity).then(|| {
             (
                 document.text_index.text().to_owned(),
                 document.version,
                 document.confirmed_snapshot.as_ref().map(Arc::clone),
-                document.epoch,
             )
         })
     }
@@ -529,7 +563,7 @@ impl DocumentStore {
     fn install_provisional(
         &self,
         uri: &Url,
-        generation: u64,
+        identity: AnalysisIdentity,
         version: i32,
         snapshot: Arc<DiagnosticSnapshot>,
         publisher: &DiagnosticsPublisher,
@@ -539,27 +573,24 @@ impl DocumentStore {
             let Some(document) = documents.get_mut(uri) else {
                 return false;
             };
-            if document.generation != generation || document.version != version {
+            if document.identity != identity || document.version != version {
                 return false;
             }
             let publication = Arc::new(new!(PublishedDiagnostics {
                 result_id: diagnostic_result_id(
-                    document.epoch,
-                    generation,
+                    identity.epoch,
+                    identity.generation,
                     version,
                     PublishedDiagnosticPhase::Provisional,
                 ),
-                epoch: document.epoch,
-                generation,
+                identity,
                 version,
                 phase: PublishedDiagnosticPhase::Provisional,
                 snapshot,
             }));
             document.latest_diagnostics = Some(Arc::clone(&publication));
             document.analysis_failed = false;
-            document
-                .diagnostics
-                .send_replace(Some(Arc::clone(&publication)));
+            document.diagnostics.send_replace(());
             publication
         };
         publisher(uri.clone(), version, Arc::clone(&publication.snapshot));
@@ -568,164 +599,157 @@ impl DocumentStore {
 
     #[requires(snapshot.version == i64::from(version))]
     #[ensures(true)]
-    fn complete_confirmation(
+    fn store_confirmation(
         &self,
-        uri: Url,
-        generation: u64,
+        uri: &Url,
+        identity: AnalysisIdentity,
         version: i32,
         snapshot: Arc<DocumentSnapshot>,
-        publisher: DiagnosticsPublisher,
-        confirmed: &AtomicBool,
-    ) {
-        let publication = {
-            let mut documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get_mut(&uri) else {
-                return;
-            };
-            if document.generation != generation || document.version != version {
-                return;
-            }
-            let diagnostics = Arc::new(DiagnosticSnapshot::from_confirmed(&snapshot));
-            let publication = Arc::new(new!(PublishedDiagnostics {
-                result_id: diagnostic_result_id(
-                    document.epoch,
-                    generation,
-                    version,
-                    PublishedDiagnosticPhase::Confirmed,
-                ),
-                epoch: document.epoch,
-                generation,
+    ) -> Option<Arc<PublishedDiagnostics>> {
+        let mut documents = self.documents.lock().expect("document store poisoned");
+        let document = documents.get_mut(uri)?;
+        if document.identity != identity || document.version != version {
+            return None;
+        }
+        let diagnostics = Arc::new(DiagnosticSnapshot::from_confirmed(&snapshot));
+        let publication = Arc::new(new!(PublishedDiagnostics {
+            result_id: diagnostic_result_id(
+                identity.epoch,
+                identity.generation,
                 version,
-                phase: PublishedDiagnosticPhase::Confirmed,
-                snapshot: diagnostics,
-            }));
-            document.confirmed_snapshot = Some(Arc::clone(&snapshot));
-            document.confirmed.send_replace(Some(snapshot));
-            document.latest_diagnostics = Some(Arc::clone(&publication));
-            document.analysis_failed = false;
-            document
-                .diagnostics
-                .send_replace(Some(Arc::clone(&publication)));
-            document.pending_analysis = None;
-            publication
-        };
-        // Store confirmation before the publisher runs.
-        // A publisher panic then leaves this generation confirmed.
-        confirmed.store(true, AtomicOrdering::SeqCst);
-        publisher(uri, version, Arc::clone(&publication.snapshot));
+                PublishedDiagnosticPhase::Confirmed,
+            ),
+            identity,
+            version,
+            phase: PublishedDiagnosticPhase::Confirmed,
+            snapshot: diagnostics,
+        }));
+        document.confirmed_snapshot = Some(snapshot);
+        document.confirmed.send_replace(());
+        document.latest_diagnostics = Some(Arc::clone(&publication));
+        document.analysis_failed = false;
+        document.diagnostics.send_replace(());
+        document.pending_analysis = None;
+        Some(publication)
     }
 
-    /// Wake waiters after this generation fails.
+    /// Wake waiters after this generation ends before confirmation.
     ///
-    /// A newer generation keeps its own result.
-    /// A replaced document keeps its own epoch.
+    /// A different identity keeps its own result.
+    /// A poisoned lock still records the failure, so this drop does not abort the process.
     #[requires(true)]
     #[ensures(true)]
-    fn note_analysis_failure(&self, uri: &Url, epoch: u64, generation: u64) {
-        let mut documents = self.documents.lock().expect("document store poisoned");
+    fn note_analysis_failure(&self, uri: &Url, identity: AnalysisIdentity) {
+        let mut documents = self
+            .documents
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let Some(document) = documents.get_mut(uri) else {
             return;
         };
-        if document.epoch != epoch || document.generation != generation {
+        if document.identity != identity {
             return;
         }
         document.analysis_failed = true;
-        // `send_replace` wakes a waiter for an unchanged empty value.
-        document.confirmed.send_replace(None);
-        document.diagnostics.send_replace(None);
+        // `send_replace` wakes a waiter when the value is already the signal.
+        document.confirmed.send_replace(());
+        document.diagnostics.send_replace(());
     }
 
     /// Return the last confirmed tree, waiting only when a document has never been confirmed.
     ///
-    /// A failed analysis returns no tree.
-    /// A replaced analysis wakes this wait.
+    /// `Failed` means this generation ended before confirmation.
+    /// `Closed` means the document is not open.
+    /// A later edit wakes this wait.
     #[requires(true)]
     #[ensures(true)]
-    async fn snapshot_for_features(&self, uri: &Url) -> Option<Arc<DocumentSnapshot>> {
+    async fn snapshot_for_features(&self, uri: &Url) -> DocumentWait<Arc<DocumentSnapshot>> {
         let mut confirmed = {
             let documents = self.documents.lock().expect("document store poisoned");
-            let document = documents.get(uri)?;
+            let Some(document) = documents.get(uri) else {
+                return DocumentWait::Closed;
+            };
             if let Some(snapshot) = &document.confirmed_snapshot {
-                return Some(Arc::clone(snapshot));
+                return DocumentWait::Ready(Arc::clone(snapshot));
             }
             if document.analysis_failed {
-                return None;
+                return DocumentWait::Failed;
             }
             document.confirmed.subscribe()
         };
 
         loop {
-            if let Some(snapshot) = confirmed.borrow_and_update().clone() {
-                return Some(snapshot);
-            }
-            {
-                let documents = self.documents.lock().expect("document store poisoned");
-                let Some(document) = documents.get(uri) else {
-                    return None;
-                };
-                if let Some(snapshot) = &document.confirmed_snapshot {
-                    return Some(Arc::clone(snapshot));
-                }
-                if document.analysis_failed {
-                    return None;
-                }
-            }
             if confirmed.changed().await.is_err() {
-                return None;
+                return DocumentWait::Closed;
+            }
+            let documents = self.documents.lock().expect("document store poisoned");
+            let Some(document) = documents.get(uri) else {
+                return DocumentWait::Closed;
+            };
+            if let Some(snapshot) = &document.confirmed_snapshot {
+                return DocumentWait::Ready(Arc::clone(snapshot));
+            }
+            if document.analysis_failed {
+                return DocumentWait::Failed;
             }
         }
     }
 
-    /// Return diagnostics for the current or a later non-superseded generation.
+    /// Return diagnostics for this identity or a later one in the same epoch.
+    ///
+    /// A stored publication wins over a later failure.
+    /// That keeps a provisional publication after the publisher panics.
     #[requires(true)]
     #[ensures(true)]
-    async fn diagnostics_for_current(&self, uri: &Url) -> Option<Arc<PublishedDiagnostics>> {
-        let (target_epoch, target_generation, target_version, mut diagnostics) = {
+    async fn diagnostics_for_current(&self, uri: &Url) -> DocumentWait<Arc<PublishedDiagnostics>> {
+        let (target_identity, target_version, mut diagnostics) = {
             let documents = self.documents.lock().expect("document store poisoned");
-            let document = documents.get(uri)?;
+            let Some(document) = documents.get(uri) else {
+                return DocumentWait::Closed;
+            };
             if let Some(diagnostics) = &document.latest_diagnostics {
-                return Some(Arc::clone(diagnostics));
+                return DocumentWait::Ready(Arc::clone(diagnostics));
             }
             if document.analysis_failed {
-                return None;
+                return DocumentWait::Failed;
             }
             (
-                document.epoch,
-                document.generation,
+                document.identity,
                 document.version,
                 document.diagnostics.subscribe(),
             )
         };
 
         loop {
-            if let Some(publication) = diagnostics.borrow_and_update().clone()
-                && publication.epoch == target_epoch
-                && publication.generation >= target_generation
-                && publication.version >= target_version
-            {
-                return Some(publication);
-            }
-            {
-                let documents = self.documents.lock().expect("document store poisoned");
-                let Some(document) = documents.get(uri) else {
-                    return None;
-                };
-                if let Some(publication) = &document.latest_diagnostics
-                    && publication.epoch == target_epoch
-                    && publication.generation >= target_generation
-                    && publication.version >= target_version
-                {
-                    return Some(Arc::clone(publication));
-                }
-                if document.analysis_failed {
-                    return None;
-                }
-            }
             if diagnostics.changed().await.is_err() {
-                return None;
+                return DocumentWait::Closed;
+            }
+            let documents = self.documents.lock().expect("document store poisoned");
+            let Some(document) = documents.get(uri) else {
+                return DocumentWait::Closed;
+            };
+            if let Some(publication) = &document.latest_diagnostics
+                && publication_covers(publication, target_identity, target_version)
+            {
+                return DocumentWait::Ready(Arc::clone(publication));
+            }
+            if document.analysis_failed {
+                return DocumentWait::Failed;
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn publication_covers(
+    publication: &PublishedDiagnostics,
+    identity: AnalysisIdentity,
+    version: i32,
+) -> bool {
+    publication.identity.epoch == identity.epoch
+        && publication.identity.generation >= identity.generation
+        && publication.version >= version
 }
 
 #[requires(true)]
@@ -747,17 +771,17 @@ impl ServerState {
     #[requires(true)]
     #[ensures(true)]
     fn new(client: ClientSocket) -> Self {
-        let worker_permits = Arc::new(Semaphore::new(worker_permit_limit()));
         Self {
             client,
-            documents: DocumentStore::with_worker_permits(Arc::clone(&worker_permits)),
+            documents: DocumentStore::with_worker_permits(Arc::new(Semaphore::new(
+                worker_permit_limit(),
+            ))),
             position_encoding: PositionEncoding::Utf16,
             pull_diagnostics: true,
             inlay_options: InlayOptions::default(),
             completion_grammar_time_limit: Some(COMPLETION_GRAMMAR_TIME_LIMIT),
             initialization_warnings: Vec::new(),
             diagnostics_publisher: no_diagnostics_publisher(),
-            worker_permits,
         }
     }
 
@@ -919,36 +943,28 @@ async fn run_server() -> Result<()> {
             .request::<request::DocumentDiagnosticRequest, _>(|state, params| {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
-                async move { Ok(document_diagnostic(documents, encoding, params).await) }
+                async move { document_diagnostic(documents, encoding, params).await }
             })
             .request::<request::HoverRequest, _>(|state, params| {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
-                async move { Ok(document_hover(documents, encoding, params).await) }
+                async move { document_hover(documents, encoding, params).await }
             })
             .request::<request::SelectionRangeRequest, _>(|state, params| {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
-                async move { Ok(document_selection_ranges(documents, encoding, params).await) }
+                async move { document_selection_ranges(documents, encoding, params).await }
             })
             .request::<request::FoldingRangeRequest, _>(|state, params| {
                 let documents = state.documents.clone();
-                async move { Ok(document_folding_ranges(documents, params).await) }
+                async move { document_folding_ranges(documents, params).await }
             })
             .request::<request::Completion, _>(|state, params| {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
                 let grammar_time_limit = state.completion_grammar_time_limit;
-                let worker_permits = Arc::clone(&state.worker_permits);
                 async move {
-                    Ok(document_completion(
-                        documents,
-                        encoding,
-                        params,
-                        grammar_time_limit,
-                        worker_permits,
-                    )
-                    .await)
+                    document_completion(documents, encoding, params, grammar_time_limit).await
                 }
             })
             .request::<request::ResolveCompletionItem, _>(|_, item| async move {
@@ -957,7 +973,7 @@ async fn run_server() -> Result<()> {
             .request::<request::SemanticTokensFullRequest, _>(|state, params| {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
-                async move { Ok(document_semantic_tokens(documents, encoding, params).await) }
+                async move { document_semantic_tokens(documents, encoding, params).await }
             })
             .request::<request::InlayHintRequest, _>(|state, params| {
                 let documents = state.documents.clone();
@@ -1237,43 +1253,69 @@ fn apply_content_changes(
     Some(index)
 }
 
+#[requires(true)]
+#[ensures(ret.code == ErrorCode::INTERNAL_ERROR)]
+#[ensures(ret.message == ANALYSIS_FAILED_MESSAGE)]
+fn analysis_failed_response() -> ResponseError {
+    ResponseError::new(ErrorCode::INTERNAL_ERROR, ANALYSIS_FAILED_MESSAGE)
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn ready_snapshot(
+    documents: &DocumentStore,
+    uri: &Url,
+) -> Result<Option<Arc<DocumentSnapshot>>, ResponseError> {
+    match documents.snapshot_for_features(uri).await {
+        DocumentWait::Closed => Ok(None),
+        DocumentWait::Failed => Err(analysis_failed_response()),
+        DocumentWait::Ready(snapshot) => Ok(Some(snapshot)),
+    }
+}
+
 #[requires(encoding != PositionEncoding::Utf32)]
 #[ensures(true)]
 async fn document_hover(
     documents: DocumentStore,
     encoding: PositionEncoding,
     params: lsp_types::HoverParams,
-) -> Option<lsp_types::Hover> {
+) -> Result<Option<lsp_types::Hover>, ResponseError> {
     let position = params.text_document_position_params.position;
     let uri = params.text_document_position_params.text_document.uri;
-    let snapshot = documents.snapshot_for_features(&uri).await?;
+    let Some(snapshot) = ready_snapshot(&documents, &uri).await? else {
+        return Ok(None);
+    };
     let char_offset = snapshot.line_index.char_offset_for_position(
         Position::new(position.line as usize, position.character as usize),
         encoding,
     );
-    let hover = snapshot.hover(char_offset)?.into_data();
+    let Some(hover) = snapshot.hover(char_offset) else {
+        return Ok(None);
+    };
+    let hover = hover.into_data();
     let range = snapshot
         .line_index
         .positions_for_span(&hover.span, encoding);
-    Some(lsp_types::Hover {
+    Ok(Some(lsp_types::Hover {
         contents: lsp_types::HoverContents::Markup(lsp_types::MarkupContent {
             kind: lsp_types::MarkupKind::Markdown,
             value: hover.markdown,
         }),
         range: Some(lsp_range(range)),
-    })
+    }))
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
-#[ensures(ret.as_ref().is_none_or(|ranges| ranges.len() == params.positions.len()))]
+#[ensures(ret.as_ref().ok().is_none_or(|ranges| ranges.as_ref().is_none_or(|ranges| ranges.len() == params.positions.len())))]
+#[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INTERNAL_ERROR))]
 async fn document_selection_ranges(
     documents: DocumentStore,
     encoding: PositionEncoding,
     params: lsp_types::SelectionRangeParams,
-) -> Option<Vec<lsp_types::SelectionRange>> {
-    let snapshot = documents
-        .snapshot_for_features(&params.text_document.uri)
-        .await?;
+) -> Result<Option<Vec<lsp_types::SelectionRange>>, ResponseError> {
+    let Some(snapshot) = ready_snapshot(&documents, &params.text_document.uri).await? else {
+        return Ok(None);
+    };
     let offsets = params
         .positions
         .iter()
@@ -1284,13 +1326,13 @@ async fn document_selection_ranges(
             )
         })
         .collect::<Vec<_>>();
-    Some(
+    Ok(Some(
         snapshot
             .selection_ranges(&offsets)
             .into_iter()
             .map(|chain| selection_range_to_lsp(&snapshot, encoding, chain))
             .collect(),
-    )
+    ))
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
@@ -1315,15 +1357,16 @@ fn selection_range_to_lsp(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start_line < range.end_line)))]
+#[ensures(ret.as_ref().ok().is_none_or(|ranges| ranges.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start_line < range.end_line))))]
+#[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INTERNAL_ERROR))]
 async fn document_folding_ranges(
     documents: DocumentStore,
     params: lsp_types::FoldingRangeParams,
-) -> Option<Vec<lsp_types::FoldingRange>> {
-    let snapshot = documents
-        .snapshot_for_features(&params.text_document.uri)
-        .await?;
-    Some(
+) -> Result<Option<Vec<lsp_types::FoldingRange>>, ResponseError> {
+    let Some(snapshot) = ready_snapshot(&documents, &params.text_document.uri).await? else {
+        return Ok(None);
+    };
+    Ok(Some(
         snapshot
             .folding_ranges()
             .into_iter()
@@ -1336,7 +1379,7 @@ async fn document_folding_ranges(
                 collapsed_text: None,
             })
             .collect(),
-    )
+    ))
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
@@ -1346,11 +1389,13 @@ async fn document_completion(
     encoding: PositionEncoding,
     params: lsp_types::CompletionParams,
     grammar_time_limit: Option<Duration>,
-    worker_permits: Arc<Semaphore>,
-) -> Option<CompletionResponse> {
+) -> Result<Option<CompletionResponse>, ResponseError> {
     let position = params.text_document_position.position;
     let uri = params.text_document_position.text_document.uri;
-    let snapshot = documents.snapshot_for_features(&uri).await?;
+    let Some(snapshot) = ready_snapshot(&documents, &uri).await? else {
+        return Ok(None);
+    };
+    let worker_permits = Arc::clone(&documents.worker_permits);
     let char_offset = snapshot.line_index.char_offset_for_position(
         Position::new(position.line as usize, position.character as usize),
         encoding,
@@ -1374,7 +1419,7 @@ async fn document_completion(
     .ok()
     .flatten();
     drop(cancel_on_drop);
-    completion
+    Ok(completion)
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
@@ -1503,20 +1548,20 @@ async fn document_semantic_tokens(
     documents: DocumentStore,
     encoding: PositionEncoding,
     params: lsp_types::SemanticTokensParams,
-) -> Option<lsp_types::SemanticTokensResult> {
-    let snapshot = documents
-        .snapshot_for_features(&params.text_document.uri)
-        .await?;
-    Some(lsp_types::SemanticTokensResult::Tokens(
+) -> Result<Option<lsp_types::SemanticTokensResult>, ResponseError> {
+    let Some(snapshot) = ready_snapshot(&documents, &params.text_document.uri).await? else {
+        return Ok(None);
+    };
+    Ok(Some(lsp_types::SemanticTokensResult::Tokens(
         lsp_types::SemanticTokens {
             result_id: None,
             data: snapshot_semantic_tokens(&snapshot, encoding),
         },
-    ))
+    )))
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
-#[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INVALID_PARAMS))]
+#[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INVALID_PARAMS || error.code == ErrorCode::INTERNAL_ERROR))]
 async fn document_inlay_hints(
     documents: DocumentStore,
     encoding: PositionEncoding,
@@ -1538,7 +1583,7 @@ async fn document_inlay_hints(
         ));
     }
     let uri = params.text_document.uri;
-    let Some(snapshot) = documents.snapshot_for_features(&uri).await else {
+    let Some(snapshot) = ready_snapshot(&documents, &uri).await? else {
         return Ok(None);
     };
     let requested_positions = PositionRange::new(start, end);
@@ -1646,26 +1691,28 @@ async fn document_diagnostic(
     documents: DocumentStore,
     encoding: PositionEncoding,
     params: DocumentDiagnosticParams,
-) -> DocumentDiagnosticReportResult {
+) -> Result<DocumentDiagnosticReportResult, ResponseError> {
     let uri = params.text_document.uri;
-    let Some(publication) = documents.diagnostics_for_current(&uri).await else {
-        return full_diagnostic_report(None, Vec::new());
+    let publication = match documents.diagnostics_for_current(&uri).await {
+        DocumentWait::Closed => return Ok(full_diagnostic_report(None, Vec::new())),
+        DocumentWait::Failed => return Err(analysis_failed_response()),
+        DocumentWait::Ready(publication) => publication,
     };
     let result_id = publication.result_id.clone();
     if params.previous_result_id.as_deref() == Some(result_id.as_str()) {
-        return DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Unchanged(
-            RelatedUnchangedDocumentDiagnosticReport {
+        return Ok(DocumentDiagnosticReportResult::Report(
+            DocumentDiagnosticReport::Unchanged(RelatedUnchangedDocumentDiagnosticReport {
                 related_documents: None,
                 unchanged_document_diagnostic_report: UnchangedDocumentDiagnosticReport {
                     result_id,
                 },
-            },
+            }),
         ));
     }
-    full_diagnostic_report(
+    Ok(full_diagnostic_report(
         Some(result_id),
         diagnostic_snapshot_to_lsp(&publication.snapshot, &uri, encoding),
-    )
+    ))
 }
 
 #[requires(true)]
@@ -1770,7 +1817,17 @@ fn lsp_range(range: jbotci_ide::PositionRange) -> Range {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::AtomicBool;
+
     use super::*;
+
+    impl DocumentStore {
+        #[requires(true)]
+        #[ensures(true)]
+        fn new() -> Self {
+            Self::with_worker_permits(Arc::new(Semaphore::new(worker_permit_limit())))
+        }
+    }
 
     #[test]
     #[requires(true)]
@@ -1963,6 +2020,53 @@ mod tests {
         future.poll(&mut context)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn expect_ready<T>(wait: DocumentWait<T>, failure: &'static str) -> T {
+        match wait {
+            DocumentWait::Ready(value) => value,
+            DocumentWait::Closed => panic!("{failure}: the document is closed"),
+            DocumentWait::Failed => panic!("{failure}: the analysis failed"),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_analysis_failed(error: &ResponseError) {
+        assert_eq!(error.code, ErrorCode::INTERNAL_ERROR);
+        assert_eq!(error.message, ANALYSIS_FAILED_MESSAGE);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn text_document(uri: &Url) -> lsp_types::TextDocumentIdentifier {
+        lsp_types::TextDocumentIdentifier { uri: uri.clone() }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn position_params(uri: &Url) -> lsp_types::TextDocumentPositionParams {
+        lsp_types::TextDocumentPositionParams {
+            text_document: text_document(uri),
+            position: lsp_types::Position::new(0, 0),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_empty_diagnostic_report(report: DocumentDiagnosticReportResult) {
+        match report {
+            DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Full(full)) => {
+                assert!(full.full_document_diagnostic_report.result_id.is_none());
+                assert!(full.full_document_diagnostic_report.items.is_empty());
+            }
+            DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Unchanged(_))
+            | DocumentDiagnosticReportResult::Partial(_) => {
+                panic!("a closed document is an empty full report")
+            }
+        }
+    }
+
     #[tokio::test(flavor = "current_thread")]
     #[requires(true)]
     #[ensures(true)]
@@ -2009,11 +2113,179 @@ mod tests {
         let feature = tokio::time::timeout(Duration::from_secs(5), feature)
             .await
             .expect("feature wait ends");
-        assert!(feature.is_none());
+        assert!(matches!(feature, DocumentWait::Failed));
         let diagnostics = tokio::time::timeout(Duration::from_secs(5), diagnostics)
             .await
             .expect("diagnostic wait ends");
-        assert!(diagnostics.is_none());
+        assert!(matches!(diagnostics, DocumentWait::Failed));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_failed_analysis_is_an_internal_error_for_every_waiting_request() {
+        let store = DocumentStore::new();
+        let missing = Url::parse("file:///closed-analysis.jbo").expect("valid test URI");
+        let closed = document_diagnostic(
+            store.clone(),
+            PositionEncoding::Utf16,
+            DocumentDiagnosticParams {
+                text_document: text_document(&missing),
+                identifier: None,
+                previous_result_id: None,
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
+            },
+        )
+        .await
+        .expect("a closed document is an empty report");
+        assert_empty_diagnostic_report(closed);
+        let closed_hover = document_hover(
+            store.clone(),
+            PositionEncoding::Utf16,
+            lsp_types::HoverParams {
+                text_document_position_params: position_params(&missing),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            },
+        )
+        .await
+        .expect("a closed document has no hover");
+        assert!(closed_hover.is_none());
+
+        let uri = Url::parse("file:///failed-analysis.jbo").expect("valid test URI");
+        let (arrived_tx, arrived_rx) = std::sync::mpsc::sync_channel(1);
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        store.open(
+            uri.clone(),
+            "mi klama".to_owned(),
+            1,
+            no_diagnostics_publisher(),
+            move |_confirmed: Option<&DocumentSnapshot>, _text, _version| {
+                arrived_tx
+                    .send(())
+                    .expect("the test waits for the analysis job");
+                release_rx
+                    .recv()
+                    .expect("the test releases the analysis job");
+                panic!("test analysis failure");
+            },
+        );
+        wait_for_signal(arrived_rx, "analysis did not reach the failure").await;
+        release_tx.send(()).expect("release the analysis failure");
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let failed = {
+                let documents = store.documents.lock().expect("document store poisoned");
+                let document = documents.get(&uri).expect("the document stays open");
+                document.analysis_failed
+            };
+            if failed {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "analysis did not record the failure"
+            );
+            tokio::task::yield_now().await;
+        }
+
+        let hover = document_hover(
+            store.clone(),
+            PositionEncoding::Utf16,
+            lsp_types::HoverParams {
+                text_document_position_params: position_params(&uri),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            },
+        )
+        .await
+        .expect_err("hover reports the failed analysis");
+        assert_analysis_failed(&hover);
+
+        let selection = document_selection_ranges(
+            store.clone(),
+            PositionEncoding::Utf16,
+            lsp_types::SelectionRangeParams {
+                text_document: text_document(&uri),
+                positions: vec![lsp_types::Position::new(0, 0)],
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
+            },
+        )
+        .await
+        .expect_err("selection range reports the failed analysis");
+        assert_analysis_failed(&selection);
+
+        let folding = document_folding_ranges(
+            store.clone(),
+            lsp_types::FoldingRangeParams {
+                text_document: text_document(&uri),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
+            },
+        )
+        .await
+        .expect_err("folding range reports the failed analysis");
+        assert_analysis_failed(&folding);
+
+        let completion = document_completion(
+            store.clone(),
+            PositionEncoding::Utf16,
+            lsp_types::CompletionParams {
+                text_document_position: position_params(&uri),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
+                context: None,
+            },
+            None,
+        )
+        .await
+        .expect_err("completion reports the failed analysis");
+        assert_analysis_failed(&completion);
+
+        let tokens = document_semantic_tokens(
+            store.clone(),
+            PositionEncoding::Utf16,
+            lsp_types::SemanticTokensParams {
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
+                text_document: text_document(&uri),
+            },
+        )
+        .await
+        .expect_err("semantic tokens report the failed analysis");
+        assert_analysis_failed(&tokens);
+
+        let inlays = document_inlay_hints(
+            store.clone(),
+            PositionEncoding::Utf16,
+            InlayOptions::default(),
+            lsp_types::InlayHintParams {
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                text_document: text_document(&uri),
+                range: Range::new(
+                    lsp_types::Position::new(0, 0),
+                    lsp_types::Position::new(0, 0),
+                ),
+            },
+        )
+        .await
+        .expect_err("inlay hints report the failed analysis");
+        assert_analysis_failed(&inlays);
+
+        let diagnostics = document_diagnostic(
+            store.clone(),
+            PositionEncoding::Utf16,
+            DocumentDiagnosticParams {
+                text_document: text_document(&uri),
+                identifier: None,
+                previous_result_id: None,
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
+            },
+        )
+        .await
+        .expect_err("diagnostics report the failed analysis");
+        assert_analysis_failed(&diagnostics);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2031,10 +2303,10 @@ mod tests {
             no_diagnostics_publisher(),
             PreparedDocumentAnalysis::prepare,
         );
-        let initial = store
-            .diagnostics_for_current(&uri)
-            .await
-            .expect("initial confirmation");
+        let initial = expect_ready(
+            store.diagnostics_for_current(&uri).await,
+            "initial confirmation",
+        );
         assert_eq!(initial.phase, PublishedDiagnosticPhase::Confirmed);
 
         let (job_arrived_tx, job_arrived_rx) = std::sync::mpsc::sync_channel(1);
@@ -2121,7 +2393,7 @@ mod tests {
         // A new diagnostic request returns that publication. It is not waiting.
         let mut current = std::pin::pin!(store.diagnostics_for_current(&uri));
         let provisional = match poll_now(current.as_mut()) {
-            std::task::Poll::Ready(publication) => publication.expect("provisional diagnostics"),
+            std::task::Poll::Ready(wait) => expect_ready(wait, "provisional diagnostics"),
             std::task::Poll::Pending => {
                 panic!("diagnostics already have a provisional publication")
             }
@@ -2133,22 +2405,62 @@ mod tests {
         let feature = tokio::time::timeout(Duration::from_secs(5), feature)
             .await
             .expect("feature wait ends");
-        assert!(feature.is_none());
+        assert!(matches!(feature, DocumentWait::Failed));
         // The waiter subscribed before publication.
         // The failure does not remove `latest_diagnostics`.
         // The waiter therefore keeps the provisional publication.
-        let waited = tokio::time::timeout(Duration::from_secs(5), diagnostics)
-            .await
-            .expect("diagnostic wait ends")
-            .expect("the provisional publication");
+        let waited = expect_ready(
+            tokio::time::timeout(Duration::from_secs(5), diagnostics)
+                .await
+                .expect("diagnostic wait ends"),
+            "the provisional publication",
+        );
         assert_eq!(waited.result_id, provisional.result_id);
         assert_eq!(waited.phase, PublishedDiagnosticPhase::Provisional);
-        let after =
+        let after = expect_ready(
             tokio::time::timeout(Duration::from_secs(5), store.diagnostics_for_current(&uri))
                 .await
-                .expect("diagnostic read ends")
-                .expect("the provisional publication remains");
+                .expect("diagnostic read ends"),
+            "the provisional publication remains",
+        );
         assert_eq!(after.result_id, provisional.result_id);
+
+        let report = document_diagnostic(
+            store.clone(),
+            PositionEncoding::Utf16,
+            DocumentDiagnosticParams {
+                text_document: text_document(&uri),
+                identifier: None,
+                previous_result_id: None,
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
+            },
+        )
+        .await
+        .expect("a publisher panic keeps the provisional report");
+        match report {
+            DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Full(full)) => {
+                assert_eq!(
+                    full.full_document_diagnostic_report.result_id.as_deref(),
+                    Some(provisional.result_id.as_str())
+                );
+            }
+            DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Unchanged(_))
+            | DocumentDiagnosticReportResult::Partial(_) => {
+                panic!("the provisional answer is a full report")
+            }
+        }
+        let hover = document_hover(
+            store.clone(),
+            PositionEncoding::Utf16,
+            lsp_types::HoverParams {
+                text_document_position_params: position_params(&uri),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            },
+        )
+        .await
+        .expect_err("a publisher panic leaves no confirmed tree");
+        assert_analysis_failed(&hover);
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -2188,10 +2500,10 @@ mod tests {
             PreparedDocumentAnalysis::prepare,
         ));
 
-        let snapshot = store
-            .snapshot_for_features(&uri)
-            .await
-            .expect("replacement snapshot must complete");
+        let snapshot = expect_ready(
+            store.snapshot_for_features(&uri).await,
+            "replacement snapshot must complete",
+        );
         assert_eq!(snapshot.version, 2);
         tokio::time::sleep(DEBOUNCE_DELAY).await;
         assert_eq!(
@@ -2217,10 +2529,10 @@ mod tests {
             Arc::clone(&publisher),
             PreparedDocumentAnalysis::prepare,
         );
-        let initial = store
-            .diagnostics_for_current(&uri)
-            .await
-            .expect("initial confirmation");
+        let initial = expect_ready(
+            store.diagnostics_for_current(&uri).await,
+            "initial confirmation",
+        );
         assert_eq!(initial.phase, PublishedDiagnosticPhase::Confirmed);
 
         assert!(store.change(
@@ -2236,16 +2548,16 @@ mod tests {
             PreparedDocumentAnalysis::prepare,
         ));
 
-        let provisional = store
-            .diagnostics_for_current(&uri)
-            .await
-            .expect("provisional diagnostics");
+        let provisional = expect_ready(
+            store.diagnostics_for_current(&uri).await,
+            "provisional diagnostics",
+        );
         assert_eq!(provisional.phase, PublishedDiagnosticPhase::Provisional);
         assert!(provisional.result_id.ends_with(":2:provisional"));
-        let tree = store
-            .snapshot_for_features(&uri)
-            .await
-            .expect("last confirmed tree");
+        let tree = expect_ready(
+            store.snapshot_for_features(&uri).await,
+            "last confirmed tree",
+        );
         assert_eq!(tree.version, 1);
 
         let mut confirmations = {
@@ -2258,11 +2570,16 @@ mod tests {
         };
         tokio::time::timeout(Duration::from_secs(30), async {
             loop {
-                if confirmations
-                    .borrow_and_update()
-                    .as_ref()
-                    .is_some_and(|snapshot| snapshot.version == 2)
-                {
+                let confirmed = {
+                    let documents = store.documents.lock().expect("document store poisoned");
+                    documents
+                        .get(&uri)
+                        .expect("open document")
+                        .confirmed_snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot.version == 2)
+                };
+                if confirmed {
                     break;
                 }
                 confirmations
@@ -2273,10 +2590,10 @@ mod tests {
         })
         .await
         .expect("confirmation must complete within the CI-twin boundary");
-        let confirmed = store
-            .diagnostics_for_current(&uri)
-            .await
-            .expect("confirming diagnostics");
+        let confirmed = expect_ready(
+            store.diagnostics_for_current(&uri).await,
+            "confirming diagnostics",
+        );
         assert_eq!(confirmed.phase, PublishedDiagnosticPhase::Confirmed);
         assert!(confirmed.result_id.ends_with(":2:confirmed"));
         assert_eq!(
@@ -2292,10 +2609,10 @@ mod tests {
             no_diagnostics_publisher(),
             PreparedDocumentAnalysis::prepare,
         );
-        let reopened = store
-            .diagnostics_for_current(&uri)
-            .await
-            .expect("reopened document confirmation");
+        let reopened = expect_ready(
+            store.diagnostics_for_current(&uri).await,
+            "reopened document confirmation",
+        );
         assert_ne!(
             reopened.result_id, confirmed.result_id,
             "the epoch prevents resultId reuse when a URI reopens at the same version",
