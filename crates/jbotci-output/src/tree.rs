@@ -28,7 +28,7 @@ use jbotci_syntax::{
 use jbotci_tree::{FieldRef, RecoveryItemState, RecoveryProjection, TreeVisitor};
 use serde::Serialize;
 
-use crate::references::ReferenceDisplayModel;
+use crate::references::{ReferenceDisplayModel, ReferenceName};
 use crate::{GlyphStyle, Indentation, OutputError, TreeRenderOptions};
 
 #[derive(Debug)]
@@ -2544,6 +2544,90 @@ pub(crate) fn collapse_value(value: TreeValue) -> TreeValue {
     }
 }
 
+/// One step of a tree render.
+///
+/// The steps sit on a heap stack. A native frame per node overflows the
+/// default thread on a deep `lo nu` chain.
+#[invariant(true)]
+#[invariant(::Value { .. } => true)]
+#[invariant(::SyntaxOutgoing { .. } => true)]
+#[invariant(::NodeSuffix { .. } => true)]
+#[invariant(::EntryPrefix { .. } => true)]
+#[invariant(::InlineEntryPrefix { .. } => true)]
+#[invariant(::ItemPrefix { .. } => true)]
+#[invariant(::InlineItemPrefix { .. } => true)]
+#[invariant(::CollectionSuffix { .. } => true)]
+#[invariant(::CollectionClose => true)]
+#[invariant(::CollectionItems { .. } => true)]
+#[invariant(::NodeEntries { .. } => true)]
+#[invariant(::Comma => true)]
+enum RenderStep<'a> {
+    Value {
+        value: &'a TreeValue,
+        indent: usize,
+    },
+    SyntaxOutgoing {
+        outgoing: Vec<ReferenceName>,
+    },
+    NodeSuffix {
+        indent: usize,
+        trail: bool,
+    },
+    EntryPrefix {
+        child_indent: usize,
+        label: Option<&'static str>,
+    },
+    InlineEntryPrefix {
+        comma: bool,
+        label: Option<&'static str>,
+    },
+    ItemPrefix {
+        child_indent: usize,
+    },
+    InlineItemPrefix {
+        comma: bool,
+    },
+    CollectionSuffix {
+        indent: usize,
+    },
+    CollectionClose,
+    /// The opening bracket is already written. The cursor is the unread tail.
+    CollectionItems {
+        rest: std::slice::Iter<'a, TreeValue>,
+        child_indent: usize,
+        inline: bool,
+        seen: bool,
+    },
+    /// The opening brace is already written. The cursor is the unread tail.
+    NodeEntries {
+        rest: std::slice::Iter<'a, TreeEntry>,
+        child_indent: usize,
+        inline: bool,
+        seen: bool,
+    },
+    Comma,
+}
+
+#[cfg(test)]
+thread_local! {
+    static TREE_CHILD_VISITS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Children taken from an open tree group since the last read.
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+fn take_tree_child_visits() -> u64 {
+    TREE_CHILD_VISITS.with(|count| count.replace(0))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn note_tree_child_visit() {
+    #[cfg(test)]
+    TREE_CHILD_VISITS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
 #[derive(Debug)]
 #[invariant(true)]
 struct TreeRenderer<'references> {
@@ -2574,12 +2658,171 @@ impl TreeRenderer<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn render_value(&mut self, value: &TreeValue, indent: usize) -> std::io::Result<()> {
-        self.stop_if_cancelled()?;
+        let mut steps = vec![RenderStep::Value { value, indent }];
+        while let Some(step) = steps.pop() {
+            match step {
+                RenderStep::Comma => {
+                    self.output
+                        .write_all(self.punctuation_token(",").as_bytes())?;
+                }
+                RenderStep::SyntaxOutgoing { outgoing } => {
+                    for name in &outgoing {
+                        self.output.write_all(b" ")?;
+                        self.output
+                            .write_all(self.punctuation_token(self.glyphs.arrow()).as_bytes())?;
+                        self.output.write_all(
+                            self.reference_name(name, ReferenceRenderRole::Reference)
+                                .as_bytes(),
+                        )?;
+                    }
+                }
+                RenderStep::NodeSuffix { indent, trail } => {
+                    if trail {
+                        self.output.write_all(b"\n")?;
+                        self.push_indent(indent)?;
+                    }
+                    self.output
+                        .write_all(self.punctuation_token("}").as_bytes())?;
+                }
+                RenderStep::CollectionSuffix { indent } => {
+                    self.output.write_all(b"\n")?;
+                    self.push_indent(indent)?;
+                    self.output
+                        .write_all(self.punctuation_token("]").as_bytes())?;
+                }
+                RenderStep::CollectionClose => {
+                    self.output
+                        .write_all(self.punctuation_token("]").as_bytes())?;
+                }
+                RenderStep::CollectionItems {
+                    mut rest,
+                    child_indent,
+                    inline,
+                    seen,
+                } => {
+                    // One cursor for this group. The next child stays unread
+                    // until this child is emitted.
+                    self.stop_if_cancelled()?;
+                    let Some(value) = rest.next() else {
+                        continue;
+                    };
+                    note_tree_child_visit();
+                    steps.push(RenderStep::CollectionItems {
+                        rest,
+                        child_indent,
+                        inline,
+                        seen: true,
+                    });
+                    if inline {
+                        steps.push(RenderStep::Value { value, indent: 0 });
+                        steps.push(RenderStep::InlineItemPrefix { comma: seen });
+                    } else {
+                        steps.push(RenderStep::Comma);
+                        steps.push(RenderStep::Value {
+                            value,
+                            indent: child_indent,
+                        });
+                        steps.push(RenderStep::ItemPrefix { child_indent });
+                    }
+                }
+                RenderStep::NodeEntries {
+                    mut rest,
+                    child_indent,
+                    inline,
+                    seen,
+                } => {
+                    self.stop_if_cancelled()?;
+                    let Some(entry) = rest.next() else {
+                        continue;
+                    };
+                    note_tree_child_visit();
+                    steps.push(RenderStep::NodeEntries {
+                        rest,
+                        child_indent,
+                        inline,
+                        seen: true,
+                    });
+                    if inline {
+                        steps.push(RenderStep::Value {
+                            value: &entry.value,
+                            indent: 0,
+                        });
+                        steps.push(RenderStep::InlineEntryPrefix {
+                            comma: seen,
+                            label: entry.label,
+                        });
+                    } else {
+                        steps.push(RenderStep::Comma);
+                        steps.push(RenderStep::Value {
+                            value: &entry.value,
+                            indent: child_indent,
+                        });
+                        steps.push(RenderStep::EntryPrefix {
+                            child_indent,
+                            label: entry.label,
+                        });
+                    }
+                }
+                RenderStep::EntryPrefix {
+                    child_indent,
+                    label,
+                } => {
+                    self.stop_if_cancelled()?;
+                    self.output.write_all(b"\n")?;
+                    self.push_indent(child_indent)?;
+                    if let Some(label) = label {
+                        self.output.write_all(self.field_token(label).as_bytes())?;
+                        self.output
+                            .write_all(self.punctuation_token(":").as_bytes())?;
+                        self.output.write_all(b" ")?;
+                    }
+                }
+                RenderStep::InlineEntryPrefix { comma, label } => {
+                    self.stop_if_cancelled()?;
+                    if comma {
+                        self.output
+                            .write_all(self.punctuation_token(",").as_bytes())?;
+                    }
+                    if let Some(label) = label {
+                        self.output.write_all(self.field_token(label).as_bytes())?;
+                        self.output
+                            .write_all(self.punctuation_token(":").as_bytes())?;
+                    }
+                }
+                RenderStep::ItemPrefix { child_indent } => {
+                    self.stop_if_cancelled()?;
+                    self.output.write_all(b"\n")?;
+                    self.push_indent(child_indent)?;
+                }
+                RenderStep::InlineItemPrefix { comma } => {
+                    self.stop_if_cancelled()?;
+                    if comma {
+                        self.output
+                            .write_all(self.punctuation_token(",").as_bytes())?;
+                    }
+                }
+                RenderStep::Value { value, indent } => {
+                    self.stop_if_cancelled()?;
+                    self.queue_tree_value(&mut steps, value, indent)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn queue_tree_value<'a>(
+        &mut self,
+        steps: &mut Vec<RenderStep<'a>>,
+        value: &'a TreeValue,
+        indent: usize,
+    ) -> std::io::Result<()> {
         match value {
-            TreeValue::Node(node) => self.render_node(node, indent),
-            TreeValue::Collection(items) => self.render_collection(items, indent),
+            TreeValue::Node(node) => self.queue_tree_node(steps, node, indent),
+            TreeValue::Collection(items) => self.queue_tree_collection(steps, items, indent),
             TreeValue::Syntax { syntax_ids, value } => {
-                self.render_syntax_value(syntax_ids, value, indent)
+                self.queue_syntax_value(steps, syntax_ids, value, indent)
             }
             TreeValue::Word {
                 constructor,
@@ -2602,10 +2845,11 @@ impl TreeRenderer<'_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_syntax_value(
+    fn queue_syntax_value<'a>(
         &mut self,
-        syntax_ids: &[RawSyntaxNodeId],
-        value: &TreeValue,
+        steps: &mut Vec<RenderStep<'a>>,
+        syntax_ids: &'a [RawSyntaxNodeId],
+        value: &'a TreeValue,
         indent: usize,
     ) -> std::io::Result<()> {
         let annotations = self
@@ -2622,18 +2866,59 @@ impl TreeRenderer<'_> {
                 self.output.write_all(b" ")?;
             }
         }
-        self.render_value(value, indent)?;
-        if let Some(annotations) = annotations.as_ref() {
-            for name in &annotations.outgoing {
-                self.output.write_all(b" ")?;
-                self.output
-                    .write_all(self.punctuation_token(self.glyphs.arrow()).as_bytes())?;
-                self.output.write_all(
-                    self.reference_name(name, ReferenceRenderRole::Reference)
-                        .as_bytes(),
-                )?;
+        if let Some(outgoing) = annotations.map(|annotations| annotations.outgoing) {
+            if !outgoing.is_empty() {
+                steps.push(RenderStep::SyntaxOutgoing { outgoing });
             }
         }
+        steps.push(RenderStep::Value { value, indent });
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn queue_tree_node<'a>(
+        &mut self,
+        steps: &mut Vec<RenderStep<'a>>,
+        node: &'a TreeNode,
+        indent: usize,
+    ) -> std::io::Result<()> {
+        self.output
+            .write_all(self.constructor_token(node.constructor).as_bytes())?;
+        // Span output is off for the usual tree. Skip the walk. A deep tree
+        // still fits the default thread.
+        if self.show_spans {
+            self.render_optional_node_span(tree_node_span(node))?;
+        }
+        if self.indent_step.spaces() != 0 {
+            self.output.write_all(b" ")?;
+        }
+        self.output
+            .write_all(self.punctuation_token("{").as_bytes())?;
+        if node.entries.is_empty() {
+            self.output
+                .write_all(self.punctuation_token("}").as_bytes())?;
+            return Ok(());
+        }
+        let step = self.indent_step.spaces();
+        let inline = step == 0;
+        let child_indent = if inline {
+            0
+        } else {
+            indent
+                .checked_add(step)
+                .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?
+        };
+        steps.push(RenderStep::NodeSuffix {
+            indent,
+            trail: !inline,
+        });
+        steps.push(RenderStep::NodeEntries {
+            rest: node.entries.iter(),
+            child_indent,
+            inline,
+            seen: false,
+        });
         Ok(())
     }
 
@@ -2675,101 +2960,40 @@ impl TreeRenderer<'_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_node(&mut self, node: &TreeNode, indent: usize) -> std::io::Result<()> {
-        self.output
-            .write_all(self.constructor_token(node.constructor).as_bytes())?;
-        self.render_optional_node_span(tree_node_span(node))?;
-        if self.indent_step.spaces() != 0 {
-            self.output.write_all(b" ")?;
-        }
-        self.output
-            .write_all(self.punctuation_token("{").as_bytes())?;
-        if !node.entries.is_empty() {
-            if self.indent_step.spaces() == 0 {
-                self.render_inline_entries(&node.entries)?;
-            } else {
-                self.render_entries(&node.entries, indent)?;
-                self.output.write_all(b"\n")?;
-                self.push_indent(indent)?;
-            }
-        }
-        self.output
-            .write_all(self.punctuation_token("}").as_bytes())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_entries(&mut self, entries: &[TreeEntry], indent: usize) -> std::io::Result<()> {
-        let child_indent = indent
-            .checked_add(self.indent_step.spaces())
-            .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
-        for entry in entries {
-            self.stop_if_cancelled()?;
-            self.output.write_all(b"\n")?;
-            self.push_indent(child_indent)?;
-            if let Some(label) = entry.label {
-                self.output.write_all(self.field_token(label).as_bytes())?;
-                self.output
-                    .write_all(self.punctuation_token(":").as_bytes())?;
-                self.output.write_all(b" ")?;
-            }
-            self.render_value(&entry.value, child_indent)?;
-            self.output
-                .write_all(self.punctuation_token(",").as_bytes())?;
-        }
-        Ok(())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_inline_entries(&mut self, entries: &[TreeEntry]) -> std::io::Result<()> {
-        for (index, entry) in entries.iter().enumerate() {
-            self.stop_if_cancelled()?;
-            if index != 0 {
-                self.output
-                    .write_all(self.punctuation_token(",").as_bytes())?;
-            }
-            if let Some(label) = entry.label {
-                self.output.write_all(self.field_token(label).as_bytes())?;
-                self.output
-                    .write_all(self.punctuation_token(":").as_bytes())?;
-            }
-            self.render_value(&entry.value, 0)?;
-        }
-        Ok(())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_collection(&mut self, items: &[TreeValue], indent: usize) -> std::io::Result<()> {
+    fn queue_tree_collection<'a>(
+        &mut self,
+        steps: &mut Vec<RenderStep<'a>>,
+        items: &'a [TreeValue],
+        indent: usize,
+    ) -> std::io::Result<()> {
         self.output
             .write_all(self.punctuation_token("[").as_bytes())?;
+        if items.is_empty() {
+            self.output
+                .write_all(self.punctuation_token("]").as_bytes())?;
+            return Ok(());
+        }
         let step = self.indent_step.spaces();
-        let child_indent = indent
-            .checked_add(step)
-            .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?;
-        for (index, value) in items.iter().enumerate() {
-            self.stop_if_cancelled()?;
-            if step == 0 {
-                if index != 0 {
-                    self.output
-                        .write_all(self.punctuation_token(",").as_bytes())?;
-                }
-                self.render_value(value, 0)?;
-            } else {
-                self.output.write_all(b"\n")?;
-                self.push_indent(child_indent)?;
-                self.render_value(value, child_indent)?;
-                self.output
-                    .write_all(self.punctuation_token(",").as_bytes())?;
-            }
+        let inline = step == 0;
+        let child_indent = if inline {
+            0
+        } else {
+            indent
+                .checked_add(step)
+                .ok_or_else(|| std::io::Error::other("tree indentation overflow"))?
+        };
+        if inline {
+            steps.push(RenderStep::CollectionClose);
+        } else {
+            steps.push(RenderStep::CollectionSuffix { indent });
         }
-        if !items.is_empty() && step != 0 {
-            self.output.write_all(b"\n")?;
-            self.push_indent(indent)?;
-        }
-        self.output
-            .write_all(self.punctuation_token("]").as_bytes())
+        steps.push(RenderStep::CollectionItems {
+            rest: items.iter(),
+            child_indent,
+            inline,
+            seen: false,
+        });
+        Ok(())
     }
 
     #[requires(true)]
@@ -2972,18 +3196,52 @@ fn sort_tree_entries_by_source(entries: &mut [TreeEntry]) {
 #[requires(true)]
 #[ensures(ret.is_none_or(|(start, end)| start <= end))]
 fn value_span(value: &TreeValue) -> Option<(usize, usize)> {
-    match value {
-        TreeValue::Node(node) => tree_node_span(node),
-        TreeValue::Collection(items) => span_from_values(items.iter().filter_map(value_span)),
-        TreeValue::Syntax { value, .. } => value_span(value),
-        TreeValue::Word { span, .. } | TreeValue::Verbatim { span, .. } => *span,
-        TreeValue::Error { error } => error.span,
-        TreeValue::Text(_) => None,
-        TreeValue::Span {
-            char_start,
-            char_end,
-            ..
-        } => Some((*char_start, *char_end)),
+    // One native frame per node overflows the default thread on a deep tree.
+    // The pending values sit on a heap stack. The union does not depend on order.
+    let mut pending = vec![value];
+    let mut start = None;
+    let mut end = None;
+    while let Some(value) = pending.pop() {
+        match value {
+            TreeValue::Node(node) => {
+                for entry in &node.entries {
+                    pending.push(&entry.value);
+                }
+            }
+            TreeValue::Collection(items) => {
+                for item in items {
+                    pending.push(item);
+                }
+            }
+            TreeValue::Syntax { value, .. } => pending.push(value),
+            TreeValue::Word { span, .. } | TreeValue::Verbatim { span, .. } => {
+                if let Some((item_start, item_end)) = *span {
+                    start =
+                        Some(start.map_or(item_start, |current: usize| current.min(item_start)));
+                    end = Some(end.map_or(item_end, |current: usize| current.max(item_end)));
+                }
+            }
+            TreeValue::Error { error } => {
+                if let Some((item_start, item_end)) = error.span {
+                    start =
+                        Some(start.map_or(item_start, |current: usize| current.min(item_start)));
+                    end = Some(end.map_or(item_end, |current: usize| current.max(item_end)));
+                }
+            }
+            TreeValue::Text(_) => {}
+            TreeValue::Span {
+                char_start,
+                char_end,
+                ..
+            } => {
+                start = Some(start.map_or(*char_start, |current: usize| current.min(*char_start)));
+                end = Some(end.map_or(*char_end, |current: usize| current.max(*char_end)));
+            }
+        }
+    }
+    match (start, end) {
+        (Some(start), Some(end)) => Some((start, end)),
+        _ => None,
     }
 }
 
@@ -3357,6 +3615,126 @@ mod tests {
         assert_eq!(
             output,
             "BridiWithLeadingTerms {\n  leading_terms: [\n    Cmavo \"mi\",\n  ],\n  bridi_tail: Gismu \"kláma\",\n}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wide_collection_stops_at_one_byte_after_the_first_item() {
+        let _ = take_tree_child_visits();
+        let value = TreeValue::Collection(vec![TreeValue::Text("a".to_owned()); 1_000_000]);
+        let result = render_tree_value_with_limit(
+            &value,
+            TreeRenderOptions {
+                color: false,
+                indent: crate::Indentation::compact(),
+                show_spans: false,
+                ..TreeRenderOptions::default()
+            },
+            None,
+            ByteLimit::new(1).expect("positive limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        );
+        // The leaf is JSON text. `serde_json` wraps the budget error, so the
+        // public error is not `Limit`. The visit count is the stop.
+        assert!(result.is_err(), "{result:?}");
+        assert_eq!(take_tree_child_visits(), 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wide_node_stops_at_two_bytes_after_the_first_entry() {
+        let _ = take_tree_child_visits();
+        let value = TreeValue::Node(TreeNode {
+            constructor: "N",
+            entries: vec![
+                TreeEntry {
+                    label: None,
+                    value: TreeValue::Text("a".to_owned()),
+                };
+                1_000_000
+            ],
+        });
+        let result = render_tree_value_with_limit(
+            &value,
+            TreeRenderOptions {
+                color: false,
+                indent: crate::Indentation::compact(),
+                show_spans: false,
+                ..TreeRenderOptions::default()
+            },
+            None,
+            ByteLimit::new(2).expect("positive limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        );
+        // The constructor and the opening brace use the two bytes.
+        // The visit count is the stop. The leaf write then fails.
+        assert!(result.is_err(), "{result:?}");
+        assert_eq!(take_tree_child_visits(), 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_tree_renders_on_the_default_test_stack() {
+        let mut value = TreeValue::Span {
+            byte_start: 0,
+            byte_end: 1,
+            char_start: 3,
+            char_end: 4,
+        };
+        for _ in 0..64 {
+            value = TreeValue::Node(TreeNode {
+                constructor: "N",
+                entries: vec![TreeEntry { label: None, value }],
+            });
+        }
+        assert_eq!(value_span(&value), Some((3, 4)));
+        let output = render_tree_value_with_limit(
+            &value,
+            TreeRenderOptions {
+                color: false,
+                indent: crate::Indentation::compact(),
+                show_spans: false,
+                ..TreeRenderOptions::default()
+            },
+            None,
+            ByteLimit::new(usize::MAX).expect("positive limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("deep tree render");
+        assert!(output.starts_with("N{"));
+        assert!(output.contains("[3,4]"));
+        assert_eq!(take_tree_child_visits(), 64);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wide_collection_scan_stops_when_the_flag_trips() {
+        let _ = take_tree_child_visits();
+        let value = TreeValue::Collection(vec![TreeValue::Text("a".to_owned()); 1_000]);
+        let token = jbotci_interrupt::CancellationToken::trip_after_checks(6);
+        let result = render_tree_value_with_limit(
+            &value,
+            TreeRenderOptions {
+                color: false,
+                indent: crate::Indentation::compact(),
+                show_spans: false,
+                ..TreeRenderOptions::default()
+            },
+            None,
+            ByteLimit::new(usize::MAX).expect("positive limit"),
+            &token,
+        );
+        assert!(matches!(result, Err(OutputError::Interrupted)));
+        let visits = take_tree_child_visits();
+        assert!(visits > 0, "the scan reads the cancellation flag");
+        assert!(
+            visits < 64,
+            "a tripped flag stops the sibling cursor, visits {visits}"
         );
     }
 

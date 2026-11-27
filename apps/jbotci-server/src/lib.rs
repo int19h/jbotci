@@ -5267,6 +5267,8 @@ mod tests {
         .expect("response");
         let elapsed = started.elapsed();
         assert_eq!(response.status(), StatusCode::OK);
+        // The 200 ms figure is the product deadline. A queued request must
+        // not return before it. This is not a speed budget.
         assert!(
             elapsed >= Duration::from_millis(200),
             "queued request returned in {elapsed:?}, before the 200 ms deadline"

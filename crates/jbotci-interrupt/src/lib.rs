@@ -267,6 +267,9 @@ mod tests {
         });
         let started = std::time::Instant::now();
         while !token.is_cancelled() {
+            // The other thread sleeps 50 ms, then sets the flag.
+            // The 2 s figure detects a hang on that wait. It applies to
+            // both profiles. It is not a budget for other work.
             assert!(
                 started.elapsed() < Duration::from_secs(2),
                 "the token did not observe the other thread"

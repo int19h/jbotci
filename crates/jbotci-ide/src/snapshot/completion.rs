@@ -1215,7 +1215,21 @@ fn is_elidable_terminator(cmavo: Cmavo) -> bool {
 mod tests {
     use std::time::{Duration, Instant};
 
+    use jbotci_syntax::ContinuationTestClock;
+
     use super::*;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn grammar_timed_out(result: &CompletionResult) -> bool {
+        let data!(CompletionResult::Incomplete { reason, .. }) = result.as_data() else {
+            return false;
+        };
+        *reason
+            == CompletionIncompleteReason::Grammar {
+                cause: ContinuationError::TimedOut,
+            }
+    }
 
     #[invariant(!name.is_empty())]
     #[invariant(marked_source.matches('|').count() == 1)]
@@ -1397,12 +1411,8 @@ mod tests {
     }
 
     #[requires(true)]
-    #[requires(literal_time_limit.is_none_or(|limit| !limit.is_zero()))]
     #[ensures(true)]
-    fn assert_boundary_completion_cases(
-        grammar_time_limit: Option<Duration>,
-        literal_time_limit: Option<Duration>,
-    ) {
+    fn assert_boundary_completion_cases() {
         let cases = [
             new!(BoundaryCompletionCase {
                 name: "word start after a space",
@@ -1456,17 +1466,12 @@ mod tests {
             let cursor = case.marked_source[..marker_byte].chars().count();
             let text = case.marked_source.replacen('|', "", 1);
             let snapshot = DocumentSnapshot::new(text.clone(), 1);
-            let started = Instant::now();
-            let result = snapshot.completions_with_grammar_time_limit(cursor, grammar_time_limit);
-            let elapsed = started.elapsed();
-            if let Some(limit) = literal_time_limit {
-                assert!(
-                    elapsed < limit,
-                    "{} completion took {elapsed:?}, limit {limit:?}",
-                    case.name
-                );
-                continue;
-            }
+            // The test clock keeps the product deadline from firing.
+            // Label checks stay here. Deadline checks use `completions` directly.
+            let result = {
+                let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+                snapshot.completions(cursor)
+            };
             let items = complete_items(result);
 
             assert!(
@@ -1564,25 +1569,18 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn assert_sruma_end_of_word_completion(
-        grammar_time_limit: Option<Duration>,
-        literal_time_limit: Option<Duration>,
-    ) {
+    fn assert_sruma_end_of_word_completion() {
         let marked = ".i la prux. ba'o sruma| lo du'u le ckule cipra ku frili ra";
         let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
         let cursor = marked[..marker_byte].chars().count();
         let text = marked.replacen('|', "", 1);
         let snapshot = DocumentSnapshot::new(text, 1);
-        let started = Instant::now();
-        let result = snapshot.completions_with_grammar_time_limit(cursor, grammar_time_limit);
-        let elapsed = started.elapsed();
-        if let Some(limit) = literal_time_limit {
-            assert!(
-                elapsed < limit,
-                "completed-word completion took {elapsed:?}, limit {limit:?}"
-            );
-            return;
-        }
+        // The test clock keeps the product deadline from firing.
+        // Label checks stay here. Deadline checks use `completions` directly.
+        let result = {
+            let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+            snapshot.completions(cursor)
+        };
         let items = complete_items(result);
 
         let sruma_start = marked
@@ -1631,30 +1629,36 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn sruma_end_of_word_offers_extend_and_full_continue() {
-        assert_sruma_end_of_word_completion(None, None);
+        assert_sruma_end_of_word_completion();
     }
-
-    // Local wall-clock smoke limits. They catch a completion that becomes
-    // pathologically slow, not a regression of a few hundred milliseconds: the
-    // shared dev box runs several heavy jobs at once, and most of these tests
-    // skip on CI. The limits were 150 ms and 2 s, which the loaded box missed
-    // on main (2.4 to 2.6 s for the mid-size case). Completion performance is
-    // deferred until the parser fundamentals are done (owner, 2026-11-10).
-    const SHORT_SMOKE_LIMIT: Duration = Duration::from_secs(1);
-    const LONG_SMOKE_LIMIT: Duration = Duration::from_secs(10);
 
     #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn timing_sruma_end_of_word_meets_short_smoke_limit() {
-        // Preserve the existing clock-test policy on shared CI hardware.
-        if std::env::var_os("CI").is_some() {
-            return;
-        }
-        assert_sruma_end_of_word_completion(
-            Some(COMPLETION_GRAMMAR_TIME_LIMIT),
-            Some(SHORT_SMOKE_LIMIT),
+        // The product deadline stays armed in both profiles. The test clock
+        // replaces elapsed time. Label checks stay in the untimed test.
+        let marked = ".i la prux. ba'o sruma| lo du'u le ckule cipra ku frili ra";
+        let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
+        let cursor = marked[..marker_byte].chars().count();
+        let text = marked.replacen('|', "", 1);
+        let snapshot = DocumentSnapshot::new(text, 1);
+        let open = {
+            let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+            snapshot.completions(cursor)
+        };
+        assert!(
+            !grammar_timed_out(&open),
+            "a frozen clock leaves the product deadline open"
+        );
+        let closed = {
+            let _clock = ContinuationTestClock::elapsed(COMPLETION_GRAMMAR_TIME_LIMIT);
+            snapshot.completions(cursor)
+        };
+        assert!(
+            grammar_timed_out(&closed),
+            "the product deadline reports a grammar timeout"
         );
     }
 
@@ -1909,12 +1913,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn timing_two_hundred_word_document_meets_long_smoke_limit() {
+    fn two_hundred_word_document_completion_stays_within_recorded_work() {
         let text = "mi klama .i ".repeat(67);
+        let _ = jbotci_syntax::take_parser_work();
         let snapshot = DocumentSnapshot::new(text.clone(), 1);
-        let started = Instant::now();
-        let _result = snapshot.completions(text.chars().count());
-        assert!(started.elapsed() < LONG_SMOKE_LIMIT);
+        let result = {
+            let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+            snapshot.completions(text.chars().count())
+        };
+        let work = jbotci_syntax::take_parser_work();
+        assert!(
+            !grammar_timed_out(&result),
+            "the frozen clock leaves the product deadline open"
+        );
+        let items = complete_items(result);
+        // The counts are the bound in both profiles.
+        // The test clock keeps the product deadline from firing.
+        assert_eq!(work.trials, 0);
+        assert_eq!(work.recovery_memo_stores, 0);
+        assert_eq!(work.syntax_memo_stores, 58_725);
+        assert_eq!(items.len(), 28_747);
     }
 
     #[test]
@@ -2022,46 +2040,65 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn completion_boundary_positions_are_complete() {
-        assert_boundary_completion_cases(None, None);
+        assert_boundary_completion_cases();
     }
 
     #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn timing_statement_local_error_heavy_completion_meets_short_smoke_limit() {
-        // Preserve the existing clock-test policy on shared CI hardware.
-        if std::env::var_os("CI").is_some() {
-            return;
-        }
+    fn statement_local_error_heavy_completion_stays_within_recorded_work() {
         let marked = format!("{}mukti l|o nu", "mi ku .i ".repeat(14));
-        let cursor = marked.find('|').expect("marker");
+        let marker_byte = marked.find('|').expect("marker");
+        let cursor = marked[..marker_byte].chars().count();
+        let _ = jbotci_syntax::take_parser_work();
         let snapshot = DocumentSnapshot::new(marked.replacen('|', "", 1), 1);
-        let started = Instant::now();
-        let _result = snapshot.completions(cursor);
+        let result = {
+            let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+            snapshot.completions(cursor)
+        };
+        let work = jbotci_syntax::take_parser_work();
         assert!(
-            started.elapsed() < SHORT_SMOKE_LIMIT,
-            "completion took {:?}",
-            started.elapsed()
+            !grammar_timed_out(&result),
+            "the frozen clock leaves the product deadline open"
         );
+        let items = complete_items(result);
+        // The counts are the bound in both profiles.
+        // The test clock keeps the product deadline from firing.
+        assert_eq!(work.trials, 15);
+        assert_eq!(work.recovery_memo_stores, 9_670);
+        assert_eq!(work.syntax_memo_stores, 31_215);
+        assert_eq!(items.len(), 639);
+        assert!(items.iter().any(|item| item.label == "lo"));
     }
 
     #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn timing_mid_size_recovery_meets_long_smoke_limit() {
-        // Preserve the existing clock-test policy on shared CI hardware.
-        if std::env::var_os("CI").is_some() {
-            return;
-        }
+    fn mid_size_recovery_completion_stays_within_recorded_work() {
         let marked = format!("mi ku .i {}mukti l|o nu", "do klama .i ".repeat(250));
-        // The original clock includes snapshot preparation as well as completion.
-        let started = Instant::now();
-        let cursor = marked.find('|').expect("marker");
+        let marker_byte = marked.find('|').expect("marker");
+        let cursor = marked[..marker_byte].chars().count();
+        let _ = jbotci_syntax::take_parser_work();
         let snapshot = DocumentSnapshot::new(marked.replacen('|', "", 1), 1);
-        let _result = snapshot.completions(cursor);
-        assert!(started.elapsed() < LONG_SMOKE_LIMIT);
+        let result = {
+            let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+            snapshot.completions(cursor)
+        };
+        let work = jbotci_syntax::take_parser_work();
+        assert!(
+            !grammar_timed_out(&result),
+            "the frozen clock leaves the product deadline open"
+        );
+        let items = complete_items(result);
+        // The counts are the bound in both profiles.
+        // The test clock keeps the product deadline from firing.
+        assert_eq!(work.trials, 2);
+        assert_eq!(work.recovery_memo_stores, 194_951);
+        assert_eq!(work.syntax_memo_stores, 221_124);
+        assert_eq!(items.len(), 639);
+        assert!(items.iter().any(|item| item.label == "lo"));
     }
 
     #[cfg(not(feature = "expensive_contracts"))]
@@ -2069,14 +2106,39 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn timing_boundary_positions_meet_long_smoke_limit() {
-        // Preserve the existing clock-test policy on shared CI hardware.
-        if std::env::var_os("CI").is_some() {
-            return;
+        // The product deadline stays armed in both profiles. The test clock
+        // replaces elapsed time. Label checks stay in the untimed test.
+        let marked_sources = [
+            "mi klama le |zarci",
+            "mi tavla .|alis.",
+            "mi klama .i |sruma",
+            "|sruma",
+            "mi klama |",
+            "ne'i zo'e le mamta ku |zvati",
+            ".i la prux. ba'o |sruma lo du'u le ckule cipra ku frili ra",
+        ];
+        for marked in marked_sources {
+            let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
+            let cursor = marked[..marker_byte].chars().count();
+            let text = marked.replacen('|', "", 1);
+            let snapshot = DocumentSnapshot::new(text, 1);
+            let open = {
+                let _clock = ContinuationTestClock::elapsed(Duration::ZERO);
+                snapshot.completions(cursor)
+            };
+            assert!(
+                !grammar_timed_out(&open),
+                "{marked}: a frozen clock leaves the product deadline open"
+            );
+            let closed = {
+                let _clock = ContinuationTestClock::elapsed(COMPLETION_GRAMMAR_TIME_LIMIT);
+                snapshot.completions(cursor)
+            };
+            assert!(
+                grammar_timed_out(&closed),
+                "{marked}: the product deadline reports a grammar timeout"
+            );
         }
-        assert_boundary_completion_cases(
-            Some(COMPLETION_GRAMMAR_TIME_LIMIT),
-            Some(LONG_SMOKE_LIMIT),
-        );
     }
 
     #[test]
@@ -2103,6 +2165,9 @@ mod tests {
         cancellation.cancel();
         let started = Instant::now();
         let _result = snapshot.completions_cancellable(0, &cancellation);
+        // The flag is already set. The call returns before a parse.
+        // The 50 ms limit is that return, on both profiles.
+        // It is not a budget for completion work.
         assert!(started.elapsed() < Duration::from_millis(50));
     }
 

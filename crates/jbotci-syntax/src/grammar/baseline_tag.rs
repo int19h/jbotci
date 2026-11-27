@@ -63,11 +63,30 @@ impl From<BaselineTermTenseModalAtomSyntax> for TenseModalAtomSyntax {
     #[requires(true)]
     #[ensures(true)]
     fn from(value: BaselineTermTenseModalAtomSyntax) -> Self {
-        match value {
-            BaselineTermTenseModalAtomSyntax::CompositeTense(value) => Self::CompositeTense(value),
-            BaselineTermTenseModalAtomSyntax::FihoTense(value) => Self::FihoTense(value),
-            BaselineTermTenseModalAtomSyntax::ModalTense(value) => Self::ModalTense(value),
-            BaselineTermTenseModalAtomSyntax::StickyTense(value) => Self::StickyTense(value),
+        // The syntax node drops its children on a heap queue. Read each field
+        // out of ManuallyDrop so this conversion can move the payload.
+        let owned = std::mem::ManuallyDrop::new(value);
+        match &*owned {
+            BaselineTermTenseModalAtomSyntax::CompositeTense(value) => {
+                // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+                let value = unsafe { std::ptr::read(value) };
+                Self::CompositeTense(value)
+            }
+            BaselineTermTenseModalAtomSyntax::FihoTense(value) => {
+                // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+                let value = unsafe { std::ptr::read(value) };
+                Self::FihoTense(value)
+            }
+            BaselineTermTenseModalAtomSyntax::ModalTense(value) => {
+                // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+                let value = unsafe { std::ptr::read(value) };
+                Self::ModalTense(value)
+            }
+            BaselineTermTenseModalAtomSyntax::StickyTense(value) => {
+                // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+                let value = unsafe { std::ptr::read(value) };
+                Self::StickyTense(value)
+            }
         }
     }
 }
@@ -78,10 +97,13 @@ impl From<BaselineTermConnectedTenseModalContinuationSyntax>
     #[requires(true)]
     #[ensures(true)]
     fn from(value: BaselineTermConnectedTenseModalContinuationSyntax) -> Self {
-        let BaselineTermConnectedTenseModalContinuationSyntax {
-            connective,
-            tense_modal,
-        } = value;
+        // The syntax node drops its children on a heap queue. Read each field
+        // out of ManuallyDrop so this conversion can move the payload.
+        let owned = std::mem::ManuallyDrop::new(value);
+        // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+        let connective = unsafe { std::ptr::read(&owned.connective) };
+        // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+        let tense_modal = unsafe { std::ptr::read(&owned.tense_modal) };
         Self {
             connective,
             tense_modal: Arc::new(Arc::unwrap_or_clone(tense_modal).into()),
@@ -93,10 +115,13 @@ impl From<BaselineTermConnectedTenseModalSyntax> for ConnectedTenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
     fn from(value: BaselineTermConnectedTenseModalSyntax) -> Self {
-        let BaselineTermConnectedTenseModalSyntax {
-            first,
-            continuations,
-        } = value;
+        // The syntax node drops its children on a heap queue. Read each field
+        // out of ManuallyDrop so this conversion can move the payload.
+        let owned = std::mem::ManuallyDrop::new(value);
+        // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+        let first = unsafe { std::ptr::read(&owned.first) };
+        // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+        let continuations = unsafe { std::ptr::read(&owned.continuations) };
         let continuations =
             continuations.mapped(|value| Arc::new(Arc::unwrap_or_clone(value).into()));
         Self {
@@ -110,16 +135,24 @@ impl From<BaselineTermTenseModalSyntax> for TenseModalSyntax {
     #[requires(true)]
     #[ensures(true)]
     fn from(value: BaselineTermTenseModalSyntax) -> Self {
-        Self(Arc::new(match value {
+        // The syntax node drops its children on a heap queue. Read each field
+        // out of ManuallyDrop so this conversion can move the payload.
+        let owned = std::mem::ManuallyDrop::new(value);
+        let body = match &*owned {
             BaselineTermTenseModalSyntax::BaselineTermConnectedTenseModal(value) => {
+                // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+                let value = unsafe { std::ptr::read(value) };
                 TenseModalBodySyntax::ConnectedTenseModal(Arc::new(
                     Arc::unwrap_or_clone(value).into(),
                 ))
             }
             BaselineTermTenseModalSyntax::BaselineTermTenseModalAtom(value) => {
+                // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+                let value = unsafe { std::ptr::read(value) };
                 TenseModalBodySyntax::TenseModalAtom(Arc::new(Arc::unwrap_or_clone(value).into()))
             }
-        }))
+        };
+        Self(Arc::new(body))
     }
 }
 
@@ -136,6 +169,7 @@ fn map_recovered<T, U>(
             prefix.errors.into_vec(),
             Box::new(convert(*prefix.value)),
         ),
+        recovered::Recovered::Released => panic!("released recovery slot has no value"),
     }
 }
 
@@ -144,17 +178,28 @@ fn map_recovered<T, U>(
 fn recovered_baseline_atom_into_tense_modal_atom(
     value: recovered::BaselineTermTenseModalAtomSyntax,
 ) -> recovered::TenseModalAtomSyntax {
-    match value {
+    // The syntax node drops its children on a heap queue. Read each field
+    // out of ManuallyDrop so this conversion can move the payload.
+    let owned = std::mem::ManuallyDrop::new(value);
+    match &*owned {
         recovered::BaselineTermTenseModalAtomSyntax::CompositeTense(value) => {
+            // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+            let value = unsafe { std::ptr::read(value) };
             recovered::TenseModalAtomSyntax::CompositeTense(value)
         }
         recovered::BaselineTermTenseModalAtomSyntax::FihoTense(value) => {
+            // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+            let value = unsafe { std::ptr::read(value) };
             recovered::TenseModalAtomSyntax::FihoTense(value)
         }
         recovered::BaselineTermTenseModalAtomSyntax::ModalTense(value) => {
+            // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+            let value = unsafe { std::ptr::read(value) };
             recovered::TenseModalAtomSyntax::ModalTense(value)
         }
         recovered::BaselineTermTenseModalAtomSyntax::StickyTense(value) => {
+            // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+            let value = unsafe { std::ptr::read(value) };
             recovered::TenseModalAtomSyntax::StickyTense(value)
         }
     }
@@ -165,10 +210,13 @@ fn recovered_baseline_atom_into_tense_modal_atom(
 fn recovered_baseline_continuation_into_continuation(
     value: recovered::BaselineTermConnectedTenseModalContinuationSyntax,
 ) -> recovered::ConnectedTenseModalContinuationSyntax {
-    let recovered::BaselineTermConnectedTenseModalContinuationSyntax {
-        connective,
-        tense_modal,
-    } = value;
+    // The syntax node drops its children on a heap queue. Read each field
+    // out of ManuallyDrop so this conversion can move the payload.
+    let owned = std::mem::ManuallyDrop::new(value);
+    // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+    let connective = unsafe { std::ptr::read(&owned.connective) };
+    // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+    let tense_modal = unsafe { std::ptr::read(&owned.tense_modal) };
     recovered::ConnectedTenseModalContinuationSyntax {
         connective,
         tense_modal: Arc::new(map_recovered(
@@ -183,10 +231,13 @@ fn recovered_baseline_continuation_into_continuation(
 fn recovered_baseline_connected_into_connected(
     value: recovered::BaselineTermConnectedTenseModalSyntax,
 ) -> recovered::ConnectedTenseModalSyntax {
-    let recovered::BaselineTermConnectedTenseModalSyntax {
-        first,
-        continuations,
-    } = value;
+    // The syntax node drops its children on a heap queue. Read each field
+    // out of ManuallyDrop so this conversion can move the payload.
+    let owned = std::mem::ManuallyDrop::new(value);
+    // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+    let first = unsafe { std::ptr::read(&owned.first) };
+    // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+    let continuations = unsafe { std::ptr::read(&owned.continuations) };
     let continuations = continuations.mapped(|value| {
         Arc::new(map_recovered(
             Arc::unwrap_or_clone(value),
@@ -207,14 +258,21 @@ fn recovered_baseline_connected_into_connected(
 fn recovered_baseline_body_into_body(
     value: recovered::BaselineTermTenseModalSyntax,
 ) -> recovered::TenseModalBodySyntax {
-    match value {
+    // The syntax node drops its children on a heap queue. Read each field
+    // out of ManuallyDrop so this conversion can move the payload.
+    let owned = std::mem::ManuallyDrop::new(value);
+    match &*owned {
         recovered::BaselineTermTenseModalSyntax::BaselineTermConnectedTenseModal(value) => {
+            // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+            let value = unsafe { std::ptr::read(value) };
             recovered::TenseModalBodySyntax::ConnectedTenseModal(Arc::new(map_recovered(
                 Arc::unwrap_or_clone(value),
                 recovered_baseline_connected_into_connected,
             )))
         }
         recovered::BaselineTermTenseModalSyntax::BaselineTermTenseModalAtom(value) => {
+            // SAFETY: The owner is ManuallyDrop. This read takes the field once.
+            let value = unsafe { std::ptr::read(value) };
             recovered::TenseModalBodySyntax::TenseModalAtom(Arc::new(map_recovered(
                 Arc::unwrap_or_clone(value),
                 recovered_baseline_atom_into_tense_modal_atom,

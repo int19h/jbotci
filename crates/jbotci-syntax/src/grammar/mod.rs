@@ -39,6 +39,7 @@ mod baseline_termset;
 mod description_leading;
 mod generated;
 mod generated_runtime;
+
 mod link_payload;
 mod parse_error;
 mod parser_core;
@@ -270,8 +271,40 @@ impl ContinuationTimeLimit {
     #[requires(true)]
     #[ensures(true)]
     fn exhausted(self) -> bool {
+        // A test clock replaces the elapsed time. The duration stays the
+        // product limit. A normal build has no clock and reads the instant.
+        if let Some(elapsed) = continuation_test_elapsed() {
+            return elapsed >= self.duration;
+        }
         self.started.elapsed() >= self.duration
     }
+}
+
+#[cfg(feature = "continuation_test_clock")]
+thread_local! {
+    static CONTINUATION_TEST_ELAPSED: Cell<Option<Duration>> = const { Cell::new(None) };
+}
+
+#[cfg(feature = "continuation_test_clock")]
+#[requires(true)]
+#[ensures(true)]
+fn continuation_test_elapsed() -> Option<Duration> {
+    CONTINUATION_TEST_ELAPSED.with(|cell| cell.get())
+}
+
+#[cfg(not(feature = "continuation_test_clock"))]
+#[requires(true)]
+#[ensures(ret.is_none())]
+fn continuation_test_elapsed() -> Option<Duration> {
+    None
+}
+
+/// Store the test elapsed time and return the previous value.
+#[cfg(feature = "continuation_test_clock")]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn replace_continuation_test_elapsed(elapsed: Option<Duration>) -> Option<Duration> {
+    CONTINUATION_TEST_ELAPSED.with(|cell| cell.replace(elapsed))
 }
 
 /// Why a parse should stop, or that it should continue.
@@ -949,6 +982,104 @@ enum SyntaxDiagnosticObservation<'tokens> {
     Preserved(SyntaxParseError<'tokens>),
 }
 
+/// A shallow replay used to break a nested diagnostic chain before it is dropped.
+///
+/// The real chain is walked on a heap stack. This value has one preserved
+/// candidate and an empty rule stack.
+#[requires(true)]
+#[ensures(!ret.observations.observations.is_empty())]
+fn shallow_diagnostic_replay<'tokens>() -> SyntaxDiagnosticReplay<'tokens> {
+    thread_local! {
+        static REPLAY: std::cell::OnceCell<SyntaxDiagnosticReplay<'static>> =
+            const { std::cell::OnceCell::new() };
+    }
+    REPLAY.with(|cell| {
+        cell.get_or_init(|| {
+            let error = SyntaxParseError::unexpected_found(
+                Span { start: 0, end: 0 },
+                new!(SyntaxFound::EndOfInput),
+            );
+            let observation = new!(SyntaxDiagnosticObservation::Preserved(error));
+            new!(SyntaxDiagnosticReplay {
+                observations: Rc::new(new!(SyntaxDiagnosticObservations {
+                    id: SyntaxDiagnosticObservationId::Strict {
+                        frame_id: NonZeroUsize::MIN,
+                    },
+                    caller_rule_len: 0,
+                    observations: Rc::from([observation]),
+                    furthest_start: std::cell::OnceCell::new(),
+                })),
+                invoked_at: SharedStack::empty(),
+            })
+        })
+        .clone()
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn detach_diagnostic_observation<'a>(
+    observation: &mut SyntaxDiagnosticObservationData<'a>,
+    groups: &mut Vec<Rc<SyntaxDiagnosticObservations<'a>>>,
+    slices: &mut Vec<Rc<[SyntaxDiagnosticObservation<'a>]>>,
+) {
+    match observation {
+        SyntaxDiagnosticObservationData::Nested(replay) => {
+            let mut taken = std::mem::replace(replay, shallow_diagnostic_replay());
+            let placeholder = shallow_diagnostic_replay().0.observations.clone();
+            groups.push(std::mem::replace(&mut taken.0.observations, placeholder));
+        }
+        SyntaxDiagnosticObservationData::Restricted { observations, .. } => {
+            slices.push(std::mem::replace(observations, Rc::from([])));
+        }
+        SyntaxDiagnosticObservationData::Candidate(_)
+        | SyntaxDiagnosticObservationData::Preserved(_) => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn drain_diagnostic_ownership<'a>(
+    groups: &mut Vec<Rc<SyntaxDiagnosticObservations<'a>>>,
+    slices: &mut Vec<Rc<[SyntaxDiagnosticObservation<'a>]>>,
+) {
+    loop {
+        if let Some(group) = groups.pop() {
+            if let Ok(mut wrapper) = Rc::try_unwrap(group) {
+                slices.push(std::mem::replace(&mut wrapper.0.observations, Rc::from([])));
+            }
+            continue;
+        }
+        let Some(slice) = slices.pop() else {
+            break;
+        };
+        if Rc::strong_count(&slice) != 1 || Rc::weak_count(&slice) != 0 {
+            continue;
+        }
+        let mut slice = slice;
+        if let Some(items) = Rc::get_mut(&mut slice) {
+            for item in items.iter_mut() {
+                detach_diagnostic_observation(&mut item.0, groups, slices);
+            }
+        }
+    }
+}
+
+/// A nested `lo nu` chain links each observation to the next through `Rc`.
+///
+/// The destructor is on the data. A move of the data keeps that destructor.
+/// The walk puts each link on a heap stack. The compiler then drops a shallow value.
+impl Drop for SyntaxDiagnosticObservationData<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        let mut groups = Vec::new();
+        let mut slices = Vec::new();
+        detach_diagnostic_observation(self, &mut groups, &mut slices);
+        drain_diagnostic_ownership(&mut groups, &mut slices);
+    }
+}
+
 /// How a recorded diagnostic candidate is observed: see [`SyntaxDiagnosticObservation`].
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1011,6 +1142,82 @@ struct RecoveryCheckpointObservationRange {
 struct SyntaxRecoveryCheckpointObservations {
     checkpoints: Rc<[RecoveryCheckpoint]>,
     children: Rc<[Rc<SyntaxRecoveryCheckpointObservations>]>,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn checkpoint_drop_sentinel() -> Rc<SyntaxRecoveryCheckpointObservations> {
+    thread_local! {
+        static SENTINEL: std::cell::OnceCell<Rc<SyntaxRecoveryCheckpointObservations>> =
+            const { std::cell::OnceCell::new() };
+    }
+    SENTINEL.with(|cell| {
+        cell.get_or_init(|| {
+            Rc::new(new!(SyntaxRecoveryCheckpointObservations {
+                checkpoints: Rc::from([RecoveryCheckpoint::new(
+                    "sumti",
+                    0,
+                    0,
+                    0,
+                    RecoveryCheckpointKind::FieldStart,
+                )]),
+                children: Rc::from([]),
+            }))
+        })
+        .clone()
+    })
+}
+
+/// Move a unique child list onto `pending`.
+///
+/// A shared list stays with its other owners. The last owner walks it.
+#[requires(true)]
+#[ensures(true)]
+fn take_checkpoint_children(
+    mut children: Rc<[Rc<SyntaxRecoveryCheckpointObservations>]>,
+    pending: &mut Vec<Rc<SyntaxRecoveryCheckpointObservations>>,
+) {
+    if Rc::strong_count(&children) != 1 || Rc::weak_count(&children) != 0 {
+        return;
+    }
+    let Some(items) = Rc::get_mut(&mut children) else {
+        return;
+    };
+    // The drop sentinel has an empty child list. Its own drop must not
+    // read the thread-local slot. That slot is already in destruction.
+    if items.is_empty() {
+        return;
+    }
+    let sentinel = checkpoint_drop_sentinel();
+    for item in items.iter_mut() {
+        pending.push(std::mem::replace(item, Rc::clone(&sentinel)));
+    }
+}
+
+/// Checkpoint trees nest with the rule that recorded them.
+///
+/// The destructor is on the data. A move of the data keeps that destructor.
+/// The walk puts each child list on a heap stack. A shared list stays with its other owners.
+/// The last owner walks the rest the same way.
+impl Drop for SyntaxRecoveryCheckpointObservationsData {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        let children = std::mem::replace(&mut self.children, Rc::from([]));
+        let mut pending = Vec::new();
+        take_checkpoint_children(children, &mut pending);
+        while let Some(child) = pending.pop() {
+            let Ok(wrapper) = Rc::try_unwrap(child) else {
+                continue;
+            };
+            let mut child_data = wrapper.into_data();
+            let child_children = std::mem::replace(&mut child_data.children, Rc::from([]));
+            // The child list is empty. The destructor returns at once.
+            // The compiler then drops the checkpoints and that empty list.
+            drop(child_data);
+            take_checkpoint_children(child_children, &mut pending);
+        }
+    }
 }
 
 #[invariant(true)]
@@ -1865,31 +2072,52 @@ impl<'tokens> ParserState<'tokens> {
         store: &SyntaxRecoveryMemoStore<'tokens>,
         node: usize,
     ) -> Option<usize> {
-        if let Some(cached) = self
+        let mut cache = self
             .syntax_rule_observation_latest_recovery_target_indices
-            .borrow()
-            .get(&node)
-        {
+            .borrow_mut();
+        if let Some(cached) = cache.get(&node) {
             return *cached;
         }
 
-        let observation = &store.rule_observation_nodes[node].observation;
-        let mut latest = self
-            .recovery_rule_target_last_indices
-            .get(observation)
-            .copied();
-        for child_index in 0..store.rule_observation_nodes[node].children.len() {
-            let child = store.rule_observation_nodes[node].children[child_index];
-            if let Some(child_latest) =
-                self.syntax_rule_observation_latest_recovery_target_index(store, child)
-            {
+        // A child can have any index. The walk keeps each node on the heap.
+        // `false` enters the node. `true` reads the children after they are stored.
+        let mut stack = vec![(node, false)];
+        let mut open = FxHashSet::default();
+        while let Some((current, children_done)) = stack.pop() {
+            if cache.contains_key(&current) {
+                continue;
+            }
+            if !children_done {
+                if !open.insert(current) {
+                    continue;
+                }
+                stack.push((current, true));
+                for child in store.rule_observation_nodes[current].children.iter().rev() {
+                    if !cache.contains_key(child) {
+                        stack.push((*child, false));
+                    }
+                }
+                continue;
+            }
+
+            let observation_node = &store.rule_observation_nodes[current];
+            let mut latest = self
+                .recovery_rule_target_last_indices
+                .get(&observation_node.observation)
+                .copied();
+            for child in &observation_node.children {
+                let Some(child_latest) = cache.get(child).copied().flatten() else {
+                    continue;
+                };
                 latest = Some(latest.map_or(child_latest, |index| index.max(child_latest)));
             }
+            cache.insert(current, latest);
+            open.remove(&current);
         }
-        self.syntax_rule_observation_latest_recovery_target_indices
-            .borrow_mut()
-            .insert(node, latest);
-        latest
+        cache
+            .get(&node)
+            .copied()
+            .expect("the requested observation is stored")
     }
 
     #[requires(start_location <= end_location)]
@@ -2439,16 +2667,21 @@ impl<'tokens> ParserState<'tokens> {
                 let trial_id = context
                     .recovery_trial_id
                     .expect("recovered memo context has a trial identity");
+                note_syntax_memo_store();
+                note_recovery_memo_store();
                 store.sensitive_successes.insert(
                     (rule_name, start_location, trial_id, context.recovery_index),
                     success,
                 );
             } else {
+                note_syntax_memo_store();
+                note_recovery_memo_store();
                 store
                     .insensitive_successes
                     .insert((rule_name, start_location), success);
             }
         } else {
+            note_syntax_memo_store();
             self.syntax_memo
                 .insert((rule_name, start_location), success);
         }
@@ -2502,11 +2735,15 @@ impl<'tokens> ParserState<'tokens> {
                 let trial_id = context
                     .recovery_trial_id
                     .expect("recovered memo context has a trial identity");
+                note_syntax_memo_store();
+                note_recovery_memo_store();
                 store.sensitive_failures.insert(
                     (rule_name, start_location, trial_id, context.recovery_index),
                     failure,
                 );
             } else {
+                note_syntax_memo_store();
+                note_recovery_memo_store();
                 store
                     .insensitive_failures
                     .insert((rule_name, start_location), failure);
@@ -2515,6 +2752,7 @@ impl<'tokens> ParserState<'tokens> {
         }
         let diagnostic_observations = self.current_strict_diagnostic_observations();
         let end_location = self.memo_failure_end_location(start_location, &error);
+        note_syntax_memo_store();
         self.syntax_failure_memo.insert(
             (rule_name, start_location),
             new!(SyntaxMemoFailure {
@@ -4663,6 +4901,61 @@ fn replay_winning_continuation_attempt<'tokens>(
     )
 }
 
+#[cfg(any(test, feature = "parser_work_counters"))]
+thread_local! {
+    static RECOVERY_TRIALS: Cell<u64> = const { Cell::new(0) };
+    static RECOVERY_MEMO_STORES: Cell<u64> = const { Cell::new(0) };
+    static SYNTAX_MEMO_STORES: Cell<u64> = const { Cell::new(0) };
+}
+
+/// One recovery trial. Tests bound this count in both profiles.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_recovery_trial() {
+    #[cfg(any(test, feature = "parser_work_counters"))]
+    RECOVERY_TRIALS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// One store into the recovery memo. A cleared memo stores the same rule again.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_recovery_memo_store() {
+    #[cfg(any(test, feature = "parser_work_counters"))]
+    RECOVERY_MEMO_STORES.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// One syntax-memo store, strict or recovered.
+///
+/// A repeated trial that keeps the same memo does not store again. A cleared
+/// memo stores the same rule a second time.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_syntax_memo_store() {
+    #[cfg(any(test, feature = "parser_work_counters"))]
+    SYNTAX_MEMO_STORES.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// Trials and recovery-memo stores since the last read. The next read starts at zero.
+#[cfg(any(test, feature = "parser_work_counters"))]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn take_recovery_work() -> (u64, u64) {
+    let trials = RECOVERY_TRIALS.with(|count| count.replace(0));
+    let stores = RECOVERY_MEMO_STORES.with(|count| count.replace(0));
+    (trials, stores)
+}
+
+/// Syntax-memo stores since the last read. The next read starts at zero.
+#[cfg(any(test, feature = "parser_work_counters"))]
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn take_syntax_memo_stores() -> u64 {
+    SYNTAX_MEMO_STORES.with(|count| count.replace(0))
+}
+
 #[requires(!trial_directives.is_empty())]
 #[requires(current_error_count > 0)]
 #[ensures(true)]
@@ -4678,6 +4971,7 @@ fn run_recovery_trial<'tokens>(
     global_hard_cap: usize,
     previous_error_start: usize,
 ) -> RecoveryTrialClassification {
+    note_recovery_trial();
     let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
         tokens,
         parser_tokens,
@@ -5906,23 +6200,26 @@ fn should_attach_indicator(prev: &Token, indicator: &Word) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn furthest_candidate_start(observations: &[SyntaxDiagnosticObservation<'_>]) -> Option<usize> {
-    observations
-        .iter()
-        .filter_map(|observation| match observation.as_data() {
-            data!(SyntaxDiagnosticObservation::Candidate(error)) => Some(error.span().start),
-            data!(SyntaxDiagnosticObservation::Nested(nested)) => {
-                nested_furthest_candidate_start(&nested.observations)
-            }
-            data!(SyntaxDiagnosticObservation::Restricted {
-                start,
-                observations,
-                ..
-            }) => furthest_candidate_start(observations)
-                .filter(|furthest| furthest >= start)
-                .map(|_| *start),
-            data!(SyntaxDiagnosticObservation::Preserved(_)) => None,
-        })
-        .max()
+    // Each nested or restricted edge grows the stack. The observation tree follows the parse.
+    jbotci_tree::with_tree_stack(|| {
+        observations
+            .iter()
+            .filter_map(|observation| match observation.as_data() {
+                data!(SyntaxDiagnosticObservation::Candidate(error)) => Some(error.span().start),
+                data!(SyntaxDiagnosticObservation::Nested(nested)) => {
+                    nested_furthest_candidate_start(&nested.observations)
+                }
+                data!(SyntaxDiagnosticObservation::Restricted {
+                    start,
+                    observations,
+                    ..
+                }) => furthest_candidate_start(observations)
+                    .filter(|furthest| furthest >= start)
+                    .map(|_| *start),
+                data!(SyntaxDiagnosticObservation::Preserved(_)) => None,
+            })
+            .max()
+    })
 }
 
 /// [`furthest_candidate_start`] for the observations of a memoized evaluation, cached in them.
@@ -6030,6 +6327,17 @@ impl<'tokens> SyntaxFrameRankWalk<'tokens> {
         observations: &[SyntaxDiagnosticObservation<'tokens>],
         base: usize,
     ) -> Option<SyntaxFrameRank> {
+        // Each restricted edge and each first nested evaluation grows the stack.
+        jbotci_tree::with_tree_stack(|| self.observations_inner(observations, base))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|inner| old(self.next_order) <= inner.order && inner.order < self.next_order))]
+    fn observations_inner(
+        &mut self,
+        observations: &[SyntaxDiagnosticObservation<'tokens>],
+        base: usize,
+    ) -> Option<SyntaxFrameRank> {
         let mut min_inner = None::<SyntaxFrameRank>;
         let mut found = |inner: SyntaxFrameRank| {
             min_inner = Some(min_inner.map_or(inner, |current| current.min(inner)));
@@ -6108,6 +6416,16 @@ impl<'tokens> SyntaxFrameRankWalk<'tokens> {
         &mut self,
         observations: &Rc<SyntaxDiagnosticObservations<'tokens>>,
     ) -> Option<SyntaxFrameRank> {
+        // The first visit of an evaluation grows the stack before the inner walk.
+        jbotci_tree::with_tree_stack(|| self.nested_inner(observations))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|inner| inner.order < self.next_order))]
+    fn nested_inner(
+        &mut self,
+        observations: &Rc<SyntaxDiagnosticObservations<'tokens>>,
+    ) -> Option<SyntaxFrameRank> {
         if nested_furthest_candidate_start(observations)
             .is_none_or(|furthest| furthest < self.position)
         {
@@ -6130,6 +6448,62 @@ impl<'tokens> SyntaxFrameRankWalk<'tokens> {
 mod tests {
     #[allow(unused_imports)]
     use bityzba::{data, ensures, new, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_diagnostic_observations_drop_on_the_default_test_stack() {
+        let mut observation = new!(SyntaxDiagnosticObservation::Preserved(
+            SyntaxParseError::unexpected_found(
+                Span { start: 0, end: 0 },
+                new!(SyntaxFound::EndOfInput),
+            ),
+        ));
+        for _ in 0..512 {
+            observation = new!(SyntaxDiagnosticObservation::Nested(new!(
+                SyntaxDiagnosticReplay {
+                    observations: Rc::new(new!(SyntaxDiagnosticObservations {
+                        id: SyntaxDiagnosticObservationId::Strict {
+                            frame_id: NonZeroUsize::MIN,
+                        },
+                        caller_rule_len: 0,
+                        observations: Rc::from([observation]),
+                        furthest_start: std::cell::OnceCell::new(),
+                    })),
+                    invoked_at: SharedStack::empty(),
+                }
+            )));
+        }
+        assert_eq!(
+            furthest_candidate_start(std::slice::from_ref(&observation)),
+            None,
+            "a preserved observation chain reports no candidate"
+        );
+        assert!(
+            recovery_frame_ranks_at(std::slice::from_ref(&observation), 0).is_empty(),
+            "a preserved observation chain gives no frame rank"
+        );
+        drop(observation);
+
+        // A recursive drop of this chain overflows the libtest stack.
+        let mut checkpoints = Rc::new(new!(SyntaxRecoveryCheckpointObservations {
+            checkpoints: Rc::from([RecoveryCheckpoint::new(
+                "sumti",
+                0,
+                0,
+                0,
+                RecoveryCheckpointKind::FieldStart,
+            )]),
+            children: Rc::from([]),
+        }));
+        for _ in 0..65_536 {
+            checkpoints = Rc::new(new!(SyntaxRecoveryCheckpointObservations {
+                checkpoints: Rc::from([]),
+                children: Rc::from([checkpoints]),
+            }));
+        }
+        drop(checkpoints);
+    }
     use jbotci_dialect::parse_dialect_definition;
     use jbotci_morphology::{
         MorphologyOptions, WordLikeData, segment_words_with_modifiers,
@@ -8350,6 +8724,7 @@ mod tests {
             tokens.push(expected_continuation_sentinel(cut_byte));
             let sentinel_index = tokens.len() - 1;
 
+            let _ = take_recovery_work();
             let started = Instant::now();
             let tracked_attempt = generated::generated_model::parse_text_detailed_tracked_attempt_for_expected_continuations(
                 &tokens,
@@ -8388,19 +8763,32 @@ mod tests {
             else {
                 panic!("unbounded recovery finishes");
             };
+            let (trials, recovery_memo_stores) = take_recovery_work();
             assert!(
                 continuation_cut_reached,
                 "unbounded recovery must reach the requested completion cut",
             );
+            // The cleaned owner document yields 49 recovery errors. One run
+            // of that document stored 241 trials and 648610 recovery memos.
             assert_eq!(
                 parse.errors.len(),
-                14,
+                49,
                 "the winning recovery must retain every prior owner-document error",
             );
-            assert!(
-                elapsed <= Duration::from_secs(30),
-                "unbounded issue #463 recovery took {elapsed:?}; the generous ceiling guards memo-retention regressions",
+            assert_eq!(
+                (trials, recovery_memo_stores),
+                (241, 648_610),
+                "recovery trials and recovery-memo stores are the work bound",
             );
+            // The 30 s figure is the release latency requirement for this
+            // document. The trial count and the memo-store count are the work
+            // bounds in both profiles.
+            if !cfg!(debug_assertions) {
+                assert!(
+                    elapsed <= Duration::from_secs(30),
+                    "release latency requirement: issue #463 recovery took {elapsed:?}, limit 30s",
+                );
+            }
         });
     }
 

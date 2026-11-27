@@ -2,6 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::panic::AssertUnwindSafe;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use bityzba::{data, invariant, new, try_new};
 use serde::{Deserialize, Serialize};
 
@@ -95,6 +99,49 @@ struct DefaultedGeneric<T = (), U = ()> {
     label: String,
     first: T,
     second: U,
+}
+
+// The destructor is on the data type.
+// `into_data` and `with_data` move that data.
+// A panic in `with_data` still drops it.
+
+#[invariant(*id < 1_000)]
+#[derive(Debug)]
+struct NamedHandle {
+    id: u32,
+    hits: Arc<AtomicUsize>,
+}
+
+impl Drop for NamedHandleData {
+    fn drop(&mut self) {
+        self.hits.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+#[invariant(self.load(Ordering::Relaxed) < 1_000_000)]
+#[derive(Debug)]
+struct TupleHandle(Arc<AtomicUsize>);
+
+impl Drop for TupleHandleData {
+    fn drop(&mut self) {
+        self.0.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+#[invariant(::Live { hits } => hits.load(Ordering::Relaxed) < 1_000_000)]
+#[derive(Debug)]
+enum EnumHandle {
+    Live { hits: Arc<AtomicUsize> },
+}
+
+impl Drop for EnumHandleData {
+    fn drop(&mut self) {
+        match self {
+            EnumHandleData::Live { hits } => {
+                hits.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
 }
 
 impl CustomSpan {
@@ -391,4 +438,106 @@ fn defaulted_generic_struct_builds_with_typestate_builder() {
     });
 
     assert_eq!(value.label, "cmavo");
+}
+
+#[test]
+fn named_struct_destructor_follows_the_data() {
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(NamedHandle {
+        id: 1,
+        hits: Arc::clone(&hits),
+    });
+    let data = handle.into_data();
+    assert_eq!(hits.load(Ordering::Relaxed), 0);
+    drop(data);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(NamedHandle {
+        id: 1,
+        hits: Arc::clone(&hits),
+    });
+    drop(handle);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(NamedHandle {
+        id: 1,
+        hits: Arc::clone(&hits),
+    });
+    let updated = handle.with_data(data! { id: 2 });
+    assert_eq!(updated.id, 2);
+    assert_eq!(hits.load(Ordering::Relaxed), 0);
+    drop(updated);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(NamedHandle {
+        id: 1,
+        hits: Arc::clone(&hits),
+    });
+    let caught = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let _ = handle.with_data(|builder| {
+            if hits.load(Ordering::Relaxed) < 1_000_000 {
+                panic!("callback");
+            }
+            builder
+        });
+    }));
+    assert!(caught.is_err());
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+}
+
+#[test]
+fn tuple_newtype_destructor_follows_the_data() {
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(TupleHandle(Arc::clone(&hits)));
+    let data = handle.into_data();
+    assert_eq!(hits.load(Ordering::Relaxed), 0);
+    drop(data);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(TupleHandle(Arc::clone(&hits)));
+    drop(handle);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(TupleHandle(Arc::clone(&hits)));
+    let updated = handle.with_data(|inner| inner);
+    assert_eq!(hits.load(Ordering::Relaxed), 0);
+    drop(updated);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(TupleHandle(Arc::clone(&hits)));
+    let caught = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let _ = handle.with_data(|inner| {
+            if inner.0.load(Ordering::Relaxed) < 1_000_000 {
+                panic!("callback");
+            }
+            inner
+        });
+    }));
+    assert!(caught.is_err());
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+}
+
+#[test]
+fn enum_destructor_follows_the_data() {
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(EnumHandle::Live {
+        hits: Arc::clone(&hits),
+    });
+    let data = handle.into_data();
+    assert_eq!(hits.load(Ordering::Relaxed), 0);
+    drop(data);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+
+    let hits = Arc::new(AtomicUsize::new(0));
+    let handle = new!(EnumHandle::Live {
+        hits: Arc::clone(&hits),
+    });
+    drop(handle);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
 }

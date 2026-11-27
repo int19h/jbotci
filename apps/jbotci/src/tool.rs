@@ -2253,6 +2253,9 @@ mod cancellation_tests {
     /// downcasts. It must not be a rendered syntax error.
     const LO_COPIES: usize = 700;
     const CANCEL_AFTER: Duration = Duration::from_millis(200);
+    /// Stop latency after another thread sets the flag. The figure includes
+    /// the delay before that store. It applies to both profiles. It is not a
+    /// budget for the speed of gentufa.
     const MUST_STOP_WITHIN: Duration = Duration::from_secs(4);
 
     #[test]

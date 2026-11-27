@@ -22,6 +22,9 @@ use super::{
 /// syntax-error family, not the brivla family.
 const LO_COPIES: usize = 700;
 const CANCEL_AFTER: Duration = Duration::from_millis(200);
+/// Stop latency after another thread sets the flag. The figure includes
+/// the delay before that store. It applies to both profiles. It is not a
+/// budget for the speed of the parse.
 const MUST_STOP_WITHIN: Duration = Duration::from_secs(3);
 
 #[test]
@@ -29,38 +32,26 @@ const MUST_STOP_WITHIN: Duration = Duration::from_secs(3);
 #[ensures(true)]
 fn cancellation_stops_unspaced_lo_and_is_not_a_syntax_error() {
     let text = "lo".repeat(LO_COPIES);
-    // libtest threads start at 2 MiB. A debug build of this recovery walk uses
-    // more than that between `stacker::maybe_grow` points, and the process
-    // aborts before the interruption check can return. The worker stack is
-    // test-only room for those frames.
     let source = CancellationSource::new();
     let token = source.token();
     let canceller = thread::spawn(move || {
         thread::sleep(CANCEL_AFTER);
         source.cancel();
     });
-    let worker = thread::Builder::new()
-        .name("syntax-cancellation".to_owned())
-        .stack_size(64 * 1024 * 1024)
-        .spawn(move || {
-            let words = jbotci_morphology::segment_words_with_modifiers(&text)
-                .expect("repeated lo is a run of cmavo, not an invalid word");
-            let started = Instant::now();
-            let attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
-                &words,
-                &text,
-                &ParseOptions::default().with_cancellation(&token),
-            );
-            // Drop the tree on this thread. Moving the generated syntax type
-            // back to the test thread overflows the compiler's Send check.
-            let interrupted = matches!(
-                attempt.result.as_data(),
-                SyntaxRecoveryParseData::Interrupted
-            );
-            (started.elapsed(), interrupted)
-        })
-        .expect("syntax cancellation worker");
-    let (elapsed, interrupted) = worker.join().expect("syntax cancellation worker");
+    let words = jbotci_morphology::segment_words_with_modifiers(&text)
+        .expect("repeated lo is a run of cmavo, not an invalid word");
+    let started = Instant::now();
+    let attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
+        &words,
+        &text,
+        &ParseOptions::default().with_cancellation(&token),
+    );
+    let interrupted = matches!(
+        attempt.result.as_data(),
+        SyntaxRecoveryParseData::Interrupted
+    );
+    let elapsed = started.elapsed();
+    drop(attempt);
     canceller.join().expect("canceller");
     assert!(
         elapsed < MUST_STOP_WITHIN,
@@ -78,8 +69,10 @@ fn cancellation_stops_unspaced_lo_and_is_not_a_syntax_error() {
 /// token is 76.52 s. The test segments first, then trips the parse at
 /// check 1,000. It does not repeat the clear-token run.
 const SLOW_LO_COPIES: usize = 320;
+/// The bound is the interrupt. A deleted check returns a tree, not an
+/// interrupt. A clock is not the bound. The same checks are slower in a
+/// debug build.
 const SLOW_LOOP_TRIP: usize = 1_000;
-const SLOW_LOOP_BOUND: Duration = Duration::from_secs(10);
 
 #[test]
 #[requires(true)]
@@ -126,31 +119,26 @@ fn a_mid_loop_trip_stops_unspaced_lo_quickly() {
     let text = "lo".repeat(SLOW_LO_COPIES);
     let words = jbotci_morphology::segment_words_with_modifiers(&text)
         .expect("repeated lo is a run of cmavo, not an invalid word");
-    let worker = thread::Builder::new()
-        .name("syntax-slow-trip".to_owned())
-        .stack_size(64 * 1024 * 1024)
-        .spawn(move || {
-            let started = Instant::now();
-            let token = jbotci_interrupt::CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
-            let attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
-                &words,
-                &text,
-                &ParseOptions::default().with_cancellation(&token),
-            );
-            let interrupted = matches!(
-                attempt.result.as_data(),
-                SyntaxRecoveryParseData::Interrupted
-            );
-            (started.elapsed(), interrupted)
-        })
-        .expect("syntax slow-trip worker");
-    let (elapsed, interrupted) = worker.join().expect("syntax slow-trip worker");
-    assert!(
-        elapsed < SLOW_LOOP_BOUND,
-        "syntax kept running for {elapsed:?}; a missing loop check parses the whole text"
+    let _ = crate::grammar::take_recovery_work();
+    let _ = crate::grammar::take_syntax_memo_stores();
+    let token = jbotci_interrupt::CancellationToken::trip_after_checks(SLOW_LOOP_TRIP);
+    let attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
+        &words,
+        &text,
+        &ParseOptions::default().with_cancellation(&token),
+    );
+    let (trials, recovery_stores) = crate::grammar::take_recovery_work();
+    let memo_stores = crate::grammar::take_syntax_memo_stores();
+    assert_eq!(
+        (trials, recovery_stores, memo_stores),
+        (0, 0, 464),
+        "the trip stops before a recovery trial, and syntax memo stores are the work"
     );
     assert!(
-        interrupted,
+        matches!(
+            attempt.result.as_data(),
+            SyntaxRecoveryParseData::Interrupted
+        ),
         "the early trip must be an interrupt, not a recovered or failed tree"
     );
 }

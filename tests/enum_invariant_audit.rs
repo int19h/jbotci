@@ -1916,6 +1916,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "reference display slot is projected from validated semantic PlaceSlot values",
     ),
     (
+        "crates/jbotci-output/src/sexpr.rs:BracketWriteStep::Close",
+        "heap step stores the depth of one pending close bracket",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:BracketWriteStep::Node",
+        "heap step stores one pending bracket node and its depth",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:BracketWriteStep::Siblings",
+        "heap step stores the unread tail of one open bracket group",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:BracketWriteStep::Space",
+        "unit heap step writes one space between bracket nodes",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:FragmentJob::Enter",
+        "heap step stores one fragment node and its depth",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:FragmentJob::Finish",
+        "heap step stores one fragment close and the child count already written",
+    ),
+    (
         "crates/jbotci-output/src/sexpr.rs:LeafRole::Elided",
         "unit leaf role is a closed renderer style selector with no payload",
     ),
@@ -1950,6 +1974,54 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/tree.rs:MorphologyFrame::Node",
         "builder stack frame validity is governed by enter/exit sequencing",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::CollectionClose",
+        "unit heap step writes the closing bracket of an inline collection",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::CollectionItems",
+        "heap step stores the unread tail of one open tree collection",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::CollectionSuffix",
+        "heap step writes the indented close of a collection after its items",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::Comma",
+        "unit heap step writes one comma after a rendered value",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::EntryPrefix",
+        "heap step stores the indent and label written before one field",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::InlineEntryPrefix",
+        "heap step stores the comma flag and label written before one inline field",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::InlineItemPrefix",
+        "heap step stores the comma flag written before one inline collection item",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::ItemPrefix",
+        "heap step stores the indent written before one collection item",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::NodeEntries",
+        "heap step stores the unread tail of one open tree node",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::NodeSuffix",
+        "heap step stores the indent and trail flag of one pending node close",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::SyntaxOutgoing",
+        "heap step stores reference names written after one syntax value",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderStep::Value",
+        "heap step stores one borrowed tree value and its indent",
     ),
     (
         "crates/jbotci-output/src/tree.rs:SyntaxFrame::Chain",
@@ -2636,6 +2708,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generic recovery slot wrapper delegates prefix error validity to Vec1 and typed recovery items",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Released",
+        "The drop queue writes this stand-in after the node moves onto the heap queue.",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:Recovered::Valid",
         "generic recovery slot wrapper delegates semantic validity to the contained recovered field state",
     ),
@@ -2650,6 +2726,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:WrappedNode::Tuple",
         "tree macro test wrapper delegates validity to the wrapped payload",
+    ),
+    (
+        "crates/jbotci-tree/src/node_drop.rs:Tls::Busy",
+        "Busy stores the address of the drain queue. That queue belongs to the active drain",
     ),
     (
         "crates/jbotci-tree-macros/src/view.rs:::Recovered",

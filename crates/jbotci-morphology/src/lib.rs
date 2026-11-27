@@ -80,6 +80,9 @@ pub use dialect::{
     DialectExpansionFailureData, DialectExpansionLimit, DialectExpansionLimitData,
     DialectExpansionViolation, DialectExpansionViolationData,
 };
+#[cfg(any(test, feature = "recognition_work_counter"))]
+#[doc(hidden)]
+pub use grammar::take_word_start_work;
 pub use lujvo::{
     ConsonantPairClass, GismuShape, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData,
     LujvoCandidate, LujvoCandidateData, RafsiShape, ShortRafsiForm, ShortRafsiFormData,
@@ -89,6 +92,9 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
 };
+#[cfg(any(test, feature = "recognition_work_counter"))]
+#[doc(hidden)]
+pub use segment::take_recognition_work;
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,
     word_needs_leading_pause_in_context,

@@ -8390,6 +8390,8 @@ mod tests {
         }
 
         // A broken progression loop must not hang the workspace test process.
+        // The 30 s figure detects that hang. It is not a speed budget.
+        // It applies to both profiles.
         let mut child = std::process::Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",

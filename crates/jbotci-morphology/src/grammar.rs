@@ -1,3 +1,5 @@
+#[cfg(any(test, feature = "recognition_work_counter"))]
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
@@ -22,6 +24,65 @@ use crate::{
     ReplacementQuoteWord, Selmaho, Verbatim, Word, WordKind, WordLike, WordLikeData,
     ZoiDelimiterDetailKind, canonical_text_eq, canonicalize_text, morphology_error_recovery_start,
 };
+
+/// Record one candidate end whose scan body runs.
+///
+/// The word-start loops load the cancellation flag, then inspect that end.
+/// A test reads the count. A normal build leaves the counter out.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_candidate_end() {
+    #[cfg(any(test, feature = "recognition_work_counter"))]
+    CANDIDATE_ENDS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// Record one source index a boundary walk reads.
+///
+/// A pause test with no comma reads one index. Each comma adds one index.
+/// A test compares the total with the number of candidate ends.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_boundary_char() {
+    #[cfg(any(test, feature = "recognition_work_counter"))]
+    BOUNDARY_CHARS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+/// Record one slot of a normalized-candidate prefix table.
+///
+/// One candidate stores three tables. Each table has one slot for every
+/// source character and one slot at zero. A test compares the total with
+/// that shape.
+#[inline(always)]
+#[requires(true)]
+#[ensures(true)]
+fn note_prefix_slot() {
+    #[cfg(any(test, feature = "recognition_work_counter"))]
+    PREFIX_SLOTS.with(|count| count.set(count.get().saturating_add(1)));
+}
+
+#[cfg(any(test, feature = "recognition_work_counter"))]
+thread_local! {
+    static CANDIDATE_ENDS: Cell<u64> = const { Cell::new(0) };
+    static BOUNDARY_CHARS: Cell<u64> = const { Cell::new(0) };
+    static PREFIX_SLOTS: Cell<u64> = const { Cell::new(0) };
+}
+
+/// Candidate ends, boundary indexes, and prefix-table slots since the last read.
+///
+/// The next read starts all three at zero. Search tests and morphology tests
+/// compare the totals with the scan shape. A normal build leaves this out.
+#[cfg(any(test, feature = "recognition_work_counter"))]
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(true)]
+pub fn take_word_start_work() -> (u64, u64, u64) {
+    let ends = CANDIDATE_ENDS.with(|count| count.replace(0));
+    let boundary_chars = BOUNDARY_CHARS.with(|count| count.replace(0));
+    let prefix_slots = PREFIX_SLOTS.with(|count| count.replace(0));
+    (ends, boundary_chars, prefix_slots)
+}
 
 /// One plain word, or `Ok(None)` when the text is not one plain word.
 ///
@@ -1332,6 +1393,7 @@ impl<'a> Segmenter<'a> {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
+            note_candidate_end();
             let relative_end = end - start;
             if normalized
                 .stripped_cmavo_phonemes(0, relative_end)
@@ -1398,6 +1460,7 @@ impl<'a> Segmenter<'a> {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
+            note_candidate_end();
             let normalized_prefix = normalized.slice_to_source_end(end - start)?;
             if !self.relaxed_brivla_boundary_ok(
                 start,
@@ -1669,6 +1732,7 @@ impl<'a> Segmenter<'a> {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
+            note_candidate_end();
             let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
                 continue;
             };
@@ -1770,6 +1834,7 @@ impl<'a> Segmenter<'a> {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
+            note_candidate_end();
             if !self.pause_at(end) {
                 continue;
             }
@@ -1892,6 +1957,7 @@ impl<'a> Segmenter<'a> {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
+            note_candidate_end();
             let relative_end = end - start;
             // The cluster after a stressed final nucleus can start in the next word.
             let Some(phonemes) = normalized.stripped_cmavo_phonemes(0, relative_end) else {
@@ -2959,6 +3025,7 @@ impl<'a> Segmenter<'a> {
     #[ensures(ret >= index && ret <= self.chars.len())]
     fn skip_commas_index(&self, index: usize) -> usize {
         let mut cursor = index;
+        note_boundary_char();
         while cursor < self.chars.len()
             && self
                 .chars
@@ -2966,6 +3033,7 @@ impl<'a> Segmenter<'a> {
                 .is_some_and(|source_char| source_char.value == ',')
         {
             cursor += 1;
+            note_boundary_char();
         }
         cursor
     }
@@ -3581,6 +3649,7 @@ fn fill_source_prefix_ends(ends: Vec<Option<usize>>) -> Vec<usize> {
     let mut current = 0;
     ends.into_iter()
         .map(|end| {
+            note_prefix_slot();
             if let Some(end) = end {
                 current = end;
             }

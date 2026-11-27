@@ -484,6 +484,7 @@ fn trace_recovered_candidate(
         Some(recovered::Recovered::Valid(_)) => "valid",
         Some(recovered::Recovered::Prefix(_)) => "prefix",
         Some(recovered::Recovered::Error(_)) => "error",
+        Some(recovered::Recovered::Released) => "released",
     };
     let origin = origin.map_or_else(|| "unreached".to_owned(), |origin| format!("{origin:?}"));
     let decision = if rejected { "reject" } else { "keep" };
@@ -535,7 +536,9 @@ impl OutputRejection<recovered::Recovered<recovered::ExpFullSumtiDescriptionTail
         // whole wrapper is fail-closed in the same direction as the operand tier classifier.
         let slot = match value {
             recovered::Recovered::Valid(tail) => Some(tail.leading_sumti.as_ref()),
-            recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => None,
+            recovered::Recovered::Prefix(_)
+            | recovered::Recovered::Error(_)
+            | recovered::Recovered::Released => None,
         };
         let origin = candidate_origin(value);
         let rejected = origin.is_none_or(origin_is_rejected);

@@ -17,12 +17,16 @@ use jbotci_interrupt::CancellationToken;
 
 use super::{FuhivlaHeadPolicy, LujvoParseFailure, LujvoPartRange};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "recognition_work_counter"))]
 thread_local! {
     static BODY_COUNT: Cell<u64> = const { Cell::new(0) };
     static BODY_CAP: Cell<u64> = const { Cell::new(u64::MAX) };
     static SYLLABLE_STEPS: Cell<u64> = const { Cell::new(0) };
     static SYLLABLE_CAP: Cell<u64> = const { Cell::new(u64::MAX) };
+}
+
+#[cfg(test)]
+thread_local! {
     static LIVE_SLOTS: Cell<u64> = const { Cell::new(0) };
     static PEAK_SLOTS: Cell<u64> = const { Cell::new(0) };
 }
@@ -34,7 +38,7 @@ fn note_recognition_body() {
     // Production builds do not read it. The cap is a test assertion checked at
     // the moment a body finishes: an exponential run fails there instead of
     // continuing. It is not a limit on the recognizer.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "recognition_work_counter"))]
     {
         let next = BODY_COUNT.with(|count| {
             let next = count.get().saturating_add(1);
@@ -57,7 +61,7 @@ fn note_recognition_body() {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn note_syllable_step() {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "recognition_work_counter"))]
     {
         let next = SYLLABLE_STEPS.with(|count| {
             let next = count.get().saturating_add(1);
@@ -69,6 +73,20 @@ pub(crate) fn note_syllable_step() {
             panic!("syllable scan visited {next} indexes, above the polynomial cap {cap}");
         }
     }
+}
+
+/// Recognition bodies and syllable-scan steps since the last read.
+///
+/// The next read starts both at zero. A test uses the pair as the work inside
+/// one morphology call. Production builds leave the counter out.
+#[cfg(any(test, feature = "recognition_work_counter"))]
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(true)]
+pub fn take_recognition_work() -> (u64, u64) {
+    let bodies = BODY_COUNT.with(|count| count.replace(0));
+    let steps = SYLLABLE_STEPS.with(|count| count.replace(0));
+    (bodies, steps)
 }
 
 /// Test guard for the body-execution counter.

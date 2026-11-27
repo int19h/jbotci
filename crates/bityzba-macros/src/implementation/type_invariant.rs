@@ -226,6 +226,7 @@ fn generate_struct(
     let invariant_expr = invariant_expression(&contracts, quote! { true });
     let invariant_docs = invariant_docs(&contracts);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let unused_mut_allow = quote! { #[allow(unused_mut)] };
 
     // The wrapper represents the source type for the unused-item lint.
     let wrapper = quote_spanned! { item.span() =>
@@ -299,13 +300,15 @@ fn generate_struct(
 
         #[doc(hidden)]
         #wrapper_vis struct #update_builder_ident #generics #where_clause {
+            __bityzba_base: ::std::option::Option<#data_ident #ty_generics>,
             #(#field_idents: ::std::option::Option<#field_types>,)*
         }
 
         impl #impl_generics #update_builder_ident #ty_generics #where_clause {
             fn from_data(data: #data_ident #ty_generics) -> Self {
                 Self {
-                    #(#field_idents: ::std::option::Option::Some(data.#field_idents),)*
+                    __bityzba_base: ::std::option::Option::Some(data),
+                    #(#field_idents: ::std::option::Option::None,)*
                 }
             }
 
@@ -316,12 +319,18 @@ fn generate_struct(
                 }
             )*
 
-            fn build(self) -> #data_ident #ty_generics {
-                #data_ident {
-                    #(
-                        #field_idents: self.#field_idents.expect("update builder starts with every field set"),
-                    )*
-                }
+            fn build(mut self) -> #data_ident #ty_generics {
+                // The builder owns the whole data value.
+                // A drop before `build` runs the destructor of that data.
+                // `build` writes each stored field onto that value.
+                #unused_mut_allow
+                let mut __bityzba_owned = self.__bityzba_base.take().expect("update builder owns its data");
+                #(
+                    if let ::std::option::Option::Some(value) = self.#field_idents.take() {
+                        __bityzba_owned.#field_idents = value;
+                    }
+                )*
+                __bityzba_owned
             }
         }
 
@@ -360,6 +369,8 @@ fn generate_struct(
             where
                 F: ::std::ops::FnOnce(#update_builder_ident #ty_generics) -> #update_builder_ident #ty_generics,
             {
+                // The move keeps the destructor of the data.
+                // A panic in the callback drops that data.
                 Self::from_data(data(#update_builder_ident::from_data(self.0)).build())
             }
 
@@ -368,6 +379,7 @@ fn generate_struct(
             }
 
             pub fn into_data(self) -> #data_ident #ty_generics {
+                // The move keeps the destructor of the data.
                 self.0
             }
 
@@ -496,6 +508,8 @@ fn generate_tuple_newtype_struct(
             where
                 F: ::std::ops::FnOnce(#data_ident #ty_generics) -> #data_ident #ty_generics,
             {
+                // The move keeps the destructor of the data.
+                // A panic in the callback drops that data.
                 Self::from_data(data(self.0))
             }
 
@@ -504,6 +518,7 @@ fn generate_tuple_newtype_struct(
             }
 
             pub fn into_data(self) -> #data_ident #ty_generics {
+                // The move keeps the destructor of the data.
                 self.0
             }
 
@@ -629,6 +644,7 @@ fn generate_enum(
             }
 
             pub fn into_data(self) -> #data_ident #ty_generics {
+                // The move keeps the destructor of the data.
                 self.0
             }
 
@@ -689,7 +705,12 @@ fn collect_type_option_errors(attrs: &mut Vec<Attribute>) -> Vec<TokenStream> {
 fn generated_builder_field_name_errors(field_idents: &[Ident]) -> Vec<TokenStream> {
     field_idents
         .iter()
-        .filter(|ident| matches!(ident.to_string().as_str(), "build" | "from_data" | "new"))
+        .filter(|ident| {
+            matches!(
+                ident.to_string().as_str(),
+                "build" | "from_data" | "new" | "__bityzba_base"
+            )
+        })
         .map(|ident| {
             syn::Error::new_spanned(
                 ident,

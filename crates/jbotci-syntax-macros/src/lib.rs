@@ -825,7 +825,7 @@ impl SyntaxGrammar {
                 #[bityzba::invariant(true)]
                 #(#invariants)*
                 #(#other_attrs)*
-                #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
+                #[derive(::serde::Serialize)]
                 pub enum #ident {
                     #(#variants,)*
                 }
@@ -871,6 +871,15 @@ impl SyntaxGrammar {
                     }))
                 });
         let field_order_items = struct_field_order_items.chain(variant_field_order_items);
+        let clone_eq_impls: Vec<_> = structs
+            .values()
+            .map(GeneratedStructModel::clone_eq_impls)
+            .chain(
+                enums
+                    .iter()
+                    .map(|(name, variants)| generated_enum_clone_eq_impls(name, variants)),
+            )
+            .collect();
         let support_items = quote! {
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub struct GeneratedModelFieldOrder {
@@ -905,6 +914,8 @@ impl SyntaxGrammar {
             pub const GENERATED_MODEL_FIELD_ORDERS: &[GeneratedModelFieldOrder] = &[
                 #(#field_order_items,)*
             ];
+
+            #(#clone_eq_impls)*
         };
         Ok(GeneratedTreeModel {
             tree_items: items,
@@ -1362,7 +1373,7 @@ impl GeneratedStructModel {
                 #(#doc_attrs)*
                 #[bityzba::invariant(true)]
                 #(#other_attrs)*
-                #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
+                #[derive(::serde::Serialize)]
                 #visibility struct #ident(#(#fields),*);
             };
         }
@@ -1374,9 +1385,79 @@ impl GeneratedStructModel {
             #(#doc_attrs)*
             #[bityzba::invariant(true)]
             #(#other_attrs)*
-            #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
+            #[derive(::serde::Serialize)]
             #visibility struct #ident {
                 #(#fields,)*
+            }
+        }
+    }
+
+    /// Clone, PartialEq, and Debug grow the stack at this node, then at each child.
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone_eq_impls(&self) -> TokenStream2 {
+        let ident = &self.ident;
+        let (clone_body, eq_body, debug_body) = if self.fields.len() == 1 {
+            (
+                quote!(#ident(self.0.clone())),
+                quote!(self.0 == other.0),
+                quote! {
+                    formatter
+                        .debug_tuple(::core::stringify!(#ident))
+                        .field(&self.0)
+                        .finish()
+                },
+            )
+        } else if self.fields.is_empty() {
+            (
+                quote!(#ident {}),
+                quote!(true),
+                quote!(formatter.write_str(::core::stringify!(#ident))),
+            )
+        } else {
+            let clones = self.fields.iter().map(|field| {
+                let name = &field.name;
+                quote!(#name: self.#name.clone())
+            });
+            let eqs = self.fields.iter().map(|field| {
+                let name = &field.name;
+                quote!(self.#name == other.#name)
+            });
+            let debug_fields = self.fields.iter().map(|field| {
+                let name = &field.name;
+                let label = name.to_string();
+                quote!(.field(#label, &self.#name))
+            });
+            (
+                quote!(#ident { #(#clones,)* }),
+                quote!(#(#eqs)&&*),
+                quote! {
+                    formatter
+                        .debug_struct(::core::stringify!(#ident))
+                        #(#debug_fields)*
+                        .finish()
+                },
+            )
+        };
+        quote! {
+            impl ::core::clone::Clone for #ident {
+                fn clone(&self) -> Self {
+                    ::jbotci_tree::with_tree_stack(|| #clone_body)
+                }
+            }
+
+            impl ::core::cmp::PartialEq for #ident {
+                fn eq(&self, other: &Self) -> bool {
+                    ::jbotci_tree::with_tree_stack(|| #eq_body)
+                }
+            }
+
+            impl ::core::cmp::Eq for #ident {}
+
+            impl ::core::fmt::Debug for #ident {
+                fn fmt(&self, formatter: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                    ::jbotci_tree::with_tree_stack(|| #debug_body)
+                }
             }
         }
     }
@@ -1472,6 +1553,151 @@ impl GeneratedFieldModel {
         let attrs = &self.attrs;
         let ty = &self.ty;
         quote!(#(#attrs)* #ty)
+    }
+}
+
+/// Clone, PartialEq, and Debug grow the stack at this node, then at each child.
+#[requires(!name.is_empty())]
+#[ensures(true)]
+fn generated_enum_clone_eq_impls(name: &str, variants: &[GeneratedVariantModel]) -> TokenStream2 {
+    let ident = format_ident!("{name}");
+    let clone_arms = variants.iter().map(generated_variant_clone_arm);
+    let eq_arms = variants.iter().map(generated_variant_eq_arm);
+    let debug_arms = variants.iter().map(generated_variant_debug_arm);
+    let wildcard = (variants.len() > 1).then(|| quote!(_ => false));
+    quote! {
+        impl ::core::clone::Clone for #ident {
+            fn clone(&self) -> Self {
+                ::jbotci_tree::with_tree_stack(|| match self {
+                    #(#clone_arms,)*
+                })
+            }
+        }
+
+        impl ::core::cmp::PartialEq for #ident {
+            fn eq(&self, other: &Self) -> bool {
+                ::jbotci_tree::with_tree_stack(|| match (self, other) {
+                    #(#eq_arms,)*
+                    #wildcard
+                })
+            }
+        }
+
+        impl ::core::cmp::Eq for #ident {}
+
+        impl ::core::fmt::Debug for #ident {
+            fn fmt(&self, formatter: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                ::jbotci_tree::with_tree_stack(|| match self {
+                    #(#debug_arms,)*
+                })
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_variant_clone_arm(variant: &GeneratedVariantModel) -> TokenStream2 {
+    let variant_ident = &variant.variant;
+    if variant.tuple {
+        let binds: Vec<_> = (0..variant.fields.len())
+            .map(|index| format_ident!("left_{index}"))
+            .collect();
+        let clones = binds.iter().map(|bind| quote!(#bind.clone()));
+        quote!(Self::#variant_ident(#(#binds),*) => Self::#variant_ident(#(#clones),*))
+    } else {
+        let fields = variant.fields.iter().map(|field| {
+            let name = &field.name;
+            let bind = format_ident!("left_{name}");
+            quote!(#name: #bind)
+        });
+        let constructs = variant.fields.iter().map(|field| {
+            let name = &field.name;
+            let bind = format_ident!("left_{name}");
+            quote!(#name: #bind.clone())
+        });
+        quote!(Self::#variant_ident { #(#fields),* } => Self::#variant_ident { #(#constructs),* })
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_variant_eq_arm(variant: &GeneratedVariantModel) -> TokenStream2 {
+    let variant_ident = &variant.variant;
+    if variant.tuple {
+        let left: Vec<_> = (0..variant.fields.len())
+            .map(|index| format_ident!("left_{index}"))
+            .collect();
+        let right: Vec<_> = (0..variant.fields.len())
+            .map(|index| format_ident!("right_{index}"))
+            .collect();
+        let eqs = left
+            .iter()
+            .zip(&right)
+            .map(|(left, right)| quote!(#left == #right));
+        quote! {
+            (Self::#variant_ident(#(#left),*), Self::#variant_ident(#(#right),*)) => #(#eqs)&&*
+        }
+    } else {
+        let left_fields = variant.fields.iter().map(|field| {
+            let name = &field.name;
+            let bind = format_ident!("left_{name}");
+            quote!(#name: #bind)
+        });
+        let right_fields = variant.fields.iter().map(|field| {
+            let name = &field.name;
+            let bind = format_ident!("right_{name}");
+            quote!(#name: #bind)
+        });
+        let eqs = variant.fields.iter().map(|field| {
+            let name = &field.name;
+            let left = format_ident!("left_{name}");
+            let right = format_ident!("right_{name}");
+            quote!(#left == #right)
+        });
+        quote! {
+            (
+                Self::#variant_ident { #(#left_fields),* },
+                Self::#variant_ident { #(#right_fields),* },
+            ) => #(#eqs)&&*
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_variant_debug_arm(variant: &GeneratedVariantModel) -> TokenStream2 {
+    let variant_ident = &variant.variant;
+    // Derived Debug prints the variant name alone. A spliced variant then
+    // matches the variant of the rule it was copied from.
+    let label = quote!(::core::stringify!(#variant_ident));
+    if variant.tuple {
+        let binds: Vec<_> = (0..variant.fields.len())
+            .map(|index| format_ident!("left_{index}"))
+            .collect();
+        let fields = binds.iter().map(|bind| quote!(.field(#bind)));
+        quote! {
+            Self::#variant_ident(#(#binds),*) => {
+                formatter.debug_tuple(#label) #(#fields)* .finish()
+            }
+        }
+    } else {
+        let fields = variant.fields.iter().map(|field| {
+            let name = &field.name;
+            let bind = format_ident!("left_{name}");
+            quote!(#name: #bind)
+        });
+        let debug_fields = variant.fields.iter().map(|field| {
+            let name = &field.name;
+            let bind = format_ident!("left_{name}");
+            let label = name.to_string();
+            quote!(.field(#label, #bind))
+        });
+        quote! {
+            Self::#variant_ident { #(#fields),* } => {
+                formatter.debug_struct(#label) #(#debug_fields)* .finish()
+            }
+        }
     }
 }
 

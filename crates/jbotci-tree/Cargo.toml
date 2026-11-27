@@ -20,6 +20,11 @@ serde.workspace = true
 smallvec.workspace = true
 vec1.workspace = true
 
+# `stacker` grows the native stack for a deep tree walk. wasm32 has no
+# auxiliary native stack, so the walk stays on the host stack there.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+stacker.workspace = true
+
 [dev-dependencies]
 serde_json.workspace = true
 trybuild = "1"
