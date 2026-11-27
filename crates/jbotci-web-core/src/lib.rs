@@ -12030,6 +12030,58 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_jvozba_pane_names_a_lujvo_part_with_no_source() {
+        // The pane admits such a word (owner ruling for #1149), and its build
+        // shows the error that names the rafsi, as the command line does.
+        let dictionary = jbotci_dictionary_data::english();
+        let item = |entry_index, value: &str| VlackuJvozbaItem {
+            entry_index,
+            kind: VlackuJvozbaItemKind::Word,
+            value: value.to_owned(),
+            source: None,
+            indent_level: 0,
+        };
+        let golfyjvi = dictionary
+            .lookup_word_index("golfyjvi")
+            .expect("golfyjvi entry");
+        for (items, word, part) in [
+            (
+                vec![item(None, "bajra"), item(None, "lefkroli")],
+                "lefkroli",
+                "lef",
+            ),
+            (
+                vec![item(None, "lefkroli"), item(None, "bajra")],
+                "lefkroli",
+                "lef",
+            ),
+            (
+                vec![item(Some(golfyjvi), "golfyjvi"), item(None, "klama")],
+                "golfyjvi",
+                "",
+            ),
+        ] {
+            let output = build_vlacku_jvozba_output(VlackuJvozbaMode::Lujvo, &items);
+            let VlackuJvozbaOutput::Error { message } = &output else {
+                panic!("{items:?}: {output:?}");
+            };
+            assert!(
+                message.starts_with("The rafsi `")
+                    && message.contains(&format!("` in `{word}` names no dictionary word.")),
+                "{message}"
+            );
+            if !part.is_empty() {
+                assert_eq!(
+                    message,
+                    &format!("The rafsi `{part}` in `{word}` names no dictionary word.")
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_jvozba_builds_fuhivla_self_core_in_browser_model() {
         let output = build_vlacku_jvozba_output(
             VlackuJvozbaMode::Lujvo,

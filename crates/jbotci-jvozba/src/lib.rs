@@ -1,7 +1,7 @@
 //! Lujvo composition and decomposition.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{
     Dictionary, DictionaryLujvoSegmentKind, DictionaryLujvoSource, EntryIndex, RafsiSource,
     WordType, fuivla_stem_rafsi, normalize_lookup_query,
@@ -86,6 +86,7 @@ pub enum JvozbaSegmentKind {
 #[invariant(::NoRafsiAvailable { .. } => true)]
 #[invariant(::NoDictionaryEntry { .. } => true)]
 #[invariant(::AmbiguousFuivlaRafsi { .. } => true)]
+#[invariant(::LujvoPartWithoutSource { .. } => true)]
 #[invariant(::TooMuchWork { .. } => true)]
 #[invariant(::CouldNotBuildLujvo => true)]
 #[invariant(::CouldNotBuildCompound => true)]
@@ -107,6 +108,10 @@ pub enum JvozbaError {
     NoRafsiAvailable { offending: String },
     #[error("More than one fu'ivla entry has the rafsi `{stem}`. Enter the full source word.")]
     AmbiguousFuivlaRafsi { stem: String },
+    /// A lujvo input has a rafsi that names no dictionary word, so the build
+    /// cannot expand the input into its source words.
+    #[error("The rafsi `{part}` in `{word}` names no dictionary word.")]
+    LujvoPartWithoutSource { word: String, part: String },
     #[error("No dictionary entry for `{offending}`.")]
     NoDictionaryEntry { offending: String },
     #[error(
@@ -299,7 +304,24 @@ fn build_best_jvozba_with_evaluator(
         if cancellation.is_cancelled() {
             return Err(JvozbaError::Interrupted);
         }
-        let plan = plan_expansion(dictionary, input, cancellation)?;
+        let plan = match plan_expansion(dictionary, input, cancellation) {
+            Ok(plan) => plan,
+            Err(JvozbaError::Interrupted) => return Err(JvozbaError::Interrupted),
+            Err(error) => {
+                // When the earlier inputs are over the piece limit, their
+                // candidates are not made, and the plan error stands.
+                if count.is_none_or(|count| count > limits.max_pieces) {
+                    return Err(error);
+                }
+                return Err(first_error_before_failed_plan(
+                    mode,
+                    dictionary,
+                    plans,
+                    error,
+                    cancellation,
+                ));
+            }
+        };
         count = count.and_then(|count| count.checked_add(plan.piece_count()));
         // Count every occurrence for the exact refusal reason. Retain a plan
         // only while the eventual expansion can still fit the piece limit.
@@ -375,6 +397,7 @@ pub fn word_can_enter_jvozba_pane(
 ) -> Result<bool, JvozbaError> {
     input_can_enter_jvozba_pane(
         dictionary,
+        word_text,
         ExpandedInput::for_word(dictionary, word_text),
         cancellation,
     )
@@ -388,20 +411,34 @@ pub fn entry_can_enter_jvozba_pane(
     entry_index: EntryIndex,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
-    if dictionary.entry_for_index(entry_index).is_none() {
+    let Some(entry) = dictionary.entry_for_index(entry_index) else {
         return Ok(false);
-    }
+    };
     input_can_enter_jvozba_pane(
         dictionary,
+        entry.word,
         ExpandedInput::DictionaryWord(entry_index),
         cancellation,
     )
 }
 
+/// Whether the jvozba pane admits a word.
+///
+/// A word is admitted when it gives a candidate in some position, as before
+/// #1149. A word with no candidate is also admitted when the morphology reads
+/// it as a lujvo, even when a build with it can only fail, for example when
+/// one of its rafsi names no dictionary word (`lefkroli`). The owner ruled so
+/// on 2026-11-26: the user sees why the word cannot build, which is better
+/// than a hidden word, and the pane build then shows the error that names the
+/// rafsi. Do not make this test refuse such a word. The ruling keeps these
+/// words admitted and adds no others: a cmevla that the build expands into
+/// source words (`lojban`, `moskov`) has no candidate of its own, so it stays
+/// out, as before.
 #[requires(true)]
 #[ensures(true)]
 fn input_can_enter_jvozba_pane(
     dictionary: &Dictionary<'_>,
+    word_text: &str,
     input: ExpandedInput<'_>,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
@@ -416,7 +453,25 @@ fn input_can_enter_jvozba_pane(
             return Ok(true);
         }
     }
-    Ok(false)
+    is_morphology_lujvo(word_text, cancellation)
+}
+
+/// Whether the morphology reads `raw_word` as one lujvo.
+///
+/// This is the one test for "lujvo form" in jvozba. A cmevla that reads as a
+/// compound of known words is not a lujvo here, though
+/// `decompose_lujvo_like` also decomposes it.
+#[requires(true)]
+#[ensures(true)]
+fn is_morphology_lujvo(
+    raw_word: &str,
+    cancellation: &CancellationToken,
+) -> Result<bool, JvozbaError> {
+    let normalized = normalize_lujvo_like_input(raw_word);
+    if normalized.is_empty() {
+        return Ok(false);
+    }
+    Ok(morphology_lujvo_parts(&normalized, cancellation)?.is_some())
 }
 
 /// A missing rafsi is "no", and a set flag is an interrupt. The two must not share one answer.
@@ -514,48 +569,81 @@ impl<'a> ExpandedInput<'a> {
     }
 }
 
-/// A borrowed input or its parsed decomposition, before expanded strings are allocated.
+/// A borrowed input, or the source words of its decomposition, before
+/// expanded strings are allocated.
 #[invariant(true)]
 #[invariant(::Plain { .. } => true)]
-#[invariant(::Decomposed { .. } => true)]
+#[invariant(::Decomposed { sources } => sources.len() >= 2, "a decomposed input has a source for each of its two or more rafsi")]
 #[derive(Debug)]
-enum ExpansionPlan<'input, 'dictionary> {
+enum ExpansionPlan<'input> {
     Plain {
         input: ExpandedInput<'input>,
     },
+    /// One source word for each rafsi of the input, in order, with repeats.
     Decomposed {
-        decomposition: LujvoDecomposition<'dictionary>,
+        sources: Vec<EntryIndex>,
     },
 }
-impl<'input> ExpansionPlan<'input, '_> {
+impl<'input> ExpansionPlan<'input> {
     #[requires(true)]
     #[ensures(ret > 0)]
     fn piece_count(&self) -> usize {
-        match self {
-            Self::Plain { .. } => 1,
-            Self::Decomposed { decomposition } => {
-                sourced_rafsi_entries(&decomposition.segments).count()
-            }
+        match self.as_data() {
+            data!(ExpansionPlan::Plain { .. }) => 1,
+            data!(ExpansionPlan::Decomposed { sources }) => sources.len(),
         }
     }
     #[requires(true)]
-    #[ensures(destination.len() >= old(destination.len()))]
+    #[ensures(destination.len() == old(destination.len()) + old(self.piece_count()))]
     fn append_to(self, destination: &mut Vec<ExpandedInput<'input>>) {
-        match self {
-            Self::Plain { input } => destination.push(input),
-            Self::Decomposed { decomposition } => destination.extend(
-                sourced_rafsi_entries(&decomposition.segments).map(ExpandedInput::DictionaryWord),
-            ),
+        match self.into_data() {
+            data!(ExpansionPlan::Plain { input }) => destination.push(input),
+            data!(ExpansionPlan::Decomposed { sources }) => {
+                destination.extend(sources.into_iter().map(ExpandedInput::DictionaryWord))
+            }
         }
     }
 }
+/// The error to report when the plan of one input fails.
+///
+/// jvozba reports the error of the first failing input, in the order that the
+/// user wrote, as before #1149. A plan error of a later input must not hide a
+/// candidate error of an earlier one (`djan lefkroli` names `djan`). So the
+/// earlier inputs get their candidates first. Each of them is followed by the
+/// failing input, so none of them is the last input. The caller calls this
+/// only when the earlier inputs fit the piece limit. A caller that finds them
+/// over the limit keeps the plan error and does not call.
+///
+/// An interruption of the plan stops the build before this call, so the plan
+/// error is never `Interrupted`.
+#[requires(!matches!(plan_error, JvozbaError::Interrupted))]
+#[ensures(true)]
+fn first_error_before_failed_plan(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    earlier: Vec<ExpansionPlan<'_>>,
+    plan_error: JvozbaError,
+    cancellation: &CancellationToken,
+) -> JvozbaError {
+    let mut expanded = Vec::new();
+    for plan in earlier {
+        plan.append_to(&mut expanded);
+    }
+    for input in expanded {
+        if let Err(error) = candidate_list_for_input(mode, dictionary, false, input, cancellation) {
+            return error;
+        }
+    }
+    plan_error
+}
+
 #[requires(true)]
 #[ensures(true)]
-fn plan_expansion<'input, 'dictionary>(
-    dictionary: &Dictionary<'dictionary>,
+fn plan_expansion<'input>(
+    dictionary: &Dictionary<'_>,
     input: &'input JvozbaInput,
     cancellation: &CancellationToken,
-) -> Result<ExpansionPlan<'input, 'dictionary>, JvozbaError> {
+) -> Result<ExpansionPlan<'input>, JvozbaError> {
     let (input, word_text) = match input {
         JvozbaInput::Word(text) => (ExpandedInput::for_word(dictionary, text), Some(text)),
         JvozbaInput::DictionaryWord { entry_index, word } => {
@@ -573,25 +661,55 @@ fn plan_expansion<'input, 'dictionary>(
     };
     if let Some(text) = word_text
         && let Some(decomposition) = decompose_lujvo_like(dictionary, text, cancellation)?
-        && sourced_rafsi_entries(&decomposition.segments)
-            .next()
-            .is_some()
     {
-        // A derived stem with sources of more than one word is ambiguous.
-        // Sources that share a lookup key are one word.
-        if let Some(segment) = decomposition.segments.iter().find(|segment| {
-            segment.kind == DictionaryLujvoSegmentKind::FuivlaRafsi
-                && !segment.sources.is_empty()
-                && single_word_key(&segment.sources).is_none()
-        }) {
-            return Err(JvozbaError::AmbiguousFuivlaRafsi {
-                stem: canonicalize_text(segment.segment.phonemes().as_str()),
-            });
-        }
-        Ok(ExpansionPlan::Decomposed { decomposition })
+        Ok(new!(ExpansionPlan::Decomposed {
+            sources: decomposition_sources(text, &decomposition)?,
+        }))
     } else {
-        Ok(ExpansionPlan::Plain { input })
+        Ok(new!(ExpansionPlan::Plain { input }))
     }
+}
+
+/// The source word of each rafsi of a decomposed input, in order.
+///
+/// A lujvo-form input always expands into its source words, and every rafsi
+/// must name one word. A rafsi with no source is an error that names it, so
+/// the build never drops a part (`bolvii'ybau` has no source for `bolvii`),
+/// and an input whose rafsi all lack sources gets the same error
+/// (`lefkroli` names `lef`). Such an input cannot enter as itself: a final
+/// brivla core of two or more rafsi can never match one input. A fu'ivla
+/// rafsi whose sources have more than one lookup key is ambiguous. Sources
+/// that share a lookup key are one word.
+#[requires(true)]
+#[ensures(match &ret {
+    Ok(sources) => sources.len() == decomposition.segments.iter().filter(|segment| segment.kind.is_rafsi()).count(),
+    Err(error) => matches!(error, JvozbaError::LujvoPartWithoutSource { .. } | JvozbaError::AmbiguousFuivlaRafsi { .. }),
+})]
+fn decomposition_sources(
+    word: &str,
+    decomposition: &LujvoDecomposition<'_>,
+) -> Result<Vec<EntryIndex>, JvozbaError> {
+    let mut sources = Vec::new();
+    for segment in decomposition
+        .segments
+        .iter()
+        .filter(|segment| segment.kind.is_rafsi())
+    {
+        let part = || canonicalize_text(segment.segment.phonemes().as_str());
+        let Some(first) = segment.sources.first() else {
+            return Err(JvozbaError::LujvoPartWithoutSource {
+                word: offending_spelling(word, &normalized_spelling(word)),
+                part: part(),
+            });
+        };
+        if segment.kind == DictionaryLujvoSegmentKind::FuivlaRafsi
+            && single_word_key(&segment.sources).is_none()
+        {
+            return Err(JvozbaError::AmbiguousFuivlaRafsi { stem: part() });
+        }
+        sources.push(first.entry_index);
+    }
+    Ok(sources)
 }
 
 #[requires(true)]
@@ -778,10 +896,12 @@ fn non_dictionary_word_candidates(
     let Some(word) = word_like.bare_word() else {
         return Ok(None);
     };
-    if !matches!(
-        word.kind(),
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla
-    ) {
+    // In a build, a lujvo never comes here, because it always expands into
+    // its source words (see `decomposition_sources`). The pane admission test
+    // does send one here: it gets no candidate, and `is_morphology_lujvo`
+    // then decides. So only a gismu or a fu'ivla can be an unlisted final
+    // brivla core.
+    if !matches!(word.kind(), WordKind::Gismu | WordKind::Fuhivla) {
         return Ok(None);
     }
     Ok(Some(vec![new!(LujvoBuildPart::BrivlaCore(
@@ -1001,15 +1121,6 @@ fn decomposition_from_parts<'a>(
         segments: segments,
         source_words: source_words,
     }))
-}
-
-/// Return the entry behind each sourced rafsi in order, with repeats.
-#[requires(true)]
-#[ensures(true)]
-fn sourced_rafsi_entries(segments: &[LujvoSegmentInfo<'_>]) -> impl Iterator<Item = EntryIndex> {
-    segments
-        .iter()
-        .filter_map(|segment| segment.sources.first().map(|source| source.entry_index))
 }
 
 #[requires(true)]
@@ -2214,6 +2325,253 @@ mod tests {
 
         assert_eq!(result.word, "jenjigu'ydi'e");
         assert_segment_texts(&result, &["jenjigu", "'y", "di'e"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_lujvo_part_with_no_source_is_an_error_that_names_it() {
+        // #1149: a lujvo input expands into the source word of each rafsi. A
+        // rafsi with no source used to vanish, so `bolvii'ybau klama` built
+        // `baukla`. Now the build stops and names the rafsi.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let build = |inputs: &[JvozbaInput]| {
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, inputs, &token)
+        };
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        for (lujvo, part, other) in [
+            // A fu'ivla rafsi: `bolviia` has no short form, because
+            // `bolvii'y` adds the experimental CgV warning.
+            ("bolvii'ybau", "bolvii", "klama"),
+            // An ordinary rafsi: `lef` is nobody's rafsi.
+            ("lefkla", "lef", "bajra"),
+            ("klalefmo", "lefmo", "bajra"),
+        ] {
+            let expected = JvozbaError::LujvoPartWithoutSource {
+                word: lujvo.to_owned(),
+                part: part.to_owned(),
+            };
+            for inputs in [
+                vec![word(lujvo), word(other)],
+                vec![word(other), word(lujvo)],
+            ] {
+                assert_eq!(build(&inputs).unwrap_err(), expected, "{inputs:?}");
+            }
+        }
+        assert_eq!(
+            build(&[word("bolvii'ybau"), word("klama")])
+                .unwrap_err()
+                .to_string(),
+            "The rafsi `bolvii` in `bolvii'ybau` names no dictionary word."
+        );
+        // A dictionary lujvo with such a part reports it too, whether the
+        // input names the word or the exact entry, as the jvozba pane does.
+        let entry_index = dictionary
+            .lookup_word_index("golfyjvi")
+            .expect("golfyjvi entry");
+        for input in [
+            word("golfyjvi"),
+            JvozbaInput::DictionaryWord {
+                entry_index,
+                word: "golfyjvi".to_owned(),
+            },
+        ] {
+            let error = build(&[input, word("klama")]).unwrap_err();
+            assert!(
+                matches!(
+                    &error,
+                    JvozbaError::LujvoPartWithoutSource { word, .. } if word == "golfyjvi"
+                ),
+                "{error:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_lujvo_with_no_sourced_rafsi_names_its_first_part() {
+        // Round 2 of #1149: `lefkroli` splits into `lef` and `kroli`, and
+        // neither names a dictionary word. The input still expands, so every
+        // position, mode and partner gets the error that names `lef`. As a
+        // final brivla core it could never build, because its two rafsi
+        // cannot match one input.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let rafsi = |text: &str| JvozbaInput::FixedRafsi(text.to_owned());
+        let expected = JvozbaError::LujvoPartWithoutSource {
+            word: "lefkroli".to_owned(),
+            part: "lef".to_owned(),
+        };
+        for mode in [JvozbaMode::Lujvo, JvozbaMode::Cmevla] {
+            for inputs in [
+                vec![word("lefkroli"), word("bajra")],
+                vec![word("bajra"), word("lefkroli")],
+                vec![word("bajra"), word("lefkroli"), word("klama")],
+                vec![word("bajra"), word("klama"), word("lefkroli")],
+                vec![rafsi("baj"), word("lefkroli")],
+            ] {
+                let error = build_best_jvozba_detailed(mode, dictionary, &inputs, &token)
+                    .expect_err("lefkroli has no sourced rafsi");
+                assert_eq!(error, expected, "{mode:?} {inputs:?}");
+            }
+        }
+        // The error names the word in its normalized spelling, as the
+        // other errors do.
+        let error = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[word(" .LEFKLA. "), word("bajra")],
+            &token,
+        )
+        .expect_err("lef has no source");
+        assert_eq!(
+            error.to_string(),
+            "The rafsi `lef` in `lefkla` names no dictionary word."
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_pane_admits_a_lujvo_that_can_only_report_its_missing_part() {
+        // Owner ruling for #1149 round 2: keep the "add to jvozba" control for
+        // such a word, and show the error when the pane builds.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        for text in ["lefkroli", "lefkla", "golfyjvi", "bolvii'ybau"] {
+            assert_eq!(
+                word_can_enter_jvozba_pane(dictionary, text, &token),
+                Ok(true),
+                "{text}"
+            );
+        }
+        let entry_index = dictionary
+            .lookup_word_index("golfyjvi")
+            .expect("golfyjvi entry");
+        assert_eq!(
+            entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
+            Ok(true)
+        );
+        // A word with no candidate that the morphology does not read as a
+        // lujvo stays out.
+        assert_eq!(
+            word_can_enter_jvozba_pane(dictionary, "lefmeq", &token),
+            Ok(false)
+        );
+        // The ruling adds no words: a dictionary cmevla that the build
+        // expands into source words has no candidate of its own, and it stays
+        // out, as before #1149.
+        for text in ["lojban", "moskov"] {
+            assert_eq!(
+                word_can_enter_jvozba_pane(dictionary, text, &token),
+                Ok(false),
+                "{text}"
+            );
+            let entry_index = dictionary.lookup_word_index(text).expect("cmevla entry");
+            assert_eq!(
+                entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
+                Ok(false),
+                "{text}"
+            );
+            assert!(
+                decompose_lujvo_like(dictionary, text, &token)
+                    .unwrap()
+                    .is_some(),
+                "{text} still expands in a build"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_first_failing_input_names_the_error() {
+        // jvozba reports the error of the first failing input, in the order
+        // that the user wrote. A part error of a later input does not hide a
+        // candidate error of an earlier one.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let rafsi = |text: &str| JvozbaInput::FixedRafsi(text.to_owned());
+        let lef = JvozbaError::LujvoPartWithoutSource {
+            word: "lefkroli".to_owned(),
+            part: "lef".to_owned(),
+        };
+        let djan = JvozbaError::NoDictionaryEntry {
+            offending: "djan".to_owned(),
+        };
+        for (inputs, expected) in [
+            (vec![word("djan"), word("lefkroli")], djan.clone()),
+            (vec![word("lefkroli"), word("djan")], lef.clone()),
+            (
+                vec![word("bajra"), word("djan"), word("lefkroli")],
+                djan.clone(),
+            ),
+            (
+                vec![rafsi(","), word("lefkroli")],
+                JvozbaError::FixedRafsiEmpty,
+            ),
+            (vec![word("djan"), word("eskykukte")], djan),
+            (
+                vec![word("eskykukte"), word("djan")],
+                JvozbaError::AmbiguousFuivlaRafsi {
+                    stem: "esk".to_owned(),
+                },
+            ),
+        ] {
+            let error = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
+                .expect_err("one input fails");
+            assert_eq!(error, expected, "{inputs:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_bounded_build_keeps_the_plan_error_when_earlier_inputs_exceed_the_piece_limit() {
+        // The bounded-build policy: when the earlier inputs are already over
+        // the piece limit (three `djan` against `max_pieces: 2`), the build
+        // does not make their candidates, so the error of the failing plan
+        // stands. An unbounded build, or a limit that the earlier inputs fit,
+        // makes them and names the first failing input (`djan`).
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let inputs = [
+            JvozbaInput::Word("djan".to_owned()),
+            JvozbaInput::Word("djan".to_owned()),
+            JvozbaInput::Word("djan".to_owned()),
+            JvozbaInput::Word("lefkroli".to_owned()),
+        ];
+        let djan = JvozbaError::NoDictionaryEntry {
+            offending: "djan".to_owned(),
+        };
+        let lef = JvozbaError::LujvoPartWithoutSource {
+            word: "lefkroli".to_owned(),
+            part: "lef".to_owned(),
+        };
+        assert_eq!(
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
+                .expect_err("djan has no entry"),
+            djan
+        );
+        for (max_pieces, expected) in [(2, &lef), (3, &djan), (4, &djan)] {
+            let limits = bounded().with_data(bityzba::data! { max_pieces: max_pieces });
+            assert_eq!(
+                build_best_jvozba_detailed_within(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    &inputs,
+                    limits,
+                    &token,
+                )
+                .expect_err("one input fails"),
+                *expected,
+                "max_pieces {max_pieces}"
+            );
+        }
     }
 
     #[test]
