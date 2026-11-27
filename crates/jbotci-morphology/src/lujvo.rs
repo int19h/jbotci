@@ -371,6 +371,14 @@ fn bond_lujvo_build_part_refs(parts: &[&LujvoBuildPart]) -> Option<Vec<String>> 
     if parts.len() < 2 {
         return None;
     }
+    // A prescribed hyphen belongs to a following part. In the last
+    // position there is none, so the prescription cannot be honored.
+    if parts
+        .last()
+        .is_some_and(|part| part.prescribed_hyphen().is_some())
+    {
+        return None;
+    }
     let first_part = *parts.first()?;
     let first = first_part.as_text();
     let second = parts.get(1)?.as_text();
@@ -815,7 +823,12 @@ fn tosmabru(parts: &[String]) -> bool {
     if is_cmevla(last_part) {
         return false;
     }
-    if let Some(y_index) = parts.iter().position(|part| part == "y") {
+    // The first y-hyphen ends the leading joints. Before a vowel nucleus
+    // the same hyphen is spelled "y'", so both spellings end the scan.
+    if let Some(y_index) = parts
+        .iter()
+        .position(|part| matches!(part.as_str(), "y" | "y'"))
+    {
         let heads = &parts[..y_index];
         return heads.len() > 1
             && heads
@@ -900,6 +913,39 @@ mod tests {
         assert_eq!(
             bond_rafsis(&["bau".to_owned(), "rok".to_owned()]),
             Some(vec!["bau".to_owned(), "n".to_owned(), "rok".to_owned()])
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_prescribed_hyphen_in_the_last_position_bonds_nothing() {
+        // A prescribed hyphen belongs to a following part. In the last
+        // position there is none, so bonding refuses instead of dropping
+        // the hyphen silently.
+        let parts = vec![
+            new!(LujvoBuildPart::Rafsi("kla".to_owned())),
+            new!(LujvoBuildPart::RafsiWithHyphen {
+                text: "dut".to_owned(),
+                hyphen: "y".to_owned(),
+            }),
+        ];
+        assert_eq!(bond_lujvo_build_parts(&parts), None);
+        let candidate = choose_best_lujvo_candidate_from_parts(
+            LujvoBuildMode::Lujvo,
+            &[vec![parts[0].clone()], vec![parts[1].clone()]],
+            &crate::CancellationToken::never(),
+        )
+        .expect("bonding is not interrupted");
+        assert_eq!(candidate, None);
+        // In a non-last position the prescribed hyphen is copied.
+        let parts = vec![
+            parts[1].clone(),
+            new!(LujvoBuildPart::Rafsi("kla".to_owned())),
+        ];
+        assert_eq!(
+            bond_lujvo_build_parts(&parts),
+            Some(vec!["dut".to_owned(), "y".to_owned(), "kla".to_owned()])
         );
     }
 

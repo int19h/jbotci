@@ -52,8 +52,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The payload is a validated kept final part.",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::KeptFuhivlaStem",
+        "The payload is a validated kept fu'ivla stem.",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::KeptRafsi",
         "The payload is a validated kept rafsi.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::PinnedFuhivlaRafsi",
+        "The payload is a validated pinned fu'ivla rafsi.",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::PinnedLongRafsi",
