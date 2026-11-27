@@ -797,7 +797,9 @@ fn margin_mark(glyphs: GlyphStyle) -> &'static str {
 
 /// The window that draws this label's text.
 ///
-/// The renderer draws the text at the end of the span. Split windows keep that end.
+/// The renderer draws the text at the end of the span. That end can sit on a
+/// line break the content range does not include. The window is the latest
+/// one that lists this label and still starts at or before that byte.
 #[requires(true)]
 #[ensures(true)]
 fn window_shows_label_text(
@@ -817,14 +819,18 @@ fn window_shows_label_text(
         if !candidate.label_indexes.contains(&label_index) {
             continue;
         }
-        let holds = if candidate.source_start == candidate.source_end {
-            mark == candidate.source_start
-        } else {
-            mark >= candidate.source_start && mark < candidate.source_end
-        };
-        if holds || chosen.is_none() {
+        if candidate.source_start > mark {
+            continue;
+        }
+        let closer = chosen.is_none_or(|current| candidate.source_start >= current.source_start);
+        if closer {
             chosen = Some(candidate);
         }
+    }
+    if chosen.is_none() {
+        chosen = windows
+            .iter()
+            .find(|candidate| candidate.label_indexes.contains(&label_index));
     }
     chosen.is_some_and(|candidate| std::ptr::eq(candidate, window))
 }
@@ -2083,13 +2089,15 @@ mod tests {
         assert_eq!(caret_at, marked, "{rendered}");
     }
 
-    /// A cut excerpt contains the renderer's margin mark or a folded-line mark.
+    /// A cut excerpt contains the renderer's margin mark, a folded-line mark,
+    /// or a later snippet header. The header is how a copied window marks a
+    /// line gap without copying the omitted lines.
     #[requires(true)]
     #[ensures(true)]
     fn rendered_excerpt_is_cut(rendered: &str) -> bool {
-        rendered
-            .lines()
-            .any(|line| line.contains("...") || line.contains('…'))
+        rendered.lines().any(|line| {
+            line.contains("...") || line.contains('…') || line.contains(":::") || line.contains('⸬')
+        })
     }
 
     #[requires(true)]

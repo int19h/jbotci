@@ -261,18 +261,22 @@ fn line_byte_range(source: &str, line_index: usize) -> (usize, usize) {
         start += relative + 1;
         number += 1;
     }
-    let end = match source[start..].find('\n') {
-        Some(relative) => {
-            let newline = start + relative;
-            if newline > start && source.as_bytes()[newline - 1] == b'\r' {
-                newline - 1
-            } else {
-                newline
-            }
-        }
-        None => source.len(),
+    let Some(relative) = source[start..].find('\n') else {
+        return (start, source.len());
     };
-    (start, end)
+    let newline = start + relative;
+    // A line with text ends before its break, so CR LF stays out of the copy.
+    // An empty line is only that break. The range includes the break, or the
+    // next render has no line to draw and the label moves to an earlier line.
+    let empty = newline == start
+        || (newline > start && source.as_bytes()[newline - 1] == b'\r' && newline - 1 == start);
+    if empty {
+        return (start, newline + 1);
+    }
+    if source.as_bytes()[newline - 1] == b'\r' {
+        return (start, newline - 1);
+    }
+    (start, newline)
 }
 
 fn stream_width(line: &str, expand: fn(char) -> Option<ExpandedControl>) -> usize {
