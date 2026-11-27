@@ -621,15 +621,8 @@ fn enum_debug_arm(
 ) -> TokenStream {
     let variant_ident = &variant.ident;
     let pattern_ty = if uses_data { data_ident } else { ident };
-    let label = if uses_data {
-        quote!(::core::stringify!(#variant_ident))
-    } else {
-        quote!(::core::concat!(
-            ::core::stringify!(#ident),
-            "::",
-            ::core::stringify!(#variant_ident)
-        ))
-    };
+    // Derived Debug and the bityzba wrapper both print the variant name alone.
+    let label = quote!(::core::stringify!(#variant_ident));
     match &variant.fields {
         Fields::Unit => {
             quote!(#pattern_ty::#variant_ident => formatter.write_str(#label))

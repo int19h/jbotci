@@ -1563,9 +1563,7 @@ fn generated_enum_clone_eq_impls(name: &str, variants: &[GeneratedVariantModel])
     let ident = format_ident!("{name}");
     let clone_arms = variants.iter().map(generated_variant_clone_arm);
     let eq_arms = variants.iter().map(generated_variant_eq_arm);
-    let debug_arms = variants
-        .iter()
-        .map(|variant| generated_variant_debug_arm(&ident, variant));
+    let debug_arms = variants.iter().map(generated_variant_debug_arm);
     let wildcard = (variants.len() > 1).then(|| quote!(_ => false));
     quote! {
         impl ::core::clone::Clone for #ident {
@@ -1668,16 +1666,11 @@ fn generated_variant_eq_arm(variant: &GeneratedVariantModel) -> TokenStream2 {
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_variant_debug_arm(
-    enum_ident: &Ident,
-    variant: &GeneratedVariantModel,
-) -> TokenStream2 {
+fn generated_variant_debug_arm(variant: &GeneratedVariantModel) -> TokenStream2 {
     let variant_ident = &variant.variant;
-    let label = quote!(::core::concat!(
-        ::core::stringify!(#enum_ident),
-        "::",
-        ::core::stringify!(#variant_ident)
-    ));
+    // Derived Debug prints the variant name alone. A spliced variant then
+    // matches the variant of the rule it was copied from.
+    let label = quote!(::core::stringify!(#variant_ident));
     if variant.tuple {
         let binds: Vec<_> = (0..variant.fields.len())
             .map(|index| format_ident!("left_{index}"))
