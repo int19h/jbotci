@@ -1026,8 +1026,25 @@ fn cards_for_valsi(
     let query = key.as_str();
     let entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     if !entries.is_empty() {
+        // Owner ruling for #1130 (2026-11-27): a query with a space shows the
+        // exact phrase match first, then the result for each word on its own
+        // (`ma u` shows the headword `ma;u`, then `ma` and `u`).
+        let words = if key.as_str().contains(' ') {
+            resolve_segmented_lookup(dictionary, query, &options.cancellation)?.unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let mut seen = entries
+            .iter()
+            .map(|entry| std::ptr::from_ref(*entry))
+            .collect::<HashSet<_>>();
         let candidates = entries
             .into_iter()
+            .chain(
+                words
+                    .into_iter()
+                    .filter(|entry| seen.insert(std::ptr::from_ref(*entry))),
+            )
             .map(VlackuCandidate::entry)
             .collect::<Vec<_>>();
         return Ok(found_or_missing(cards_with_optional_lujvo_sources(
@@ -2585,6 +2602,43 @@ mod tests {
         )
         .expect("exact rafsi lookup");
         assert!(exact.cards.iter().any(|card| card.word == "ierxi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_query_with_a_space_shows_the_phrase_then_each_word() {
+        // Owner ruling for #1130 (2026-11-27): the exact phrase match comes
+        // first, then the result for each word on its own. The CLI, MCP,
+        // Discord and the web all run `run_vlacku_requests`.
+        let options = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+        });
+        let dictionary = jbotci_dictionary_data::english();
+        let words = |query: &str| {
+            run_vlacku_requests(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            )
+            .expect("valsi lookup")
+            .cards
+            .iter()
+            .map(|card| card.word.clone())
+            .collect::<Vec<_>>()
+        };
+        for query in ["ma u", "ma;u", "  ma   u "] {
+            assert_eq!(words(query), ["ma;u", "ma", "u"], "{query:?}");
+        }
+        // With no exact phrase match, the words alone show, as before.
+        assert_eq!(words("mi klama"), ["mi", "klama"]);
+        // A one-word query has no word results to add.
+        assert_eq!(words("klama"), ["klama"]);
+        // A glob matches whole keys, so a space in a pattern matches a space
+        // in a headword key, and the pattern is not split into words.
+        let globbed = words("ma u*");
+        assert!(globbed.iter().any(|word| word == "ma;u"), "{globbed:?}");
+        assert!(!globbed.iter().any(|word| word == "ma"), "{globbed:?}");
     }
 
     #[test]
