@@ -801,6 +801,31 @@ fn combine_readback(child: Result<()>, worker: std::thread::Result<ReadbackDrain
     }
 }
 
+/// Wait for the stderr reader.
+/// The wait stops at `limit`.
+/// `None` means the reader did not finish.
+#[requires(true)]
+#[ensures(true)]
+fn join_readback_reader(
+    reader: std::thread::JoinHandle<ReadbackDrain>,
+    limit: Duration,
+) -> Option<std::thread::Result<ReadbackDrain>> {
+    if reader.is_finished() {
+        return Some(reader.join());
+    }
+    if limit.is_zero() {
+        return None;
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = sender.send(reader.join());
+    });
+    match receiver.recv_timeout(limit) {
+        Ok(outcome) => Some(outcome),
+        Err(_) => None,
+    }
+}
+
 #[requires(!timeout.is_zero())]
 #[ensures(true)]
 fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
@@ -881,17 +906,32 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
             }
         }
     };
-    // Kill the group before the reader joins.
-    // A grandchild keeps the stderr pipe open.
+    // Kill the group before the reader wait.
+    // The kill is cleanup.
+    // A grandchild in a new session keeps the pipe.
+    // The reader wait stops at the time that remains.
+    // An expired wait is a timeout.
+    // A finished reader keeps the child result, the worker error, and the stderr text.
     // The child is already reaped.
     // A second kill is harmless.
     #[cfg(unix)]
     unsafe {
         libc::kill(-(child.id() as i32), libc::SIGKILL);
     }
-    let worker_outcome = match worker_outcome {
-        Some(outcome) => outcome,
-        None => reader.take().expect("the reader handle is present").join(),
+    let worker_outcome = if let Some(outcome) = worker_outcome {
+        outcome
+    } else {
+        let remaining = timeout.saturating_sub(start.elapsed());
+        let reader = reader.take().expect("the reader handle is present");
+        match join_readback_reader(reader, remaining) {
+            Some(outcome) => outcome,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "Publisher command timed out after {} seconds",
+                    timeout.as_secs_f64()
+                ));
+            }
+        }
     };
     combine_readback(result, worker_outcome)
 }
@@ -2478,6 +2518,53 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             "the reader join ran for {elapsed:?}"
         );
         result.expect("the child exit is success");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_times_out_when_a_grandchild_leaves_the_group() {
+        // The shell exits 0.
+        // setsid moves the grandchild to a new session.
+        // The shell exits only after that process is its own session.
+        // The group kill does not reach that grandchild.
+        // The reader wait uses the time that remains.
+        // The one second limit bounds that wait.
+        let root = std::env::var_os("CARGO_TARGET_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target"));
+        fs::create_dir_all(&root).unwrap();
+        let temporary = Readback::new(&root).unwrap();
+        let pid_file = temporary.path.join("grandchild");
+        let started = Instant::now();
+        let result = run_readback(
+            Command::new("sh")
+                .args([
+                    "-c",
+                    "setsid sleep 60 & pid=$!; i=0; while [ \"$i\" -lt 50 ]; do sid=$(ps -o sid= -p \"$pid\" | tr -d '[:space:]'); if [ \"$sid\" = \"$pid\" ]; then printf '%s' \"$pid\" > \"$1\"; exit 0; fi; i=$((i + 1)); sleep 0.02; done; exit 1",
+                    "readback-detached",
+                ])
+                .arg(&pid_file),
+            Duration::from_secs(1),
+        );
+        let elapsed = started.elapsed();
+        let pid = fs::read_to_string(&pid_file)
+            .expect("the shell records the grandchild")
+            .trim()
+            .parse::<u32>()
+            .expect("the grandchild id is a number");
+        let grandchild_alive = !process_has_exited(pid);
+        unsafe {
+            libc::kill(pid as i32, libc::SIGKILL);
+        }
+        assert!(grandchild_alive, "the detached grandchild already exited");
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "the reader wait ran for {elapsed:?}"
+        );
+        let error = result.expect_err("a detached grandchild holds stderr");
+        assert!(error.to_string().contains("timed out"), "{error:#}");
     }
 
     #[cfg(unix)]
