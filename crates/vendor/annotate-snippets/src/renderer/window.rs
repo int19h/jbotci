@@ -136,67 +136,91 @@ pub fn lay_out_line(
     );
     let mut left = margin.left(display_len);
     let right = margin.right(display_len);
-    let room = right.saturating_sub(left);
-    let mut skipped = 0usize;
-    let mut taken = 0usize;
-    let mut started = false;
-    let mut code = String::new();
-    let mut code_origin = Vec::new();
+    // `draw_line` chooses the kept characters with this edge, then moves `left`
+    // forward when a wide character straddles it. The later cut math uses the
+    // moved edge. The character window does not.
+    let window_left = left;
+    let mut glyphs = Vec::new();
     for_each_char(line, expand, true, |origin, ch| {
-        let width = char_width(ch);
-        if !started {
-            if skipped < left {
-                skipped += width;
-                return true;
-            }
-            started = true;
-        }
-        if taken + width > room {
-            return false;
-        }
-        taken += width;
-        push_char(&mut code, &mut code_origin, origin, ch);
+        glyphs.push(Glyph {
+            ch,
+            origin,
+            width: char_width(ch),
+        });
         true
     });
+    let mut cells = group_cells(&glyphs);
+    let mut skipped = 0usize;
+    let mut start_cell = 0usize;
+    while start_cell < cells.len() && skipped < left {
+        skipped += cells[start_cell].width;
+        start_cell += 1;
+    }
     if skipped > left {
         left = skipped;
     }
+    let room = right.saturating_sub(window_left);
+    let mut taken = 0usize;
+    let mut end_cell = start_cell;
+    while end_cell < cells.len() {
+        let width = cells[end_cell].width;
+        if taken + width > room {
+            break;
+        }
+        taken += width;
+        end_cell += 1;
+    }
+    cells = cells[start_cell..end_cell].to_vec();
     let cut_left = margin.was_cut_left();
     let cut_right = display_len > right;
     let padding = str_width(margin_mark);
-    let (skip_left, _left_width) = prefix_covering(&code, padding, cut_left);
-    let rest = &code[skip_left..];
-    let rest_origin = &code_origin[skip_left..];
-    let skip_right = if cut_right {
-        suffix_chars(rest, padding)
-    } else {
-        0
-    };
-    let mut cells = Vec::<(char, usize)>::new();
+    let mut left_drop = 0usize;
+    let mut left_consumed = 0usize;
     if cut_left {
-        for ch in margin_mark.chars() {
-            cells.push((ch, usize::MAX));
+        for cell in &cells {
+            if left_consumed >= padding {
+                break;
+            }
+            left_consumed += cell.width;
+            left_drop += 1;
         }
     }
-    let rest_chars = rest.chars().count();
-    let keep_chars = rest_chars.saturating_sub(skip_right);
-    for (index, ch) in rest.chars().enumerate() {
-        if index >= keep_chars {
-            break;
-        }
-        let byte = rest
-            .char_indices()
-            .nth(index)
-            .map(|(offset, _)| offset)
-            .unwrap_or(0);
-        let origin = rest_origin.get(byte).copied().unwrap_or(usize::MAX);
-        cells.push((ch, origin));
-    }
+    let mut right_drop = 0usize;
     if cut_right {
-        for ch in margin_mark.chars() {
-            cells.push((ch, usize::MAX));
+        let mut consumed = 0usize;
+        for cell in cells.iter().rev() {
+            if consumed >= padding || left_drop + right_drop >= cells.len() {
+                break;
+            }
+            consumed += cell.width;
+            right_drop += 1;
         }
     }
+    let content_end = cells.len().saturating_sub(right_drop);
+    let content_start = left_drop.min(content_end);
+    let mut marked = Vec::with_capacity(cells.len());
+    if cut_left {
+        push_mark(&mut glyphs, &mut marked, margin_mark);
+        // `draw_line` places the rest at the consumed display column.
+        // A one-column mark that replaces a wider character leaves that gap.
+        let gap = left_consumed.saturating_sub(padding);
+        for _ in 0..gap {
+            push_glyph(
+                &mut glyphs,
+                &mut marked,
+                Glyph {
+                    ch: ' ',
+                    origin: usize::MAX,
+                    width: 1,
+                },
+            );
+        }
+    }
+    marked.extend_from_slice(&cells[content_start..content_end]);
+    if cut_right {
+        push_mark(&mut glyphs, &mut marked, margin_mark);
+    }
+    cells = marked;
     let mut overlap = vec![false; display_spans.len()];
     for (index, span) in display_spans.iter().enumerate() {
         for (other_index, other) in display_spans.iter().enumerate() {
@@ -208,6 +232,7 @@ pub fn lay_out_line(
     }
     let margin_width = str_width(margin_mark);
     let mut cut_middle = false;
+    let mut cuts = Vec::new();
     for (index, &(start_col, end_col)) in display_spans.iter().enumerate() {
         if overlap[index] {
             continue;
@@ -224,23 +249,39 @@ pub fn lay_out_line(
         };
         let start = mark_start.saturating_sub(left);
         let end = mark_end.saturating_sub(left);
-        if start >= end || start >= cells.len() {
-            continue;
+        if start < end {
+            cuts.push((start, end));
         }
-        let end = min(end, cells.len());
-        let mut next = Vec::with_capacity(cells.len() - (end - start) + margin_mark.chars().count());
-        next.extend_from_slice(&cells[..start]);
-        for ch in margin_mark.chars() {
-            next.push((ch, usize::MAX));
+    }
+    if !cuts.is_empty() {
+        let mut col = 0usize;
+        let mut next = Vec::with_capacity(cells.len());
+        let mut open: Option<usize> = None;
+        for cell in &cells {
+            let cell_end = col + cell.width;
+            let covered = cuts.iter().position(|&(start, end)| {
+                cell.width > 0 && col >= start && cell_end <= end
+            });
+            if let Some(index) = covered {
+                if open != Some(index) {
+                    push_mark(&mut glyphs, &mut next, margin_mark);
+                    open = Some(index);
+                    cut_middle = true;
+                }
+            } else {
+                open = None;
+                next.push(*cell);
+            }
+            col = cell_end;
         }
-        next.extend_from_slice(&cells[end..]);
         cells = next;
-        cut_middle = true;
     }
     let mut text = String::new();
     let mut origin = Vec::new();
-    for (ch, byte) in cells {
-        push_char(&mut text, &mut origin, byte, ch);
+    for cell in &cells {
+        for glyph in glyphs.iter().skip(cell.start).take(cell.len) {
+            push_char(&mut text, &mut origin, glyph.origin, glyph.ch);
+        }
     }
     let wide = str_width(&text) > column_width;
     LaidOutLine {
@@ -248,6 +289,65 @@ pub fn lay_out_line(
         origin,
         clipped: cut_left || cut_right || cut_middle,
         wide,
+    }
+}
+
+struct Glyph {
+    ch: char,
+    origin: usize,
+    width: usize,
+}
+
+#[derive(Clone, Copy)]
+struct Cell {
+    start: usize,
+    len: usize,
+    width: usize,
+}
+
+fn group_cells(glyphs: &[Glyph]) -> Vec<Cell> {
+    let mut cells = Vec::new();
+    let mut index = 0usize;
+    while index < glyphs.len() {
+        let start = index;
+        let width = glyphs[index].width;
+        index += 1;
+        if width > 0 {
+            while index < glyphs.len() && glyphs[index].width == 0 {
+                index += 1;
+            }
+        }
+        cells.push(Cell {
+            start,
+            len: index - start,
+            width,
+        });
+    }
+    cells
+}
+
+fn push_glyph(glyphs: &mut Vec<Glyph>, cells: &mut Vec<Cell>, glyph: Glyph) {
+    let start = glyphs.len();
+    let width = glyph.width;
+    glyphs.push(glyph);
+    cells.push(Cell {
+        start,
+        len: 1,
+        width,
+    });
+}
+
+fn push_mark(glyphs: &mut Vec<Glyph>, cells: &mut Vec<Cell>, margin_mark: &str) {
+    for ch in margin_mark.chars() {
+        push_glyph(
+            glyphs,
+            cells,
+            Glyph {
+                ch,
+                origin: usize::MAX,
+                width: char_width(ch),
+            },
+        );
     }
 }
 
@@ -385,35 +485,6 @@ fn push_char(text: &mut String, origin: &mut Vec<usize>, byte: usize, ch: char) 
     }
 }
 
-fn prefix_covering(text: &str, padding: usize, enabled: bool) -> (usize, usize) {
-    if !enabled {
-        return (0, 0);
-    }
-    let mut bytes = 0usize;
-    let mut width = 0usize;
-    for ch in text.chars() {
-        width += char_width(ch);
-        bytes += ch.len_utf8();
-        if width >= padding {
-            break;
-        }
-    }
-    (bytes, width)
-}
-
-fn suffix_chars(text: &str, padding: usize) -> usize {
-    let mut count = 0usize;
-    let mut width = 0usize;
-    for ch in text.chars().rev() {
-        width += char_width(ch);
-        count += 1;
-        if width >= padding {
-            break;
-        }
-    }
-    count
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -493,5 +564,79 @@ mod tests {
         let body = code_body(&rendered);
         assert!(laid.clipped, "{laid:?}\n{rendered}");
         assert_eq!(laid.text, body, "renderer:\n{rendered}");
+    }
+
+    #[test]
+    fn a_wide_character_on_the_left_cut_keeps_the_alignment_space() {
+        let line = "漢".repeat(40);
+        let start = line.len() - "漢".len();
+        let columns = code_columns(80, 1, 0);
+        let laid = lay_out_line(
+            &line,
+            &[(start, line.len(), 2)],
+            columns,
+            "…",
+            none_expand,
+        );
+        let rendered = Renderer::plain()
+            .decor_style(DecorStyle::Unicode)
+            .term_width(80)
+            .render(&[crate::Group::with_title(Level::ERROR.primary_title("err")).element(
+                Snippet::source(&line)
+                    .line_start(1)
+                    .annotation(AnnotationKind::Primary.span(start..line.len()).label("x")),
+            )]);
+        let body = code_body(&rendered);
+        assert!(
+            laid.text.starts_with("… "),
+            "missing alignment space in {}\n{body}",
+            laid.text
+        );
+        assert_eq!(laid.text, body, "renderer:\n{rendered}");
+    }
+
+    #[test]
+    fn a_wide_character_that_straddles_the_left_edge_matches_the_renderer() {
+        let line = "漢".repeat(80);
+        let han = "漢".len();
+        let start = 40 * han;
+        let columns = code_columns(78, 1, 0);
+        let laid = lay_out_line(
+            &line,
+            &[(start, start + han, 2)],
+            columns,
+            "…",
+            none_expand,
+        );
+        let rendered = Renderer::plain()
+            .decor_style(DecorStyle::Unicode)
+            .term_width(78)
+            .render(&[crate::Group::with_title(Level::ERROR.primary_title("err")).element(
+                Snippet::source(&line)
+                    .line_start(1)
+                    .annotation(AnnotationKind::Primary.span(start..start + han).label("x")),
+            )]);
+        let body = code_body(&rendered);
+        assert_eq!(laid.text, body, "renderer:\n{rendered}");
+        assert!(laid.text.contains('漢'), "{}", laid.text);
+    }
+
+    #[test]
+    fn combining_marks_stay_with_their_base() {
+        let line = format!("mi nelci lo zoi gy. {} .gy ku ku", "a\u{0301}".repeat(180));
+        let start = line.find("lo ").expect("span");
+        let end = line.len();
+        let columns = code_columns(80, 1, 0);
+        let laid = lay_out_line(&line, &[(start, end, 2)], columns, "…", none_expand);
+        assert!(laid.text.contains(".gy ku ku"), "{}", laid.text);
+        assert!(!laid.wide, "width {} text {}", str_width(&laid.text), laid.text);
+        let mut previous_width = 1usize;
+        for ch in laid.text.chars() {
+            let width = char_width(ch);
+            if width == 0 {
+                assert!(previous_width > 0, "orphan mark in {}", laid.text);
+            }
+            previous_width = width;
+        }
     }
 }

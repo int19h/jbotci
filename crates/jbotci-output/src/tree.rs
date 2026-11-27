@@ -2452,6 +2452,7 @@ where
             errors,
             self.source,
             &self.max_leaf_bytes,
+            crate::recovered::LeafEncoding::JsonString,
         ) {
             Ok(item) => self.push_value(TreeValue::Error {
                 error: new!(RecoveryTreeError {

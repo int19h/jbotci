@@ -31,6 +31,16 @@ pub(crate) struct RecoveryRenderItem {
     pub(crate) text: String,
 }
 
+/// The escaping a recovery leaf is charged for.
+///
+/// Terminal text and a JSON string escape the same source to different lengths.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LeafEncoding {
+    Terminal,
+    JsonString,
+}
+
 #[invariant(::Valid { .. } => true)]
 #[invariant(::Error { item } => item.error_index < item.diagnostic_count)]
 #[derive(Debug)]
@@ -53,6 +63,7 @@ fn recovery_item_from_span(
     span: SourceSpan,
     source: &str,
     max_bytes: &crate::budget::OutputBudget,
+    encoding: LeafEncoding,
 ) -> Result<RecoveryRenderItem, OutputError> {
     // The original span is still a borrow here. An oversized span copies nothing.
     let Some(borrowed) = source.get(span.byte_start..span.byte_end) else {
@@ -61,10 +72,7 @@ fn recovery_item_from_span(
             span.byte_start, span.byte_end
         )));
     };
-    // Recovery text is written as a JSON string. Charge that escaped length.
-    let Some(bytes) =
-        crate::json_writer::json_string_body_len_within(borrowed, max_bytes.remaining())
-    else {
+    let Some(bytes) = escaped_leaf_len(borrowed, max_bytes.remaining(), encoding) else {
         return Err(OutputError::Limit {
             limit: max_bytes.limit(),
         });
@@ -92,6 +100,15 @@ fn recovery_item_from_span(
     }))
 }
 
+#[requires(true)]
+#[ensures(ret.is_some_and(|len| len <= room) || ret.is_none())]
+fn escaped_leaf_len(text: &str, room: usize, encoding: LeafEncoding) -> Option<usize> {
+    match encoding {
+        LeafEncoding::Terminal => crate::styled::escaped_byte_len_within(text, room),
+        LeafEncoding::JsonString => crate::json_writer::json_string_body_len_within(text, room),
+    }
+}
+
 #[requires(error_index < errors.len())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn morphology_recovery_item(
@@ -100,6 +117,7 @@ fn morphology_recovery_item(
     span: &SourceSpan,
     source: &str,
     max_bytes: &crate::budget::OutputBudget,
+    encoding: LeafEncoding,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let (diagnostic_code, expected) = match &errors[error_index] {
         MorphologyError::Invalid { kind, .. } => (
@@ -128,6 +146,7 @@ fn morphology_recovery_item(
         span.clone(),
         source,
         max_bytes,
+        encoding,
     )
 }
 
@@ -138,6 +157,7 @@ pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
     errors: &[SyntaxError],
     source: &str,
     max_bytes: &crate::budget::OutputBudget,
+    encoding: LeafEncoding,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let error_index = item.recovery_error_index().ok_or_else(|| {
         OutputError::Recovery("syntax recovery item has no diagnostic index".to_owned())
@@ -174,6 +194,7 @@ pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
         span,
         source,
         max_bytes,
+        encoding,
     )
 }
 
@@ -206,6 +227,7 @@ fn recovered_morphology_sequence<'tree>(
     recovered: &'tree RecoveredMorphologySegmentation,
     source: &str,
     max_bytes: &crate::budget::OutputBudget,
+    encoding: LeafEncoding,
 ) -> Result<Vec<RecoveredMorphologySequenceItem<'tree>>, OutputError> {
     let mut words = recovered.words.iter().peekable();
     let mut errors = recovered.error_regions.iter().enumerate().peekable();
@@ -227,6 +249,7 @@ fn recovered_morphology_sequence<'tree>(
                     span,
                     source,
                     max_bytes,
+                    encoding,
                 )?,
             }));
         } else {
@@ -277,17 +300,18 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
         options,
         max_leaf_bytes: leaves.clone(),
     };
-    let children = recovered_morphology_sequence(recovered, source, &leaves)?
-        .into_iter()
-        .map(|item| match item.into_data() {
-            data!(RecoveredMorphologySequenceItem::Valid { word }) => {
-                brackets::word_like_brackets(word, &context)
-            }
-            data!(RecoveredMorphologySequenceItem::Error { item }) => {
-                Ok(recovery_error_sexpr(&item))
-            }
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let children =
+        recovered_morphology_sequence(recovered, source, &leaves, LeafEncoding::Terminal)?
+            .into_iter()
+            .map(|item| match item.into_data() {
+                data!(RecoveredMorphologySequenceItem::Valid { word }) => {
+                    brackets::word_like_brackets(word, &context)
+                }
+                data!(RecoveredMorphologySequenceItem::Error { item }) => {
+                    Ok(recovery_error_sexpr(&item))
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
     let value = sexpr::flatten(sexpr::node(children));
     sexpr::render_bracketed_with_limit(&value, options, limit, cancellation)
 }
@@ -328,7 +352,8 @@ pub fn pretty_recovered_morphology_tree_with_limit(
     }
     let leaves = crate::budget::OutputBudget::new(limit);
     let mut values = Vec::new();
-    for item in recovered_morphology_sequence(recovered, source, &leaves)? {
+    for item in recovered_morphology_sequence(recovered, source, &leaves, LeafEncoding::JsonString)?
+    {
         values.push(match item.into_data() {
             data!(RecoveredMorphologySequenceItem::Valid { word }) => {
                 tree::morphology_tree_value(word, source, options, &leaves)?
@@ -539,6 +564,7 @@ pub fn pretty_recovered_morphology_raw(
             recovered,
             source,
             &crate::budget::OutputBudget::unlimited(),
+            LeafEncoding::JsonString,
         )?,
         indent,
     ))
@@ -752,7 +778,13 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
         if !self.recovery_projection.include(item) {
             return;
         }
-        match syntax_recovery_item(item, self.errors, self.source, &self.context.max_leaf_bytes) {
+        match syntax_recovery_item(
+            item,
+            self.errors,
+            self.source,
+            &self.context.max_leaf_bytes,
+            LeafEncoding::Terminal,
+        ) {
             Ok(item) => self.push(recovery_error_sexpr(&item)),
             Err(error) => self.render_error = Some(error),
         }
@@ -1753,6 +1785,138 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_words(source: &str) -> jbotci_morphology::RecoveredMorphologySegmentation {
+        let recovered = jbotci_morphology::segment_words_with_modifiers_recovered(source);
+        assert!(!recovered.errors.is_empty(), "{source:?}");
+        recovered
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn terminal_brackets_accept_tabs_that_a_json_tree_rejects() {
+        let source = format!("zoi gy. {}", "\t".repeat(29));
+        let recovered = recovered_words(&source);
+        let limit = ByteLimit::new(64).expect("positive limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let brackets = pretty_recovered_morphology_brackets_with_limit(
+            &recovered,
+            &source,
+            BracketRenderOptions::default(),
+            limit,
+            &cancel,
+        )
+        .expect("terminal tabs fit in 64 bytes");
+        assert!(brackets.contains('\t'), "{brackets:?}");
+        assert!(brackets.len() <= 64, "{}", brackets.len());
+        let tree = pretty_recovered_morphology_tree_with_limit(
+            &recovered,
+            &source,
+            TreeRenderOptions::default(),
+            limit,
+            &cancel,
+        );
+        assert!(matches!(tree, Err(OutputError::Limit { .. })), "{tree:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn terminal_brackets_accept_quotes_that_a_json_tree_rejects() {
+        let source = format!("zoi gy. {}", "\"".repeat(29));
+        let recovered = recovered_words(&source);
+        let limit = ByteLimit::new(64).expect("positive limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let brackets = pretty_recovered_morphology_brackets_with_limit(
+            &recovered,
+            &source,
+            BracketRenderOptions::default(),
+            limit,
+            &cancel,
+        )
+        .expect("terminal quotes fit in 64 bytes");
+        assert!(brackets.contains('"'), "{brackets:?}");
+        assert!(brackets.len() <= 64, "{}", brackets.len());
+        let tree = pretty_recovered_morphology_tree_with_limit(
+            &recovered,
+            &source,
+            TreeRenderOptions::default(),
+            limit,
+            &cancel,
+        );
+        assert!(matches!(tree, Err(OutputError::Limit { .. })), "{tree:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn terminal_brackets_reject_controls_that_a_json_tree_accepts() {
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let tight = ByteLimit::new(40).expect("positive tight limit");
+        let wide = ByteLimit::new(256).expect("positive wide limit");
+        for (source, escape) in [
+            (format!("zoi gy. {}", "\u{8}".repeat(15)), "\\b"),
+            (format!("zoi gy. {}", "\u{c}".repeat(15)), "\\f"),
+        ] {
+            let recovered = recovered_words(&source);
+            let brackets = pretty_recovered_morphology_brackets_with_limit(
+                &recovered,
+                &source,
+                BracketRenderOptions::default(),
+                tight,
+                &cancel,
+            );
+            assert!(
+                matches!(brackets, Err(OutputError::Limit { .. })),
+                "{source:?} {brackets:?}"
+            );
+            let tree = pretty_recovered_morphology_tree_with_limit(
+                &recovered,
+                &source,
+                TreeRenderOptions::default(),
+                wide,
+                &cancel,
+            )
+            .expect("json control escape fits");
+            assert!(tree.contains(escape), "{tree}");
+            assert!(!tree.contains('\u{8}'), "{tree:?}");
+            assert!(!tree.contains('\u{c}'), "{tree:?}");
+            assert!(tree.len() <= 256, "{}", tree.len());
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_terminal_text_accepts_tabs_that_a_json_tree_rejects() {
+        let source = format!("mi ku{}ku", "\t".repeat(39));
+        let recovered = parse_recovered_syntax(&source);
+        assert!(!recovered.errors.is_empty());
+        let limit = ByteLimit::new(80).expect("positive limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let options = BracketRenderOptions::default();
+        let brackets = pretty_recovered_syntax_brackets_with_limit(
+            &recovered, &source, options, limit, &cancel,
+        )
+        .expect("syntax brackets fit");
+        let plain =
+            pretty_recovered_syntax_plain_with_limit(&recovered, &source, options, limit, &cancel)
+                .expect("syntax plain fits");
+        for rendered in [&brackets, &plain] {
+            assert!(rendered.contains('\t'), "{rendered:?}");
+            assert!(rendered.len() <= 80, "{}", rendered.len());
+        }
+        let tree = pretty_recovered_syntax_tree_with_limit(
+            &recovered,
+            &source,
+            TreeRenderOptions::default(),
+            limit,
+        );
+        assert!(matches!(tree, Err(OutputError::Limit { .. })), "{tree:?}");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn assert_quote_limit(source: &str, limit: ByteLimit) {
         let words =
             jbotci_morphology::segment_words_with_modifiers(source).expect("quote segments");
@@ -2111,6 +2275,7 @@ pub fn pretty_recovered_morphology_raw_with_limit(
                 recovered,
                 source,
                 &crate::budget::OutputBudget::new(limit),
+                LeafEncoding::JsonString,
             )?,
             indent,
             limit,
@@ -2143,17 +2308,22 @@ pub(crate) fn recovered_morphology_sequence_for_json_test(
     source: &str,
 ) -> Value {
     Value::Array(
-        recovered_morphology_sequence(recovered, source, &crate::budget::OutputBudget::unlimited())
-            .unwrap()
-            .into_iter()
-            .map(|item| match item.into_data() {
-                data!(RecoveredMorphologySequenceItem::Valid { word }) => {
-                    json::morphology_word_like_value(word, crate::PhonemeRenderOptions::default())
-                }
-                data!(RecoveredMorphologySequenceItem::Error { item }) => {
-                    recovery_error_json_value(&item)
-                }
-            })
-            .collect(),
+        recovered_morphology_sequence(
+            recovered,
+            source,
+            &crate::budget::OutputBudget::unlimited(),
+            LeafEncoding::JsonString,
+        )
+        .unwrap()
+        .into_iter()
+        .map(|item| match item.into_data() {
+            data!(RecoveredMorphologySequenceItem::Valid { word }) => {
+                json::morphology_word_like_value(word, crate::PhonemeRenderOptions::default())
+            }
+            data!(RecoveredMorphologySequenceItem::Error { item }) => {
+                recovery_error_json_value(&item)
+            }
+        })
+        .collect(),
     )
 }

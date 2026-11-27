@@ -770,26 +770,33 @@ fn write_style_transition(
 #[requires(true)]
 #[ensures(true)]
 fn style_transition_len(from: TextStyle, to: TextStyle) -> usize {
-    let mut count = LenWriter(0);
-    write_style_transition(&mut count, from, to).expect("counter write");
-    count.0
-}
-
-struct LenWriter(usize);
-
-impl Write for LenWriter {
-    #[requires(true)]
-    #[ensures(true)]
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.0 += bytes.len();
-        Ok(bytes.len())
+    if from == to {
+        return 0;
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
+    if !to.is_styled() {
+        return RESET_BYTES.len();
     }
+    let mut len = 0usize;
+    if from.is_styled() && from.italic && !to.italic {
+        len += b"\x1b[23m".len();
+    }
+    if from.is_styled() && from.strikethrough && !to.strikethrough {
+        len += b"\x1b[29m".len();
+    }
+    if !from.is_styled() || to.color != from.color {
+        if let Some(color) = to.color {
+            len += color.len();
+        } else if from.color.is_some() {
+            len += b"\x1b[39m".len();
+        }
+    }
+    if to.italic && !from.italic {
+        len += b"\x1b[3m".len();
+    }
+    if to.strikethrough && !from.strikethrough {
+        len += b"\x1b[9m".len();
+    }
+    len
 }
 
 #[requires(true)]

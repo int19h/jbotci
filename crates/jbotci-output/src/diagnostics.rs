@@ -1984,6 +1984,300 @@ mod tests {
         assert!(body.matches('…').count() >= 2, "{body}");
     }
 
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn excerpt_body(rendered: &str) -> String {
+        split_gutter(numbered_source_body(rendered, 1))
+            .expect("gutter")
+            .1
+            .trim()
+            .to_owned()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn caret_display_column(rendered: &str) -> usize {
+        let mark_line = rendered
+            .lines()
+            .find(|line| line.contains('┯') || line.contains('^'))
+            .unwrap_or_else(|| panic!("caret\n{rendered}"));
+        let mark_at = mark_line
+            .char_indices()
+            .find(|(_, mark)| *mark == '┯' || *mark == '^')
+            .map(|(index, _)| index)
+            .unwrap_or_else(|| panic!("mark\n{rendered}"));
+        unicode_width::UnicodeWidthStr::width(&mark_line[..mark_at])
+    }
+
+    #[requires(!word.is_empty())]
+    #[ensures(true)]
+    fn assert_caret_on(rendered: &str, word: &str) {
+        let source_line = numbered_source_body(rendered, 1);
+        let column = caret_display_column(rendered);
+        let found = source_line.match_indices(word).any(|(index, _)| {
+            unicode_width::UnicodeWidthStr::width(&source_line[..index]) == column
+        });
+        assert!(found, "caret column {column} is not on {word}\n{rendered}");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_caret_is_not_on_the_leading_ellipsis(rendered: &str) {
+        let source_line = numbered_source_body(rendered, 1);
+        let Some(index) = source_line.find('…') else {
+            return;
+        };
+        let column = unicode_width::UnicodeWidthStr::width(&source_line[..index]);
+        assert_ne!(caret_display_column(rendered), column, "{rendered}");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_combining_marks_follow_bases(text: &str) {
+        let mut previous: Option<char> = None;
+        for character in text.chars() {
+            let width = unicode_width::UnicodeWidthChar::width(character).unwrap_or(1);
+            if width == 0 {
+                let base = previous.unwrap_or_else(|| panic!("leading combining mark in {text}"));
+                assert!(
+                    !base.is_whitespace() && base != '…' && base != '.',
+                    "combining mark follows {base:?} in {text}"
+                );
+            }
+            previous = Some(character);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_one_fitted_window(rendered: &str, body: &str) {
+        assert!(
+            unicode_width::UnicodeWidthStr::width(body) <= DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            "{body}"
+        );
+        assert!(!rendered.contains('⸬'), "{rendered}");
+        assert!(!rendered.contains(":::"), "{rendered}");
+        assert_combining_marks_follow_bases(body);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_long_span_of_wide_characters_keeps_the_tail() {
+        let source = format!("mi nelci lo zoi gy. {} .gy ku ku", "漢字".repeat(80));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.contains(".gy ku ku"), "{body}");
+        assert!(body.starts_with('…'), "{body}");
+        assert!(!body.ends_with('…'), "{body}");
+        assert!(body.matches('…').count() >= 2, "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "ku");
+        assert_caret_is_not_on_the_leading_ellipsis(&rendered);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_long_span_of_emoji_keeps_the_tail() {
+        let source = format!("mi nelci lo zoi gy. {} .gy ku ku", "😀".repeat(80));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.contains(".gy ku ku"), "{body}");
+        assert!(body.contains('😀'), "{body}");
+        assert!(body.starts_with('…') && !body.ends_with('…'), "{body}");
+        assert!(body.matches('…').count() >= 2, "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "ku");
+        assert_caret_is_not_on_the_leading_ellipsis(&rendered);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_long_span_of_combining_marks_keeps_one_window() {
+        let source = format!("mi nelci lo zoi gy. {} .gy ku ku", "a\u{0301}".repeat(180));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.contains(".gy ku ku"), "{body}");
+        assert!(body.starts_with('…'), "{body}");
+        assert!(body.contains('\u{0301}'), "{body}");
+        assert!(body.matches('…').count() >= 2, "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "ku");
+        assert_caret_is_not_on_the_leading_ellipsis(&rendered);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_middle_error_among_wide_characters_cuts_both_sides() {
+        let source = format!(
+            "zoi gy. {} .gy mi tavla kkk do .i {}",
+            "漢字".repeat(60),
+            "do citka lo plise .i ".repeat(30),
+        );
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("… "), "{body}");
+        assert!(body.ends_with('…'), "{body}");
+        assert!(body.contains("tavla kkk do"), "{body}");
+        assert!(body.contains('字'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_middle_error_among_emoji_cuts_both_sides() {
+        let source = format!(
+            "zoi gy. {} .gy mi tavla kkk do .i {}",
+            "😀".repeat(60),
+            "do citka lo plise .i ".repeat(30),
+        );
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("… "), "{body}");
+        assert!(body.ends_with('…'), "{body}");
+        assert!(body.contains("tavla kkk do"), "{body}");
+        assert!(body.contains('😀'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_middle_error_among_combining_marks_cuts_both_sides() {
+        let source = format!(
+            "zoi gy. {} .gy mi tavla kkk do .i {}",
+            "a\u{0301}".repeat(180),
+            "do citka lo plise .i ".repeat(30),
+        );
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("…a"), "{body}");
+        assert!(body.ends_with('…'), "{body}");
+        assert!(body.contains("tavla kkk do"), "{body}");
+        assert!(body.contains('\u{0301}'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_wide_character_line_cuts_only_the_left() {
+        let source = format!("zoi gy. {} .gy kkk", "漢字".repeat(50));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("… "), "{body}");
+        assert!(body.ends_with("kkk"), "{body}");
+        assert!(!body.ends_with('…'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_wide_character_line_cuts_only_the_right() {
+        let source = format!("kkk {}", "漢字".repeat(50));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("kkk"), "{body}");
+        assert!(body.ends_with('…'), "{body}");
+        assert!(!body.starts_with('…'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_emoji_line_cuts_only_the_left() {
+        let source = format!("zoi gy. {} .gy kkk", "😀".repeat(50));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("… "), "{body}");
+        assert!(body.ends_with("kkk") && !body.ends_with('…'), "{body}");
+        assert!(body.contains('😀'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_emoji_line_cuts_only_the_right() {
+        let source = format!("kkk {}", "😀".repeat(50));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("kkk") && body.ends_with('…'), "{body}");
+        assert!(body.contains('😀'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_combining_mark_line_cuts_only_the_left() {
+        let source = format!("zoi gy. {} .gy kkk", "a\u{0301}".repeat(90));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("…a"), "{body}");
+        assert!(body.ends_with("kkk") && !body.ends_with('…'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_combining_mark_line_cuts_only_the_right() {
+        let source = format!("kkk zoi gy. {} .gy", "a\u{0301}".repeat(90));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.starts_with("kkk") && body.ends_with('…'), "{body}");
+        assert!(body.contains('\u{0301}'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_stressed_klama_keeps_its_accent_in_a_long_line() {
+        let source = format!(
+            "{}mi tavla kla\u{0301}ma kkk do .i {}",
+            "mi klama lo zarci .i ".repeat(30),
+            "do citka lo plise .i ".repeat(30),
+        );
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.contains("kla\u{0301}ma"), "{body}");
+        assert!(body.starts_with('…') && body.ends_with('…'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "kkk");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_stressed_klama_stays_with_its_base_in_a_long_span() {
+        let source = format!("mi nelci lo {}kla\u{0301}ma ku ku", "barda ".repeat(150));
+        let rendered = render_parser_diagnostics(&source);
+        let body = excerpt_body(&rendered);
+        assert!(body.contains("kla\u{0301}ma"), "{body}");
+        assert!(body.contains("ku ku"), "{body}");
+        assert!(body.starts_with('…'), "{body}");
+        assert_one_fitted_window(&rendered, &body);
+        assert_caret_on(&rendered, "ku");
+        assert_caret_is_not_on_the_leading_ellipsis(&rendered);
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
