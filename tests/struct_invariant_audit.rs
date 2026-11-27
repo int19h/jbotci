@@ -525,11 +525,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "apps/jbotci/src/lsp.rs:DocumentState",
-        "document state is mutable under the document-store lock and its transition methods enforce text, version, identity, and snapshot coherence",
-    ),
-    (
-        "apps/jbotci/src/lsp.rs:DocumentStore",
-        "document store is an unconstrained shared mutex wrapper whose contents are governed by its transition methods",
+        "the revision type holds identity, version, and diagnostic coherence, and the text, confirmed tree, watches, failure flag, and pending task accept every value",
     ),
     (
         "apps/jbotci/src/lsp.rs:InlayInitializationOptions",
@@ -541,7 +537,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "apps/jbotci/src/lsp.rs:ServerState",
-        "LSP adapter state combines independently valid transport, document-store, encoding, capability, and callback values",
+        "the position encoding is only UTF-8 or UTF-16, and the socket, store, flags, inlay options, time limit, warnings, and publisher accept every value",
     ),
     (
         "apps/jbotci/src/lsp_admission.rs:CancelRemoval",

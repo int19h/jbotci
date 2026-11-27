@@ -61,11 +61,36 @@ const LEGACY_STRUCTURE_INLAYS_WARNING: &str = "initializationOptions.structureIn
 
 type DiagnosticsPublisher = Arc<dyn Fn(publication::DiagnosticPublication) + Send + Sync + 'static>;
 
+/// The position encoding for one LSP client.
+///
+/// The values are UTF-8 and UTF-16.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ServerPositionEncoding {
+    Utf8,
+    Utf16,
+}
+
+impl ServerPositionEncoding {
+    #[requires(true)]
+    #[ensures(matches!(ret, PositionEncoding::Utf8 | PositionEncoding::Utf16))]
+    fn to_position_encoding(self) -> PositionEncoding {
+        match self {
+            Self::Utf8 => PositionEncoding::Utf8,
+            Self::Utf16 => PositionEncoding::Utf16,
+        }
+    }
+}
+
+/// One LSP client connection.
+///
+/// The position encoding is UTF-8 or UTF-16.
+/// Every other field accepts every value of its type.
 #[invariant(true)]
 struct ServerState {
     client: ClientSocket,
     documents: DocumentStore,
-    position_encoding: PositionEncoding,
+    position_encoding: ServerPositionEncoding,
     pull_diagnostics: bool,
     inlay_options: InlayOptions,
     completion_grammar_time_limit: Option<Duration>,
@@ -170,7 +195,10 @@ struct ParsedInlayInitialization {
     deprecation_warning: Option<&'static str>,
 }
 
-#[invariant(true)]
+/// The open documents for one server.
+///
+/// The next epoch stays above zero.
+#[invariant(next_epoch.load(std::sync::atomic::Ordering::Relaxed) > 0)]
 #[derive(Clone)]
 struct DocumentStore {
     documents: Arc<Mutex<HashMap<Url, DocumentState>>>,
@@ -284,7 +312,9 @@ mod publication {
             let Some(document) = documents.get(&self.uri) else {
                 return false;
             };
-            if document.identity != self.identity || document.version != self.version {
+            if document.revision.identity != self.identity
+                || document.revision.version != self.version
+            {
                 return false;
             }
             send(&self.uri, self.version, &self.snapshot);
@@ -293,21 +323,31 @@ mod publication {
     }
 }
 
-// This is mutable state behind `DocumentStore`'s lock. Its transitions enforce
-// text/version/generation coherence; a validating wrapper would prevent the
-// in-place updates that the lock exists to protect. `confirmed_snapshot` is
-// the only tree feature substrate and may intentionally lag `version`, while
-// `latest_diagnostics` is always cleared on edit and may then hold either the
-// provisional or confirmed diagnostic phase for the current generation.
+/// The identity and version of one open document, with its diagnostics.
+///
+/// Diagnostics are absent, or they use this identity and this version.
+#[invariant(match latest_diagnostics.as_ref() {
+    Some(diagnostics) => diagnostics.identity == *identity && diagnostics.version == *version,
+    None => true,
+})]
+struct DocumentRevision {
+    identity: AnalysisIdentity,
+    version: i32,
+    latest_diagnostics: Option<Arc<PublishedDiagnostics>>,
+}
+
+/// One open document behind the store lock.
+///
+/// `revision` keeps the identity, the version, and the diagnostics together.
+/// The confirmed tree may lag that revision.
+/// The text, the failure flag, the watches, and the pending task accept every value.
 #[invariant(true)]
 struct DocumentState {
     text_index: LineIndex,
-    version: i32,
-    identity: AnalysisIdentity,
+    revision: DocumentRevision,
     confirmed_snapshot: Option<Arc<DocumentSnapshot>>,
     /// Wakes a feature request. The value is only a signal.
     confirmed: watch::Sender<()>,
-    latest_diagnostics: Option<Arc<PublishedDiagnostics>>,
     /// Wakes a diagnostic request. The value is only a signal.
     diagnostics: watch::Sender<()>,
     /// This generation ended before confirmation.
@@ -403,11 +443,11 @@ impl DocumentStore {
     #[requires(worker_permits.available_permits() > 0)]
     #[ensures(true)]
     fn with_worker_permits(worker_permits: Arc<Semaphore>) -> Self {
-        Self {
+        new!(DocumentStore {
             documents: Arc::new(Mutex::new(HashMap::new())),
             next_epoch: Arc::new(AtomicU64::new(1)),
             worker_permits,
-        }
+        })
     }
 
     #[requires(true)]
@@ -449,11 +489,13 @@ impl DocumentStore {
                 uri.clone(),
                 DocumentState {
                     text_index: LineIndex::new(Arc::from(text)),
-                    version,
-                    identity,
+                    revision: new!(DocumentRevision {
+                        identity,
+                        version,
+                        latest_diagnostics: None,
+                    }),
                     confirmed_snapshot: None,
                     confirmed,
-                    latest_diagnostics: None,
                     diagnostics,
                     analysis_failed: false,
                     pending_analysis: None,
@@ -472,7 +514,7 @@ impl DocumentStore {
         uri: &Url,
         version: i32,
         changes: Vec<TextDocumentContentChangeEvent>,
-        encoding: PositionEncoding,
+        encoding: ServerPositionEncoding,
         publisher: DiagnosticsPublisher,
         prepare: impl for<'snapshot> FnOnce(
             Option<&'snapshot DocumentSnapshot>,
@@ -487,7 +529,7 @@ impl DocumentStore {
             let Some(document) = documents.get_mut(uri) else {
                 return false;
             };
-            if version <= document.version {
+            if version <= document.revision.version {
                 return false;
             }
 
@@ -498,23 +540,24 @@ impl DocumentStore {
             if let Some(pending) = document.pending_analysis.take() {
                 pending.abort();
             }
-            document.text_index = next_index;
-            document.version = version;
+            let epoch = document.revision.identity.epoch;
             let generation = document
+                .revision
                 .identity
                 .generation
                 .checked_add(1)
                 .expect("strictly increasing i32 versions cannot exhaust a u64 generation");
-            document.identity = new!(AnalysisIdentity {
-                epoch: document.identity.epoch,
-                generation,
+            document.text_index = next_index;
+            document.revision = new!(DocumentRevision {
+                identity: new!(AnalysisIdentity { epoch, generation }),
+                version,
+                latest_diagnostics: None,
             });
-            document.latest_diagnostics = None;
             document.analysis_failed = false;
             // `send_replace` wakes a waiter when the value is already the signal.
             document.diagnostics.send_replace(());
             document.confirmed.send_replace(());
-            document.identity
+            document.revision.identity
         };
         self.schedule_analysis(uri.clone(), identity, publisher, prepare);
         true
@@ -606,7 +649,7 @@ impl DocumentStore {
 
         let mut documents = self.documents.lock().expect("document store poisoned");
         if let Some(document) = documents.get_mut(&uri)
-            && document.identity == identity
+            && document.revision.identity == identity
         {
             document.pending_analysis = Some(abort_handle);
         } else {
@@ -623,10 +666,10 @@ impl DocumentStore {
     ) -> Option<(String, i32, Option<Arc<DocumentSnapshot>>)> {
         let documents = self.documents.lock().expect("document store poisoned");
         let document = documents.get(uri)?;
-        (document.identity == identity).then(|| {
+        (document.revision.identity == identity).then(|| {
             (
                 document.text_index.text().to_owned(),
-                document.version,
+                document.revision.version,
                 document.confirmed_snapshot.as_ref().map(Arc::clone),
             )
         })
@@ -647,7 +690,7 @@ impl DocumentStore {
             let Some(document) = documents.get_mut(uri) else {
                 return false;
             };
-            if document.identity != identity || document.version != version {
+            if document.revision.identity != identity || document.revision.version != version {
                 return false;
             }
             let publication = Arc::new(new!(PublishedDiagnostics {
@@ -662,7 +705,11 @@ impl DocumentStore {
                 phase: PublishedDiagnosticPhase::Provisional,
                 snapshot,
             }));
-            document.latest_diagnostics = Some(Arc::clone(&publication));
+            document.revision = new!(DocumentRevision {
+                identity,
+                version,
+                latest_diagnostics: Some(Arc::clone(&publication)),
+            });
             document.analysis_failed = false;
             document.diagnostics.send_replace(());
             publication
@@ -688,7 +735,7 @@ impl DocumentStore {
     ) -> Option<Arc<PublishedDiagnostics>> {
         let mut documents = self.documents.lock().expect("document store poisoned");
         let document = documents.get_mut(uri)?;
-        if document.identity != identity || document.version != version {
+        if document.revision.identity != identity || document.revision.version != version {
             return None;
         }
         let diagnostics = Arc::new(DiagnosticSnapshot::from_confirmed(&snapshot));
@@ -706,7 +753,11 @@ impl DocumentStore {
         }));
         document.confirmed_snapshot = Some(snapshot);
         document.confirmed.send_replace(());
-        document.latest_diagnostics = Some(Arc::clone(&publication));
+        document.revision = new!(DocumentRevision {
+            identity,
+            version,
+            latest_diagnostics: Some(Arc::clone(&publication)),
+        });
         document.analysis_failed = false;
         document.diagnostics.send_replace(());
         document.pending_analysis = None;
@@ -727,7 +778,7 @@ impl DocumentStore {
         let Some(document) = documents.get_mut(uri) else {
             return;
         };
-        if document.identity != identity {
+        if document.revision.identity != identity {
             return;
         }
         document.analysis_failed = true;
@@ -787,15 +838,15 @@ impl DocumentStore {
             let Some(document) = documents.get(uri) else {
                 return DocumentWait::Closed;
             };
-            if let Some(diagnostics) = &document.latest_diagnostics {
+            if let Some(diagnostics) = &document.revision.latest_diagnostics {
                 return DocumentWait::Ready(Arc::clone(diagnostics));
             }
             if document.analysis_failed {
                 return DocumentWait::Failed;
             }
             (
-                document.identity,
-                document.version,
+                document.revision.identity,
+                document.revision.version,
                 document.diagnostics.subscribe(),
             )
         };
@@ -808,7 +859,7 @@ impl DocumentStore {
             let Some(document) = documents.get(uri) else {
                 return DocumentWait::Closed;
             };
-            if let Some(publication) = &document.latest_diagnostics
+            if let Some(publication) = &document.revision.latest_diagnostics
                 && publication_covers(publication, target_identity, target_version)
             {
                 return DocumentWait::Ready(Arc::clone(publication));
@@ -856,7 +907,7 @@ impl ServerState {
             documents: DocumentStore::with_worker_permits(Arc::new(Semaphore::new(
                 worker_permit_limit(),
             ))),
-            position_encoding: PositionEncoding::Utf16,
+            position_encoding: ServerPositionEncoding::Utf16,
             pull_diagnostics: true,
             inlay_options: InlayOptions::default(),
             completion_grammar_time_limit: Some(COMPLETION_GRAMMAR_TIME_LIMIT),
@@ -1151,7 +1202,7 @@ async fn run_server() -> Result<()> {
 
 #[requires(true)]
 #[ensures(true)]
-fn negotiate_position_encoding(params: &InitializeParams) -> PositionEncoding {
+fn negotiate_position_encoding(params: &InitializeParams) -> ServerPositionEncoding {
     if params
         .capabilities
         .general
@@ -1159,9 +1210,9 @@ fn negotiate_position_encoding(params: &InitializeParams) -> PositionEncoding {
         .and_then(|general| general.position_encodings.as_ref())
         .is_some_and(|encodings| encodings.contains(&PositionEncodingKind::UTF8))
     {
-        PositionEncoding::Utf8
+        ServerPositionEncoding::Utf8
     } else {
-        PositionEncoding::Utf16
+        ServerPositionEncoding::Utf16
     }
 }
 
@@ -1241,13 +1292,12 @@ fn initialization_inlay_options(
     }
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(true)]
-fn lsp_position_encoding(encoding: PositionEncoding) -> PositionEncodingKind {
+fn lsp_position_encoding(encoding: ServerPositionEncoding) -> PositionEncodingKind {
     match encoding {
-        PositionEncoding::Utf8 => PositionEncodingKind::UTF8,
-        PositionEncoding::Utf16 => PositionEncodingKind::UTF16,
-        PositionEncoding::Utf32 => unreachable!("the server does not negotiate UTF-32"),
+        ServerPositionEncoding::Utf8 => PositionEncodingKind::UTF8,
+        ServerPositionEncoding::Utf16 => PositionEncodingKind::UTF16,
     }
 }
 
@@ -1274,11 +1324,11 @@ fn no_diagnostics_publisher() -> DiagnosticsPublisher {
     })
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(true)]
 fn push_diagnostics_publisher(
     client: ClientSocket,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
 ) -> DiagnosticsPublisher {
     // `notify` only queues the message. It does not take the document-store lock.
     Arc::new(move |publication| {
@@ -1311,8 +1361,9 @@ fn pull_diagnostics_refresh_publisher(client: ClientSocket) -> DiagnosticsPublis
 fn apply_content_changes(
     previous: &LineIndex,
     changes: Vec<TextDocumentContentChangeEvent>,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
 ) -> Option<LineIndex> {
+    let encoding = encoding.to_position_encoding();
     let mut index = previous.clone();
     for change in changes {
         let mut text = index.text().to_owned();
@@ -1357,13 +1408,14 @@ async fn ready_snapshot(
     }
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(true)]
 async fn document_hover(
     documents: DocumentStore,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     params: lsp_types::HoverParams,
 ) -> Result<Option<lsp_types::Hover>, ResponseError> {
+    let encoding = encoding.to_position_encoding();
     let position = params.text_document_position_params.position;
     let uri = params.text_document_position_params.text_document.uri;
     let Some(snapshot) = ready_snapshot(&documents, &uri).await? else {
@@ -1389,12 +1441,12 @@ async fn document_hover(
     }))
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(ret.as_ref().ok().is_none_or(|ranges| ranges.as_ref().is_none_or(|ranges| ranges.len() == params.positions.len())))]
 #[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INTERNAL_ERROR))]
 async fn document_selection_ranges(
     documents: DocumentStore,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     params: lsp_types::SelectionRangeParams,
 ) -> Result<Option<Vec<lsp_types::SelectionRange>>, ResponseError> {
     let Some(snapshot) = ready_snapshot(&documents, &params.text_document.uri).await? else {
@@ -1406,7 +1458,7 @@ async fn document_selection_ranges(
         .map(|position| {
             snapshot.line_index.char_offset_for_position(
                 Position::new(position.line as usize, position.character as usize),
-                encoding,
+                encoding.to_position_encoding(),
             )
         })
         .collect::<Vec<_>>();
@@ -1419,13 +1471,14 @@ async fn document_selection_ranges(
     ))
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(true)]
 fn selection_range_to_lsp(
     snapshot: &DocumentSnapshot,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     chain: SelectionRangeChain,
 ) -> lsp_types::SelectionRange {
+    let encoding = encoding.to_position_encoding();
     chain
         .spans
         .iter()
@@ -1466,11 +1519,11 @@ async fn document_folding_ranges(
     ))
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(true)]
 async fn document_completion(
     documents: DocumentStore,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     params: lsp_types::CompletionParams,
     grammar_time_limit: Option<Duration>,
 ) -> Result<Option<CompletionResponse>, ResponseError> {
@@ -1482,7 +1535,7 @@ async fn document_completion(
     let worker_permits = Arc::clone(&documents.worker_permits);
     let char_offset = snapshot.line_index.char_offset_for_position(
         Position::new(position.line as usize, position.character as usize),
-        encoding,
+        encoding.to_position_encoding(),
     );
     let cancellation = CompletionCancellationToken::new();
     let cancel_on_drop = CompletionCancellationGuard {
@@ -1506,11 +1559,11 @@ async fn document_completion(
     Ok(completion)
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(matches!(ret, CompletionResponse::List(_)))]
 fn completion_result_to_lsp(
     snapshot: &DocumentSnapshot,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     result: CompletionResult,
 ) -> CompletionResponse {
     let (items, is_incomplete) = match result.into_data() {
@@ -1526,13 +1579,14 @@ fn completion_result_to_lsp(
     })
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(ret.documentation.is_none())]
 fn completion_to_lsp(
     snapshot: &DocumentSnapshot,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     item: JbotciCompletion,
 ) -> lsp_types::CompletionItem {
+    let encoding = encoding.to_position_encoding();
     let item = item.into_data();
     let range = snapshot
         .line_index
@@ -1626,11 +1680,11 @@ fn completion_reason_detail(reason: &SyntaxExpectationReason) -> String {
     }
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(true)]
 async fn document_semantic_tokens(
     documents: DocumentStore,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     params: lsp_types::SemanticTokensParams,
 ) -> Result<Option<lsp_types::SemanticTokensResult>, ResponseError> {
     let Some(snapshot) = ready_snapshot(&documents, &params.text_document.uri).await? else {
@@ -1644,14 +1698,15 @@ async fn document_semantic_tokens(
     )))
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INVALID_PARAMS || error.code == ErrorCode::INTERNAL_ERROR))]
 async fn document_inlay_hints(
     documents: DocumentStore,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     options: InlayOptions,
     params: lsp_types::InlayHintParams,
 ) -> std::result::Result<Option<Vec<InlayHint>>, ResponseError> {
+    let encoding = encoding.to_position_encoding();
     let start = Position::new(
         params.range.start.line as usize,
         params.range.start.character as usize,
@@ -1699,12 +1754,13 @@ async fn document_inlay_hints(
     Ok(Some(inlays))
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(true)]
 fn snapshot_semantic_tokens(
     snapshot: &DocumentSnapshot,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
 ) -> Vec<lsp_types::SemanticToken> {
+    let encoding = encoding.to_position_encoding();
     let mut result = Vec::new();
     let mut previous = None;
     for token in snapshot.semantic_tokens() {
@@ -1773,7 +1829,7 @@ fn push_lsp_semantic_token(
 #[ensures(true)]
 async fn document_diagnostic(
     documents: DocumentStore,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
     params: DocumentDiagnosticParams,
 ) -> Result<DocumentDiagnosticReportResult, ResponseError> {
     let uri = params.text_document.uri;
@@ -1816,13 +1872,14 @@ fn full_diagnostic_report(
     ))
 }
 
-#[requires(encoding != PositionEncoding::Utf32)]
+#[requires(true)]
 #[ensures(ret.len() == snapshot.diagnostics.len())]
 fn diagnostic_snapshot_to_lsp(
     snapshot: &DiagnosticSnapshot,
     uri: &Url,
-    encoding: PositionEncoding,
+    encoding: ServerPositionEncoding,
 ) -> Vec<lsp_types::Diagnostic> {
+    let encoding = encoding.to_position_encoding();
     snapshot
         .diagnostics(encoding)
         .map(|diagnostic| diagnostic_to_lsp(diagnostic.diagnostic, diagnostic.labels(), uri))
@@ -2180,7 +2237,7 @@ mod tests {
             let document = documents.get(&uri).expect("open document");
             assert!(!document.analysis_failed);
             assert!(document.confirmed_snapshot.is_none());
-            assert!(document.latest_diagnostics.is_none());
+            assert!(document.revision.latest_diagnostics.is_none());
         }
         let mut feature = std::pin::pin!(store.snapshot_for_features(&uri));
         let mut diagnostics = std::pin::pin!(store.diagnostics_for_current(&uri));
@@ -2212,7 +2269,7 @@ mod tests {
         let missing = Url::parse("file:///closed-analysis.jbo").expect("valid test URI");
         let closed = document_diagnostic(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             DocumentDiagnosticParams {
                 text_document: text_document(&missing),
                 identifier: None,
@@ -2226,7 +2283,7 @@ mod tests {
         assert_empty_diagnostic_report(closed);
         let closed_hover = document_hover(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             lsp_types::HoverParams {
                 text_document_position_params: position_params(&missing),
                 work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
@@ -2275,7 +2332,7 @@ mod tests {
 
         let hover = document_hover(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             lsp_types::HoverParams {
                 text_document_position_params: position_params(&uri),
                 work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
@@ -2287,7 +2344,7 @@ mod tests {
 
         let selection = document_selection_ranges(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             lsp_types::SelectionRangeParams {
                 text_document: text_document(&uri),
                 positions: vec![lsp_types::Position::new(0, 0)],
@@ -2313,7 +2370,7 @@ mod tests {
 
         let completion = document_completion(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             lsp_types::CompletionParams {
                 text_document_position: position_params(&uri),
                 work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
@@ -2328,7 +2385,7 @@ mod tests {
 
         let tokens = document_semantic_tokens(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             lsp_types::SemanticTokensParams {
                 work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
                 partial_result_params: lsp_types::PartialResultParams::default(),
@@ -2341,7 +2398,7 @@ mod tests {
 
         let inlays = document_inlay_hints(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             InlayOptions::default(),
             lsp_types::InlayHintParams {
                 work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
@@ -2358,7 +2415,7 @@ mod tests {
 
         let diagnostics = document_diagnostic(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             DocumentDiagnosticParams {
                 text_document: text_document(&uri),
                 identifier: None,
@@ -2418,7 +2475,7 @@ mod tests {
                 range_length: None,
                 text: new_source.to_owned(),
             }],
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             publisher,
             move |confirmed, text, version| {
                 job_arrived_tx
@@ -2437,7 +2494,7 @@ mod tests {
             let mut documents = store.documents.lock().expect("document store poisoned");
             let document = documents.get_mut(&uri).expect("open document");
             assert!(!document.analysis_failed);
-            assert!(document.latest_diagnostics.is_none());
+            assert!(document.revision.latest_diagnostics.is_none());
             document.confirmed_snapshot = None;
         }
         let mut feature = std::pin::pin!(store.snapshot_for_features(&uri));
@@ -2461,6 +2518,7 @@ mod tests {
                 "the feature request has no tree"
             );
             let published = document
+                .revision
                 .latest_diagnostics
                 .as_ref()
                 .expect("provisional diagnostics");
@@ -2511,7 +2569,7 @@ mod tests {
 
         let report = document_diagnostic(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             DocumentDiagnosticParams {
                 text_document: text_document(&uri),
                 identifier: None,
@@ -2536,7 +2594,7 @@ mod tests {
         }
         let hover = document_hover(
             store.clone(),
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             lsp_types::HoverParams {
                 text_document_position_params: position_params(&uri),
                 work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
@@ -2630,7 +2688,7 @@ mod tests {
                 range_length: None,
                 text: new_source.to_owned(),
             }],
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             publisher,
             PreparedDocumentAnalysis::prepare,
         ));
@@ -2639,6 +2697,7 @@ mod tests {
             let documents = store.documents.lock().expect("document store poisoned");
             let document = documents.get(&uri).expect("open document");
             let published = document
+                .revision
                 .latest_diagnostics
                 .as_ref()
                 .expect("the held publication is stored");
@@ -2700,7 +2759,7 @@ mod tests {
                 range_length: None,
                 text: "mi klama".to_owned(),
             }],
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             publisher,
             PreparedDocumentAnalysis::prepare,
         ));
@@ -2748,7 +2807,7 @@ mod tests {
                 range_length: None,
                 text: new_source.to_owned(),
             }],
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
             publisher,
             PreparedDocumentAnalysis::prepare,
         ));
@@ -2849,7 +2908,7 @@ mod tests {
                     text: "klama".to_owned(),
                 },
             ],
-            PositionEncoding::Utf16,
+            ServerPositionEncoding::Utf16,
         )
         .expect("ordered edits are valid");
 
@@ -2862,7 +2921,7 @@ mod tests {
     fn multiline_quote_payloads_are_split_into_single_line_semantic_tokens() {
         let snapshot = DocumentSnapshot::new("zoi gy one\ntwo gy".to_owned(), 1);
         assert_eq!(
-            snapshot_semantic_tokens(&snapshot, PositionEncoding::Utf16),
+            snapshot_semantic_tokens(&snapshot, ServerPositionEncoding::Utf16),
             vec![
                 lsp_types::SemanticToken {
                     delta_line: 0,
