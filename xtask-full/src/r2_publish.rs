@@ -18,6 +18,9 @@ use crate::r2_skip::{LiveMetadata, local_proof_with};
 
 const WRANGLER_VERSION: &str = "4.149.0";
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(180);
+/// Time for a killed pipe to deliver stderr after the command deadline.
+/// A pipe that stays open hits this bound.
+const READBACK_DRAIN_AFTER_DEADLINE: Duration = Duration::from_secs(1);
 const ATTEMPTS: usize = 3;
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
@@ -910,6 +913,8 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
     // The kill is cleanup.
     // A grandchild in a new session keeps the pipe.
     // The reader wait stops at the time that remains.
+    // A due deadline uses the drain bound so a killed pipe can deliver stderr.
+    // A pipe that stays open hits that bound.
     // An expired wait is a timeout.
     // A finished reader keeps the child result, the worker error, and the stderr text.
     // The child is already reaped.
@@ -922,8 +927,17 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
         outcome
     } else {
         let remaining = timeout.saturating_sub(start.elapsed());
+        // A due deadline leaves no remaining time.
+        // The kill can still close a pipe in the group.
+        // The reader then delivers the bytes already written.
+        // A pipe that stays open hits the drain bound.
+        let limit = if remaining.is_zero() {
+            READBACK_DRAIN_AFTER_DEADLINE
+        } else {
+            remaining
+        };
         let reader = reader.take().expect("the reader handle is present");
-        match join_readback_reader(reader, remaining) {
+        match join_readback_reader(reader, limit) {
             Some(outcome) => outcome,
             None => {
                 return Err(anyhow::anyhow!(
