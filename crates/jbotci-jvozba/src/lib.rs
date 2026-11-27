@@ -308,11 +308,15 @@ fn build_best_jvozba_with_evaluator(
             Ok(plan) => plan,
             Err(JvozbaError::Interrupted) => return Err(JvozbaError::Interrupted),
             Err(error) => {
+                // When the earlier inputs are over the piece limit, their
+                // candidates are not made, and the plan error stands.
+                if count.is_none_or(|count| count > limits.max_pieces) {
+                    return Err(error);
+                }
                 return Err(first_error_before_failed_plan(
                     mode,
                     dictionary,
                     plans,
-                    count.filter(|count| *count <= limits.max_pieces),
                     error,
                     cancellation,
                 ));
@@ -603,25 +607,24 @@ impl<'input> ExpansionPlan<'input> {
 /// The error to report when the plan of one input fails.
 ///
 /// jvozba reports the error of the first failing input, in the order that the
-/// user wrote, as main does. A plan error of a later input must not hide a
+/// user wrote, as before #1149. A plan error of a later input must not hide a
 /// candidate error of an earlier one (`djan lefkroli` names `djan`). So the
 /// earlier inputs get their candidates first. Each of them is followed by the
-/// failing input, so none of them is the last input. When the earlier inputs
-/// are over the piece limit (`count` is `None`), their candidates are not
-/// made, and the plan error stands.
-#[requires(true)]
+/// failing input, so none of them is the last input. The caller calls this
+/// only when the earlier inputs fit the piece limit. A caller that finds them
+/// over the limit keeps the plan error and does not call.
+///
+/// An interruption of the plan stops the build before this call, so the plan
+/// error is never `Interrupted`.
+#[requires(!matches!(plan_error, JvozbaError::Interrupted))]
 #[ensures(true)]
 fn first_error_before_failed_plan(
     mode: JvozbaMode,
     dictionary: &Dictionary<'_>,
     earlier: Vec<ExpansionPlan<'_>>,
-    count: Option<usize>,
     plan_error: JvozbaError,
     cancellation: &CancellationToken,
 ) -> JvozbaError {
-    if count.is_none() {
-        return plan_error;
-    }
     let mut expanded = Vec::new();
     for plan in earlier {
         plan.append_to(&mut expanded);
@@ -893,9 +896,11 @@ fn non_dictionary_word_candidates(
     let Some(word) = word_like.bare_word() else {
         return Ok(None);
     };
-    // A lujvo never comes here: it always expands into its source words (see
-    // `decomposition_sources`), so only a gismu or a fu'ivla can be an
-    // unlisted final brivla core.
+    // In a build, a lujvo never comes here, because it always expands into
+    // its source words (see `decomposition_sources`). The pane admission test
+    // does send one here: it gets no candidate, and `is_morphology_lujvo`
+    // then decides. So only a gismu or a fu'ivla can be an unlisted final
+    // brivla core.
     if !matches!(word.kind(), WordKind::Gismu | WordKind::Fuhivla) {
         return Ok(None);
     }
@@ -2450,7 +2455,8 @@ mod tests {
             entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
             Ok(true)
         );
-        // A word with no candidate in any position stays out.
+        // A word with no candidate that the morphology does not read as a
+        // lujvo stays out.
         assert_eq!(
             word_can_enter_jvozba_pane(dictionary, "lefmeq", &token),
             Ok(false)
@@ -2519,6 +2525,52 @@ mod tests {
             let error = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
                 .expect_err("one input fails");
             assert_eq!(error, expected, "{inputs:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_bounded_build_keeps_the_plan_error_when_earlier_inputs_exceed_the_piece_limit() {
+        // The bounded-build policy: when the earlier inputs are already over
+        // the piece limit (three `djan` against `max_pieces: 2`), the build
+        // does not make their candidates, so the error of the failing plan
+        // stands. An unbounded build, or a limit that the earlier inputs fit,
+        // makes them and names the first failing input (`djan`).
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let inputs = [
+            JvozbaInput::Word("djan".to_owned()),
+            JvozbaInput::Word("djan".to_owned()),
+            JvozbaInput::Word("djan".to_owned()),
+            JvozbaInput::Word("lefkroli".to_owned()),
+        ];
+        let djan = JvozbaError::NoDictionaryEntry {
+            offending: "djan".to_owned(),
+        };
+        let lef = JvozbaError::LujvoPartWithoutSource {
+            word: "lefkroli".to_owned(),
+            part: "lef".to_owned(),
+        };
+        assert_eq!(
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
+                .expect_err("djan has no entry"),
+            djan
+        );
+        for (max_pieces, expected) in [(2, &lef), (3, &djan), (4, &djan)] {
+            let limits = bounded().with_data(bityzba::data! { max_pieces: max_pieces });
+            assert_eq!(
+                build_best_jvozba_detailed_within(
+                    JvozbaMode::Lujvo,
+                    dictionary,
+                    &inputs,
+                    limits,
+                    &token,
+                )
+                .expect_err("one input fails"),
+                *expected,
+                "max_pieces {max_pieces}"
+            );
         }
     }
 
