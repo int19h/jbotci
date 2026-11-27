@@ -1984,13 +1984,15 @@ fn draw_line(
     // Create the source line we will highlight.
     let mut left = margin.left(line_len);
     let right = margin.right(line_len);
+    let placeholder = renderer.decor_style.margin();
+    let window_left = left;
 
     let mut skipped = 0;
     let mut pending = source_string.chars().peekable();
     while let Some(ch) = pending.peek().copied() {
         // Skip the next character while `skipped` is still left of the edge,
-        // even when that character is wider than the gap. The edge then moves
-        // forward so the kept columns stay inside the terminal.
+        // even when that character is wider than the gap. Later column math
+        // uses the moved edge. The room stays the original window.
         if skipped >= left {
             break;
         }
@@ -2000,7 +2002,9 @@ fn draw_line(
     if skipped > left {
         left = skipped;
     }
-    let room = right.saturating_sub(left);
+    let keep_trailing_mark =
+        overflow_is_trailing_mark(source_string, line_len, right, placeholder);
+    let room = kept_source_room(right, window_left, line_len, keep_trailing_mark);
     let mut taken = 0;
     let mut code = String::new();
     for ch in pending {
@@ -2011,7 +2015,6 @@ fn draw_line(
         taken += width;
         code.push(ch);
     }
-    let placeholder = renderer.decor_style.margin();
     let padding = str_width(placeholder);
     let (width_taken, bytes_taken) = if margin.was_cut_left() {
         // Replace the cut prefix, and keep a combining mark with that prefix.
@@ -2052,7 +2055,7 @@ fn draw_line(
         ElementStyle::Quotation,
     );
 
-    if line_len > right {
+    if line_len > right && !keep_trailing_mark {
         // Replace every slot the margin mark covers, including a wide
         // character and the combining marks that sit on it.
         let mut char_taken = 0;
@@ -2304,6 +2307,38 @@ pub(crate) fn num_decimal_digits(num: usize) -> usize {
 
 pub(crate) fn str_width(s: &str) -> usize {
     s.chars().map(char_width).sum()
+}
+
+/// The columns past `right` are the margin mark already drawn on `line`.
+///
+/// A second render then keeps that mark. The first render of a longer source
+/// still cuts at `right`, because that source does not end with the mark.
+pub(crate) fn overflow_is_trailing_mark(
+    line: &str,
+    line_len: usize,
+    right: usize,
+    mark: &str,
+) -> bool {
+    let mark_width = str_width(mark);
+    mark_width > 0 && line_len > right && line_len - right <= mark_width && line.ends_with(mark)
+}
+
+/// Display columns kept from the margin's left edge.
+///
+/// `window_left` is that edge before a wide character moves it forward.
+/// The room stays the original distance to `right`. The moved edge does not
+/// shrink it. A trailing mark that already covers the extra columns stays.
+pub(crate) fn kept_source_room(
+    right: usize,
+    window_left: usize,
+    line_len: usize,
+    keep_trailing_mark: bool,
+) -> usize {
+    if keep_trailing_mark {
+        line_len.saturating_sub(window_left)
+    } else {
+        right.saturating_sub(window_left)
+    }
 }
 
 /// Padding kept on each side of a single-line span whose middle is replaced by the margin mark.
