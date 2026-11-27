@@ -84,71 +84,51 @@ pub(crate) fn normalize_word_checked_with_options(
     )
 }
 
-/// Converter state for one lookup transcription.
+/// One step of a lookup transcription, in the converter's own classes.
 ///
-/// Call `push_str` for each piece of one literal run, and `finish` at a
-/// wildcard and at the end of the pattern. The pieces of one run are one
-/// text: `finish` converts the whole run with `walk_converter_units`, the
-/// same walk that the parser uses. So a pair that spans two pieces, such as a
-/// base letter and its combining mark, or a shorthand mark and its payload,
-/// converts as one text.
-#[invariant(true)]
-#[derive(Debug, Clone, Default)]
-pub struct LookupTranscript {
-    run: String,
+/// `Letter` is a Lojban letter that the converter reads, with its stress and
+/// glide marks (`á`, `ĭ`), or a comma. `WordBreak` is a separator that
+/// breaks a word, with each period spelled `.`. `Unread` is a character that
+/// the converter cannot read, as the user typed it. The lookup key takes the
+/// class of each character from this step, so the converter is the only
+/// authority on what a letter is.
+#[invariant(::Letter(value) => is_valid_normalized_char(*value))]
+#[invariant(::WordBreak(value) => is_separator(*value))]
+#[invariant(::Unread(_) => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LookupStep {
+    Letter(char),
+    WordBreak(char),
+    Unread(char),
 }
 
-impl LookupTranscript {
-    /// Start a transcript with an empty run.
-    #[requires(true)]
-    #[ensures(ret.run.is_empty())]
-    pub fn new() -> Self {
-        LookupTranscript { run: String::new() }
-    }
-
-    /// Add `input` to the current literal run.
-    ///
-    /// The return value is the first character in `input` that is not
-    /// whitespace.
-    #[requires(true)]
-    #[ensures(ret.is_none_or(|value| !value.is_whitespace()))]
-    #[ensures(self.run.len() == old(self.run.len()) + input.len())]
-    #[bityzba::expensive_ensures(ret == input.chars().find(|value| !value.is_whitespace()))]
-    pub fn push_str(&mut self, input: &str) -> Option<char> {
-        self.run.push_str(input);
-        input.chars().find(|value| !value.is_whitespace())
-    }
-
-    /// Convert the current literal run and send each transcript character to
-    /// `on_char`, then start an empty run.
-    ///
-    /// A letter that the converter reads becomes its Lojban letters. A stress
-    /// mark produces nothing. A separator stays, with each period spelling as
-    /// `.`. Every other character passes through for the key filter.
-    #[requires(true)]
-    #[ensures(self.run.is_empty())]
-    pub fn finish(&mut self, mut on_char: impl FnMut(char)) {
-        let run = std::mem::take(&mut self.run);
-        // A lookup key is defined over every script, so it uses the default
-        // options, as the index and the query keys must agree.
-        let options = MorphologyOptions::default();
-        let units = canonical_converter_units(run.chars().enumerate(), &options);
-        let _ = walk_converter_units::<std::convert::Infallible>(&units, &options, true, |step| {
-            match step.into_data() {
-                data!(ConverterStep::Letter { value, .. }) => on_char(value),
-                data!(ConverterStep::Stress { .. }) => {}
-                data!(ConverterStep::Separator { value }) => {
-                    on_char(if crate::is_period_character(value) {
-                        '.'
-                    } else {
-                        value
-                    })
+/// Transcribe one literal run of a lookup with the converter of the parser.
+///
+/// The run is one text, so a pair such as a base letter and its combining
+/// mark, or a shorthand mark and its payload, converts as one unit. A stress
+/// mark gives no step. The walk is `walk_converter_units` with separators, as
+/// the parser uses it, with the default options, because the index key and
+/// the query key must agree.
+#[requires(true)]
+#[ensures(true)]
+pub fn transcribe_lookup_run(run: &str, mut on_step: impl FnMut(LookupStep)) {
+    let options = MorphologyOptions::default();
+    let units = canonical_converter_units(run.chars().enumerate(), &options);
+    let _ = walk_converter_units::<std::convert::Infallible>(&units, &options, true, |step| {
+        match step.into_data() {
+            data!(ConverterStep::Letter { value, .. }) => on_step(new!(LookupStep::Letter(value))),
+            data!(ConverterStep::Stress { .. }) => {}
+            data!(ConverterStep::Separator { value }) => on_step(new!(LookupStep::WordBreak(
+                if crate::is_period_character(value) {
+                    '.'
+                } else {
+                    value
                 }
-                data!(ConverterStep::Unread { value, .. }) => on_char(value),
-            }
-            Ok(())
-        });
-    }
+            ))),
+            data!(ConverterStep::Unread { value, .. }) => on_step(new!(LookupStep::Unread(value))),
+        }
+        Ok(())
+    });
 }
 
 /// One converter input character and the source characters it covers.
@@ -304,7 +284,7 @@ fn converter_reads(value: char, options: &MorphologyOptions) -> bool {
 
 /// One step of the shared converter walk.
 #[invariant(::Letter { source_start, source_end, value, ends_unit, .. } => source_start <= source_end && is_valid_normalized_char(*value) && (*ends_unit -> source_start < source_end))]
-#[invariant(::Stress { source_start, source_end, .. } => source_start < source_end)]
+#[invariant(::Stress { source_end, .. } => *source_end > 0, "a stress mark ends after its own source character")]
 #[invariant(::Separator { value } => is_separator(*value))]
 #[invariant(::Unread { .. } => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -323,14 +303,10 @@ pub(crate) enum ConverterStep {
         value: char,
         ends_unit: bool,
     },
-    /// A stress mark at `source_start..source_end`. `vowel` is true when the
-    /// mark stresses the last vowel rather than the last letter. The mark is
-    /// part of its word, so the word's source range covers it.
-    Stress {
-        vowel: bool,
-        source_start: usize,
-        source_end: usize,
-    },
+    /// A stress mark that ends at `source_end`. `vowel` is true when the mark
+    /// stresses the last vowel rather than the last letter. The mark is part
+    /// of its word, so the word's source range covers it.
+    Stress { vowel: bool, source_end: usize },
     /// A separator, when the walk passes separators through.
     Separator { value: char },
     /// A character that the converter cannot read, as the user wrote it.
@@ -465,14 +441,12 @@ pub(crate) fn walk_converter_units<E>(
             Some(data!(NormalizedCharEvent::StressPrevious)) => {
                 on_step(new!(ConverterStep::Stress {
                     vowel: false,
-                    source_start: unit.start,
                     source_end: unit.end,
                 }))?;
             }
             Some(data!(NormalizedCharEvent::StressPreviousVowel)) => {
                 on_step(new!(ConverterStep::Stress {
                     vowel: true,
-                    source_start: unit.start,
                     source_end: unit.end,
                 }))?;
             }

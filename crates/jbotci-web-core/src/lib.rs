@@ -9187,7 +9187,9 @@ mod tests {
     #[ensures(true)]
     fn tooltip_keeps_both_entries_with_the_same_normalized_spelling() {
         let dictionary = jbotci_dictionary_data::english();
-        let expected = dictionary.lookup_rafsi("onj").collect::<Vec<_>>();
+        let expected = dictionary
+            .lookup_rafsi(&jbotci_dictionary::LookupKey::from_stored("onj"))
+            .collect::<Vec<_>>();
         assert_eq!(
             expected
                 .iter()
@@ -11998,7 +12000,9 @@ mod tests {
             source: None,
             indent_level: 0,
         };
-        let entries = dictionary.lookup_words("onji").collect::<Vec<_>>();
+        let entries = dictionary
+            .lookup_words(&jbotci_dictionary::LookupKey::from_stored("onji"))
+            .collect::<Vec<_>>();
         assert_eq!(entries.len(), 2);
         let expected = build_best_jvozba_detailed(
             JvozbaMode::Lujvo,

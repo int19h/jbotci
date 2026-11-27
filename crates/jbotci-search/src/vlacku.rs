@@ -2,8 +2,9 @@ use std::collections::HashSet;
 
 use bityzba::{data, invariant, new, requires};
 use jbotci_dictionary::{
-    Dictionary, DictionaryEntry, DictionaryLujvoEntry, EntryIndex, Keyword, LookupPatternError,
-    LookupPatternPart, WordType, normalize_lookup_pattern, normalize_lookup_query,
+    Dictionary, DictionaryEntry, DictionaryLujvoEntry, EntryIndex, Keyword, LookupKey,
+    LookupPatternError, LookupPatternPart, WordType, normalize_lookup_pattern,
+    normalize_lookup_query,
 };
 use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
@@ -798,7 +799,7 @@ fn dictionary_cards_for_lookup_target_with_options(
     options: &VlackuSearchOptions,
 ) -> Result<Vec<VlackuCard>, jbotci_interrupt::Interrupted> {
     let exact_definition_found = dictionary
-        .lookup_words(&target.lookup_text)
+        .lookup_words(&LookupKey::from_stored(&target.lookup_text))
         .any(|entry| !entry.definition.trim().is_empty());
     let output = if target.is_lujvo && !exact_definition_found {
         cards_for_lujvo(dictionary, &target.lookup_text, options)?
@@ -1018,12 +1019,12 @@ fn cards_for_valsi(
     } else {
         None
     };
-    let query = match exact_lookup_key(query) {
+    let key = match LookupKey::from_typed(query) {
         Ok(key) => key,
         Err(error) => return Ok(rejected_lookup_output(query, &error)),
     };
-    let query = query.as_str();
-    let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
+    let query = key.as_str();
+    let entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     if !entries.is_empty() {
         let candidates = entries
             .into_iter()
@@ -1064,13 +1065,13 @@ fn cards_for_rafsi(
         return cards_for_rafsi_pattern(dictionary, query.trim(), options);
     }
 
-    let query = match exact_lookup_key(query) {
+    let key = match LookupKey::from_typed(query) {
         Ok(key) => key,
         Err(error) => return rejected_lookup_output(query, &error),
     };
     let mut seen = HashSet::new();
     let candidates = dictionary
-        .lookup_rafsi(&query)
+        .lookup_rafsi(&key)
         .filter(|matched| seen.insert(matched.entry_index))
         .map(|matched| VlackuCandidate::entry(matched.entry))
         .collect::<Vec<_>>();
@@ -1084,13 +1085,14 @@ fn cards_for_lujvo(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
-    let query = match exact_lookup_key(query) {
+    let key = match LookupKey::from_typed(query) {
         Ok(key) => key,
         Err(error) => return Ok(rejected_lookup_output(query, &error)),
     };
-    let query = query.as_str();
-    let normalized = normalize_lookup_query(query);
-    let exact_entries = dictionary.lookup_words(query).collect::<Vec<_>>();
+    // The key is already the lookup key of the query, so it is not keyed again.
+    let query = key.as_str();
+    let normalized = query;
+    let exact_entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     let exact_found = !exact_entries.is_empty();
     let mut runtime_decomposition = None;
     let mut candidates = if exact_entries.is_empty() {
@@ -1596,28 +1598,6 @@ fn found_or_missing(cards: Vec<VlackuCard>) -> VlackuSearchOutput {
     }
 }
 
-/// The dictionary key an exact vlacku lookup searches for.
-///
-/// A valsi lookup, a rafsi lookup, and a lujvo lookup call this function. A
-/// glob calls `normalize_lookup_pattern` for the whole pattern. Both use one
-/// conversion and one key rule. An error names the rejected character, or the
-/// text that has no character a lookup can search for.
-#[requires(true)]
-#[ensures(match &ret {
-    Ok(key) => !key.is_empty() || text.trim().is_empty(),
-    Err(_) => true,
-})]
-fn exact_lookup_key(text: &str) -> Result<String, LookupPatternError> {
-    let keyed = normalize_lookup_pattern::<()>(&[LookupPatternPart::Literal(text)])?;
-    let mut key = String::new();
-    for part in &keyed {
-        if let Some(text) = part.text() {
-            key.push_str(text);
-        }
-    }
-    Ok(key)
-}
-
 #[requires(true)]
 #[ensures(ret.outcome == VlackuOutcome::Invalid)]
 fn invalid_output(message: String) -> VlackuSearchOutput {
@@ -1658,8 +1638,9 @@ fn missing_exact_output(
     options: &VlackuSearchOptions,
     lexical_word: Option<&Word>,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
-    let normalized = normalize_lookup_query(query);
-    match classify_exact_word(query, &normalized, &options.cancellation)? {
+    // `query` is already the lookup key of the typed query (see
+    // `cards_for_valsi`), so it is not keyed again.
+    match classify_exact_word(query, query, &options.cancellation)? {
         Some(classification) => {
             let decomposition = if options.decompose_lujvo {
                 decompose_query(dictionary, query, &options.cancellation)?
@@ -1766,7 +1747,7 @@ fn dictionary_lujvo_decomposition_for_query<'dictionary>(
     query: &str,
 ) -> Option<&'dictionary DictionaryLujvoEntry<'dictionary>> {
     dictionary
-        .lookup_words(query)
+        .lookup_words(&LookupKey::from_stored(query))
         .find_map(|entry| dictionary_lujvo_decomposition_for_entry(dictionary, entry))
 }
 
@@ -1869,15 +1850,15 @@ fn candidates_for_lujvo_final_segment<'dictionary>(
     surface: &str,
     cancellation: &CancellationToken,
 ) -> Result<Vec<VlackuCandidate<'dictionary>>, jbotci_interrupt::Interrupted> {
-    let normalized = normalize_lookup_query(surface);
-    let Some(classification) = classify_exact_word(surface, &normalized, cancellation)? else {
+    let key = LookupKey::from_stored(surface);
+    let Some(classification) = classify_exact_word(surface, key.as_str(), cancellation)? else {
         return Ok(Vec::new());
     };
     if !classification.word_type.is_brivla() {
         return Ok(Vec::new());
     }
 
-    let entries = dictionary.lookup_words(&normalized).collect::<Vec<_>>();
+    let entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     if entries.is_empty() {
         Ok(vec![new!(VlackuCandidate::Missing {
             card: unknown_card(classification, None),
@@ -1904,7 +1885,7 @@ fn resolve_segmented_lookup<'lookup, 'a>(
     let mut entries = Vec::with_capacity(words.len());
     for word in &words {
         let surface = flattened_word_like_phonemes(word);
-        let Some(entry) = dictionary.lookup_word(&surface) else {
+        let Some(entry) = dictionary.lookup_word(&LookupKey::from_stored(&surface)) else {
             return Ok(None);
         };
         entries.push(entry);
@@ -2076,6 +2057,7 @@ fn decompose_query<'a>(
         Err(
             error @ (JvozbaError::RequiresAtLeastTwoInputs
             | JvozbaError::FixedRafsiEmpty
+            | JvozbaError::InvalidCharacter { .. }
             | JvozbaError::WordEmpty
             | JvozbaError::NonFinalUniversalLongRafsi { .. }
             | JvozbaError::FinalConsonant { .. }
@@ -2844,7 +2826,7 @@ mod tests {
         // the ones Lensisku typed as lujvo (#914).
         let dictionary = jbotci_dictionary_data::english();
         let entry = dictionary
-            .lookup_word("mumymast")
+            .lookup_word(&LookupKey::from_stored("mumymast"))
             .expect("entry for mumymast");
         assert!(WordTypeFilter::Cmevla.matches_word_type(entry.word_type));
 
@@ -3040,7 +3022,7 @@ mod tests {
     #[ensures(true)]
     fn dictionary_entry_cards_do_not_render_blank_selmaho() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("brode")
+            .lookup_word(&LookupKey::from_stored("brode"))
             .expect("entry for brode");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3054,7 +3036,7 @@ mod tests {
     #[ensures(true)]
     fn dictionary_entry_cards_include_author_and_official_status() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("klama")
+            .lookup_word(&LookupKey::from_stored("klama"))
             .expect("entry for klama");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3070,7 +3052,7 @@ mod tests {
     #[ensures(true)]
     fn dictionary_entry_cards_include_etymology() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("abniena")
+            .lookup_word(&LookupKey::from_stored("abniena"))
             .expect("entry for abniena");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3103,7 +3085,7 @@ mod tests {
     #[ensures(true)]
     fn official_status_uses_author_not_vote_threshold() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("birka")
+            .lookup_word(&LookupKey::from_stored("birka"))
             .expect("entry for birka");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3777,8 +3759,18 @@ mod tests {
             ("ай", "аи\u{0306}", "ai"),
             ("аў", "ау\u{0306}", "au"),
         ] {
-            assert_eq!(exact_lookup_key(decomposed).as_deref(), Ok(key));
-            assert_eq!(exact_lookup_key(composed).as_deref(), Ok(key));
+            assert_eq!(
+                LookupKey::from_typed(decomposed)
+                    .as_ref()
+                    .map(LookupKey::as_str),
+                Ok(key)
+            );
+            assert_eq!(
+                LookupKey::from_typed(composed)
+                    .as_ref()
+                    .map(LookupKey::as_str),
+                Ok(key)
+            );
             for mode in [
                 VlackuRequest::valsi,
                 VlackuRequest::rafsi,
@@ -3852,7 +3844,9 @@ mod tests {
     fn lookup_keys_follow_the_gentufa_character_rules() {
         // A word break is a space, in an exact lookup and in a glob.
         assert_eq!(
-            exact_lookup_key("broda-zei-brode").as_deref(),
+            LookupKey::from_typed("broda-zei-brode")
+                .as_ref()
+                .map(LookupKey::as_str),
             Ok("broda zei brode")
         );
         assert_eq!(
@@ -3861,7 +3855,11 @@ mod tests {
         );
         // A comma and the two middle dots disappear. Other dots are rejected.
         for text in ["mi,do", "mi\u{00b7}do", "mi\u{2027}do"] {
-            assert_eq!(exact_lookup_key(text).as_deref(), Ok("mido"), "{text}");
+            assert_eq!(
+                LookupKey::from_typed(text).as_ref().map(LookupKey::as_str),
+                Ok("mido"),
+                "{text}"
+            );
         }
         for (text, character) in [
             ("mi\u{2022}do", '\u{2022}'),
@@ -3904,15 +3902,29 @@ mod tests {
         #[requires(true)]
         #[ensures(true)]
         fn exact_lookup_key_ok(text: &str) -> Option<String> {
-            exact_lookup_key(text).ok()
+            LookupKey::from_typed(text)
+                .ok()
+                .map(|key| key.as_str().to_owned())
         }
 
         assert_eq!(exact_lookup_key_ok("клама,da").as_deref(), Some("klamada"));
         assert_eq!(exact_lookup_key_ok("клама").as_deref(), Some("klama"));
         assert_eq!(exact_lookup_key_ok("coһi,").as_deref(), Some("co'i"));
         assert_eq!(exact_lookup_key_ok("co\u{ed8a}i,").as_deref(), Some("co'i"));
-        assert_eq!(exact_lookup_key_ok("qá").as_deref(), Some("qa"));
-        assert_eq!(exact_lookup_key_ok("Áq").as_deref(), Some("aq"));
+        // `q` and `w` are no Lojban letters, so no converter reads them, and a
+        // typed lookup names them, as gentufa does.
+        assert!(
+            compile_glob_pattern("q*")
+                .expect_err("q is no Lojban letter")
+                .contains("unsupported character `q`")
+        );
+        for text in ["qá", "Áq", "klaqma", "W"] {
+            assert_eq!(
+                LookupKey::from_typed(text).map_err(|error| error.invalid_character()),
+                Err(Some(if text.contains('q') { 'q' } else { 'W' })),
+                "{text}"
+            );
+        }
         assert_eq!(
             exact_lookup_key_ok("\u{ed8b}\u{eda2}").as_deref(),
             Some("i'")
@@ -3925,7 +3937,9 @@ mod tests {
         assert_eq!(exact_lookup_key_ok(",\u{0306}"), None);
         // A character that gentufa rejects is an error that names it.
         assert_eq!(
-            exact_lookup_key("клама#da").map_err(|error| error.invalid_character()),
+            LookupKey::from_typed("клама#da")
+                .map(|key| key.as_str().to_owned())
+                .map_err(|error| error.invalid_character()),
             Err(Some('#'))
         );
 
@@ -4008,8 +4022,6 @@ mod tests {
             ("da,клама*", "daklama*"),
             ("coһi,*", "co'i*"),
             ("co\u{ed8a}i,*", "co'i*"),
-            ("qá*", "qa*"),
-            ("Áq*", "aq*"),
             ("\u{ed8b}\u{eda2}*", "i'*"),
             ("\u{ed8b}\u{eda2},*", "i'*"),
         ];
@@ -4159,7 +4171,7 @@ mod tests {
     #[ensures(true)]
     fn exact_valsi_glob_rejects_a_long_pattern_without_a_rescan() {
         let mut pattern = "A".repeat(120_000);
-        pattern.push_str("q*\u{1f642}");
+        pattern.push_str("k*\u{1f642}");
         let error =
             compile_glob_pattern(&pattern).expect_err("the emoji is not a lookup character");
         assert!(
@@ -4257,7 +4269,9 @@ mod tests {
     #[ensures(true)]
     fn entry_filters_match_card_filters_for_dictionary_entries() {
         let dictionary = jbotci_dictionary_data::english();
-        let entry = dictionary.lookup_word("klama").expect("entry for klama");
+        let entry = dictionary
+            .lookup_word(&LookupKey::from_stored("klama"))
+            .expect("entry for klama");
         let card = dictionary_entry_card(dictionary, entry, Some(0.42), false);
 
         for options in [
@@ -4322,7 +4336,9 @@ mod tests {
     #[ensures(true)]
     fn sound_score_retention_keeps_best_scores_with_dictionary_order_ties() {
         let dictionary = jbotci_dictionary_data::english();
-        let entry = dictionary.lookup_word("klama").expect("entry for klama");
+        let entry = dictionary
+            .lookup_word(&LookupKey::from_stored("klama"))
+            .expect("entry for klama");
         let mut scored = vec![
             new!(SoundScoreEntry {
                 entry_index: 4,
@@ -4523,7 +4539,7 @@ mod tests {
     #[ensures(true)]
     fn entry_derived_cards_are_marked_known() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("klama")
+            .lookup_word(&LookupKey::from_stored("klama"))
             .expect("entry for klama");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -4637,7 +4653,9 @@ mod tests {
         }];
         let ierxi = DictionaryEntry {
             rafsi: &listed,
-            ..*english.lookup_word("ierxi").expect("ierxi entry")
+            ..*english
+                .lookup_word(&LookupKey::from_stored("ierxi"))
+                .expect("ierxi entry")
         };
         let ierxa = DictionaryEntry {
             word: "ierxa",
@@ -4650,7 +4668,9 @@ mod tests {
         let entries = [
             ierxi,
             ierxa,
-            *english.lookup_word("klama").expect("klama entry"),
+            *english
+                .lookup_word(&LookupKey::from_stored("klama"))
+                .expect("klama entry"),
         ];
         let indexes = build_owned_indexes(&entries);
         let word_index = indexes
@@ -4674,7 +4694,12 @@ mod tests {
         let options = VlackuSearchOptions::default().with_data(data! {
             decompose_lujvo: true,
         });
-        assert_eq!(dictionary.lookup_rafsi("ierx").count(), 3);
+        assert_eq!(
+            dictionary
+                .lookup_rafsi(&LookupKey::from_stored("ierx"))
+                .count(),
+            3
+        );
         let exact_rafsi = search(
             &dictionary,
             &[VlackuRequest::rafsi("ierx".to_owned())],

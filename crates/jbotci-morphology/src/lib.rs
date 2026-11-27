@@ -89,7 +89,7 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
 };
-pub use segment::LookupTranscript;
+pub use segment::{LookupStep, LookupStepData, transcribe_lookup_run};
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,
     word_needs_leading_pause_in_context,
@@ -838,8 +838,8 @@ impl Default for PhonemeRenderOptions {
     }
 }
 
-#[invariant(!text.is_empty(), "phoneme text must not be empty")]
-#[invariant(canonical_phoneme_text(&text), "phoneme text must contain a character other than a comma and use canonical Lojban phoneme characters")]
+#[invariant(text.chars().all(is_valid_phoneme), "phonemes must use canonical Lojban phoneme characters")]
+#[invariant(text.chars().any(|value| value != ','), "phoneme text must contain a character other than a comma")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Phonemes {
@@ -869,14 +869,11 @@ impl Phonemes {
         options: PhonemeRenderOptions,
         output: &mut impl std::fmt::Write,
     ) -> Result<(), String> {
-        if text.is_empty() {
-            return Err("phoneme text must not be empty".to_owned());
+        if !text.chars().all(is_valid_phoneme) {
+            return Err("phonemes must use canonical Lojban phoneme characters".to_owned());
         }
-        if !canonical_phoneme_text(text) {
-            return Err(
-                "phoneme text must contain a character other than a comma and use canonical Lojban phoneme characters"
-                    .to_owned(),
-            );
+        if !text.chars().any(|value| value != ',') {
+            return Err("phoneme text must contain a character other than a comma".to_owned());
         }
         for ch in text.chars() {
             output
@@ -3343,21 +3340,6 @@ fn single_constructor(
 /// One pass reads both rules. A constructor uses this function in every build.
 #[requires(true)]
 #[ensures(true)]
-fn canonical_phoneme_text(text: &str) -> bool {
-    let mut saw_other = false;
-    for value in text.chars() {
-        if !is_valid_phoneme(value) {
-            return false;
-        }
-        if value != ',' {
-            saw_other = true;
-        }
-    }
-    saw_other
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub fn is_valid_phoneme(value: char) -> bool {
     matches!(
         value,
@@ -4998,6 +4980,22 @@ mod tests {
         );
     }
 
+    /// The lookup steps of `input` as text: each letter, each word break and
+    /// each unread character, in order.
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_transcript(input: &str) -> String {
+        let mut text = String::new();
+        transcribe_lookup_run(input, |step| {
+            text.push(match step.into_data() {
+                data!(LookupStep::Letter(value))
+                | data!(LookupStep::WordBreak(value))
+                | data!(LookupStep::Unread(value)) => value,
+            })
+        });
+        text
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -5005,11 +5003,7 @@ mod tests {
         #[requires(true)]
         #[ensures(true)]
         fn transcript(input: &str) -> String {
-            let mut transcript = LookupTranscript::new();
-            let mut text = String::new();
-            let _ = transcript.push_str(input);
-            transcript.finish(|value| text.push(value));
-            text
+            lookup_transcript(input)
         }
 
         let shorthand = transcript("\u{ed8b}\u{eda2}");
@@ -5021,9 +5015,6 @@ mod tests {
         assert_eq!(transcript("шои"), "co'i");
         assert_eq!(transcript("\u{0306}"), "\u{0306}");
         assert_eq!(transcript("\u{0301}"), "");
-        let mut transcript_state = LookupTranscript::new();
-        assert_eq!(transcript_state.push_str("\u{0306}"), Some('\u{0306}'));
-        assert_eq!(transcript_state.push_str("\u{0301}"), Some('\u{0301}'));
     }
 
     /// Check that no source prefix of `text` ends inside a converter unit.
@@ -5115,11 +5106,7 @@ mod tests {
         #[requires(true)]
         #[ensures(true)]
         fn transcript(input: &str) -> String {
-            let mut transcript = LookupTranscript::new();
-            let mut text = String::new();
-            let _ = transcript.push_str(input);
-            transcript.finish(|value| text.push(value));
-            text
+            lookup_transcript(input)
         }
 
         // The letters that the converter keeps when it may skip what it
@@ -5780,13 +5767,9 @@ mod tests {
         #[requires(true)]
         #[ensures(true)]
         fn stream(parts: &[&str]) -> String {
-            let mut transcript = LookupTranscript::new();
-            let mut text = String::new();
-            for part in parts {
-                let _ = transcript.push_str(part);
-            }
-            transcript.finish(|value| text.push(value));
-            text
+            // The dictionary joins the pieces of one literal run before it
+            // transcribes them.
+            lookup_transcript(&parts.concat())
         }
 
         // `и` + U+0306 is `й`, and `у` + U+0306 is `ў`. Each pair is one glide,
@@ -5816,13 +5799,9 @@ mod tests {
         #[requires(true)]
         #[ensures(true)]
         fn stream(parts: &[&str]) -> String {
-            let mut transcript = LookupTranscript::new();
-            let mut text = String::new();
-            for part in parts {
-                let _ = transcript.push_str(part);
-            }
-            transcript.finish(|value| text.push(value));
-            text
+            // The dictionary joins the pieces of one literal run before it
+            // transcribes them.
+            lookup_transcript(&parts.concat())
         }
 
         #[requires(true)]
@@ -5841,21 +5820,19 @@ mod tests {
         assert_eq!(stream(&["\u{ed8b}", "a"]), whole("\u{ed8b}a"));
         assert_eq!(stream(&["\u{ed8b}"]), "\u{ed8b}");
 
-        let mut transcript = LookupTranscript::new();
-        let mut reset = String::new();
-        let _ = transcript.push_str("шо");
-        transcript.finish(|value| reset.push(value));
-        let _ = transcript.push_str("и");
-        transcript.finish(|value| reset.push(value));
-        assert_eq!(reset, "coi");
-
-        let mut transcript = LookupTranscript::new();
-        let mut split_mark = String::new();
-        let _ = transcript.push_str("\u{ed8b}");
-        transcript.finish(|value| split_mark.push(value));
-        let _ = transcript.push_str("\u{eda2}");
-        transcript.finish(|value| split_mark.push(value));
-        assert_eq!(split_mark, "\u{ed8b}i");
+        // Two runs, as at a wildcard, transcribe apart.
+        assert_eq!(
+            format!("{}{}", lookup_transcript("шо"), lookup_transcript("и")),
+            "coi"
+        );
+        assert_eq!(
+            format!(
+                "{}{}",
+                lookup_transcript("\u{ed8b}"),
+                lookup_transcript("\u{eda2}")
+            ),
+            "\u{ed8b}i"
+        );
     }
 
     #[test]
@@ -6726,7 +6703,11 @@ mod tests {
         )
         .expect_err("empty phoneme text must be rejected");
 
-        assert!(error.to_string().contains("phoneme text must not be empty"));
+        assert!(
+            error
+                .to_string()
+                .contains("phoneme text must contain a character other than a comma")
+        );
 
         let commas = serde_json::from_str::<Word>(
             r#"{

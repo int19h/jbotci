@@ -183,7 +183,7 @@ mod tests {
     use bityzba::requires;
     use jbotci_dictionary::{
         DictionaryLujvoEntry, DictionaryLujvoSegment, DictionaryLujvoSegmentKind,
-        DictionarySoundEntry, RafsiClaimKind, RafsiSource, WordType,
+        DictionarySoundEntry, LookupKey, RafsiClaimKind, RafsiSource, WordType,
     };
 
     use super::*;
@@ -283,7 +283,7 @@ mod tests {
         );
         assert_eq!(
             dictionary
-                .lookup_rafsi("kam")
+                .lookup_rafsi(&LookupKey::from_stored("kam"))
                 .map(|matched| (matched.entry.word, matched.entry.word_type))
                 .collect::<Vec<_>>(),
             vec![("ka", WordType::Cmavo)]
@@ -429,7 +429,7 @@ mod tests {
         // `dit` went to ditcu and `sus` to supso.
         for word in ["dinti", "smusu"] {
             let entry = english()
-                .lookup_word(word)
+                .lookup_word(&LookupKey::from_stored(word))
                 .unwrap_or_else(|| panic!("entry for {word}"));
             assert!(
                 entry.rafsi.is_empty(),
@@ -445,10 +445,14 @@ mod tests {
         // competing definition is not attached to the one jbotci embeds (owner
         // ruling, 2026-10-03). Lensisku's `maz` sits on a user-contributed
         // definition of `ma`, not on the selected official one.
-        let ma = english().lookup_word("ma").expect("entry for ma");
+        let ma = english()
+            .lookup_word(&LookupKey::from_stored("ma"))
+            .expect("entry for ma");
         assert_eq!(ma.definition_id.get(), 1791);
         assert!(ma.rafsi.is_empty());
-        let dzama = english().lookup_word("dzama").expect("entry for dzama");
+        let dzama = english()
+            .lookup_word(&LookupKey::from_stored("dzama"))
+            .expect("entry for dzama");
         assert_eq!(
             dzama
                 .rafsi
@@ -463,7 +467,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn known_entry_is_present() {
-        let entry = english().lookup_word("a").expect("entry for a");
+        let entry = english()
+            .lookup_word(&LookupKey::from_stored("a"))
+            .expect("entry for a");
         assert_eq!(entry.word, "a");
         assert_eq!(entry.definition_id.get(), 1339);
     }
@@ -472,7 +478,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn blank_selmaho_fields_are_absent() {
-        let entry = english().lookup_word("brode").expect("entry for brode");
+        let entry = english()
+            .lookup_word(&LookupKey::from_stored("brode"))
+            .expect("entry for brode");
         assert_eq!(entry.selmaho, None);
     }
 
@@ -735,7 +743,7 @@ mod tests {
     #[ensures(true)]
     fn normalized_word_lookup_preserves_collisions() {
         let words = english()
-            .lookup_words("internet")
+            .lookup_words(&LookupKey::from_stored("internet"))
             .map(|entry| entry.word)
             .collect::<Vec<_>>();
         assert!(words.contains(&"INternet"));
@@ -747,7 +755,7 @@ mod tests {
     #[ensures(true)]
     fn rafsi_lookup_includes_listed_and_universal_sources() {
         let listed = english()
-            .lookup_rafsi("bau")
+            .lookup_rafsi(&LookupKey::from_stored("bau"))
             .map(|matched| (matched.entry.word, matched.source))
             .collect::<Vec<_>>();
         assert!(listed.contains(&(
@@ -758,7 +766,7 @@ mod tests {
         )));
 
         let universal = english()
-            .lookup_rafsi("banl")
+            .lookup_rafsi(&LookupKey::from_stored("banl"))
             .map(|matched| (matched.entry.word, matched.source))
             .collect::<Vec<_>>();
         assert!(universal.contains(&("banli", RafsiSource::UniversalShort)));
@@ -794,7 +802,7 @@ mod tests {
     #[ensures(true)]
     fn assert_non_lujvo_sound_addition(word: &str, word_type: &str, ipa: &str) {
         let entry = english()
-            .lookup_word(word)
+            .lookup_word(&LookupKey::from_stored(word))
             .unwrap_or_else(|| panic!("entry for {word}"));
         assert_eq!(entry.word_type.as_str(), word_type);
         assert_eq!(
@@ -827,7 +835,7 @@ mod tests {
     #[ensures(true)]
     fn assert_extracted_rafsi(word: &str, rafsi: &[&str]) {
         let entry = english()
-            .lookup_word(word)
+            .lookup_word(&LookupKey::from_stored(word))
             .unwrap_or_else(|| panic!("entry for {word}"));
         assert_eq!(
             entry
@@ -855,9 +863,11 @@ mod tests {
     #[ensures(true)]
     fn assert_listed_rafsi(rafsi: &str, word: &str) {
         assert!(
-            english().lookup_rafsi(rafsi).any(|matched| {
-                matched.entry.word == word && matched.source.listed_standing().is_some()
-            }),
+            english()
+                .lookup_rafsi(&LookupKey::from_stored(rafsi))
+                .any(|matched| {
+                    matched.entry.word == word && matched.source.listed_standing().is_some()
+                }),
             "listed rafsi {rafsi} should resolve to {word}"
         );
     }

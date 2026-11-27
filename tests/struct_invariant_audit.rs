@@ -772,10 +772,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "verbatim Lensisku export row; into_entry checks rafsi standing before it becomes an entry",
     ),
     (
-        "crates/jbotci-dictionary/src/lib.rs:LookupKeyBuilder",
-        "lookup key builder is mutable state of one key build whose rules live in its methods",
-    ),
-    (
         "crates/jbotci-dictionary/src/lib.rs:DefinitionId",
         "Lensisku definition ids are opaque upstream identifiers",
     ),
@@ -1254,10 +1250,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-morphology/src/lib.rs:PhonemeRenderOptions",
         "render options are independent booleans with no cross-field invariant",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:LookupTranscript",
-        "lookup transcript buffers the raw text of one literal run, and any text is a valid run",
     ),
     (
         "crates/jbotci-morphology/src/segment.rs:NormalizationError",

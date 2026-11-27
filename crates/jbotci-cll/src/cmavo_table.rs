@@ -321,7 +321,9 @@ pub(crate) fn shipped_dictionary_link_target(candidate: &str) -> Option<&'static
     let dictionary = jbotci_dictionary_data::english();
     dictionary_link_target(
         candidate,
-        dictionary.lookup_words(candidate).map(|entry| entry.word),
+        dictionary
+            .lookup_words(&jbotci_dictionary::LookupKey::from_stored(candidate))
+            .map(|entry| entry.word),
     )
 }
 

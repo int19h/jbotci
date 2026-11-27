@@ -9,7 +9,7 @@ use std::{
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
+use jbotci_dictionary::{Dictionary, LookupKey, WordType, normalize_lookup_query};
 use jbotci_morphology::{
     Cmavo, MorphologyContextKind, MorphologyError, NodeRef as MorphologyNodeRef, Selmaho,
     TreeNode as MorphologyTreeNode, Word, WordKind, WordLike, WordLikeData, analyze_valsi,
@@ -218,7 +218,10 @@ struct CompletionContext<'snapshot, 'dictionary, 'entries, 'cancellation> {
     interpretation: CompletionInterpretation,
     replacement_span: SourceSpan,
     insert_leading_space: bool,
-    normalized_prefix: String,
+    /// The typed-query key of the prefix, or `None` when the prefix has a
+    /// character that a lookup rejects, so that no dictionary word starts
+    /// with it.
+    normalized_prefix: Option<LookupKey>,
     suffix_consistent_labels: BTreeSet<String>,
 }
 
@@ -446,9 +449,11 @@ impl DocumentSnapshot {
         }
 
         let short_glosses = {
+            // The labels are dictionary words and cmavo, which use the
+            // stored-text key.
             let labels = items
                 .values()
-                .map(|item| item.label.as_str())
+                .map(|item| LookupKey::from_stored(&item.label))
                 .collect::<Vec<_>>();
             dictionary.first_gloss_keywords_for_words(&labels)
         };
@@ -626,7 +631,15 @@ impl DocumentSnapshot {
             interpretation,
             replacement_span,
             insert_leading_space,
-            normalized_prefix: normalize_lookup_query(prefix),
+            normalized_prefix: match LookupKey::from_typed(prefix) {
+                Ok(key) => Some(key),
+                // A prefix with no key character, such as `,`, keys as the
+                // empty prefix.
+                Err(error) if error.invalid_character().is_none() => {
+                    Some(LookupKey::from_stored(""))
+                }
+                Err(_) => None,
+            },
             suffix_consistent_labels,
         });
         match cursor_context {
@@ -996,8 +1009,11 @@ impl CompletionContext<'_, '_, '_, '_> {
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         let dictionary = self.dictionary;
+        let Some(prefix) = &self.normalized_prefix else {
+            return;
+        };
         for entry in dictionary
-            .entries_by_word_prefix(&self.normalized_prefix)
+            .entries_by_word_prefix(prefix)
             .filter(|entry| is_completion_brivla_type(entry.word_type))
         {
             if self.cancellation.is_cancelled() {
@@ -1044,7 +1060,10 @@ impl CompletionContext<'_, '_, '_, '_> {
         }
         let normalized_label = normalize_lookup_query(label);
         if normalized_label.is_empty()
-            || !normalized_label.starts_with(&self.normalized_prefix)
+            || !self
+                .normalized_prefix
+                .as_ref()
+                .is_some_and(|prefix| normalized_label.starts_with(prefix.as_str()))
             || !self.snapshot.completion_candidate_surfaces(
                 label,
                 &self.replacement_span,
@@ -1103,7 +1122,7 @@ impl CompletionContext<'_, '_, '_, '_> {
 pub fn completion_documentation_markdown(handle: &CompletionDocumentationHandle) -> String {
     let dictionary = jbotci_dictionary_data::english();
     let cards = dictionary
-        .lookup_words(handle.word())
+        .lookup_words(&LookupKey::from_stored(handle.word()))
         .map(|entry| dictionary_entry_card(dictionary, entry, None, true))
         .collect::<Vec<_>>();
     if !cards.is_empty() {
@@ -2001,7 +2020,7 @@ mod tests {
             interpretation: CompletionInterpretation::Continue,
             replacement_span,
             insert_leading_space: false,
-            normalized_prefix: String::new(),
+            normalized_prefix: Some(LookupKey::from_stored("")),
             suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();
@@ -2037,7 +2056,7 @@ mod tests {
             interpretation: CompletionInterpretation::Extend,
             replacement_span,
             insert_leading_space: false,
-            normalized_prefix: normalize_lookup_query("l"),
+            normalized_prefix: Some(LookupKey::from_stored("l")),
             suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();

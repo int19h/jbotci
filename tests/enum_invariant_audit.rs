@@ -1256,8 +1256,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "an unread step carries any source character and its index, as the user wrote it",
     ),
     (
-        "crates/jbotci-dictionary/src/lib.rs:LookupKeyChar::Invalid",
-        "a unit variant that names a rejected character class. The caller keeps the character",
+        "crates/jbotci-morphology/src/segment.rs:LookupStep::Unread",
+        "an unread lookup step carries any character that the converter cannot read, as the user wrote it",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:LookupKeyChar::Removed",
@@ -1778,6 +1778,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::WordEmpty",
         "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::InvalidCharacter",
+        "the error names typed text and a character that the typed-query key rejected",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::Interrupted",
