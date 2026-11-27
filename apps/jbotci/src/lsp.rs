@@ -3,11 +3,9 @@
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
-#[cfg(test)]
-use std::sync::atomic::AtomicBool;
 use std::sync::{
     Arc, Mutex,
-    atomic::{AtomicU64, Ordering as AtomicOrdering},
+    atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering},
 };
 use std::time::Duration;
 
@@ -231,6 +229,23 @@ struct DocumentState {
     pending_analysis: Option<AbortHandle>,
 }
 
+/// Fail this generation on task exit until confirmation.
+///
+/// The fields are the store, the URI, the epoch, the generation, and the flag.
+/// A drop wakes both watches unless the flag is set.
+struct AnalysisExitGuard(DocumentStore, Url, u64, u64, AtomicBool);
+
+impl Drop for AnalysisExitGuard {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        if self.4.load(AtomicOrdering::SeqCst) {
+            return;
+        }
+        self.0.note_analysis_failure(&self.1, self.2, self.3);
+    }
+}
+
 /// Cancels a detached blocking completion when its protocol future is dropped.
 #[invariant(true)]
 struct CompletionCancellationGuard {
@@ -408,10 +423,20 @@ impl DocumentStore {
         let fail_analysis = Arc::clone(&self.fail_next_analysis);
         let task = tokio::spawn(async move {
             let debounce_deadline = tokio::time::Instant::now() + DEBOUNCE_DELAY;
-            let Some((text, version, confirmed)) = store.analysis_input(&task_uri, generation)
+            let Some((text, version, confirmed, epoch)) =
+                store.analysis_input(&task_uri, generation)
             else {
                 return;
             };
+            // The guard owns every exit after this generation is current.
+            // Confirmation stores the flag before the publisher can panic.
+            let guard = AnalysisExitGuard(
+                store.clone(),
+                task_uri.clone(),
+                epoch,
+                generation,
+                AtomicBool::new(false),
+            );
             let prepared = match run_with_worker_permit(Arc::clone(&permits), move || {
                 #[cfg(test)]
                 if fail_analysis.swap(false, AtomicOrdering::SeqCst) {
@@ -422,10 +447,7 @@ impl DocumentStore {
             .await
             {
                 Ok(prepared) => prepared,
-                Err(_) => {
-                    store.note_analysis_failure(&task_uri, generation);
-                    return;
-                }
+                Err(_) => return,
             };
             if let Some(provisional) = prepared.provisional() {
                 if !store.install_provisional(
@@ -441,12 +463,11 @@ impl DocumentStore {
             }
             let snapshot = match run_with_worker_permit(permits, move || prepared.confirm()).await {
                 Ok(snapshot) => Arc::new(snapshot),
-                Err(_) => {
-                    store.note_analysis_failure(&task_uri, generation);
-                    return;
-                }
+                Err(_) => return,
             };
-            store.complete_confirmation(task_uri, generation, version, snapshot, publisher);
+            store.complete_confirmation(
+                task_uri, generation, version, snapshot, publisher, &guard.4,
+            );
         });
         let abort_handle = task.abort_handle();
 
@@ -466,7 +487,7 @@ impl DocumentStore {
         &self,
         uri: &Url,
         generation: u64,
-    ) -> Option<(String, i32, Option<Arc<DocumentSnapshot>>)> {
+    ) -> Option<(String, i32, Option<Arc<DocumentSnapshot>>, u64)> {
         let documents = self.documents.lock().expect("document store poisoned");
         let document = documents.get(uri)?;
         (document.generation == generation).then(|| {
@@ -474,6 +495,7 @@ impl DocumentStore {
                 document.text_index.text().to_owned(),
                 document.version,
                 document.confirmed_snapshot.as_ref().map(Arc::clone),
+                document.epoch,
             )
         })
     }
@@ -529,6 +551,7 @@ impl DocumentStore {
         version: i32,
         snapshot: Arc<DocumentSnapshot>,
         publisher: DiagnosticsPublisher,
+        confirmed: &AtomicBool,
     ) {
         let publication = {
             let mut documents = self.documents.lock().expect("document store poisoned");
@@ -562,20 +585,24 @@ impl DocumentStore {
             document.pending_analysis = None;
             publication
         };
+        // Store confirmation before the publisher runs.
+        // A publisher panic then leaves this generation confirmed.
+        confirmed.store(true, AtomicOrdering::SeqCst);
         publisher(uri, version, Arc::clone(&publication.snapshot));
     }
 
     /// Wake waiters after this generation fails.
     ///
     /// A newer generation keeps its own result.
+    /// A replaced document keeps its own epoch.
     #[requires(true)]
     #[ensures(true)]
-    fn note_analysis_failure(&self, uri: &Url, generation: u64) {
+    fn note_analysis_failure(&self, uri: &Url, epoch: u64, generation: u64) {
         let mut documents = self.documents.lock().expect("document store poisoned");
         let Some(document) = documents.get_mut(uri) else {
             return;
         };
-        if document.generation != generation {
+        if document.epoch != epoch || document.generation != generation {
             return;
         }
         document.analysis_failed = true;
@@ -1913,6 +1940,74 @@ mod tests {
                 .await
                 .expect("diagnostic wait ends");
         assert!(diagnostics.is_none());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_publisher_panic_after_provisional_publication_ends_the_feature_wait() {
+        let store = DocumentStore::new();
+        let uri = Url::parse("file:///publisher-panic.jbo").expect("valid test URI");
+        let old_source = "mi klama\nni'o\ndo cadzu\nni'o\nmi ku i do";
+        let new_source = "mi klama\nni'o\ndo cadzu le zarci\nni'o\nmi ku i do";
+        store.open(
+            uri.clone(),
+            old_source.to_owned(),
+            1,
+            no_diagnostics_publisher(),
+        );
+        let initial = store
+            .diagnostics_for_current(&uri)
+            .await
+            .expect("initial confirmation");
+        assert_eq!(initial.phase, PublishedDiagnosticPhase::Confirmed);
+
+        let permits_before = store.worker_permits.available_permits();
+        let publisher: DiagnosticsPublisher = Arc::new(|_, _, _| panic!("test publisher failure"));
+        assert!(store.change(
+            &uri,
+            2,
+            vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: new_source.to_owned(),
+            }],
+            PositionEncoding::Utf16,
+            publisher,
+        ));
+
+        let started = std::time::Instant::now();
+        loop {
+            let task_finished = {
+                let documents = store.documents.lock().expect("document store poisoned");
+                documents
+                    .get(&uri)
+                    .expect("open document")
+                    .pending_analysis
+                    .as_ref()
+                    .is_some_and(tokio::task::AbortHandle::is_finished)
+            };
+            if task_finished || store.worker_permits.available_permits() < permits_before {
+                break;
+            }
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "analysis did not start"
+            );
+            tokio::task::yield_now().await;
+        }
+        {
+            // The feature request has no tree, so it must wait for a wake.
+            let mut documents = store.documents.lock().expect("document store poisoned");
+            let document = documents.get_mut(&uri).expect("open document");
+            document.confirmed_snapshot = None;
+            document.confirmed.send_replace(None);
+        }
+        let feature =
+            tokio::time::timeout(Duration::from_secs(5), store.snapshot_for_features(&uri))
+                .await
+                .expect("feature wait ends");
+        assert!(feature.is_none());
     }
 
     #[tokio::test(flavor = "current_thread")]
