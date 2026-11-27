@@ -44,18 +44,17 @@ struct CancelBook {
     entries: Mutex<HashMap<NumberOrString, CancelSlot>>,
 }
 
-/// Removes one cancel entry on drop.
+/// Removes one cancel map entry when dropped.
 ///
-/// The id and the token identify that entry.
-/// `take_cancel_token` is the only source of the token, and that token stays above zero.
+/// Any book, id, and token can be stored.
 #[invariant(true)]
-struct CancelGuard {
+struct CancelRemoval {
     book: Arc<CancelBook>,
     id: NumberOrString,
     token: u64,
 }
 
-impl Drop for CancelGuard {
+impl Drop for CancelRemoval {
     #[requires(true)]
     #[ensures(true)]
     fn drop(&mut self) {
@@ -73,6 +72,16 @@ impl Drop for CancelGuard {
             entries.remove(&self.id);
         }
     }
+}
+
+/// Removes one cancel entry on drop.
+///
+/// The token stays above zero.
+/// The removal record uses that same token.
+#[invariant(*token > 0 && removal.token == *token)]
+struct CancelGuard {
+    token: u64,
+    removal: CancelRemoval,
 }
 
 /// Forwards each request and keeps the cancel book.
@@ -116,11 +125,14 @@ impl<S> RequestAdmission<S> {
             .insert(id.clone(), new!(CancelSlot { token, sender }));
         (
             receiver,
-            CancelGuard {
-                book: Arc::clone(&self.cancels),
-                id,
+            new!(CancelGuard {
                 token,
-            },
+                removal: CancelRemoval {
+                    book: Arc::clone(&self.cancels),
+                    id,
+                    token,
+                },
+            }),
         )
     }
 

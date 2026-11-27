@@ -544,8 +544,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "LSP adapter state combines independently valid transport, document-store, encoding, capability, and callback values",
     ),
     (
-        "apps/jbotci/src/lsp_admission.rs:CancelGuard",
-        "drop hook removes one cancel entry, and take_cancel_token and CancelSlot keep the token above zero",
+        "apps/jbotci/src/lsp_admission.rs:CancelRemoval",
+        "any book, id, and token form a valid drop record",
     ),
     (
         "apps/jbotci/src/lsp_admission.rs:PendingService",
