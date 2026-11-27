@@ -2583,7 +2583,7 @@ mod tests {
         // A dictionary lujvo with such a part reports it too, whether the
         // input names the word or the exact entry, as the jvozba pane does.
         let entry_index = dictionary
-            .lookup_word_index("golfyjvi")
+            .lookup_word_index(&LookupKey::from_stored("golfyjvi"))
             .expect("golfyjvi entry");
         for input in [
             word("golfyjvi"),
@@ -2664,7 +2664,7 @@ mod tests {
             );
         }
         let entry_index = dictionary
-            .lookup_word_index("golfyjvi")
+            .lookup_word_index(&LookupKey::from_stored("golfyjvi"))
             .expect("golfyjvi entry");
         assert_eq!(
             entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
@@ -2685,7 +2685,9 @@ mod tests {
                 Ok(false),
                 "{text}"
             );
-            let entry_index = dictionary.lookup_word_index(text).expect("cmevla entry");
+            let entry_index = dictionary
+                .lookup_word_index(&LookupKey::from_stored(text))
+                .expect("cmevla entry");
             assert_eq!(
                 entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
                 Ok(false),

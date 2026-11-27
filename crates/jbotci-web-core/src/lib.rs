@@ -12046,7 +12046,7 @@ mod tests {
             indent_level: 0,
         };
         let golfyjvi = dictionary
-            .lookup_word_index("golfyjvi")
+            .lookup_word_index(&jbotci_dictionary::LookupKey::from_stored("golfyjvi"))
             .expect("golfyjvi entry");
         for (items, word, part) in [
             (
