@@ -338,7 +338,24 @@ pub(super) struct ParserStateFinish {
     pub recovery_directives: Vec<RecoveryDirective>,
     pub effective_fail_token_indices: Vec<usize>,
     pub completed_recovery_boundary_location: Option<usize>,
-    pub recovery_checkpoints: Vec<RecoveryCheckpoint>,
+    /// `Some` exactly when the finished state tracked recovery branches.
+    /// Recovery reads the checkpoints of a `GeneratedParseFailure`, so the
+    /// tracked case must stay distinguishable from an untracked parse all
+    /// the way here (#1089).
+    pub recovery_checkpoints: Option<Vec<RecoveryCheckpoint>>,
+}
+
+impl ParserStateFinish {
+    /// Take the checkpoints of a tracked state for a failure that recovery
+    /// will read. Untracked states finish without checkpoints and must
+    /// never reach a `GeneratedParseFailure` construction.
+    #[requires(self.recovery_checkpoints.is_some())]
+    #[ensures(self.recovery_checkpoints.is_none())]
+    fn tracked_recovery_checkpoints(&mut self) -> Vec<RecoveryCheckpoint> {
+        self.recovery_checkpoints
+            .take()
+            .expect("a failure that recovery reads comes from a tracked state")
+    }
 }
 
 #[invariant(true)]
@@ -1362,10 +1379,12 @@ pub(super) struct ParserState<'tokens> {
     active_recovery_directive: Option<ActiveRecoveryDirective>,
     abandoned_recovery_ranges: Vec<BoundaryAbandonedRange>,
     completed_recovery_boundary_location: Option<usize>,
+    // The single source of truth for recovery-branch tracking: a state
+    // tracks branches exactly when it collects recovery checkpoints, and
+    // the two can never disagree (#1089).
     recovery_checkpoint_collection: Option<RecoveryCheckpointCollection>,
     recovery_tokens: Vec<Token>,
     recovery_source: Option<Arc<str>>,
-    track_recovery_branches: bool,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
     continuation_sentinel_index: Option<usize>,
     continuation_time_limit: Option<ContinuationTimeLimit>,
@@ -1380,7 +1399,6 @@ pub(super) struct ParserState<'tokens> {
 )]
 #[invariant(self.effective_fail_token_indices.len() == self.consumed_recovery_directives)]
 #[invariant(self.continuation_sentinel_index.is_some() || self.continuation_diagnostic_candidates.is_empty())]
-#[invariant(self.recovery_checkpoint_collection.is_none() || self.track_recovery_branches)]
 #[expensive_invariant(
     true,
     "syntax memo keys are protected by ParserState's private mutation APIs"
@@ -1395,6 +1413,7 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
+    #[ensures(ret.recovery_checkpoint_collection.is_none())]
     pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
         let mut state = Self::from_shared_input(
             words.iter().map(Token::identity).collect(),
@@ -1411,7 +1430,7 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(Arc::ptr_eq(&ret.anchor_token_identities, &self.anchor_token_identities))]
     #[ensures(Arc::ptr_eq(&ret.syntax_location_byte_offsets, &self.syntax_location_byte_offsets))]
     #[ensures(ret.syntax_grammar_env == self.syntax_grammar_env)]
-    #[ensures(ret.recovery_checkpoint_collection.is_none() && !ret.track_recovery_branches)]
+    #[ensures(ret.recovery_checkpoint_collection.is_none())]
     pub(super) fn isolated_probe_state(&self) -> Self {
         let mut state = Self::from_shared_input(
             self.anchor_token_identities.clone(),
@@ -1471,7 +1490,6 @@ impl<'tokens> ParserState<'tokens> {
             recovery_checkpoint_collection: None,
             recovery_tokens: Vec::new(),
             recovery_source: None,
-            track_recovery_branches: false,
             syntax_grammar_env,
             continuation_sentinel_index: None,
             continuation_time_limit: None,
@@ -1505,9 +1523,9 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
+    #[ensures(ret.recovery_checkpoint_collection.is_some())]
     pub(super) fn new_with_recovery_branches(words: &[Token], options: &ParseOptions) -> Self {
         let mut state = Self::new(words, options);
-        state.track_recovery_branches = true;
         state.recovery_checkpoint_collection = Some(RecoveryCheckpointCollection::new());
         state
     }
@@ -1516,6 +1534,7 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
     #[ensures(ret.continuation_sentinel_index == continuation_sentinel_index)]
+    #[ensures(ret.recovery_checkpoint_collection.is_some())]
     pub(super) fn new_with_recovery(
         words: &[Token],
         source: Option<&str>,
@@ -1610,9 +1629,9 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == self.track_recovery_branches)]
+    #[ensures(ret == self.recovery_checkpoint_collection.is_some())]
     pub(super) fn recovery_branch_tracking_enabled(&self) -> bool {
-        self.track_recovery_branches
+        self.recovery_checkpoint_collection.is_some()
     }
 
     #[requires(true)]
@@ -3436,7 +3455,7 @@ impl<'tokens> ParserState<'tokens> {
         let recovery_checkpoints = self
             .recovery_checkpoint_collection
             .take()
-            .map_or_else(Vec::new, RecoveryCheckpointCollection::into_checkpoints);
+            .map(RecoveryCheckpointCollection::into_checkpoints);
         ParserStateFinish {
             warnings: deduped,
             trace,
@@ -6199,6 +6218,26 @@ mod tests {
 
         let deadline = Some(ContinuationTimeLimit::new(Duration::from_secs(1)));
         assert!(!recovery_reachability_filter_enabled(&ordinary, deadline));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish_distinguishes_untracked_from_tracked_states() {
+        // #1089: an untracked finish carries no checkpoints, and a tracked
+        // finish carries some (possibly none recorded yet). Collapsing the
+        // two is what let an untracked failure reach recovery.
+        let words = segment_words_with_modifiers("mi klama").unwrap();
+        let options = ParseOptions::default();
+        let tokens = syntax_tokens(&words);
+
+        let untracked = ParserState::new(&tokens, &options).finish();
+        assert!(untracked.recovery_checkpoints.is_none());
+
+        let mut tracked = ParserState::new_with_recovery_branches(&tokens, &options).finish();
+        assert!(tracked.recovery_checkpoints.is_some());
+        let _ = tracked.tracked_recovery_checkpoints();
+        assert!(tracked.recovery_checkpoints.is_none());
     }
 
     #[requires(true)]
