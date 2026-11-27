@@ -1347,18 +1347,27 @@ mod tests {
         );
         // A Cyrillic vowel before its breve has two readings, so `шои`
         // offers `co'i` and `coi`, which `шои` + U+0306 spells, and nothing
-        // that continues neither reading, such as `cortu`.
-        let before_breve = replaced_words("шои|");
+        // that continues neither reading, such as `cortu`. `шои` is also a
+        // whole word, so the list also holds next words inserted at the
+        // cursor (span 3..3). Only the replacements of `шои` (span 0..3) use
+        // the prefix.
+        let before_breve = replaced_words("шои|")
+            .into_iter()
+            .filter(|(_, start, end)| (*start, *end) == (0, 3))
+            .map(|(label, ..)| label)
+            .collect::<Vec<_>>();
         assert!(
-            before_breve.iter().any(|(label, ..)| label == "coi"),
+            before_breve.iter().any(|label| label == "coi"),
             "{before_breve:?}"
         );
         assert!(
-            before_breve.iter().any(|(label, ..)| label == "co'i"),
+            before_breve.iter().any(|label| label == "co'i"),
             "{before_breve:?}"
         );
         assert!(
-            !before_breve.iter().any(|(label, ..)| label == "cortu"),
+            before_breve
+                .iter()
+                .all(|label| label.starts_with("coi") || label.starts_with("co'i")),
             "{before_breve:?}"
         );
     }
