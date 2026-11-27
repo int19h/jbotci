@@ -1375,6 +1375,20 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn cmevla_seed_completion_returns_barda() {
+        // Regression for #1089: the seed segments as a complete Cmevla, so
+        // the Continue interpretation queries continuations over words that
+        // include it, and recovery over that failure must see the same
+        // exact-site checkpoints as a plain parse.
+        for source in ["mí klama le bar|", "mi klama le bar|"] {
+            let items = completions_at_marker(source);
+            assert!(has_label(&items, "barda"), "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn current_canonical_word_is_the_only_preselected_candidate() {
         let mid_word = completions_at_marker("mi klama le zar|ci");
         assert_eq!(preselected_count(&mid_word), 1);

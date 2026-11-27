@@ -3361,6 +3361,23 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn continuation_query_over_cmevla_seed_words_returns_expectations() {
+        // Regression for #1089: completion's Continue interpretation queries
+        // continuations over the recovered segmentation, which keeps the
+        // Cmevla seed as a word. Recovery over the resulting failure must
+        // see the strict parse's exact-site checkpoints.
+        for source in ["mi klama le bar", "mí klama le bar"] {
+            let segmentation = jbotci_morphology::segment_words_with_modifiers_recovered(source);
+            let words = segmentation.into_data().words;
+            let expectations = expected_continuations(&words, &ParseOptions::default())
+                .expect("complete grammar query");
+            assert!(!expectations.is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn complete_text_expects_tail_terms_and_following_statements() {
         let expectations = expected_continuations_for("mi klama le zarci");
 

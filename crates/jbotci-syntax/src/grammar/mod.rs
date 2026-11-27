@@ -1483,14 +1483,20 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(sentinel_index < words.len())]
     #[ensures(ret.continuation_sentinel_index == Some(sentinel_index))]
     #[ensures(ret.continuation_time_limit == continuation_time_limit)]
+    #[ensures(ret.recovery_checkpoint_collection.is_some())]
     pub(super) fn new_for_expected_continuations(
         words: &[Token],
         options: &ParseOptions,
         sentinel_index: usize,
         continuation_time_limit: Option<ContinuationTimeLimit>,
     ) -> Self {
-        let mut state = Self::new(words, options);
-        state.track_recovery_branches = true;
+        // The strict failure built from this state feeds recovery, whose
+        // exact-site reachability filter reads the failure's checkpoints.
+        // Branch tracking without the collection would hand recovery an
+        // empty checkpoint index and make every local site look unreachable
+        // (#1089), so this state must collect checkpoints exactly like the
+        // plain tracked parse does.
+        let mut state = Self::new_with_recovery_branches(words, options);
         state.continuation_sentinel_index = Some(sentinel_index);
         state.continuation_time_limit = continuation_time_limit;
         state
