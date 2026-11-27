@@ -24,6 +24,12 @@ pub(crate) mod stylesheet;
 
 mod margin;
 mod styled_buffer;
+mod window;
+
+pub use window::{
+    ExpandedControl, KeptSourceLine, LaidOutLine, annotation_label_columns, code_columns,
+    kept_source_lines, lay_out_line,
+};
 
 use alloc::string::String;
 
@@ -319,7 +325,7 @@ impl DecorStyle {
         }
     }
 
-    fn secondary_file_start(&self) -> &'static str {
+    pub fn secondary_file_start(&self) -> &'static str {
         match self {
             DecorStyle::Ascii => "::: ",
             DecorStyle::Unicode => " ⸬  ",
@@ -333,7 +339,7 @@ impl DecorStyle {
         }
     }
 
-    fn margin(&self) -> &'static str {
+    pub fn margin(&self) -> &'static str {
         match self {
             DecorStyle::Ascii => "...",
             DecorStyle::Unicode => "…",

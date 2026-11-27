@@ -523,6 +523,7 @@ struct GentufaComputeInputs {
     text: String,
     dialect_text: String,
     text_explicit: bool,
+    output: GentufaTextOutput,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -597,14 +597,28 @@ pub(super) fn render_success(
         section { class: "result-section",
             { render_reference_overlay(&reference_hover_value) }
             div { class: "gentufa-output-frame",
+                { render_surface_output(success, output_value, settings_value.script, page_find) }
                 div {
                     id: "gentufa-view-toolbar",
                     class: "view-toolbar {toolbar_layout_value.class()}",
-                    { render_view_tabs(view_mode, view_mode_value, false) }
-                    { render_output_controls(display, display_value, false) }
-                    { render_text_output_tabs(output, output_value) }
+                    match toolbar_layout_value {
+                        GentufaToolbarLayout::ThreeRows => rsx! {
+                            { render_text_output_tabs(output, output_value) }
+                            { render_view_tabs(view_mode, view_mode_value, false) }
+                            { render_output_controls(display, display_value, false) }
+                        },
+                        GentufaToolbarLayout::TwoRows => rsx! {
+                            { render_view_tabs(view_mode, view_mode_value, false) }
+                            { render_text_output_tabs(output, output_value) }
+                            { render_output_controls(display, display_value, false) }
+                        },
+                        GentufaToolbarLayout::OneRow => rsx! {
+                            { render_view_tabs(view_mode, view_mode_value, false) }
+                            { render_output_controls(display, display_value, false) }
+                            { render_text_output_tabs(output, output_value) }
+                        },
+                    }
                 }
-                { render_surface_output(success, output_value, settings_value.script, page_find) }
             }
             { render_gentufa_toolbar_fit_probe(view_mode, view_mode_value, display, display_value, output_value) }
             { render_diagnostics_pane(

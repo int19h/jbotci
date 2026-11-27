@@ -72,6 +72,7 @@ pub(crate) fn node_with_constructs(
     }
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
 pub(crate) fn leaf(text: String) -> SExpr {
@@ -211,16 +212,6 @@ fn attach_constructs(mut expr: SExpr, inherited: Vec<BracketSourceConstruct>) ->
         }
     }
     expr
-}
-
-/// Whether any leaf in the expression marks a recovery error (‼…‼).
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn contains_error_leaf(expr: &SExpr) -> bool {
-    match expr {
-        SExpr::Leaf { role, .. } => *role == LeafRole::Error,
-        SExpr::Node { children, .. } => children.iter().any(contains_error_leaf),
-    }
 }
 
 #[requires(true)]
@@ -417,6 +408,7 @@ fn build_plain_document(
     builder.try_finish()
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn bracket_document_at_depth(
@@ -565,7 +557,7 @@ pub(crate) fn render_bracketed_source_fragments_with_options(
     expr: &SExpr,
     options: BracketRenderOptions,
 ) -> Vec<BracketSourceFragment> {
-    render_source_fragments_at_depth(0, expr, options)
+    render_source_fragments_at_depth(0, expr, options, true)
 }
 
 #[cfg(test)]
@@ -585,6 +577,7 @@ fn render_source_fragments_at_depth(
     depth: usize,
     expr: &SExpr,
     options: BracketRenderOptions,
+    brackets: bool,
 ) -> Vec<BracketSourceFragment> {
     match expr {
         SExpr::Leaf { text, range, role } => vec![BracketSourceFragment::Text {
@@ -607,25 +600,33 @@ fn render_source_fragments_at_depth(
         } => {
             let rendered = children
                 .iter()
-                .flat_map(|child| render_source_fragments_at_depth(depth + 1, child, options))
+                .flat_map(|child| {
+                    render_source_fragments_at_depth(depth + 1, child, options, brackets)
+                })
                 .filter(|fragment| !source_fragment_is_empty(fragment))
                 .collect::<Vec<_>>();
             match rendered.as_slice() {
                 [] => Vec::new(),
                 [single] => vec![single.clone()],
                 _ => {
-                    let (open, close) = bracket_pair(depth);
-                    let hair_space = if options.insert_hair_space {
+                    let hair_space = if brackets && options.insert_hair_space {
                         "\u{200a}"
                     } else {
                         ""
                     };
+                    let (open, close) = if brackets {
+                        bracket_pair(depth)
+                    } else {
+                        ("", "")
+                    };
                     let mut children = Vec::new();
-                    children.push(BracketSourceFragment::Text {
-                        text: format!("{open}{hair_space}"),
-                        range: *range,
-                        role: BracketSourceFragmentRole::Normal,
-                    });
+                    if brackets {
+                        children.push(BracketSourceFragment::Text {
+                            text: format!("{open}{hair_space}"),
+                            range: *range,
+                            role: BracketSourceFragmentRole::Normal,
+                        });
+                    }
                     for (index, fragment) in rendered.into_iter().enumerate() {
                         if index > 0 {
                             children.push(BracketSourceFragment::Text {
@@ -636,11 +637,13 @@ fn render_source_fragments_at_depth(
                         }
                         children.push(fragment);
                     }
-                    children.push(BracketSourceFragment::Text {
-                        text: format!("{hair_space}{close}"),
-                        range: *range,
-                        role: BracketSourceFragmentRole::Normal,
-                    });
+                    if brackets {
+                        children.push(BracketSourceFragment::Text {
+                            text: format!("{hair_space}{close}"),
+                            range: *range,
+                            role: BracketSourceFragmentRole::Normal,
+                        });
+                    }
                     vec![BracketSourceFragment::Span {
                         range: *range,
                         constructs: constructs.clone(),
@@ -658,64 +661,7 @@ pub(crate) fn render_plain_source_fragments_with_options(
     expr: &SExpr,
     options: BracketRenderOptions,
 ) -> Vec<BracketSourceFragment> {
-    render_plain_source_fragments_at_depth(0, expr, options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_plain_source_fragments_at_depth(
-    depth: usize,
-    expr: &SExpr,
-    options: BracketRenderOptions,
-) -> Vec<BracketSourceFragment> {
-    match expr {
-        SExpr::Leaf { text, range, role } => vec![BracketSourceFragment::Text {
-            text: if *role == LeafRole::Error {
-                format!("‼{text}‼")
-            } else {
-                text.clone()
-            },
-            range: *range,
-            role: match role {
-                LeafRole::Normal => BracketSourceFragmentRole::Normal,
-                LeafRole::Elided => BracketSourceFragmentRole::Elided,
-                LeafRole::Error => BracketSourceFragmentRole::Error,
-            },
-        }],
-        SExpr::Node {
-            children,
-            range,
-            constructs,
-        } => {
-            let rendered = children
-                .iter()
-                .flat_map(|child| render_plain_source_fragments_at_depth(depth + 1, child, options))
-                .filter(|fragment| !source_fragment_is_empty(fragment))
-                .collect::<Vec<_>>();
-            match rendered.as_slice() {
-                [] => Vec::new(),
-                [single] => vec![single.clone()],
-                _ => {
-                    let mut children = Vec::new();
-                    for (index, fragment) in rendered.into_iter().enumerate() {
-                        if index > 0 {
-                            children.push(BracketSourceFragment::Text {
-                                text: " ".to_owned(),
-                                range: None,
-                                role: BracketSourceFragmentRole::Normal,
-                            });
-                        }
-                        children.push(fragment);
-                    }
-                    vec![BracketSourceFragment::Span {
-                        range: *range,
-                        constructs: constructs.clone(),
-                        children,
-                    }]
-                }
-            }
-        }
-    }
+    render_source_fragments_at_depth(0, expr, options, false)
 }
 
 #[requires(true)]
@@ -1069,7 +1015,7 @@ mod tests {
             ),
             (
                 "hello\n\t\nworld",
-                "\x1b[35mhello\x1b[0m\n\\u{9}\n\x1b[35mworld\x1b[0m",
+                "\x1b[35mhello\x1b[0m\n\t\n\x1b[35mworld\x1b[0m",
             ),
             ("hello\rworld", "\x1b[35mhello\x1b[0m\r\x1b[35mworld\x1b[0m"),
             (

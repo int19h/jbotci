@@ -63,6 +63,36 @@ impl OutputBudget {
     pub fn used(&self) -> usize {
         self.state.used.load(Ordering::Acquire)
     }
+
+    /// A budget that accepts every charge that fits in `usize`.
+    #[requires(true)]
+    #[ensures(ret.remaining() == usize::MAX)]
+    pub fn unlimited() -> Self {
+        Self::new(ByteLimit::new(usize::MAX).expect("the maximum byte count is positive"))
+    }
+
+    /// Copy `text` when its byte length fits in the bytes still available.
+    ///
+    /// Clones share this charge. A later copy sees the bytes this copy took.
+    /// The copy is at most the remaining budget. It is not the remaining budget plus one byte.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|copied| copied.as_str() == text && copied.len() <= old(self.remaining())) || ret.is_err())]
+    pub fn copy(&self, text: &str) -> Result<String, OutputLimitError> {
+        self.copy_accounted(text, text.len())
+    }
+
+    /// Keep `text` and charge `bytes`.
+    ///
+    /// `bytes` is the size of the form this copy adds to the document.
+    /// That size is the escaped length when the renderer escapes `text`.
+    /// The charge is at most the remaining budget.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|copied| copied.as_str() == text && bytes <= old(self.remaining())) || ret.is_err())]
+    pub fn copy_accounted(&self, text: &str, bytes: usize) -> Result<String, OutputLimitError> {
+        self.charge(bytes)?;
+        Ok(text.to_owned())
+    }
+
     #[requires(bytes <= self.used())]
     #[ensures(true)]
     pub(crate) fn release(&self, bytes: usize) {
@@ -256,6 +286,20 @@ mod tests {
         );
         assert_eq!(stdout.into_bytes(), "😀".as_bytes());
         assert_eq!(stderr.into_bytes(), b"ok");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn copies_share_one_budget_and_charge_the_given_length() {
+        let budget = OutputBudget::new(ByteLimit::new(4).unwrap());
+        assert_eq!(budget.copy("abcd").unwrap(), "abcd");
+        assert!(budget.copy("abcd").is_err());
+        assert_eq!(budget.used(), 4);
+        let escaped = OutputBudget::new(ByteLimit::new(6).unwrap());
+        assert_eq!(escaped.copy_accounted("a", 6).unwrap(), "a");
+        assert!(escaped.copy("b").is_err());
+        assert_eq!(escaped.remaining(), 0);
     }
 
     #[test]

@@ -255,6 +255,36 @@ pub(crate) fn write_json_string<W: Write>(output: &mut W, text: &str) -> io::Res
     output.write_all(b"\"")
 }
 
+/// Escaped length of a JSON string body. The surrounding quotes are not included.
+///
+/// `None` means the body is longer than `room`. The walk stops at that point.
+#[requires(true)]
+#[ensures(ret.is_some_and(|len| len <= room) || ret.is_none())]
+pub(crate) fn json_string_body_len_within(text: &str, room: usize) -> Option<usize> {
+    let mut used = 0usize;
+    for character in text.chars() {
+        let add = if json_string_needs_escape(character) {
+            json_escape_len(character)
+        } else {
+            character.len_utf8()
+        };
+        used = used.saturating_add(add);
+        if used > room {
+            return None;
+        }
+    }
+    Some(used)
+}
+
+#[requires(true)]
+#[ensures(ret == 2 || ret == 6)]
+fn json_escape_len(character: char) -> usize {
+    match character {
+        '"' | '\\' | '\u{08}' | '\u{0C}' | '\n' | '\r' | '\t' => 2,
+        _ => 6,
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn json_string_needs_escape(character: char) -> bool {

@@ -373,6 +373,7 @@ pub(super) fn AppShell() -> Element {
         text: parsed_text_value.clone(),
         dialect_text: parsed_dialect_value.clone(),
         text_explicit: parsed_text_explicit_value,
+        output: gentufa_output_value,
     };
     let gentufa_layout_inputs = GentufaLayoutInputs {
         route: route_value,
@@ -556,7 +557,7 @@ pub(super) fn AppShell() -> Element {
             &inputs.text,
             &inputs.dialect_text,
             inputs.view_mode,
-            gentufa_output_value,
+            inputs.output,
             inputs.display,
             inputs.text_explicit,
         );

@@ -91,8 +91,6 @@ pub(crate) enum TreeValue {
     Verbatim {
         text: String,
         span: Option<(usize, usize)>,
-        /// Byte range of the original quote in the source text.
-        bytes: Option<(usize, usize)>,
     },
     Error {
         error: RecoveryTreeError,
@@ -214,7 +212,7 @@ pub fn pretty_generated_model_tree_with_limit(
         tree,
         source,
         options,
-        &crate::budget::LeafCopy::reject_limit(limit),
+        &crate::budget::OutputBudget::new(limit),
         syntax_index,
     )?;
     cancellation.check().map_err(|_| OutputError::Interrupted)?;
@@ -236,7 +234,7 @@ pub fn pretty_generated_model_tree_with_reference_display(
         generated_tree,
         source,
         options,
-        &crate::budget::LeafCopy::unlimited(),
+        &crate::budget::OutputBudget::unlimited(),
         Some(&display.analysis.syntax_index),
     )?;
     Ok(render_tree_value_with_options(
@@ -263,7 +261,7 @@ pub fn generated_reference_display<'tree>(
         generated_tree,
         source,
         options,
-        &crate::budget::LeafCopy::unlimited(),
+        &crate::budget::OutputBudget::unlimited(),
         Some(&reference_analysis.syntax_index),
     )?;
     let references = ReferenceDisplayModel::new_generated(
@@ -304,7 +302,7 @@ pub(crate) fn projected_generated_syntax_tree_value_with_index(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> Result<TreeValue, OutputError> {
     Ok(generated_root_projection(
@@ -388,7 +386,7 @@ pub(crate) fn pretty_generated_model_raw_tree_with_options(
         tree,
         source,
         options,
-        &crate::budget::LeafCopy::unlimited(),
+        &crate::budget::OutputBudget::unlimited(),
         None,
     )?);
     Ok(render_tree_value_with_options(&value, options, None))
@@ -415,7 +413,7 @@ pub(crate) fn pretty_recovered_generated_model_tree_with_limit(
         recovered,
         source,
         options,
-        &crate::budget::LeafCopy::reject_limit(limit),
+        &crate::budget::OutputBudget::new(limit),
     )?;
     render_tree_value_with_limit(
         &value,
@@ -432,9 +430,8 @@ pub(crate) fn recovered_generated_model_tree_value(
     recovered: &RecoveredSyntaxParse,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
 ) -> Result<TreeValue, OutputError> {
-    let scope = max_leaf_bytes.enter();
     let mut visitor = SyntaxTreeBuilder::<RecoveredSyntaxRenderModel>::new_recovered(
         source,
         options,
@@ -443,9 +440,6 @@ pub(crate) fn recovered_generated_model_tree_value(
     );
     recovered.parse_tree.visit_in_order(&mut visitor);
     let value = visitor.finish_recovered()?;
-    if let Some(error) = scope.failure() {
-        return Err(OutputError::Limit { limit: error.limit });
-    }
     Ok(collapse_value(value))
 }
 
@@ -474,7 +468,7 @@ pub fn pretty_morphology_tree_with_limit(
     limit: ByteLimit,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    let leaves = crate::budget::LeafCopy::reject_limit(limit);
+    let leaves = crate::budget::OutputBudget::new(limit);
     let value = collapse_value(TreeValue::Collection(
         words
             .iter()
@@ -525,37 +519,18 @@ pub(crate) fn render_tree_value_with_limit(
     Ok(renderer.output.into_string().expect("tree output is UTF-8"))
 }
 
-/// Keep a nested tree value. An outermost limit error is noted again.
-/// The caller that owns the build scope can report it.
-#[requires(true)]
-#[ensures(true)]
-fn kept_tree(
-    result: Result<TreeValue, OutputError>,
-    max_leaf_bytes: &crate::budget::LeafCopy,
-) -> TreeValue {
-    match result {
-        Ok(value) => value,
-        Err(OutputError::Limit { limit }) => {
-            max_leaf_bytes.note(limit);
-            TreeValue::Text(String::new())
-        }
-        Err(_) => TreeValue::Text(String::new()),
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn with_indicators_tree_value(
     word: &WithIndicators<WordLike>,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
-) -> TreeValue {
+    max_leaf_bytes: &crate::budget::OutputBudget,
+) -> Result<TreeValue, OutputError> {
     match word.as_data() {
-        data!(WithIndicators::Plain(word_like)) => kept_tree(
-            morphology_tree_value(word_like, source, options, max_leaf_bytes),
-            max_leaf_bytes,
-        ),
+        data!(WithIndicators::Plain(word_like)) => {
+            morphology_tree_value(word_like, source, options, max_leaf_bytes)
+        }
         data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
@@ -563,7 +538,7 @@ pub(crate) fn with_indicators_tree_value(
         }) => {
             let mut entries = vec![TreeEntry {
                 label: Some("bahe"),
-                value: word_tree_value(bahe, source, options, max_leaf_bytes),
+                value: word_tree_value(bahe, source, options, max_leaf_bytes)?,
             }];
             if !extra_bahe.is_empty() {
                 entries.push(TreeEntry {
@@ -572,21 +547,18 @@ pub(crate) fn with_indicators_tree_value(
                         extra_bahe
                             .iter()
                             .map(|bahe| word_tree_value(bahe, source, options, max_leaf_bytes))
-                            .collect(),
+                            .collect::<Result<Vec<_>, _>>()?,
                     ),
                 });
             }
             entries.push(TreeEntry {
                 label: None,
-                value: kept_tree(
-                    morphology_tree_value(word_like, source, options, max_leaf_bytes),
-                    max_leaf_bytes,
-                ),
+                value: morphology_tree_value(word_like, source, options, max_leaf_bytes)?,
             });
-            TreeValue::Node(TreeNode {
+            Ok(TreeValue::Node(TreeNode {
                 constructor: "Emphasized",
                 entries,
-            })
+            }))
         }
         data!(WithIndicators::WithIndicator {
             base,
@@ -598,7 +570,7 @@ pub(crate) fn with_indicators_tree_value(
             let mut entries = vec![
                 TreeEntry {
                     label: None,
-                    value: with_indicators_tree_value(base, source, options, max_leaf_bytes),
+                    value: with_indicators_tree_value(base, source, options, max_leaf_bytes)?,
                 },
                 TreeEntry {
                     label: Some("indicator"),
@@ -608,19 +580,25 @@ pub(crate) fn with_indicators_tree_value(
                         source,
                         options,
                         max_leaf_bytes,
-                    ),
+                    )?,
                 },
             ];
             if let Some(nai) = nai {
                 entries.push(TreeEntry {
                     label: Some("nai"),
-                    value: modified_word_tree_value(nai_bahe, nai, source, options, max_leaf_bytes),
+                    value: modified_word_tree_value(
+                        nai_bahe,
+                        nai,
+                        source,
+                        options,
+                        max_leaf_bytes,
+                    )?,
                 });
             }
-            TreeValue::Node(TreeNode {
+            Ok(TreeValue::Node(TreeNode {
                 constructor: "WithIndicator",
                 entries,
-            })
+            }))
         }
     }
 }
@@ -632,14 +610,14 @@ fn modified_word_tree_value(
     word: &Word,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
-) -> TreeValue {
+    max_leaf_bytes: &crate::budget::OutputBudget,
+) -> Result<TreeValue, OutputError> {
     if bahe.is_empty() {
         word_tree_value(word, source, options, max_leaf_bytes)
     } else {
         let mut entries = vec![TreeEntry {
             label: Some("bahe"),
-            value: word_tree_value(&bahe[0], source, options, max_leaf_bytes),
+            value: word_tree_value(&bahe[0], source, options, max_leaf_bytes)?,
         }];
         if bahe.len() > 1 {
             entries.push(TreeEntry {
@@ -648,18 +626,18 @@ fn modified_word_tree_value(
                     bahe[1..]
                         .iter()
                         .map(|bahe| word_tree_value(bahe, source, options, max_leaf_bytes))
-                        .collect(),
+                        .collect::<Result<Vec<_>, _>>()?,
                 ),
             });
         }
         entries.push(TreeEntry {
             label: None,
-            value: word_tree_value(word, source, options, max_leaf_bytes),
+            value: word_tree_value(word, source, options, max_leaf_bytes)?,
         });
-        TreeValue::Node(TreeNode {
+        Ok(TreeValue::Node(TreeNode {
             constructor: "Emphasized",
             entries,
-        })
+        }))
     }
 }
 
@@ -669,15 +647,12 @@ pub(crate) fn word_tree_value(
     word: &Word,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
-) -> TreeValue {
-    kept_tree(
-        morphology_tree_value(
-            &WordLike::bare(word.clone()),
-            source,
-            options,
-            max_leaf_bytes,
-        ),
+    max_leaf_bytes: &crate::budget::OutputBudget,
+) -> Result<TreeValue, OutputError> {
+    morphology_tree_value(
+        &WordLike::bare(word.clone()),
+        source,
+        options,
         max_leaf_bytes,
     )
 }
@@ -688,7 +663,7 @@ pub(crate) fn morphology_tree_value(
     word_like: &WordLike,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
 ) -> Result<TreeValue, OutputError> {
     let mut visitor = MorphologyTreeBuilder::new(source, options, max_leaf_bytes);
     word_like.visit_in_order(&mut visitor);
@@ -701,10 +676,9 @@ fn generated_syntax_tree_value(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> Result<TreeValue, OutputError> {
-    let scope = max_leaf_bytes.enter();
     let mut visitor = SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(
         source,
         options,
@@ -712,11 +686,7 @@ fn generated_syntax_tree_value(
         syntax_index,
     );
     tree.visit_in_order(&mut visitor);
-    let value = visitor.finish();
-    if let Some(error) = scope.failure() {
-        return Err(OutputError::Limit { limit: error.limit });
-    }
-    Ok(value)
+    visitor.finish()
 }
 
 #[requires(true)]
@@ -725,10 +695,9 @@ fn raw_generated_syntax_tree_value(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> Result<TreeValue, OutputError> {
-    let scope = max_leaf_bytes.enter();
     let mut visitor = SyntaxTreeBuilder::<RawGeneratedSyntaxRenderModel>::new(
         source,
         options,
@@ -736,11 +705,7 @@ fn raw_generated_syntax_tree_value(
         syntax_index,
     );
     tree.visit_in_order(&mut visitor);
-    let value = visitor.finish();
-    if let Some(error) = scope.failure() {
-        return Err(OutputError::Limit { limit: error.limit });
-    }
-    Ok(value)
+    visitor.finish()
 }
 #[contract_trait]
 trait SyntaxRenderModel {
@@ -765,8 +730,8 @@ trait SyntaxRenderModel {
         atom: Self::Atom<'tree>,
         source: &str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
-    ) -> TreeValue;
+        max_leaf_bytes: &crate::budget::OutputBudget,
+    ) -> Result<TreeValue, OutputError>;
 
     #[requires(true)]
     #[ensures(true)]
@@ -782,9 +747,9 @@ trait SyntaxRenderModel {
         node: Self::Node<'tree>,
         source: &str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
+        max_leaf_bytes: &crate::budget::OutputBudget,
         syntax_index: Option<&Self::Index<'tree>>,
-    ) -> Option<TreeValue>;
+    ) -> Result<Option<TreeValue>, OutputError>;
 
     #[requires(!constructor.is_empty() && !label.is_empty())]
     #[ensures(true)]
@@ -814,8 +779,8 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         atom: Self::Atom<'tree>,
         source: &str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
-    ) -> TreeValue {
+        max_leaf_bytes: &crate::budget::OutputBudget,
+    ) -> Result<TreeValue, OutputError> {
         match atom {
             GeneratedSyntaxAtomRef::Token(word) => {
                 with_indicators_tree_value(word.as_indicators(), source, options, max_leaf_bytes)
@@ -841,61 +806,63 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         node: Self::Node<'tree>,
         source: &str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
+        max_leaf_bytes: &crate::budget::OutputBudget,
         syntax_index: Option<&Self::Index<'tree>>,
-    ) -> Option<TreeValue> {
+    ) -> Result<Option<TreeValue>, OutputError> {
         match node {
-            GeneratedSyntaxNodeRef::TextSyntax(text) => Some(generated_text_tree_value(
+            GeneratedSyntaxNodeRef::TextSyntax(text) => Ok(Some(generated_text_tree_value(
                 text,
                 source,
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            )),
-            GeneratedSyntaxNodeRef::TextBodySyntax(text) => Some(generated_text_body_tree_value(
-                text,
-                source,
-                options,
-                max_leaf_bytes,
-                syntax_index,
-            )),
+            )?)),
+            GeneratedSyntaxNodeRef::TextBodySyntax(text) => {
+                Ok(Some(generated_text_body_tree_value(
+                    text,
+                    source,
+                    options,
+                    max_leaf_bytes,
+                    syntax_index,
+                )?))
+            }
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(statement) => {
-                Some(generated_multiple_na_fragment_tree_value(
+                Ok(Some(generated_multiple_na_fragment_tree_value(
                     statement,
                     source,
                     options,
                     max_leaf_bytes,
                     syntax_index,
-                ))
+                )?))
             }
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(statement) => {
-                Some(generated_single_na_fragment_tree_value(
+                Ok(Some(generated_single_na_fragment_tree_value(
                     statement,
                     source,
                     options,
                     max_leaf_bytes,
                     syntax_index,
-                ))
+                )?))
             }
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxLinkedSumtiFragment(statement) => {
-                Some(generated_linked_sumti_fragment_tree_value(
+                Ok(Some(generated_linked_sumti_fragment_tree_value(
                     statement,
                     source,
                     options,
                     max_leaf_bytes,
                     syntax_index,
-                ))
+                )?))
             }
             GeneratedSyntaxNodeRef::StatementBaseSyntaxBridiStatement(statement) => {
-                Some(generated_bridi_statement_tree_value(
+                Ok(Some(generated_bridi_statement_tree_value(
                     statement,
                     source,
                     options,
                     max_leaf_bytes,
                     syntax_index,
-                ))
+                )?))
             }
-            _ => None,
+            _ => Ok(None),
         }
     }
 
@@ -962,8 +929,8 @@ impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
         atom: Self::Atom<'tree>,
         source: &str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
-    ) -> TreeValue {
+        max_leaf_bytes: &crate::budget::OutputBudget,
+    ) -> Result<TreeValue, OutputError> {
         GeneratedSyntaxRenderModel::atom_tree_value(atom, source, options, max_leaf_bytes)
     }
 
@@ -979,10 +946,10 @@ impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
         _node: Self::Node<'tree>,
         _source: &str,
         _options: TreeRenderOptions,
-        _max_leaf_bytes: &crate::budget::LeafCopy,
+        _max_leaf_bytes: &crate::budget::OutputBudget,
         _syntax_index: Option<&Self::Index<'tree>>,
-    ) -> Option<TreeValue> {
-        None
+    ) -> Result<Option<TreeValue>, OutputError> {
+        Ok(None)
     }
 
     fn chain_link_element_field(_constructor: &'static str, _label: &'static str) -> bool {
@@ -1014,8 +981,8 @@ impl SyntaxRenderModel for RecoveredSyntaxRenderModel {
         atom: Self::Atom<'tree>,
         source: &str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
-    ) -> TreeValue {
+        max_leaf_bytes: &crate::budget::OutputBudget,
+    ) -> Result<TreeValue, OutputError> {
         let RecoveredSyntaxAtomRef::Token(token) = atom;
         with_indicators_tree_value(token.as_indicators(), source, options, max_leaf_bytes)
     }
@@ -1037,10 +1004,10 @@ impl SyntaxRenderModel for RecoveredSyntaxRenderModel {
         _node: Self::Node<'tree>,
         _source: &str,
         _options: TreeRenderOptions,
-        _max_leaf_bytes: &crate::budget::LeafCopy,
+        _max_leaf_bytes: &crate::budget::OutputBudget,
         _syntax_index: Option<&Self::Index<'tree>>,
-    ) -> Option<TreeValue> {
-        None
+    ) -> Result<Option<TreeValue>, OutputError> {
+        Ok(None)
     }
 
     fn chain_link_element_field(constructor: &'static str, label: &'static str) -> bool {
@@ -1058,9 +1025,9 @@ fn generated_syntax_subtree_value<T>(
     value: &T,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> Option<TreeValue>
+) -> Result<Option<TreeValue>, OutputError>
 where
     T: GeneratedSyntaxAstTreeNode,
 {
@@ -1080,14 +1047,16 @@ fn required_generated_syntax_subtree_value_with_index<T>(
     value: &T,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue
+) -> Result<TreeValue, OutputError>
 where
     T: GeneratedSyntaxAstTreeNode,
 {
-    generated_syntax_subtree_value(value, source, options, max_leaf_bytes, syntax_index)
-        .expect("generated syntax atom tree walk produced a root")
+    Ok(
+        generated_syntax_subtree_value(value, source, options, max_leaf_bytes, syntax_index)?
+            .expect("generated syntax atom tree walk produced a root"),
+    )
 }
 
 #[requires(true)]
@@ -1096,9 +1065,9 @@ fn generated_text_tree_value(
     text: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     let generated_model::TextSyntax {
         leading_nai,
         leading_cmevla,
@@ -1114,7 +1083,7 @@ fn generated_text_tree_value(
         leading_nai
             .iter()
             .map(|token| generated_token_tree_value(token, source, options, max_leaf_bytes))
-            .collect(),
+            .collect::<Result<Vec<_>, _>>()?,
     ) {
         entries.push(entry);
     }
@@ -1123,7 +1092,7 @@ fn generated_text_tree_value(
         leading_cmevla
             .iter()
             .map(|token| generated_token_tree_value(token, source, options, max_leaf_bytes))
-            .collect(),
+            .collect::<Result<Vec<_>, _>>()?,
     ) {
         entries.push(entry);
     }
@@ -1140,7 +1109,7 @@ fn generated_text_tree_value(
                     syntax_index,
                 )
             })
-            .collect(),
+            .collect::<Result<Vec<_>, _>>()?,
     ) {
         entries.push(entry);
     }
@@ -1152,7 +1121,7 @@ fn generated_text_tree_value(
             options,
             max_leaf_bytes,
             syntax_index,
-        ),
+        )?,
     ) {
         entries.push(entry);
     }
@@ -1165,7 +1134,7 @@ fn generated_text_tree_value(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            ),
+            )?,
         });
     }
     append_generated_text_body_entries(
@@ -1176,12 +1145,12 @@ fn generated_text_tree_value(
         options,
         max_leaf_bytes,
         syntax_index,
-    );
+    )?;
 
-    TreeValue::Node(TreeNode {
+    Ok(TreeValue::Node(TreeNode {
         constructor: "Text",
         entries,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -1190,9 +1159,9 @@ fn generated_text_body_tree_value(
     text: &generated_model::TextBodySyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     let mut entries = Vec::new();
     append_generated_text_body_entries(
         &mut entries,
@@ -1202,11 +1171,11 @@ fn generated_text_body_tree_value(
         options,
         max_leaf_bytes,
         syntax_index,
-    );
-    TreeValue::Node(TreeNode {
+    )?;
+    Ok(TreeValue::Node(TreeNode {
         constructor: "Text",
         entries,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -1217,9 +1186,9 @@ fn append_generated_text_body_entries(
     paragraphs: Option<&generated_model::TextParagraphsSyntax>,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) {
+) -> Result<(), OutputError> {
     let mut paragraph_values = paragraphs
         .into_iter()
         .map(|paragraph| {
@@ -1231,7 +1200,7 @@ fn append_generated_text_body_entries(
                 syntax_index,
             )
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
     for marker in leading_i_statements.iter().rev() {
         prepend_generated_leading_i_statement_value(
             marker,
@@ -1240,13 +1209,14 @@ fn append_generated_text_body_entries(
             options,
             max_leaf_bytes,
             syntax_index,
-        );
+        )?;
     }
     entries.extend(
         paragraph_values
             .into_iter()
             .map(|value| TreeEntry { label: None, value }),
     );
+    Ok(())
 }
 
 #[requires(true)]
@@ -1270,9 +1240,9 @@ fn generated_free_modifier_tree_values_with_index(
     free_modifiers: &[Arc<generated_model::FreeModifierSyntax>],
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> Vec<TreeValue> {
+) -> Result<Vec<TreeValue>, OutputError> {
     free_modifiers
         .iter()
         .map(|free_modifier| {
@@ -1284,7 +1254,7 @@ fn generated_free_modifier_tree_values_with_index(
                 syntax_index,
             )
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
 }
 
 #[requires(true)]
@@ -1294,9 +1264,9 @@ fn prepend_generated_leading_i_statement_value(
     paragraph_values: &mut Vec<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) {
+) -> Result<(), OutputError> {
     if paragraph_values.is_empty() {
         paragraph_values.push(generated_paragraph_with_marker_value(
             marker,
@@ -1305,8 +1275,8 @@ fn prepend_generated_leading_i_statement_value(
             options,
             max_leaf_bytes,
             syntax_index,
-        ));
-        return;
+        )?);
+        return Ok(());
     }
 
     let first_paragraph =
@@ -1318,7 +1288,8 @@ fn prepend_generated_leading_i_statement_value(
         options,
         max_leaf_bytes,
         syntax_index,
-    );
+    )?;
+    Ok(())
 }
 
 #[requires(true)]
@@ -1328,9 +1299,9 @@ fn generated_prepend_marker_to_paragraph_value(
     paragraph: TreeValue,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     match paragraph {
         TreeValue::Node(mut node)
             if node.constructor == "TextParagraphWithAdditionalNiho"
@@ -1353,9 +1324,9 @@ fn generated_prepend_marker_to_paragraph_value(
                     options,
                     max_leaf_bytes,
                     syntax_index,
-                );
+                )?;
             }
-            TreeValue::Node(node)
+            Ok(TreeValue::Node(node))
         }
         TreeValue::Node(mut node) if node.constructor == "Paragraph" => {
             if generated_paragraph_has_niho(&node) {
@@ -1366,8 +1337,8 @@ fn generated_prepend_marker_to_paragraph_value(
                     options,
                     max_leaf_bytes,
                     syntax_index,
-                );
-                return TreeValue::Node(node);
+                )?;
+                return Ok(TreeValue::Node(node));
             }
             let statement_position = node
                 .entries
@@ -1388,10 +1359,10 @@ fn generated_prepend_marker_to_paragraph_value(
                             options,
                             max_leaf_bytes,
                             syntax_index,
-                        ),
+                        )?,
                     },
                 );
-                return TreeValue::Node(node);
+                return Ok(TreeValue::Node(node));
             }
             let statement_value = statement_position.map(|position| node.entries.remove(position));
             let replacement = generated_paragraph_statement_with_marker_value(
@@ -1401,7 +1372,7 @@ fn generated_prepend_marker_to_paragraph_value(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            );
+            )?;
             match statement_position {
                 Some(position) => node.entries.insert(
                     position,
@@ -1418,9 +1389,9 @@ fn generated_prepend_marker_to_paragraph_value(
                     },
                 ),
             }
-            TreeValue::Node(node)
+            Ok(TreeValue::Node(node))
         }
-        TreeValue::Syntax { syntax_ids, value } => syntax_value(
+        TreeValue::Syntax { syntax_ids, value } => Ok(syntax_value(
             syntax_ids,
             generated_prepend_marker_to_paragraph_value(
                 marker,
@@ -1429,8 +1400,8 @@ fn generated_prepend_marker_to_paragraph_value(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            ),
-        ),
+            )?,
+        )),
         TreeValue::Collection(mut items) => {
             if items.is_empty() {
                 items.push(generated_paragraph_with_marker_value(
@@ -1440,7 +1411,7 @@ fn generated_prepend_marker_to_paragraph_value(
                     options,
                     max_leaf_bytes,
                     syntax_index,
-                ));
+                )?);
             } else {
                 let first_item = items.remove(0);
                 items.insert(
@@ -1452,10 +1423,10 @@ fn generated_prepend_marker_to_paragraph_value(
                         options,
                         max_leaf_bytes,
                         syntax_index,
-                    ),
+                    )?,
                 );
             }
-            TreeValue::Collection(items)
+            Ok(TreeValue::Collection(items))
         }
         value => generated_paragraph_with_marker_value(
             marker,
@@ -1481,14 +1452,14 @@ fn prepend_generated_marker_to_paragraph_node(
     node: &mut TreeNode,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) {
+) -> Result<(), OutputError> {
     node.entries.insert(
         0,
         TreeEntry {
             label: Some("i"),
-            value: generated_token_tree_value(&marker.i, source, options, max_leaf_bytes),
+            value: generated_token_tree_value(&marker.i, source, options, max_leaf_bytes)?,
         },
     );
     attach_generated_marker_to_niho_paragraph_statement(
@@ -1498,7 +1469,8 @@ fn prepend_generated_marker_to_paragraph_node(
         options,
         max_leaf_bytes,
         syntax_index,
-    );
+    )?;
+    Ok(())
 }
 
 #[requires(true)]
@@ -1508,9 +1480,9 @@ fn attach_generated_marker_to_niho_paragraph_statement(
     node: &mut TreeNode,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) {
+) -> Result<(), OutputError> {
     let Some(statement_position) = node.entries.iter().position(|entry| entry.label.is_none())
     else {
         node.entries.push(TreeEntry {
@@ -1521,9 +1493,9 @@ fn attach_generated_marker_to_niho_paragraph_statement(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            ),
+            )?,
         });
-        return;
+        return Ok(());
     };
     let statement = std::mem::replace(
         &mut node.entries[statement_position].value,
@@ -1536,7 +1508,8 @@ fn attach_generated_marker_to_niho_paragraph_statement(
         options,
         max_leaf_bytes,
         syntax_index,
-    );
+    )?;
+    Ok(())
 }
 
 #[requires(true)]
@@ -1545,10 +1518,10 @@ fn generated_niho_marker_paragraph_statement_value(
     marker: &generated_model::LeadingIStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    TreeValue::Node(TreeNode {
+) -> Result<TreeValue, OutputError> {
+    Ok(TreeValue::Node(TreeNode {
         constructor: "ParagraphStatement",
         entries: generated_niho_marker_paragraph_statement_entries(
             marker,
@@ -1556,8 +1529,8 @@ fn generated_niho_marker_paragraph_statement_value(
             options,
             max_leaf_bytes,
             syntax_index,
-        ),
-    })
+        )?,
+    }))
 }
 
 #[requires(true)]
@@ -1566,9 +1539,9 @@ fn generated_niho_marker_paragraph_statement_entries(
     marker: &generated_model::LeadingIStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> Vec<TreeEntry> {
+) -> Result<Vec<TreeEntry>, OutputError> {
     let mut entries = Vec::new();
     if let Some(connective) = &marker.connective {
         entries.push(TreeEntry {
@@ -1579,7 +1552,7 @@ fn generated_niho_marker_paragraph_statement_entries(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            ),
+            )?,
         });
     }
     if let Some(entry) = labelled_tree_collection_entry_from_values(
@@ -1590,11 +1563,11 @@ fn generated_niho_marker_paragraph_statement_entries(
             options,
             max_leaf_bytes,
             syntax_index,
-        ),
+        )?,
     ) {
         entries.push(entry);
     }
-    entries
+    Ok(entries)
 }
 
 #[requires(true)]
@@ -1604,9 +1577,9 @@ fn attach_generated_marker_to_paragraph_statement_value(
     statement: TreeValue,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     match statement {
         TreeValue::Node(mut node) if node.constructor == "ParagraphStatement" => {
             set_generated_paragraph_statement_connective(
@@ -1616,7 +1589,7 @@ fn attach_generated_marker_to_paragraph_statement_value(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            );
+            )?;
             prepend_generated_paragraph_statement_free_modifiers(
                 marker,
                 &mut node,
@@ -1624,10 +1597,10 @@ fn attach_generated_marker_to_paragraph_statement_value(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            );
-            TreeValue::Node(node)
+            )?;
+            Ok(TreeValue::Node(node))
         }
-        TreeValue::Syntax { syntax_ids, value } => syntax_value(
+        TreeValue::Syntax { syntax_ids, value } => Ok(syntax_value(
             syntax_ids,
             attach_generated_marker_to_paragraph_statement_value(
                 marker,
@@ -1636,8 +1609,8 @@ fn attach_generated_marker_to_paragraph_statement_value(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            ),
-        ),
+            )?,
+        )),
         value => {
             let mut entries = generated_niho_marker_paragraph_statement_entries(
                 marker,
@@ -1645,12 +1618,12 @@ fn attach_generated_marker_to_paragraph_statement_value(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            );
+            )?;
             entries.push(TreeEntry { label: None, value });
-            TreeValue::Node(TreeNode {
+            Ok(TreeValue::Node(TreeNode {
                 constructor: "ParagraphStatement",
                 entries,
-            })
+            }))
         }
     }
 }
@@ -1662,9 +1635,9 @@ fn set_generated_paragraph_statement_connective(
     node: &mut TreeNode,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) {
+) -> Result<(), OutputError> {
     if let Some(position) = node
         .entries
         .iter()
@@ -1673,7 +1646,7 @@ fn set_generated_paragraph_statement_connective(
         node.entries.remove(position);
     }
     let Some(connective) = &marker.connective else {
-        return;
+        return Ok(());
     };
     let insertion_index = node
         .entries
@@ -1690,9 +1663,10 @@ fn set_generated_paragraph_statement_connective(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            ),
+            )?,
         },
     );
+    Ok(())
 }
 
 #[requires(true)]
@@ -1702,18 +1676,18 @@ fn prepend_generated_paragraph_statement_free_modifiers(
     node: &mut TreeNode,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) {
+) -> Result<(), OutputError> {
     let mut marker_free_modifiers = generated_free_modifier_tree_values_with_index(
         &marker.free_modifiers,
         source,
         options,
         max_leaf_bytes,
         syntax_index,
-    );
+    )?;
     if marker_free_modifiers.is_empty() {
-        return;
+        return Ok(());
     }
 
     if let Some(position) = node
@@ -1730,7 +1704,7 @@ fn prepend_generated_paragraph_statement_free_modifiers(
                 value: TreeValue::Collection(marker_free_modifiers),
             },
         );
-        return;
+        return Ok(());
     }
 
     let insertion_index = node
@@ -1745,6 +1719,7 @@ fn prepend_generated_paragraph_statement_free_modifiers(
             value: TreeValue::Collection(marker_free_modifiers),
         },
     );
+    Ok(())
 }
 
 #[requires(true)]
@@ -1775,10 +1750,10 @@ fn generated_paragraph_with_marker_value(
     statement: Option<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    TreeValue::Node(TreeNode {
+) -> Result<TreeValue, OutputError> {
+    Ok(TreeValue::Node(TreeNode {
         constructor: "Paragraph",
         entries: vec![TreeEntry {
             label: None,
@@ -1789,9 +1764,9 @@ fn generated_paragraph_with_marker_value(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            ),
+            )?,
         }],
-    })
+    }))
 }
 
 #[requires(true)]
@@ -1801,16 +1776,16 @@ fn generated_paragraph_statement_with_marker_value(
     statement: Option<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     let mut entries = generated_leading_i_statement_entries(
         marker,
         source,
         options,
         max_leaf_bytes,
         syntax_index,
-    );
+    )?;
     match statement {
         Some(TreeValue::Node(mut node)) if node.constructor == "ParagraphStatement" => {
             entries.extend(std::mem::take(&mut node.entries));
@@ -1824,10 +1799,10 @@ fn generated_paragraph_statement_with_marker_value(
         Some(value) => entries.push(TreeEntry { label: None, value }),
         None => {}
     }
-    TreeValue::Node(TreeNode {
+    Ok(TreeValue::Node(TreeNode {
         constructor: "ParagraphStatement",
         entries,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -1836,12 +1811,12 @@ fn generated_leading_i_statement_entries(
     marker: &generated_model::LeadingIStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> Vec<TreeEntry> {
+) -> Result<Vec<TreeEntry>, OutputError> {
     let mut entries = vec![TreeEntry {
         label: Some("i"),
-        value: generated_token_tree_value(&marker.i, source, options, max_leaf_bytes),
+        value: generated_token_tree_value(&marker.i, source, options, max_leaf_bytes)?,
     }];
     if let Some(connective) = &marker.connective {
         entries.push(TreeEntry {
@@ -1852,7 +1827,7 @@ fn generated_leading_i_statement_entries(
                 options,
                 max_leaf_bytes,
                 syntax_index,
-            ),
+            )?,
         });
     }
     if let Some(entry) = labelled_tree_collection_entry_from_values(
@@ -1863,11 +1838,11 @@ fn generated_leading_i_statement_entries(
             options,
             max_leaf_bytes,
             syntax_index,
-        ),
+        )?,
     ) {
         entries.push(entry);
     }
-    entries
+    Ok(entries)
 }
 
 #[requires(true)]
@@ -1876,9 +1851,9 @@ fn generated_multiple_na_fragment_tree_value(
     statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     let generated_model::FragmentStatementSyntax::MultipleNaFragment(statement) = statement else {
         return required_generated_syntax_subtree_value_with_index(
             statement,
@@ -1891,7 +1866,12 @@ fn generated_multiple_na_fragment_tree_value(
     let mut entries = vec![
         TreeEntry {
             label: None,
-            value: generated_token_tree_value(&statement.first_na, source, options, max_leaf_bytes),
+            value: generated_token_tree_value(
+                &statement.first_na,
+                source,
+                options,
+                max_leaf_bytes,
+            )?,
         },
         TreeEntry {
             label: None,
@@ -1900,17 +1880,19 @@ fn generated_multiple_na_fragment_tree_value(
                 source,
                 options,
                 max_leaf_bytes,
-            ),
+            )?,
         },
     ];
-    entries.extend(statement.additional_na.iter().map(|token| TreeEntry {
-        label: None,
-        value: generated_token_tree_value(token, source, options, max_leaf_bytes),
-    }));
-    TreeValue::Node(TreeNode {
+    for token in &statement.additional_na {
+        entries.push(TreeEntry {
+            label: None,
+            value: generated_token_tree_value(token, source, options, max_leaf_bytes)?,
+        });
+    }
+    Ok(TreeValue::Node(TreeNode {
         constructor: "Other",
         entries,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -1919,9 +1901,9 @@ fn generated_single_na_fragment_tree_value(
     statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     let generated_model::FragmentStatementSyntax::SingleNaFragment(statement) = statement else {
         return required_generated_syntax_subtree_value_with_index(
             statement,
@@ -1934,7 +1916,7 @@ fn generated_single_na_fragment_tree_value(
     let statement = &statement.0;
     let mut entries = vec![TreeEntry {
         label: None,
-        value: generated_token_tree_value(&statement.value, source, options, max_leaf_bytes),
+        value: generated_token_tree_value(&statement.value, source, options, max_leaf_bytes)?,
     }];
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "free_modifiers",
@@ -1944,14 +1926,14 @@ fn generated_single_na_fragment_tree_value(
             options,
             max_leaf_bytes,
             syntax_index,
-        ),
+        )?,
     ) {
         entries.push(entry);
     }
-    TreeValue::Node(TreeNode {
+    Ok(TreeValue::Node(TreeNode {
         constructor: "Other",
         entries,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -1960,9 +1942,9 @@ fn generated_linked_sumti_fragment_tree_value(
     statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     let generated_model::FragmentStatementSyntax::LinkedSumtiFragment(statement) = statement else {
         return required_generated_syntax_subtree_value_with_index(
             statement,
@@ -1972,17 +1954,17 @@ fn generated_linked_sumti_fragment_tree_value(
             syntax_index,
         );
     };
-    rename_tree_constructor(
+    Ok(rename_tree_constructor(
         required_generated_syntax_subtree_value_with_index(
             &statement.0,
             source,
             options,
             max_leaf_bytes,
             syntax_index,
-        ),
+        )?,
         "Linkargs",
         "LinkedSumti",
-    )
+    ))
 }
 
 #[requires(!from.is_empty() && !to.is_empty())]
@@ -2006,9 +1988,9 @@ fn generated_bridi_statement_tree_value(
     statement: &generated_model::StatementBaseSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
+) -> Result<TreeValue, OutputError> {
     let generated_model::StatementBaseSyntax::BridiStatement(statement) = statement else {
         return required_generated_syntax_subtree_value_with_index(
             statement,
@@ -2033,8 +2015,8 @@ fn generated_token_tree_value(
     token: &Token,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
-) -> TreeValue {
+    max_leaf_bytes: &crate::budget::OutputBudget,
+) -> Result<TreeValue, OutputError> {
     with_indicators_tree_value(token.as_indicators(), source, options, max_leaf_bytes)
 }
 
@@ -2044,15 +2026,17 @@ fn generated_standard_statement_connective_tree_value(
     connective: &generated_model::StandardStatementConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value_with_index(
-        connective,
-        source,
-        options,
-        max_leaf_bytes,
-        syntax_index,
+) -> Result<TreeValue, OutputError> {
+    Ok(collapse_value(
+        required_generated_syntax_subtree_value_with_index(
+            connective,
+            source,
+            options,
+            max_leaf_bytes,
+            syntax_index,
+        )?,
     ))
 }
 
@@ -2062,15 +2046,17 @@ fn generated_paragraph_i_statement_connective_tree_value(
     connective: &generated_model::IParagraphStatementConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
-    max_leaf_bytes: &crate::budget::LeafCopy,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value_with_index(
-        connective,
-        source,
-        options,
-        max_leaf_bytes,
-        syntax_index,
+) -> Result<TreeValue, OutputError> {
+    Ok(collapse_value(
+        required_generated_syntax_subtree_value_with_index(
+            connective,
+            source,
+            options,
+            max_leaf_bytes,
+            syntax_index,
+        )?,
     ))
 }
 
@@ -2105,7 +2091,7 @@ enum SyntaxFrame<'tree, M: SyntaxRenderModel> {
 struct SyntaxTreeBuilder<'source, 'index, 'tree, M: SyntaxRenderModel> {
     source: &'source str,
     options: TreeRenderOptions,
-    max_leaf_bytes: crate::budget::LeafCopy,
+    max_leaf_bytes: crate::budget::OutputBudget,
     syntax_index: Option<&'index M::Index<'tree>>,
     recovery_errors: Option<&'index [SyntaxError]>,
     stack: Vec<SyntaxFrame<'tree, M>>,
@@ -2125,7 +2111,7 @@ where
     fn new(
         source: &'source str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
+        max_leaf_bytes: &crate::budget::OutputBudget,
         syntax_index: Option<&'index M::Index<'tree>>,
     ) -> Self {
         Self {
@@ -2148,7 +2134,7 @@ where
     fn new_recovered(
         source: &'source str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
+        max_leaf_bytes: &crate::budget::OutputBudget,
         recovery_errors: &'index [SyntaxError],
     ) -> Self {
         Self {
@@ -2168,14 +2154,20 @@ where
 
     #[requires(true)]
     #[ensures(true)]
-    fn finish(self) -> TreeValue {
-        self.root.expect("syntax tree walk produced a root")
+    fn finish(self) -> Result<TreeValue, OutputError> {
+        if let Some(error) = self.render_error {
+            return Err(error);
+        }
+        Ok(self.root.expect("syntax tree walk produced a root"))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn finish_optional(self) -> Option<TreeValue> {
-        self.root
+    fn finish_optional(self) -> Result<Option<TreeValue>, OutputError> {
+        if let Some(error) = self.render_error {
+            return Err(error);
+        }
+        Ok(self.root)
     }
 
     #[requires(self.recovery_errors.is_some())]
@@ -2310,19 +2302,23 @@ where
         if self.recovery_errors.is_some() {
             sort_tree_entries_by_source(&mut entries);
         }
-        let value = M::custom_node_tree_value(
+        let value = match M::custom_node_tree_value(
             node_ref,
             self.source,
             self.options,
             &self.max_leaf_bytes,
             self.syntax_index,
-        )
-        .unwrap_or_else(|| {
-            TreeValue::Node(TreeNode {
+        ) {
+            Ok(Some(value)) => value,
+            Ok(None) => TreeValue::Node(TreeNode {
                 constructor,
                 entries,
-            })
-        });
+            }),
+            Err(error) => {
+                self.render_error = Some(error);
+                TreeValue::Text(String::new())
+            }
+        };
         self.push_value(match syntax_id {
             Some(id) => syntax_value(vec![id], value),
             None => value,
@@ -2414,12 +2410,13 @@ where
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.last_position = M::atom_end_position(atom);
         self.recovery_projection.separate();
-        self.push_value(M::atom_tree_value(
-            atom,
-            self.source,
-            self.options,
-            &self.max_leaf_bytes,
-        ));
+        match M::atom_tree_value(atom, self.source, self.options, &self.max_leaf_bytes) {
+            Ok(value) => self.push_value(value),
+            Err(error) => {
+                self.render_error = Some(error);
+                self.push_value(TreeValue::Text(String::new()));
+            }
+        }
     }
 
     #[requires(true)]
@@ -3253,11 +3250,10 @@ enum MorphologyFrame {
 struct MorphologyTreeBuilder<'source> {
     source: &'source str,
     options: TreeRenderOptions,
-    max_leaf_bytes: crate::budget::LeafCopy,
+    max_leaf_bytes: crate::budget::OutputBudget,
     stack: Vec<MorphologyFrame>,
     root: Option<TreeValue>,
     limit_error: Option<OutputError>,
-    scope: crate::budget::LimitScope,
 }
 
 impl<'source> MorphologyTreeBuilder<'source> {
@@ -3266,7 +3262,7 @@ impl<'source> MorphologyTreeBuilder<'source> {
     fn new(
         source: &'source str,
         options: TreeRenderOptions,
-        max_leaf_bytes: &crate::budget::LeafCopy,
+        max_leaf_bytes: &crate::budget::OutputBudget,
     ) -> Self {
         Self {
             source,
@@ -3275,18 +3271,14 @@ impl<'source> MorphologyTreeBuilder<'source> {
             stack: Vec::new(),
             root: None,
             limit_error: None,
-            scope: max_leaf_bytes.enter(),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn finish(self) -> Result<TreeValue, OutputError> {
-        if let Some(OutputError::Limit { limit }) = self.limit_error {
-            self.max_leaf_bytes.note(limit);
-        }
-        if let Some(error) = self.scope.failure() {
-            return Err(OutputError::Limit { limit: error.limit });
+        if let Some(error) = self.limit_error {
+            return Err(error);
         }
         Ok(self.root.expect("morphology tree walk produced a root"))
     }
@@ -3303,19 +3295,22 @@ impl<'source> MorphologyTreeBuilder<'source> {
         }
     }
 
-    /// Copy the trimmed quote under the leaf policy.
-    /// A reject policy copies a quote that fits.
-    /// A preview policy copies a short prefix.
+    /// Copy trimmed quote text and charge its JSON string body.
     #[requires(true)]
     #[ensures(true)]
-    fn copy_quote(&mut self, text: &str) -> String {
-        match self.max_leaf_bytes.copy_trimmed(text) {
-            Ok(copied) => copied,
-            Err(error) => {
-                self.limit_error = Some(OutputError::Limit { limit: error.limit });
-                String::new()
-            }
-        }
+    fn copy_quote(&mut self, text: &str) -> Result<String, OutputError> {
+        let trimmed = text.trim();
+        let Some(bytes) = crate::json_writer::json_string_body_len_within(
+            trimmed,
+            self.max_leaf_bytes.remaining(),
+        ) else {
+            return Err(OutputError::Limit {
+                limit: self.max_leaf_bytes.limit(),
+            });
+        };
+        self.max_leaf_bytes
+            .copy_accounted(trimmed, bytes)
+            .map_err(|error| OutputError::Limit { limit: error.limit })
     }
 }
 
@@ -3409,7 +3404,13 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
             jbotci_morphology::AtomRef::Phonemes(phonemes) => {
                 TreeValue::Text(phonemes.render(self.options.phonemes))
             }
-            jbotci_morphology::AtomRef::String(text) => TreeValue::Text(self.copy_quote(text)),
+            jbotci_morphology::AtomRef::String(text) => match self.copy_quote(text) {
+                Ok(copied) => TreeValue::Text(copied),
+                Err(error) => {
+                    self.limit_error = Some(error);
+                    TreeValue::Text(String::new())
+                }
+            },
             jbotci_morphology::AtomRef::SourceSpan(span) => source_span_value(span),
         };
         self.push_value(value);
@@ -3477,7 +3478,6 @@ fn verbatim_node_value(constructor: &'static str, entries: &[TreeEntry]) -> Opti
             return Some(TreeValue::Verbatim {
                 text: text.trim().to_owned(),
                 span: span_from_labelled_entries(entries),
-                bytes: byte_span_from_labelled_entries(entries),
             });
         }
     }
@@ -3523,24 +3523,6 @@ fn lujvo_phoneme_text_from_entries(
             parts.join("")
         }
     })
-}
-
-#[requires(true)]
-#[ensures(ret.is_none_or(|(start, end)| start <= end))]
-fn byte_span_from_labelled_entries(entries: &[TreeEntry]) -> Option<(usize, usize)> {
-    entries
-        .iter()
-        .find_map(|entry| match (&entry.label, &entry.value) {
-            (
-                Some("span"),
-                TreeValue::Span {
-                    byte_start,
-                    byte_end,
-                    ..
-                },
-            ) => Some((*byte_start, *byte_end)),
-            _ => None,
-        })
 }
 
 #[requires(true)]
@@ -3637,7 +3619,6 @@ mod tests {
         let value = TreeValue::Verbatim {
             text: "a\u{85}b".to_owned(),
             span: None,
-            bytes: None,
         };
         for color in [false, true] {
             let output = render_tree_value_with_options(

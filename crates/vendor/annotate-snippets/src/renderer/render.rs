@@ -1415,12 +1415,10 @@ fn render_source_line(
         };
         let width = annotation.end.display - annotation.start.display;
 
-        static MIN_PAD: usize = 5;
         let margin_width = str_width(renderer.decor_style.margin());
-        if width > margin.term_width * 2 && width > (MIN_PAD * 2 + margin_width) {
+        if let Some(pad) = long_span_pad(width, margin.term_width, margin_width) {
             // If the terminal is *too* small, we keep at least a tiny bit of the span for
             // display.
-            let pad = max(margin.term_width / 3, MIN_PAD);
             // Code line
             buffer.replace(
                 line_offset,
@@ -2277,7 +2275,7 @@ fn extra_width_from_tabs(s: &str, n: usize) -> usize {
 // we're higher. If the loop isn't exited by the `return`, the last multiplication will wrap, which
 // is OK, because while we cannot fit a higher power of 10 in a usize, the loop will end anyway.
 // This is also why we need the max number of decimal digits within a `usize`.
-fn num_decimal_digits(num: usize) -> usize {
+pub(crate) fn num_decimal_digits(num: usize) -> usize {
     #[cfg(target_pointer_width = "64")]
     const MAX_DIGITS: usize = 20;
 
@@ -2297,8 +2295,48 @@ fn num_decimal_digits(num: usize) -> usize {
     MAX_DIGITS
 }
 
-fn str_width(s: &str) -> usize {
+pub(crate) fn str_width(s: &str) -> usize {
     s.chars().map(char_width).sum()
+}
+
+/// Padding kept on each side of a single-line span whose middle is replaced by the margin mark.
+///
+/// `render_source_line` uses this same decision.
+pub(crate) fn long_span_pad(
+    span_width: usize,
+    term_width: usize,
+    margin_width: usize,
+) -> Option<usize> {
+    const MIN_PAD: usize = 5;
+    if span_width > term_width * 2 && span_width > (MIN_PAD * 2 + margin_width) {
+        Some(max(term_width / 3, MIN_PAD))
+    } else {
+        None
+    }
+}
+
+pub(crate) fn output_replacement(ch: char) -> Option<&'static str> {
+    OUTPUT_REPLACEMENTS
+        .binary_search_by_key(&ch, |(key, _)| *key)
+        .ok()
+        .map(|index| OUTPUT_REPLACEMENTS[index].1)
+}
+
+/// Code columns available after the line-number gutter.
+///
+/// `max_line_num_len` is the character count of the widest line number.
+pub(crate) fn code_column_width(
+    term_width: usize,
+    max_line_num_len: usize,
+    multiline_depth: usize,
+) -> usize {
+    let width_offset = 3 + max_line_num_len;
+    let code_offset = if multiline_depth == 0 {
+        width_offset
+    } else {
+        width_offset + multiline_depth + 1
+    };
+    term_width.saturating_sub(code_offset)
 }
 
 pub(crate) fn char_width(ch: char) -> usize {

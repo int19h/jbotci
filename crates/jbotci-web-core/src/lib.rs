@@ -74,10 +74,8 @@ use jbotci_output::{
     format_definition_line_with_indexed_places, generated_reference_display,
     generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_line,
     indexed_place_spans_for_notes_line, ipa_morphology_text, phoneme_render_options_for_script,
-    pretty_bracket_source_fragments_with_options,
-    pretty_generated_model_plain_source_fragments_with_options,
-    pretty_recovered_syntax_bracket_source_fragments_with_options,
-    pretty_recovered_syntax_plain_source_fragments_with_options,
+    pretty_generated_model_source_fragment_pair_with_options,
+    pretty_recovered_syntax_source_fragment_pair_with_options,
     render_lojban_text_for_script_with_options,
 };
 use jbotci_phonetic::lojban_text_to_ipa;
@@ -920,39 +918,26 @@ fn valid_gentufa_result_for_web(
             }));
         }
     };
-    let bracket_source_fragments = match pretty_bracket_source_fragments_with_options(
-        &generated_model,
-        source,
-        bracket_options,
-    ) {
-        Ok(fragments) => fragments,
-        Err(error) => {
-            return Ok(GentufaWebResult::Error(GentufaError {
-                phase: Some(DiagnosticPhase::Syntax),
-                message: error.to_string(),
-                diagnostics,
-            }));
-        }
-    };
+    let (bracket_source_fragments, plain_source_fragments) =
+        match pretty_generated_model_source_fragment_pair_with_options(
+            &generated_model,
+            source,
+            bracket_options,
+        ) {
+            Ok(fragments) => fragments,
+            Err(error) => {
+                return Ok(GentufaWebResult::Error(GentufaError {
+                    phase: Some(DiagnosticPhase::Syntax),
+                    message: error.to_string(),
+                    diagnostics,
+                }));
+            }
+        };
     let bracket_fragments = gentufa_bracket_fragments_from_source(
         &bracket_source_fragments,
         &projection.bare,
         &projection.annotations,
     );
-    let plain_source_fragments = match pretty_generated_model_plain_source_fragments_with_options(
-        &generated_model,
-        source,
-        bracket_options,
-    ) {
-        Ok(fragments) => fragments,
-        Err(error) => {
-            return Ok(GentufaWebResult::Error(GentufaError {
-                phase: Some(DiagnosticPhase::Syntax),
-                message: error.to_string(),
-                diagnostics,
-            }));
-        }
-    };
     let plain_fragments = gentufa_bracket_fragments_from_source(
         &plain_source_fragments,
         &projection.bare,
@@ -1028,38 +1013,32 @@ fn recovered_gentufa_success_for_web(
         words,
         &gentufa_blocks_projection_options(options),
     );
-    let bracket_fragments = pretty_recovered_syntax_bracket_source_fragments_with_options(
-        parse,
-        source,
-        bracket_options,
-    )
-    .map(|fragments| {
-        gentufa_bracket_fragments_from_source(&fragments, &projection.bare, &projection.annotations)
-    })
-    .unwrap_or_else(|_| {
-        vec![GentufaBracketFragment::Text {
-            text: brackets_text.clone(),
-            role: GentufaBlockRole::Normal,
-        }]
-    });
-    let plain_fragments = match pretty_recovered_syntax_plain_source_fragments_with_options(
-        parse,
-        source,
-        bracket_options,
-    ) {
-        Ok(fragments) => gentufa_bracket_fragments_from_source(
-            &fragments,
-            &projection.bare,
-            &projection.annotations,
-        ),
-        Err(error) => {
-            return Ok(GentufaWebResult::Error(GentufaError {
-                phase: Some(DiagnosticPhase::Syntax),
-                message: error.to_string(),
-                diagnostics,
-            }));
-        }
-    };
+    let (bracket_fragments, plain_fragments) =
+        match pretty_recovered_syntax_source_fragment_pair_with_options(
+            parse,
+            source,
+            bracket_options,
+        ) {
+            Ok((brackets, plain)) => (
+                gentufa_bracket_fragments_from_source(
+                    &brackets,
+                    &projection.bare,
+                    &projection.annotations,
+                ),
+                gentufa_bracket_fragments_from_source(
+                    &plain,
+                    &projection.bare,
+                    &projection.annotations,
+                ),
+            ),
+            Err(error) => {
+                return Ok(GentufaWebResult::Error(GentufaError {
+                    phase: Some(DiagnosticPhase::Syntax),
+                    message: error.to_string(),
+                    diagnostics,
+                }));
+            }
+        };
     let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
     let features = web_feature_availability_for_annotations(&projection.annotations);
     let blocks_layout = projection.into_blocks_layout();
@@ -5049,10 +5028,7 @@ pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
         ));
     }
     if state.output != GentufaTextOutput::Groups {
-        pairs.push((
-            "output".to_owned(),
-            gentufa_text_output_query_value(state.output).to_owned(),
-        ));
+        pairs.push(("output".to_owned(), state.output.query_value().to_owned()));
     }
     if state.show_glosses {
         pairs.push(("glosses".to_owned(), "true".to_owned()));
@@ -5954,16 +5930,6 @@ fn parse_gentufa_text_output(value: &str) -> Option<GentufaTextOutput> {
         "plain" => Some(GentufaTextOutput::Plain),
         "ipa" => Some(GentufaTextOutput::Ipa),
         _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn gentufa_text_output_query_value(output: GentufaTextOutput) -> &'static str {
-    match output {
-        GentufaTextOutput::Groups => "groups",
-        GentufaTextOutput::Plain => "plain",
-        GentufaTextOutput::Ipa => "ipa",
     }
 }
 

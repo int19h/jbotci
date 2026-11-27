@@ -9,7 +9,9 @@ mod cancellation_tests;
 pub use brackets::{
     pretty_generated_model_brackets_with_limit,
     pretty_generated_model_plain_source_fragments_with_options,
-    pretty_generated_model_plain_with_limit, pretty_morphology_brackets_with_limit,
+    pretty_generated_model_plain_with_limit,
+    pretty_generated_model_source_fragment_pair_with_options,
+    pretty_morphology_brackets_with_limit,
 };
 pub mod budget;
 mod diagnostics;
@@ -65,11 +67,12 @@ pub use recovered::{
     pretty_recovered_morphology_tree_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
     pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_brackets_with_options,
-    pretty_recovered_syntax_error_region_brackets_with_options,
     pretty_recovered_syntax_plain_source_fragments_with_options,
     pretty_recovered_syntax_plain_with_limit, pretty_recovered_syntax_raw,
-    pretty_recovered_syntax_raw_with_limit, pretty_recovered_syntax_tree_with_limit,
-    pretty_recovered_syntax_tree_with_options, raw_with_limit,
+    pretty_recovered_syntax_raw_with_limit,
+    pretty_recovered_syntax_source_fragment_pair_with_options,
+    pretty_recovered_syntax_tree_with_limit, pretty_recovered_syntax_tree_with_options,
+    raw_with_limit,
 };
 pub use references::{
     ReferenceAnnotationSource, ReferenceAnnotationSourceData, ReferenceAnnotations,
@@ -374,10 +377,8 @@ pub fn compact_json_value_with_limit<T: Serialize>(
     value: &T,
     limit: budget::ByteLimit,
 ) -> Result<Value, OutputError> {
-    let mut budget = budget::SpanBudget::new(limit);
-    let bytes = budget
-        .collect_json(value)
-        .map_err(|error| OutputError::from_json(error, limit))?;
+    let bytes =
+        budget::bounded_json(value, limit).map_err(|error| OutputError::from_json(error, limit))?;
     let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
     deserializer.disable_recursion_limit();
     Value::deserialize(serde_stacker::Deserializer::new(&mut deserializer))

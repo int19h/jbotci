@@ -3,7 +3,6 @@
 //! A renderer builds this value first. One serializer turns it into ANSI.
 //! Line breaks separate lines. They never sit inside a segment.
 
-use std::cell::Cell;
 use std::io::{self, Write};
 
 #[allow(unused_imports)]
@@ -82,12 +81,6 @@ impl LineBreak {
             Self::CrLf => "\r\n",
             Self::Cr => "\r",
         }
-    }
-
-    #[requires(true)]
-    #[ensures(ret == 1 || ret == 2)]
-    fn char_count(self) -> usize {
-        self.as_str().chars().count()
     }
 }
 
@@ -187,23 +180,6 @@ impl StyledText {
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
     }
 
-    /// Cut the document so its serialization fits in `max_chars` characters.
-    ///
-    /// The cut walks the typed lines. It appends `…` as its own segment. It
-    /// does not slice an escape sequence. It does not split a CR LF pair.
-    #[requires(max_chars > 0)]
-    #[ensures(ret.chars().count() <= max_chars)]
-    #[expensive_ensures(
-        self.serialize(color).chars().count() > max_chars || (ret == self.serialize(color))
-    )]
-    pub(crate) fn within_char_budget(&self, max_chars: usize, color: bool) -> String {
-        if serialized_char_count(self, color) <= max_chars {
-            return self.serialize(color);
-        }
-        let keep = visible_prefix_that_fits(self, max_chars, color);
-        prefix_with_ellipsis(self, keep).serialize(color)
-    }
-
     #[requires(true)]
     #[ensures(true)]
     fn write_to(
@@ -239,31 +215,10 @@ impl StyledText {
     }
 }
 
-#[requires(true)]
-#[ensures(ret.lines.len() == parts.len() || parts.is_empty() || ret.lines.len() > parts.len())]
-pub(crate) fn join_with_lf(parts: &[StyledText]) -> StyledText {
-    let mut builder = StyledBuilder::new();
-    for (index, part) in parts.iter().enumerate() {
-        if index > 0 {
-            builder.end_line(LineBreak::Lf);
-        }
-        builder.append_document(part);
-    }
-    builder.finish()
-}
-
-#[requires(!text.is_empty())]
-#[ensures(!ret.lines.is_empty())]
-pub(crate) fn plain_line(text: &str) -> StyledText {
-    let mut builder = StyledBuilder::new();
-    builder.push_text(text, TextStyle::default());
-    builder.finish()
-}
-
 /// Bytes already promised to the serializer for this document.
-#[invariant(budget.charged() <= budget.limit().get())]
+#[invariant(budget.used() <= budget.limit().get())]
 struct ByteAccount {
-    budget: crate::budget::SpanBudget,
+    budget: crate::budget::OutputBudget,
     color: bool,
     open: TextStyle,
 }
@@ -296,7 +251,7 @@ impl StyledBuilder {
     pub(crate) fn set_byte_budget(&mut self, limit: usize, color: bool) {
         let limit = crate::budget::ByteLimit::new(limit).expect("positive byte budget");
         self.account = Some(new!(ByteAccount {
-            budget: crate::budget::SpanBudget::new(limit),
+            budget: crate::budget::OutputBudget::new(limit),
             color,
             open: TextStyle::default(),
         }));
@@ -397,22 +352,7 @@ impl StyledBuilder {
         }));
     }
 
-    #[requires(true)]
-    #[ensures(true)]
-    fn append_document(&mut self, document: &StyledText) {
-        for line in &document.lines {
-            if self.error.is_some() {
-                return;
-            }
-            for segment in &line.segments {
-                self.push_segment(&segment.text, segment.style);
-            }
-            if let Some(ending) = line.ending {
-                self.end_line(ending);
-            }
-        }
-    }
-
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(!ret.lines.is_empty())]
     #[ensures(ret.lines.last().is_some_and(|line| line.ending.is_none()))]
@@ -506,21 +446,46 @@ impl StyledBuilder {
         let Some(account) = self.account.take() else {
             return true;
         };
-        let mut data = account.into_data();
+        let data = account.into_data();
         let charged = data.budget.charge(bytes).is_ok();
         self.account = Some(ByteAccount::from_data(data));
         charged
     }
 }
 
-/// C0 controls, DEL, and C1 controls, other than CR and LF.
+/// C0 controls, DEL, and C1 controls, other than CR, LF, and horizontal tab.
+///
+/// A horizontal tab is whitespace. It does not change terminal state.
+/// Quoted text and diagnostic excerpts keep the tab byte.
+/// A JSON string is the place a raw tab is unsafe. The JSON writer emits `\t` there.
 #[requires(true)]
-#[ensures(ret == (character != '\n' && character != '\r' && ((character as u32) <= 0x1F || (character as u32) == 0x7F || ((character as u32) >= 0x80 && (character as u32) <= 0x9F))))]
+#[ensures(ret == (character != '\n' && character != '\r' && character != '\t' && ((character as u32) <= 0x1F || (character as u32) == 0x7F || ((character as u32) >= 0x80 && (character as u32) <= 0x9F))))]
 pub(crate) fn is_raw_terminal_control(character: char) -> bool {
     let code = character as u32;
     character != '\n'
         && character != '\r'
+        && character != '\t'
         && (code <= 0x1F || code == 0x7F || (0x80..=0x9F).contains(&code))
+}
+
+/// Replacement text for one source character before a diagnostic line is trimmed.
+///
+/// A tab returns none, so the line layout uses the renderer's own tab width.
+/// Every other terminal control expands to the `\u{hex}` text this crate prints.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn expanded_terminal_control(
+    character: char,
+) -> Option<annotate_snippets::renderer::ExpandedControl> {
+    if !is_raw_terminal_control(character) {
+        return None;
+    }
+    let mut text = [0u8; 6];
+    let len = control_escape_bytes(character, &mut text);
+    Some(annotate_snippets::renderer::ExpandedControl {
+        text,
+        len: len as u8,
+    })
 }
 
 /// Replace C0 controls, DEL, and C1 controls other than CR and LF with `\u{hex}`.
@@ -615,45 +580,23 @@ pub(crate) struct TerminalExcerpt<'text> {
     pub(crate) map: Vec<usize>,
 }
 
-thread_local! {
-    static EXCERPT_COPY: Cell<usize> = const { Cell::new(0) };
-    static EXCERPT_MAP: Cell<usize> = const { Cell::new(0) };
-}
-
-#[cfg(test)]
+/// Escape `text` when the escaped form fits in `room` bytes.
+///
+/// A text that does not fit returns none. This does not allocate that text.
 #[requires(true)]
-#[ensures(excerpt_copy_bytes() == 0 && excerpt_map_len() == 0)]
-pub(crate) fn reset_excerpt_account() {
-    EXCERPT_COPY.with(|copy| copy.set(0));
-    EXCERPT_MAP.with(|map| map.set(0));
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn excerpt_copy_bytes() -> usize {
-    EXCERPT_COPY.with(|copy| copy.get())
-}
-
-#[cfg(test)]
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn excerpt_map_len() -> usize {
-    EXCERPT_MAP.with(|map| map.get())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn note_excerpt(copy: usize, map: usize) {
-    EXCERPT_COPY.with(|cell| cell.set(cell.get().saturating_add(copy)));
-    EXCERPT_MAP.with(|cell| cell.set(cell.get().saturating_add(map)));
+#[ensures(ret.as_ref().is_some_and(|excerpt| excerpt.text.len() <= room) || ret.is_none())]
+pub(crate) fn escape_terminal_source_within<'text>(
+    text: &'text str,
+    room: usize,
+) -> Option<TerminalExcerpt<'text>> {
+    escaped_byte_len_within(text, room)?;
+    Some(escape_terminal_source(text))
 }
 
 #[requires(true)]
 #[ensures(ret.map.is_empty() || ret.map.len() == text.len() + 1)]
 pub(crate) fn escape_terminal_source(text: &str) -> TerminalExcerpt<'_> {
     if !text.chars().any(is_raw_terminal_control) {
-        note_excerpt(text.len(), 0);
         return new!(TerminalExcerpt {
             text: std::borrow::Cow::Borrowed(text),
             map: Vec::new(),
@@ -681,7 +624,6 @@ pub(crate) fn escape_terminal_source(text: &str) -> TerminalExcerpt<'_> {
         index += len;
     }
     map[text.len()] = escaped_at;
-    note_excerpt(text.len(), map.len());
     new!(TerminalExcerpt {
         text: std::borrow::Cow::Owned(output),
         map,
@@ -740,16 +682,6 @@ fn write_control_escape(output: &mut impl Write, character: char) -> io::Result<
 }
 
 #[requires(true)]
-#[ensures(ret == 1 || ret == 5 || ret == 6)]
-fn escaped_char_len(character: char) -> usize {
-    if is_raw_terminal_control(character) {
-        control_escape_len(character)
-    } else {
-        1
-    }
-}
-
-#[requires(true)]
 #[ensures(ret == 5 || ret == 6)]
 fn control_escape_len(character: char) -> usize {
     if (character as u32) < 16 { 5 } else { 6 }
@@ -768,7 +700,7 @@ fn escaped_byte_len(character: char) -> usize {
 /// Count escaped bytes until `room` is passed. `None` means the text is larger.
 #[requires(true)]
 #[ensures(ret.is_some_and(|len| len <= room) || ret.is_none())]
-fn escaped_byte_len_within(text: &str, room: usize) -> Option<usize> {
+pub(crate) fn escaped_byte_len_within(text: &str, room: usize) -> Option<usize> {
     let mut used = 0usize;
     for character in text.chars() {
         used = used.saturating_add(escaped_byte_len(character));
@@ -922,111 +854,6 @@ fn escaped_visible_text(text: &StyledText) -> String {
     output
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn serialized_char_count(text: &StyledText, color: bool) -> usize {
-    let mut count = 0usize;
-    for line in &text.lines {
-        let mut style = TextStyle::default();
-        for segment in &line.segments {
-            if color {
-                count += style_transition_len(style, segment.style);
-            }
-            count += segment.text.chars().map(escaped_char_len).sum::<usize>();
-            style = segment.style;
-        }
-        if color && style.is_styled() {
-            count += RESET_BYTES.len();
-        }
-        if let Some(ending) = line.ending {
-            count += ending.char_count();
-        }
-    }
-    count
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn ellipsis_char_len(color: bool, style: TextStyle) -> usize {
-    let reset = if color && style.is_styled() {
-        RESET_BYTES.len()
-    } else {
-        0
-    };
-    reset + 1
-}
-
-/// Largest raw visible prefix whose colored serialization, plus `…`, fits.
-#[requires(true)]
-#[ensures(true)]
-fn visible_prefix_that_fits(text: &StyledText, max_chars: usize, color: bool) -> usize {
-    let mut best = 0usize;
-    let mut serialized = 0usize;
-    let mut visible = 0usize;
-    let mut style = TextStyle::default();
-    for line in &text.lines {
-        for segment in &line.segments {
-            let to_content = if color {
-                style_transition_len(style, segment.style)
-            } else {
-                0
-            };
-            let to_plain = if color {
-                style_transition_len(style, TextStyle::default())
-            } else {
-                0
-            };
-            let mut chars_cost = 0usize;
-            let mut content = false;
-            for character in segment.text.chars() {
-                chars_cost += escaped_char_len(character);
-                if !character.is_whitespace() {
-                    content = true;
-                }
-                // A cut that keeps only leading whitespace stores that prefix
-                // without style. Charge the style the serializer will emit.
-                let (transition, kept_style) = if content {
-                    (to_content, segment.style)
-                } else {
-                    (to_plain, TextStyle::default())
-                };
-                let with_ellipsis =
-                    serialized + transition + chars_cost + ellipsis_char_len(color, kept_style);
-                if with_ellipsis > max_chars {
-                    return best;
-                }
-                visible += 1;
-                best = visible;
-            }
-            if content {
-                serialized += to_content + chars_cost;
-                style = segment.style;
-            } else {
-                serialized += to_plain + chars_cost;
-                style = TextStyle::default();
-            }
-        }
-        if let Some(ending) = line.ending {
-            let reset = if color && style.is_styled() {
-                RESET_BYTES.len()
-            } else {
-                0
-            };
-            let break_chars = ending.char_count();
-            let with_ellipsis =
-                serialized + reset + break_chars + ellipsis_char_len(color, TextStyle::default());
-            if with_ellipsis > max_chars {
-                return best;
-            }
-            serialized += reset + break_chars;
-            visible += break_chars;
-            best = visible;
-            style = TextStyle::default();
-        }
-    }
-    best
-}
-
 /// The output has no raw C0 or C1 control except CR, LF, and color sequences.
 #[requires(true)]
 #[ensures(true)]
@@ -1095,56 +922,6 @@ fn emitted_style_parameter(first: u8, second: u8, count: u8) -> bool {
     )
 }
 
-/// Keep the first `keep` visible characters, then append an unstyled `…`.
-///
-/// A line break counts as its own characters. A break is kept whole or not
-/// at all, so a cut never leaves a bare `\r` from a `\r\n` pair inside a
-/// segment.
-#[requires(true)]
-#[expensive_ensures(ret.serialize(false).ends_with('…'))]
-fn prefix_with_ellipsis(text: &StyledText, keep: usize) -> StyledText {
-    let mut builder = StyledBuilder::new();
-    let mut remaining = keep;
-    for line in &text.lines {
-        for segment in &line.segments {
-            if remaining == 0 {
-                builder.push_text("…", TextStyle::default());
-                return builder.finish();
-            }
-            let count = segment.text.chars().count();
-            if count <= remaining {
-                builder.push_text(&segment.text, segment.style);
-                remaining -= count;
-            } else {
-                let end = segment
-                    .text
-                    .char_indices()
-                    .nth(remaining)
-                    .map(|(index, _)| index)
-                    .unwrap_or(segment.text.len());
-                builder.push_text(&segment.text[..end], segment.style);
-                builder.push_text("…", TextStyle::default());
-                return builder.finish();
-            }
-        }
-        if let Some(ending) = line.ending {
-            let width = ending.char_count();
-            if remaining < width {
-                builder.push_text("…", TextStyle::default());
-                return builder.finish();
-            }
-            remaining -= width;
-            builder.end_line(ending);
-            if remaining == 0 {
-                builder.push_text("…", TextStyle::default());
-                return builder.finish();
-            }
-        }
-    }
-    builder.push_text("…", TextStyle::default());
-    builder.finish()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1166,18 +943,6 @@ mod tests {
     fn one_chunk_keeps_crlf_whole_at_the_cut() {
         let document = document_from("a\r\nbbbb");
         assert_eq!(document.serialize(false), "a\r\nbbbb");
-        assert_eq!(document.within_char_budget(3, false), "a…");
-        assert_eq!(document.within_char_budget(4, false), "a\r\n…");
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn a_join_keeps_crlf_whole_at_the_cut() {
-        let joined = join_with_lf(&[document_from("a\r"), document_from("bbbb")]);
-        assert_eq!(joined.serialize(false), "a\r\nbbbb");
-        assert_eq!(joined.within_char_budget(3, false), "a…");
-        assert_eq!(joined.within_char_budget(4, false), "a\r\n…");
     }
 
     #[test]
@@ -1189,8 +954,6 @@ mod tests {
         builder.push_text("\nbbbb", TextStyle::default());
         let document = builder.finish();
         assert_eq!(document.serialize(false), "a\r\nbbbb");
-        assert_eq!(document.within_char_budget(3, false), "a…");
-        assert_eq!(document.within_char_budget(4, false), "a\r\n…");
     }
 
     #[test]
@@ -1199,8 +962,6 @@ mod tests {
     fn a_lone_cr_stays_when_the_next_character_differs() {
         let document = document_from("a\rb");
         assert_eq!(document.serialize(false), "a\rb");
-        assert_eq!(document.within_char_budget(3, false), "a\rb");
-        assert_eq!(document.within_char_budget(2, false), "a…");
     }
 
     #[test]
@@ -1212,19 +973,12 @@ mod tests {
         let document = builder.finish();
         let plain = document.serialize(false);
         let colored = document.serialize(true);
-        assert_eq!(plain, "a\\u{1b}b\\u{9f}\\u{9}\\u{7f}");
-        assert!(colored.contains("a\\u{1b}b\\u{9f}\\u{9}\\u{7f}"));
+        assert_eq!(plain, "a\\u{1b}b\\u{9f}\t\\u{7f}");
+        assert!(colored.contains("a\\u{1b}b\\u{9f}\t\\u{7f}"));
         assert!(serialization_obeys_control_rule(&plain, false));
         assert!(serialization_obeys_control_rule(&colored, true));
         assert!(!plain.chars().any(is_raw_terminal_control));
-        assert_eq!(
-            plain.chars().count(),
-            serialized_char_count(&document, false)
-        );
-        assert_eq!(
-            colored.chars().count(),
-            serialized_char_count(&document, true)
-        );
+        assert!(plain.contains('\t'));
     }
 
     #[test]
@@ -1245,18 +999,6 @@ mod tests {
             .try_finish()
             .expect_err("32 bytes cannot hold the colored run");
         assert_eq!(colored_error.kind(), io::ErrorKind::FileTooLarge);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn a_cut_in_leading_whitespace_keeps_the_spaces() {
-        let mut builder = StyledBuilder::new();
-        builder.push_text("    a", TextStyle::for_depth(0));
-        let document = builder.finish();
-        assert_eq!(document.within_char_budget(5, true), "    …");
-        assert_eq!(document.within_char_budget(4, false), "   …");
-        assert_eq!(document.within_char_budget(5, false), "    a");
     }
 
     #[test]

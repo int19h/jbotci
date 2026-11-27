@@ -252,7 +252,7 @@ mod tests {
             let rendered = render_trace_report(&report, TraceRenderOptions { color });
             assert!(rendered.contains("a\\u{1b}b"), "{rendered:?}");
             assert!(rendered.contains("c\\u{9f}"), "{rendered:?}");
-            assert!(rendered.contains("d\\u{9}"), "{rendered:?}");
+            assert!(rendered.contains("d\t"), "{rendered:?}");
             assert!(rendered.contains("e\\u{1b}"), "{rendered:?}");
             assert!(rendered.contains("f\\u{80}"), "{rendered:?}");
             assert!(rendered.contains("\\u{d}"), "{rendered:?}");
