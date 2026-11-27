@@ -380,6 +380,7 @@ pub fn word_can_enter_jvozba_pane(
 ) -> Result<bool, JvozbaError> {
     input_can_enter_jvozba_pane(
         dictionary,
+        word_text,
         ExpandedInput::for_word(dictionary, word_text),
         cancellation,
     )
@@ -393,23 +394,37 @@ pub fn entry_can_enter_jvozba_pane(
     entry_index: EntryIndex,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
-    if dictionary.entry_for_index(entry_index).is_none() {
+    let Some(entry) = dictionary.entry_for_index(entry_index) else {
         return Ok(false);
-    }
+    };
     input_can_enter_jvozba_pane(
         dictionary,
+        entry.word,
         ExpandedInput::DictionaryWord(entry_index),
         cancellation,
     )
 }
 
+/// Whether the jvozba pane admits a word.
+///
+/// A lujvo-form word is always admitted, also when a build with it can only
+/// fail, for example when one of its rafsi names no dictionary word
+/// (`lefkroli`, or the dictionary lujvo `golfyjvi`). The owner ruled so on
+/// 2026-11-26: the user sees why the word cannot build, which is better than
+/// a hidden word. The pane build then shows the error that names the rafsi.
+/// Do not make this test refuse such a word. Any other word is admitted when
+/// it gives a candidate in some position.
 #[requires(true)]
 #[ensures(true)]
 fn input_can_enter_jvozba_pane(
     dictionary: &Dictionary<'_>,
+    word_text: &str,
     input: ExpandedInput<'_>,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
+    if decompose_lujvo_like(dictionary, word_text, cancellation)?.is_some() {
+        return Ok(true);
+    }
     for is_last_input in [false, true] {
         if pane_candidate_available(candidate_list_for_input(
             JvozbaMode::Lujvo,
@@ -523,7 +538,7 @@ impl<'a> ExpandedInput<'a> {
 /// expanded strings are allocated.
 #[invariant(true)]
 #[invariant(::Plain { .. } => true)]
-#[invariant(::Decomposed { sources } => !sources.is_empty(), "a decomposed input has a source for each rafsi")]
+#[invariant(::Decomposed { sources } => sources.len() >= 2, "a decomposed input has a source for each of its two or more rafsi")]
 #[derive(Debug)]
 enum ExpansionPlan<'input> {
     Plain {
@@ -578,9 +593,10 @@ fn plan_expansion<'input>(
     };
     if let Some(text) = word_text
         && let Some(decomposition) = decompose_lujvo_like(dictionary, text, cancellation)?
-        && let Some(sources) = decomposition_sources(text, &decomposition)?
     {
-        Ok(new!(ExpansionPlan::Decomposed { sources }))
+        Ok(new!(ExpansionPlan::Decomposed {
+            sources: decomposition_sources(text, &decomposition)?,
+        }))
     } else {
         Ok(new!(ExpansionPlan::Plain { input }))
     }
@@ -588,29 +604,23 @@ fn plan_expansion<'input>(
 
 /// The source word of each rafsi of a decomposed input, in order.
 ///
-/// When no rafsi has a source, the input is not a compound of dictionary
-/// words, and it enters the build as itself (`None`). Otherwise every rafsi
+/// A lujvo-form input always expands into its source words, and every rafsi
 /// must name one word. A rafsi with no source is an error that names it, so
-/// the build never drops a part (`bolvii'ybau` has no source for `bolvii`).
-/// A fu'ivla rafsi whose sources have more than one lookup key is ambiguous.
-/// Sources that share a lookup key are one word.
+/// the build never drops a part (`bolvii'ybau` has no source for `bolvii`),
+/// and an input whose rafsi all lack sources gets the same error
+/// (`lefkroli` names `lef`). Such an input cannot enter as itself: a final
+/// brivla core of two or more rafsi can never match one input. A fu'ivla
+/// rafsi whose sources have more than one lookup key is ambiguous. Sources
+/// that share a lookup key are one word.
 #[requires(true)]
 #[ensures(match &ret {
-    Ok(Some(sources)) => sources.len() == decomposition.segments.iter().filter(|segment| segment.kind.is_rafsi()).count(),
-    Ok(None) => decomposition.segments.iter().all(|segment| segment.sources.is_empty()),
+    Ok(sources) => sources.len() == decomposition.segments.iter().filter(|segment| segment.kind.is_rafsi()).count(),
     Err(error) => matches!(error, JvozbaError::LujvoPartWithoutSource { .. } | JvozbaError::AmbiguousFuivlaRafsi { .. }),
 })]
 fn decomposition_sources(
     word: &str,
     decomposition: &LujvoDecomposition<'_>,
-) -> Result<Option<Vec<EntryIndex>>, JvozbaError> {
-    if decomposition
-        .segments
-        .iter()
-        .all(|segment| segment.sources.is_empty())
-    {
-        return Ok(None);
-    }
+) -> Result<Vec<EntryIndex>, JvozbaError> {
     let mut sources = Vec::new();
     for segment in decomposition
         .segments
@@ -620,7 +630,7 @@ fn decomposition_sources(
         let part = || canonicalize_text(segment.segment.phonemes().as_str());
         let Some(first) = segment.sources.first() else {
             return Err(JvozbaError::LujvoPartWithoutSource {
-                word: word.to_owned(),
+                word: offending_spelling(word, &normalized_spelling(word)),
                 part: part(),
             });
         };
@@ -631,7 +641,7 @@ fn decomposition_sources(
         }
         sources.push(first.entry_index);
     }
-    Ok(Some(sources))
+    Ok(sources)
 }
 
 #[requires(true)]
@@ -818,10 +828,10 @@ fn non_dictionary_word_candidates(
     let Some(word) = word_like.bare_word() else {
         return Ok(None);
     };
-    if !matches!(
-        word.kind(),
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla
-    ) {
+    // A lujvo never comes here: it always expands into its source words (see
+    // `decomposition_sources`), so only a gismu or a fu'ivla can be an
+    // unlisted final brivla core.
+    if !matches!(word.kind(), WordKind::Gismu | WordKind::Fuhivla) {
         return Ok(None);
     }
     Ok(Some(vec![new!(LujvoBuildPart::BrivlaCore(
@@ -2306,6 +2316,80 @@ mod tests {
                 "{error:?}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_lujvo_with_no_sourced_rafsi_names_its_first_part() {
+        // Round 2 of #1149: `lefkroli` splits into `lef` and `kroli`, and
+        // neither names a dictionary word. The input still expands, so every
+        // position, mode and partner gets the error that names `lef`. As a
+        // final brivla core it could never build, because its two rafsi
+        // cannot match one input.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let rafsi = |text: &str| JvozbaInput::FixedRafsi(text.to_owned());
+        let expected = JvozbaError::LujvoPartWithoutSource {
+            word: "lefkroli".to_owned(),
+            part: "lef".to_owned(),
+        };
+        for mode in [JvozbaMode::Lujvo, JvozbaMode::Cmevla] {
+            for inputs in [
+                vec![word("lefkroli"), word("bajra")],
+                vec![word("bajra"), word("lefkroli")],
+                vec![word("bajra"), word("lefkroli"), word("klama")],
+                vec![word("bajra"), word("klama"), word("lefkroli")],
+                vec![rafsi("baj"), word("lefkroli")],
+            ] {
+                let error = build_best_jvozba_detailed(mode, dictionary, &inputs, &token)
+                    .expect_err("lefkroli has no sourced rafsi");
+                assert_eq!(error, expected, "{mode:?} {inputs:?}");
+            }
+        }
+        // The error names the word in its normalized spelling, as the
+        // other errors do.
+        let error = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[word(" .LEFKLA. "), word("bajra")],
+            &token,
+        )
+        .expect_err("lef has no source");
+        assert_eq!(
+            error.to_string(),
+            "The rafsi `lef` in `lefkla` names no dictionary word."
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_pane_admits_a_lujvo_that_can_only_report_its_missing_part() {
+        // Owner ruling for #1149 round 2: keep the "add to jvozba" control for
+        // such a word, and show the error when the pane builds.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        for text in ["lefkroli", "lefkla", "golfyjvi", "bolvii'ybau"] {
+            assert_eq!(
+                word_can_enter_jvozba_pane(dictionary, text, &token),
+                Ok(true),
+                "{text}"
+            );
+        }
+        let entry_index = dictionary
+            .lookup_word_index("golfyjvi")
+            .expect("golfyjvi entry");
+        assert_eq!(
+            entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
+            Ok(true)
+        );
+        // A word with no candidate in any position stays out.
+        assert_eq!(
+            word_can_enter_jvozba_pane(dictionary, "lefmeq", &token),
+            Ok(false)
+        );
     }
 
     #[test]
