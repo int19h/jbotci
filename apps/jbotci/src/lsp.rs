@@ -180,24 +180,6 @@ struct DocumentStore {
     documents: Arc<Mutex<HashMap<Url, DocumentState>>>,
     next_epoch: Arc<AtomicU64>,
     worker_permits: Arc<Semaphore>,
-    /// The next analysis job panics once.
-    ///
-    /// Production builds leave this flag clear.
-    #[cfg(test)]
-    fail_next_analysis: Arc<AtomicBool>,
-    /// The next blocking analysis job waits until the test releases it.
-    ///
-    /// The pair is the arrival signal and the release wait.
-    /// Production builds omit this gate.
-    #[cfg(test)]
-    analysis_hold: Arc<
-        Mutex<
-            Option<(
-                std::sync::mpsc::SyncSender<()>,
-                std::sync::mpsc::Receiver<()>,
-            )>,
-        >,
-    >,
 }
 
 #[invariant(true)]
@@ -325,16 +307,25 @@ impl DocumentStore {
             documents: Arc::new(Mutex::new(HashMap::new())),
             next_epoch: Arc::new(AtomicU64::new(1)),
             worker_permits,
-            #[cfg(test)]
-            fail_next_analysis: Arc::new(AtomicBool::new(false)),
-            #[cfg(test)]
-            analysis_hold: Arc::new(Mutex::new(None)),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn open(&self, uri: Url, text: String, version: i32, publisher: DiagnosticsPublisher) {
+    fn open(
+        &self,
+        uri: Url,
+        text: String,
+        version: i32,
+        publisher: DiagnosticsPublisher,
+        prepare: impl for<'snapshot> FnOnce(
+            Option<&'snapshot DocumentSnapshot>,
+            String,
+            i64,
+        ) -> PreparedDocumentAnalysis
+        + Send
+        + 'static,
+    ) {
         let epoch = self
             .next_epoch
             .fetch_update(AtomicOrdering::Relaxed, AtomicOrdering::Relaxed, |epoch| {
@@ -368,7 +359,7 @@ impl DocumentStore {
             );
             generation
         };
-        self.schedule_analysis(uri, generation, publisher);
+        self.schedule_analysis(uri, generation, publisher, prepare);
     }
 
     /// Apply a versioned notification atomically. Stale versions and inverted ranges are rejected.
@@ -381,6 +372,13 @@ impl DocumentStore {
         changes: Vec<TextDocumentContentChangeEvent>,
         encoding: PositionEncoding,
         publisher: DiagnosticsPublisher,
+        prepare: impl for<'snapshot> FnOnce(
+            Option<&'snapshot DocumentSnapshot>,
+            String,
+            i64,
+        ) -> PreparedDocumentAnalysis
+        + Send
+        + 'static,
     ) -> bool {
         let generation = {
             let mut documents = self.documents.lock().expect("document store poisoned");
@@ -411,7 +409,7 @@ impl DocumentStore {
             document.confirmed.send_replace(None);
             document.generation
         };
-        self.schedule_analysis(uri.clone(), generation, publisher);
+        self.schedule_analysis(uri.clone(), generation, publisher, prepare);
         true
     }
 
@@ -428,16 +426,29 @@ impl DocumentStore {
         true
     }
 
+    /// `prepare` turns the current text into an analysis.
+    ///
+    /// Production passes `PreparedDocumentAnalysis::prepare`.
+    /// A test passes its own function.
+    /// Generation checks, permits, the exit guard, and publication stay in this function.
     #[requires(true)]
     #[ensures(true)]
-    fn schedule_analysis(&self, uri: Url, generation: u64, publisher: DiagnosticsPublisher) {
+    fn schedule_analysis(
+        &self,
+        uri: Url,
+        generation: u64,
+        publisher: DiagnosticsPublisher,
+        prepare: impl for<'snapshot> FnOnce(
+            Option<&'snapshot DocumentSnapshot>,
+            String,
+            i64,
+        ) -> PreparedDocumentAnalysis
+        + Send
+        + 'static,
+    ) {
         let store = self.clone();
         let task_uri = uri.clone();
         let permits = Arc::clone(&self.worker_permits);
-        #[cfg(test)]
-        let fail_analysis = Arc::clone(&self.fail_next_analysis);
-        #[cfg(test)]
-        let analysis_hold = Arc::clone(&self.analysis_hold);
         let task = tokio::spawn(async move {
             let debounce_deadline = tokio::time::Instant::now() + DEBOUNCE_DELAY;
             let Some((text, version, confirmed, epoch)) =
@@ -455,21 +466,7 @@ impl DocumentStore {
                 AtomicBool::new(false),
             );
             let prepared = match run_with_worker_permit(Arc::clone(&permits), move || {
-                #[cfg(test)]
-                {
-                    // Stop before prepare so a test can poll a request that is waiting.
-                    let hold = analysis_hold.lock().expect("analysis hold poisoned").take();
-                    if let Some((arrived, release)) = hold {
-                        arrived
-                            .send(())
-                            .expect("the test waits for the analysis job");
-                        release.recv().expect("the test releases the analysis job");
-                    }
-                    if fail_analysis.swap(false, AtomicOrdering::SeqCst) {
-                        panic!("test analysis failure");
-                    }
-                }
-                PreparedDocumentAnalysis::prepare(confirmed.as_deref(), text, i64::from(version))
+                prepare(confirmed.as_deref(), text, i64::from(version))
             })
             .await
             {
@@ -852,6 +849,7 @@ impl ServerState {
             document.text,
             document.version,
             Arc::clone(&self.diagnostics_publisher),
+            PreparedDocumentAnalysis::prepare,
         );
     }
 
@@ -877,6 +875,7 @@ impl ServerState {
             params.content_changes,
             self.position_encoding,
             Arc::clone(&self.diagnostics_publisher),
+            PreparedDocumentAnalysis::prepare,
         );
     }
 
@@ -1946,18 +1945,6 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn arm_analysis_hold(
-        store: &DocumentStore,
-    ) -> (std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
-        let (arrived_tx, arrived_rx) = std::sync::mpsc::sync_channel(1);
-        let (release_tx, release_rx) = std::sync::mpsc::channel();
-        *store.analysis_hold.lock().expect("analysis hold poisoned") =
-            Some((arrived_tx, release_rx));
-        (arrived_rx, release_tx)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     async fn wait_for_signal(receiver: std::sync::mpsc::Receiver<()>, failure: &'static str) {
         tokio::task::spawn_blocking(move || receiver.recv_timeout(Duration::from_secs(5)))
             .await
@@ -1981,16 +1968,25 @@ mod tests {
     #[ensures(true)]
     async fn a_panicked_analysis_ends_feature_and_diagnostic_waits() {
         let store = DocumentStore::new();
-        let (arrived, release) = arm_analysis_hold(&store);
-        store.fail_next_analysis.store(true, AtomicOrdering::SeqCst);
         let uri = Url::parse("file:///panicked-analysis.jbo").expect("valid test URI");
+        let (arrived_tx, arrived_rx) = std::sync::mpsc::sync_channel(1);
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
         store.open(
             uri.clone(),
             "mi klama".to_owned(),
             1,
             no_diagnostics_publisher(),
+            move |_confirmed: Option<&DocumentSnapshot>, _text, _version| {
+                arrived_tx
+                    .send(())
+                    .expect("the test waits for the analysis job");
+                release_rx
+                    .recv()
+                    .expect("the test releases the analysis job");
+                panic!("test analysis failure");
+            },
         );
-        wait_for_signal(arrived, "analysis did not reach the failure").await;
+        wait_for_signal(arrived_rx, "analysis did not reach the failure").await;
         {
             let documents = store.documents.lock().expect("document store poisoned");
             let document = documents.get(&uri).expect("open document");
@@ -2009,7 +2005,7 @@ mod tests {
             "the diagnostic request must wait before the failure"
         );
 
-        release.send(()).expect("release the analysis failure");
+        release_tx.send(()).expect("release the analysis failure");
         let feature = tokio::time::timeout(Duration::from_secs(5), feature)
             .await
             .expect("feature wait ends");
@@ -2033,6 +2029,7 @@ mod tests {
             old_source.to_owned(),
             1,
             no_diagnostics_publisher(),
+            PreparedDocumentAnalysis::prepare,
         );
         let initial = store
             .diagnostics_for_current(&uri)
@@ -2040,7 +2037,8 @@ mod tests {
             .expect("initial confirmation");
         assert_eq!(initial.phase, PublishedDiagnosticPhase::Confirmed);
 
-        let (job_arrived, job_release) = arm_analysis_hold(&store);
+        let (job_arrived_tx, job_arrived_rx) = std::sync::mpsc::sync_channel(1);
+        let (job_release_tx, job_release_rx) = std::sync::mpsc::channel();
         let (arrived_tx, arrived_rx) = std::sync::mpsc::sync_channel(1);
         let (release_tx, release_rx) = std::sync::mpsc::channel();
         let release_rx = Mutex::new(Some(release_rx));
@@ -2066,8 +2064,17 @@ mod tests {
             }],
             PositionEncoding::Utf16,
             publisher,
+            move |confirmed, text, version| {
+                job_arrived_tx
+                    .send(())
+                    .expect("the test waits for the analysis job");
+                job_release_rx
+                    .recv()
+                    .expect("the test releases the analysis job");
+                PreparedDocumentAnalysis::prepare(confirmed, text, version)
+            },
         ));
-        wait_for_signal(job_arrived, "analysis did not reach the hold").await;
+        wait_for_signal(job_arrived_rx, "analysis did not reach the hold").await;
         {
             // The edit cleared diagnostics. The previous tree is still stored.
             // Remove that tree so the feature request has to wait.
@@ -2087,7 +2094,7 @@ mod tests {
             poll_now(diagnostics.as_mut()).is_pending(),
             "the diagnostic request must wait before publication"
         );
-        job_release.send(()).expect("release the analysis hold");
+        job_release_tx.send(()).expect("release the analysis hold");
         wait_for_signal(arrived_rx, "publisher did not arrive").await;
         {
             let documents = store.documents.lock().expect("document store poisoned");
@@ -2166,6 +2173,7 @@ mod tests {
             "mi ku i do".to_owned(),
             1,
             Arc::clone(&publisher),
+            PreparedDocumentAnalysis::prepare,
         );
         assert!(store.change(
             &uri,
@@ -2177,6 +2185,7 @@ mod tests {
             }],
             PositionEncoding::Utf16,
             publisher,
+            PreparedDocumentAnalysis::prepare,
         ));
 
         let snapshot = store
@@ -2206,6 +2215,7 @@ mod tests {
             old_source.to_owned(),
             1,
             Arc::clone(&publisher),
+            PreparedDocumentAnalysis::prepare,
         );
         let initial = store
             .diagnostics_for_current(&uri)
@@ -2223,6 +2233,7 @@ mod tests {
             }],
             PositionEncoding::Utf16,
             publisher,
+            PreparedDocumentAnalysis::prepare,
         ));
 
         let provisional = store
@@ -2279,6 +2290,7 @@ mod tests {
             new_source.to_owned(),
             2,
             no_diagnostics_publisher(),
+            PreparedDocumentAnalysis::prepare,
         );
         let reopened = store
             .diagnostics_for_current(&uri)
