@@ -2,7 +2,8 @@ use std::collections::HashSet;
 
 use bityzba::{data, invariant, new, requires};
 use jbotci_dictionary::{
-    Dictionary, DictionaryEntry, DictionaryLujvoEntry, DictionaryLujvoSegmentKind, EntryIndex, Keyword, LookupPatternError, LookupPatternPart, WordType, normalize_lookup_pattern, normalize_lookup_query,
+    Dictionary, DictionaryEntry, DictionaryLujvoEntry, EntryIndex, Keyword, LookupPatternError,
+    LookupPatternPart, WordType, normalize_lookup_pattern, normalize_lookup_query,
 };
 use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};

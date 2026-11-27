@@ -81,6 +81,7 @@ pub enum JvozbaSegmentKind {
 #[invariant(true)]
 #[invariant(::RequiresAtLeastTwoInputs => true)]
 #[invariant(::FixedRafsiEmpty => true)]
+#[invariant(::WordEmpty => true)]
 #[invariant(::NonFinalUniversalLongRafsi { .. } => true)]
 #[invariant(::FinalConsonant { .. } => true)]
 #[invariant(::NoRafsiAvailable { .. } => true)]
@@ -97,6 +98,8 @@ pub enum JvozbaError {
     RequiresAtLeastTwoInputs,
     #[error("Fixed rafsi cannot be empty.")]
     FixedRafsiEmpty,
+    #[error("A word input cannot be empty.")]
+    WordEmpty,
     #[error("Fixed rafsi `{offending}` can only appear at the end of a lujvo.")]
     NonFinalUniversalLongRafsi { offending: String },
     #[error("{message}", message = render_final_consonant_message(offending, *is_fixed_rafsi))]
@@ -645,6 +648,9 @@ fn plan_expansion<'input>(
     cancellation: &CancellationToken,
 ) -> Result<ExpansionPlan<'input>, JvozbaError> {
     let (input, word_text) = match input {
+        // A word of spaces only names nothing. A word of other characters that
+        // normalize to nothing keeps its typed spelling in the error.
+        JvozbaInput::Word(text) if text.trim().is_empty() => return Err(JvozbaError::WordEmpty),
         JvozbaInput::Word(text) => (ExpandedInput::for_word(dictionary, text), Some(text)),
         JvozbaInput::DictionaryWord { entry_index, word } => {
             if !dictionary
@@ -1394,9 +1400,40 @@ mod tests {
         assert_eq!(
             error,
             JvozbaError::NoDictionaryEntry {
-                offending: String::new()
+                offending: ",".to_owned()
             }
         );
+        assert_eq!(error.to_string(), "No dictionary entry for `,`.");
+        // Spaces around removed marks do not make a name, and a word of
+        // spaces only is empty.
+        for (word, expected) in [
+            (
+                " , ",
+                JvozbaError::NoDictionaryEntry {
+                    offending: ",".to_owned(),
+                },
+            ),
+            (
+                " \u{0301} ",
+                JvozbaError::NoDictionaryEntry {
+                    offending: "\u{0301}".to_owned(),
+                },
+            ),
+            ("   ", JvozbaError::WordEmpty),
+            ("", JvozbaError::WordEmpty),
+        ] {
+            let error = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::Word(word.to_owned()),
+                    JvozbaInput::Word("klama".to_owned()),
+                ],
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect_err("no letters");
+            assert_eq!(error, expected, "{word:?}");
+        }
     }
 
     /// The figures the Discord service uses, so the boundaries these tests

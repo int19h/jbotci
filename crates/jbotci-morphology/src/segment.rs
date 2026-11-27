@@ -352,14 +352,14 @@ pub(crate) fn walk_converter_units<E>(
     mut on_step: impl FnMut(ConverterStep) -> Result<(), E>,
 ) -> Result<(), E> {
     let mut previous_implicit_apostrophe_vowel = false;
-    let mut letter = |start: usize,
-                      end: usize,
-                      source_value: char,
-                      value: char,
-                      ends_unit: bool,
-                      implicit_apostrophe_vowel: bool,
-                      previous: &mut bool,
-                      on_step: &mut dyn FnMut(ConverterStep) -> Result<(), E>|
+    let letter = |start: usize,
+                  end: usize,
+                  source_value: char,
+                  value: char,
+                  ends_unit: bool,
+                  implicit_apostrophe_vowel: bool,
+                  previous: &mut bool,
+                  on_step: &mut dyn FnMut(ConverterStep) -> Result<(), E>|
      -> Result<(), E> {
         if *previous && implicit_apostrophe_vowel {
             // The implicit apostrophe belongs to the vowel's unit, so it never
