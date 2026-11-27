@@ -2,6 +2,7 @@
 use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use std::{
     borrow::Cow,
+    fmt,
     hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -118,14 +119,13 @@ impl<'a, T: Clone> IntoIterator for &'a mut SharedVec<T> {
 /// keeps each snapshot constant-size instead of copying the complete active
 /// path into every failure memo.
 #[invariant(head.is_some() == (*len > 0))]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone)]
 pub(super) struct SharedStack<T> {
     head: Option<Rc<SharedStackNode<T>>>,
     len: usize,
 }
 
 #[invariant(true)]
-#[derive(Debug, PartialEq, Eq, Hash)]
 struct SharedStackNode<T> {
     value: T,
     parent: Option<Rc<SharedStackNode<T>>>,
@@ -234,6 +234,95 @@ impl<T> Default for SharedStack<T> {
     fn default() -> Self {
         Self::empty()
     }
+}
+
+impl<T: PartialEq> PartialEq for SharedStack<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+        let mut left = self.head.as_ref();
+        let mut right = other.head.as_ref();
+        while let (Some(left_node), Some(right_node)) = (left, right) {
+            if Rc::ptr_eq(left_node, right_node) {
+                return true;
+            }
+            if left_node.value != right_node.value {
+                return false;
+            }
+            left = left_node.parent.as_ref();
+            right = right_node.parent.as_ref();
+        }
+        left.is_none() && right.is_none()
+    }
+}
+
+impl<T: Eq> Eq for SharedStack<T> {}
+
+impl<T: Hash> Hash for SharedStack<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.len().hash(state);
+        let mut node = self.head.as_ref();
+        while let Some(current) = node {
+            current.value.hash(state);
+            node = current.parent.as_ref();
+        }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for SharedStack<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SharedStack")
+            .field("head", &self.head)
+            .field("len", &self.len)
+            .finish()
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for SharedStackNode<T> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut values = Vec::new();
+        let mut node = Some(self);
+        while let Some(current) = node {
+            values.push(&current.value);
+            node = current.parent.as_deref();
+        }
+        formatter.write_str("SharedStackNode { value: ")?;
+        values[0].fmt(formatter)?;
+        formatter.write_str(", parent: ")?;
+        write_shared_stack_parents(formatter, &values[1..])?;
+        formatter.write_str(" }")
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn write_shared_stack_parents<T: fmt::Debug>(
+    formatter: &mut fmt::Formatter<'_>,
+    values: &[&T],
+) -> fmt::Result {
+    if values.is_empty() {
+        return formatter.write_str("None");
+    }
+    for value in values {
+        formatter.write_str("Some(SharedStackNode { value: ")?;
+        value.fmt(formatter)?;
+        formatter.write_str(", parent: ")?;
+    }
+    formatter.write_str("None")?;
+    for _ in values {
+        formatter.write_str(" })")?;
+    }
+    Ok(())
 }
 
 /// The parent chain is one link per parser frame.
@@ -1609,6 +1698,32 @@ mod tests {
         }
         assert_eq!(stack.len(), 512);
         drop(stack);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_shared_stack_equality_stays_on_the_default_test_stack() {
+        let mut left = SharedStack::<u32>::empty();
+        let mut right = SharedStack::<u32>::empty();
+        for index in 0..16_384u32 {
+            left = left.pushed(index);
+            right = right.pushed(index);
+        }
+        assert_eq!(left, right);
+        assert_ne!(left, right.popped());
+        let shared = left.popped();
+        let first = shared.pushed(7);
+        let second = shared.pushed(7);
+        assert_eq!(first, second);
+        assert_eq!(first, first);
+        let mut left_hash = std::collections::hash_map::DefaultHasher::new();
+        let mut right_hash = std::collections::hash_map::DefaultHasher::new();
+        left.hash(&mut left_hash);
+        right.hash(&mut right_hash);
+        assert_eq!(left_hash.finish(), right_hash.finish());
+        let rendered = format!("{first:?}");
+        assert!(rendered.starts_with("SharedStack { head: Some(SharedStackNode { value: 7"));
     }
 
     #[test]

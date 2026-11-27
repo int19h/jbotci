@@ -56,12 +56,12 @@ impl BreadthWalker {
 #[cfg(test)]
 /// The source value supplied by a wrapper; skipped prefix input is not itself entry evidence.
 #[requires(true)]
-#[ensures(ret.is_none() == matches!(node, recovered::Recovered::Error(_)))]
+#[ensures(ret.is_none() == matches!(node, recovered::Recovered::Error(_) | recovered::Recovered::Released))]
 fn parsed_value<T>(node: &recovered::Recovered<T>) -> Option<&T> {
     match node {
         recovered::Recovered::Valid(value) => Some(value),
         recovered::Recovered::Prefix(prefix) => Some(&prefix.value),
-        recovered::Recovered::Error(_) => None,
+        recovered::Recovered::Error(_) | recovered::Recovered::Released => None,
     }
 }
 

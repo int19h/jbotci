@@ -407,6 +407,36 @@ fn release_option(
             releases: true,
         };
     }
+    if recovered_node(inner, node_names, aliases).is_some() {
+        return Release {
+            code: quote! {
+                if let Some(__jbotci_recovered) = #place.take() {
+                    ::jbotci_tree::node_drop::enqueue_taken_recovered(__jbotci_recovered);
+                }
+            },
+            releases: true,
+        };
+    }
+    if box_of_recovered_node(inner, node_names, aliases).is_some() {
+        return Release {
+            code: quote! {
+                if let Some(__jbotci_boxed) = #place.take() {
+                    ::jbotci_tree::node_drop::enqueue_taken_recovered(*__jbotci_boxed);
+                }
+            },
+            releases: true,
+        };
+    }
+    if recovered_of_boxed_node(inner, node_names, aliases).is_some() {
+        return Release {
+            code: quote! {
+                if let Some(__jbotci_recovered) = #place.take() {
+                    ::jbotci_tree::node_drop::enqueue_taken_boxed_recovered(__jbotci_recovered);
+                }
+            },
+            releases: true,
+        };
+    }
     let inner_release = release_type_seen(
         inner,
         quote!(__jbotci_item),
@@ -548,6 +578,36 @@ fn release_sequence(
             releases: true,
         };
     }
+    if can_take && recovered_node(elem, node_names, aliases).is_some() {
+        return Release {
+            code: quote! {
+                for __jbotci_recovered in ::std::mem::take(#place) {
+                    ::jbotci_tree::node_drop::enqueue_taken_recovered(__jbotci_recovered);
+                }
+            },
+            releases: true,
+        };
+    }
+    if can_take && box_of_recovered_node(elem, node_names, aliases).is_some() {
+        return Release {
+            code: quote! {
+                for __jbotci_boxed in ::std::mem::take(#place) {
+                    ::jbotci_tree::node_drop::enqueue_taken_recovered(*__jbotci_boxed);
+                }
+            },
+            releases: true,
+        };
+    }
+    if can_take && recovered_of_boxed_node(elem, node_names, aliases).is_some() {
+        return Release {
+            code: quote! {
+                for __jbotci_recovered in ::std::mem::take(#place) {
+                    ::jbotci_tree::node_drop::enqueue_taken_boxed_recovered(__jbotci_recovered);
+                }
+            },
+            releases: true,
+        };
+    }
     let inner = release_type_seen(
         elem,
         quote!(__jbotci_item),
@@ -581,6 +641,18 @@ fn release_recovered(
     let Some(inner) = inner else {
         return empty_release();
     };
+    if is_node(inner, node_names, aliases) {
+        return Release {
+            code: quote!(::jbotci_tree::node_drop::enqueue_recovered_node(#place);),
+            releases: true,
+        };
+    }
+    if box_of_node(inner, node_names, aliases).is_some() {
+        return Release {
+            code: quote!(::jbotci_tree::node_drop::enqueue_recovered_boxed_node(#place);),
+            releases: true,
+        };
+    }
     let valid = release_type_seen(
         inner,
         quote!(__jbotci_recovered.as_mut()),
@@ -605,7 +677,7 @@ fn release_recovered(
             match #place {
                 ::jbotci_tree::Recovered::Valid(__jbotci_recovered) => { #valid_code }
                 ::jbotci_tree::Recovered::Prefix(__jbotci_prefix) => { #prefix_code }
-                ::jbotci_tree::Recovered::Error(_) => {}
+                ::jbotci_tree::Recovered::Error(_) | ::jbotci_tree::Recovered::Released => {}
             }
         },
         releases: true,
@@ -698,6 +770,44 @@ fn box_of_node<'a>(
     }
     let inner = type_arguments(&segment.arguments).into_iter().next()?;
     is_node(inner, node_names, aliases).then_some(inner)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn box_of_recovered_node<'a>(
+    ty: &'a Type,
+    node_names: &BTreeSet<String>,
+    aliases: &BTreeMap<String, Type>,
+) -> Option<&'a Type> {
+    let inner = wrapper_type_argument(ty, "Box")?;
+    recovered_node(inner, node_names, aliases)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_of_boxed_node<'a>(
+    ty: &'a Type,
+    node_names: &BTreeSet<String>,
+    aliases: &BTreeMap<String, Type>,
+) -> Option<&'a Type> {
+    let inner = wrapper_type_argument(ty, "Recovered")?;
+    box_of_node(inner, node_names, aliases)
+}
+
+#[requires(!name.is_empty())]
+#[ensures(true)]
+fn wrapper_type_argument<'a>(ty: &'a Type, name: &str) -> Option<&'a Type> {
+    let Type::Path(path) = ty else {
+        return None;
+    };
+    if path.qself.is_some() {
+        return None;
+    }
+    let segment = path.path.segments.last()?;
+    if segment.ident != name {
+        return None;
+    }
+    type_arguments(&segment.arguments).into_iter().next()
 }
 
 #[requires(true)]

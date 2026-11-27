@@ -169,6 +169,7 @@ fn map_recovered<T, U>(
             prefix.errors.into_vec(),
             Box::new(convert(*prefix.value)),
         ),
+        recovered::Recovered::Released => panic!("released recovery slot has no value"),
     }
 }
 

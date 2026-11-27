@@ -72,10 +72,45 @@ fn tree_stack_allocation() -> (usize, usize) {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Chain<E, Links> {
     pub first: E,
     pub links: Links,
+}
+
+impl<E: Clone, Links: Clone> Clone for Chain<E, Links> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        with_tree_stack(|| Self {
+            first: self.first.clone(),
+            links: self.links.clone(),
+        })
+    }
+}
+
+impl<E: PartialEq, Links: PartialEq> PartialEq for Chain<E, Links> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn eq(&self, other: &Self) -> bool {
+        with_tree_stack(|| self.first == other.first && self.links == other.links)
+    }
+}
+
+impl<E: Eq, Links: Eq> Eq for Chain<E, Links> {}
+
+impl<E: fmt::Debug, Links: fmt::Debug> fmt::Debug for Chain<E, Links> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        with_tree_stack(|| {
+            formatter
+                .debug_struct("Chain")
+                .field("first", &self.first)
+                .field("links", &self.links)
+                .finish()
+        })
+    }
 }
 
 impl<E, Links> Chain<E, Links> {
@@ -222,22 +257,111 @@ fn zero_width_missing_marker(item: &impl RecoveryItemState) -> Option<MissingRec
 #[invariant(::Valid(_) => true)]
 #[invariant(::Error(_) => true)]
 #[invariant(::Prefix(_) => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(::Released => true)]
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
 pub enum Recovered<T, E> {
     Valid(Box<T>),
     Error(E),
     Prefix(RecoveredPrefix<T, E>),
+    /// Stand-in left in a slot after the drop queue takes the node.
+    Released,
+}
+
+impl<T: Clone, E: Clone> Clone for Recovered<T, E> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        with_tree_stack(|| match self {
+            Self::Valid(value) => Self::Valid(value.clone()),
+            Self::Error(error) => Self::Error(error.clone()),
+            Self::Prefix(prefix) => Self::Prefix(prefix.clone()),
+            Self::Released => Self::Released,
+        })
+    }
+}
+
+impl<T: PartialEq, E: PartialEq> PartialEq for Recovered<T, E> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn eq(&self, other: &Self) -> bool {
+        with_tree_stack(|| match (self, other) {
+            (Self::Valid(left), Self::Valid(right)) => left == right,
+            (Self::Error(left), Self::Error(right)) => left == right,
+            (Self::Prefix(left), Self::Prefix(right)) => left == right,
+            (Self::Released, Self::Released) => true,
+            _ => false,
+        })
+    }
+}
+
+impl<T: Eq, E: Eq> Eq for Recovered<T, E> {}
+
+impl<T: fmt::Debug, E: fmt::Debug> fmt::Debug for Recovered<T, E> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        with_tree_stack(|| match self {
+            Self::Valid(value) => formatter
+                .debug_tuple("Recovered::Valid")
+                .field(value)
+                .finish(),
+            Self::Error(error) => formatter
+                .debug_tuple("Recovered::Error")
+                .field(error)
+                .finish(),
+            Self::Prefix(prefix) => formatter
+                .debug_tuple("Recovered::Prefix")
+                .field(prefix)
+                .finish(),
+            Self::Released => formatter.write_str("Recovered::Released"),
+        })
+    }
 }
 
 /// A recovered value parsed after one or more prefix recovery items.
 ///
 /// The non-empty error-list invariant is encoded by `Vec1`.
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct RecoveredPrefix<T, E> {
     pub errors: Vec1<E>,
     pub value: Box<T>,
+}
+
+impl<T: Clone, E: Clone> Clone for RecoveredPrefix<T, E> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn clone(&self) -> Self {
+        with_tree_stack(|| Self {
+            errors: self.errors.clone(),
+            value: self.value.clone(),
+        })
+    }
+}
+
+impl<T: PartialEq, E: PartialEq> PartialEq for RecoveredPrefix<T, E> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn eq(&self, other: &Self) -> bool {
+        with_tree_stack(|| self.errors == other.errors && self.value == other.value)
+    }
+}
+
+impl<T: Eq, E: Eq> Eq for RecoveredPrefix<T, E> {}
+
+impl<T: fmt::Debug, E: fmt::Debug> fmt::Debug for RecoveredPrefix<T, E> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        with_tree_stack(|| {
+            formatter
+                .debug_struct("RecoveredPrefix")
+                .field("errors", &self.errors)
+                .field("value", &self.value)
+                .finish()
+        })
+    }
 }
 
 #[contract_trait]
@@ -253,6 +377,7 @@ where
             Self::Valid(value) => value.recovery_error_slots(),
             Self::Error(_) => 1,
             Self::Prefix(prefix) => prefix.errors.len() + prefix.value.recovery_error_slots(),
+            Self::Released => 0,
         })
     }
 
@@ -272,25 +397,7 @@ where
                     .count()
                     + prefix.value.missing_error_slots()
             }
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(ret == self.recovery_error_slots().saturating_sub(self.missing_error_slots()))]
-    fn invalid_error_slots(&self) -> usize {
-        with_tree_stack(|| match self {
-            Self::Valid(value) => value.invalid_error_slots(),
-            Self::Error(item) => {
-                usize::from(item.recovery_item_kind() == RecoveryItemKind::Invalid)
-            }
-            Self::Prefix(prefix) => {
-                prefix
-                    .errors
-                    .iter()
-                    .filter(|item| item.recovery_item_kind() == RecoveryItemKind::Invalid)
-                    .count()
-                    + prefix.value.invalid_error_slots()
-            }
+            Self::Released => 0,
         })
     }
 }
@@ -313,14 +420,6 @@ where
     fn missing_error_slots(&self) -> usize {
         with_tree_stack(|| self.as_ref().missing_error_slots())
     }
-
-    // The body is the child count.
-    // A postcondition that calls the same method repeats the child at every box.
-    #[requires(true)]
-    #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
-        with_tree_stack(|| self.as_ref().invalid_error_slots())
-    }
 }
 
 #[contract_trait]
@@ -340,14 +439,6 @@ where
     #[ensures(true)]
     fn missing_error_slots(&self) -> usize {
         with_tree_stack(|| self.as_ref().missing_error_slots())
-    }
-
-    // The body is the child count.
-    // A postcondition that calls the same method repeats the child at every arc.
-    #[requires(true)]
-    #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
-        with_tree_stack(|| self.as_ref().invalid_error_slots())
     }
 }
 
@@ -373,15 +464,6 @@ where
                 .map_or(0, RecoveredFieldState::missing_error_slots)
         })
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
-        with_tree_stack(|| {
-            self.as_ref()
-                .map_or(0, RecoveredFieldState::invalid_error_slots)
-        })
-    }
 }
 
 #[contract_trait]
@@ -402,14 +484,6 @@ where
     fn missing_error_slots(&self) -> usize {
         self.iter()
             .map(RecoveredFieldState::missing_error_slots)
-            .sum()
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
-        self.iter()
-            .map(RecoveredFieldState::invalid_error_slots)
             .sum()
     }
 }
@@ -435,12 +509,27 @@ where
             .map(RecoveredFieldState::missing_error_slots)
             .sum()
     }
+}
+
+#[contract_trait]
+impl<A> RecoveredFieldState for vec1::smallvec_v1::SmallVec1<A>
+where
+    A: smallvec::Array,
+    A::Item: RecoveredFieldState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::recovery_error_slots)
+            .sum()
+    }
 
     #[requires(true)]
     #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
+    fn missing_error_slots(&self) -> usize {
         self.iter()
-            .map(RecoveredFieldState::invalid_error_slots)
+            .map(RecoveredFieldState::missing_error_slots)
             .sum()
     }
 }
@@ -465,14 +554,6 @@ where
             .map(RecoveredFieldState::missing_error_slots)
             .sum()
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
-        self.iter()
-            .map(RecoveredFieldState::invalid_error_slots)
-            .sum()
-    }
 }
 
 #[contract_trait]
@@ -491,12 +572,6 @@ where
     #[ensures(true)]
     fn missing_error_slots(&self) -> usize {
         with_tree_stack(|| self.first.missing_error_slots() + self.links.missing_error_slots())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
-        with_tree_stack(|| self.first.invalid_error_slots() + self.links.invalid_error_slots())
     }
 }
 
@@ -544,12 +619,6 @@ macro_rules! impl_recovered_field_state_for_tuple {
             #[ensures(true)]
             fn missing_error_slots(&self) -> usize {
                 with_tree_stack(|| 0usize $(+ self.$index.missing_error_slots())+)
-            }
-
-            #[requires(true)]
-            #[ensures(true)]
-            fn unconsumed_missing_error_slots(&self) -> usize {
-                with_tree_stack(|| 0usize $(+ self.$index.unconsumed_missing_error_slots())+)
             }
         }
     };
@@ -625,6 +694,7 @@ impl<T, E> Recovered<T, E> {
                 let mut errors = prefix.errors.into_vec();
                 Err(RecoveryError::new(path.clone(), errors.remove(0)))
             }
+            Self::Released => panic!("released recovery slot has no value"),
         }
     }
 
@@ -642,6 +712,7 @@ impl<T, E> Recovered<T, E> {
                 let mut errors = prefix.errors.into_vec();
                 Err(RecoveryError::new(path.clone(), errors.remove(0)))
             }
+            Self::Released => panic!("released recovery slot has no value"),
         }
     }
 }
@@ -1855,6 +1926,27 @@ mod deep_drop {
         pub struct ModifierLink {
             pub next: Option<WithFreeModifiers<Arc<ModifierLink>, Arc<ModifierLink>>>,
         }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[allow(dead_code)]
+        #[invariant(true)]
+        pub struct VecLink {
+            pub next: Vec<VecLink>,
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[allow(dead_code)]
+        #[invariant(true)]
+        pub struct DirectLink {
+            pub inner: InnerLink,
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[allow(dead_code)]
+        #[invariant(true)]
+        pub struct InnerLink {
+            pub next: Option<Box<DirectLink>>,
+        }
     }
 
     // The field is `Vec<F>`. The type argument is the element, not the field.
@@ -1923,6 +2015,65 @@ mod deep_drop {
         for _ in 0..DEEP_LINKS {
             next = Some(Arc::new(recovered::Recovered::Valid(Box::new(
                 recovered::ArcLink { next },
+            ))));
+        }
+        drop(next);
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_box_chain_drops_on_the_default_test_stack() {
+        let mut next = None;
+        for _ in 0..DEEP_LINKS {
+            next = Some(Box::new(recovered::Recovered::Valid(Box::new(
+                recovered::BoxLink { next },
+            ))));
+        }
+        drop(next);
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_modifier_chain_drops_on_the_default_test_stack() {
+        let mut next = None;
+        for _ in 0..DEEP_LINKS {
+            next = Some(recovered::WithFreeModifiers {
+                value: Arc::new(recovered::Recovered::Valid(Box::new(
+                    recovered::ModifierLink { next },
+                ))),
+                free_modifiers: vec![Arc::new(recovered::Recovered::Valid(Box::new(
+                    recovered::ModifierLink { next: None },
+                )))],
+            });
+        }
+        drop(next);
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_vec_chain_drops_on_the_default_test_stack() {
+        let mut next = Vec::new();
+        for _ in 0..DEEP_LINKS {
+            next = vec![recovered::Recovered::Valid(Box::new(recovered::VecLink {
+                next,
+            }))];
+        }
+        drop(next);
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_direct_chain_drops_on_the_default_test_stack() {
+        let mut next = None;
+        for _ in 0..DEEP_LINKS {
+            next = Some(Box::new(recovered::Recovered::Valid(Box::new(
+                recovered::DirectLink {
+                    inner: recovered::Recovered::Valid(Box::new(recovered::InnerLink { next })),
+                },
             ))));
         }
         drop(next);

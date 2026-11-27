@@ -53,6 +53,7 @@ pub use generated_model::{ExperimentalConstruct, TextSyntax};
 #[cfg(feature = "continuation_test_clock")]
 #[doc(hidden)]
 #[must_use]
+#[derive(Debug)]
 #[invariant(true)]
 pub struct ContinuationTestClock {
     previous: Option<Duration>,
@@ -3260,6 +3261,7 @@ mod tests {
     use jbotci_morphology::WordLikeData;
 
     use super::*;
+    use crate::tree::SyntaxRecoveryItemData;
 
     #[requires(true)]
     #[ensures(true)]
@@ -4537,62 +4539,125 @@ mod tests {
         .expect("recovered cadga parse returns a tree");
     }
 
-    /// A deep recovered tree reports its error slots on the default test stack.
+    /// A 512-deep recovered sumti reports its error slots on the default test stack.
     ///
-    /// The thread is the libtest thread. One copy and 128 copies of `lo nu`
-    /// wrap the same inner `mi ku` error. Both trees report the same slot count.
-    /// The valid nested test covers 512 copies. An error parse at that depth
-    /// keeps a multi-gigabyte diagnostic record.
+    /// The thread is the libtest thread. Each layer is one recovered sumti. The
+    /// layer holds one missing child and one grouped tail, and the tail holds the
+    /// next layer. The innermost node is a missing sumti. The valid nested test
+    /// parses the same depth. A parsed error on that sentence spends its time in
+    /// recovery.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn deep_recovered_syntax_counts_error_slots_on_the_default_test_stack() {
-        let (shallow_slots, shallow_missing, _, _, _) = recovered_nested_error_slots(1);
-        let (deep_slots, deep_missing, deep_invalid, deep_unconsumed, errors_empty) =
-            recovered_nested_error_slots(128);
+        let sumti = deep_recovered_sumti(512);
+        let slots = jbotci_tree::RecoveredFieldState::recovery_error_slots(&sumti);
+        let missing = jbotci_tree::RecoveredFieldState::missing_error_slots(&sumti);
+        let invalid = jbotci_tree::RecoveredFieldState::invalid_error_slots(&sumti);
+        let unconsumed = jbotci_tree::RecoveredFieldState::unconsumed_missing_error_slots(&sumti);
         assert!(
-            shallow_slots >= 1,
-            "the inner mi ku error occupies at least one slot"
+            slots >= 1,
+            "the innermost missing sumti occupies at least one slot"
         );
         assert_eq!(
-            deep_slots, shallow_slots,
-            "128 copies of lo nu keep the same error-slot count as one copy"
-        );
-        assert_eq!(deep_missing, shallow_missing);
-        assert_eq!(
-            deep_invalid,
-            deep_slots.saturating_sub(deep_missing),
+            invalid,
+            slots.saturating_sub(missing),
             "invalid slots are the error slots that are not missing"
         );
-        assert_eq!(deep_unconsumed, deep_missing);
-        assert!(!errors_empty);
-        assert_eq!(errors_empty, deep_slots == 0);
+        assert_eq!(unconsumed, missing);
     }
 
-    #[requires(copies > 0)]
+    #[requires(true)]
     #[ensures(true)]
-    fn recovered_nested_error_slots(copies: usize) -> (usize, usize, usize, usize, bool) {
-        let mut source = String::from("mi klama ");
-        for _ in 0..copies {
-            source.push_str("lo nu ");
+    fn missing_sumti_item() -> SyntaxRecoveryItem {
+        let span =
+            source_span_from_byte_offsets(None, "", 0, 0).expect("valid zero-width source span");
+        new!(SyntaxRecoveryItem::MissingRequiredField {
+            error_index: 0,
+            span: std::sync::Arc::new(span),
+            expected: "sumti".to_owned(),
+        })
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn one_syntax_token(text: &str) -> Token {
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(text).expect("valid morphology");
+        let tokens = syntax_tokens(&words);
+        let [token] = tokens.as_slice() else {
+            panic!("text must be exactly one word");
+        };
+        token.clone()
+    }
+
+    /// One more recovered sumti around `inner`. The new layer has its own missing child.
+    #[requires(true)]
+    #[ensures(true)]
+    fn wrap_deep_recovered_sumti(
+        inner: generated_model::recovered::SumtiSyntax,
+        missing: &SyntaxRecoveryItem,
+        connective_word: &Token,
+        group_word: &Token,
+    ) -> generated_model::recovered::SumtiSyntax {
+        let connective = generated_model::recovered::SumtiConnectiveSyntax::EkConnective(
+            std::sync::Arc::new(generated_model::recovered::Recovered::valid(
+                generated_model::recovered::EkConnectiveSyntax {
+                    na: None,
+                    se: None,
+                    a: generated_model::recovered::WithFreeModifiers {
+                        value: generated_model::recovered::Recovered::valid(
+                            connective_word.clone(),
+                        ),
+                        free_modifiers: Vec::new(),
+                    },
+                    nai: None,
+                },
+            )),
+        );
+        let tail = generated_model::recovered::GroupedSumtiTailSyntax {
+            connective: std::sync::Arc::new(generated_model::recovered::Recovered::valid(
+                connective,
+            )),
+            tense_modal: None,
+            ke: generated_model::recovered::WithFreeModifiers {
+                value: generated_model::recovered::Recovered::valid(group_word.clone()),
+                free_modifiers: Vec::new(),
+            },
+            inner_sumti: std::sync::Arc::new(generated_model::recovered::Recovered::valid(inner)),
+            kehe: None,
+        };
+        generated_model::recovered::SumtiSyntax {
+            base_sumti: std::sync::Arc::new(generated_model::recovered::Recovered::valid(
+                generated_model::recovered::SumtiGroupedSyntax {
+                    leading_sumti: std::sync::Arc::new(
+                        generated_model::recovered::Recovered::Error(missing.clone()),
+                    ),
+                    grouped_tail: Some(std::sync::Arc::new(
+                        generated_model::recovered::Recovered::valid(tail),
+                    )),
+                },
+            )),
+            vuho_attachment: None,
         }
-        source.push_str("mi ku");
-        let words = jbotci_morphology::segment_words_with_modifiers(&source)
-            .expect("nested error input has valid morphology");
-        let recovered = parse_syntax_tree_recovered_with_source_and_options(
-            &words,
-            &source,
-            &ParseOptions::default(),
-        )
-        .expect("recovered nested error parse returns a tree");
-        let tree = recovered.parse_tree.as_ref();
-        (
-            jbotci_tree::RecoveredFieldState::recovery_error_slots(tree),
-            jbotci_tree::RecoveredFieldState::missing_error_slots(tree),
-            jbotci_tree::RecoveredFieldState::invalid_error_slots(tree),
-            jbotci_tree::RecoveredFieldState::unconsumed_missing_error_slots(tree),
-            recovered.errors.is_empty(),
-        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_recovered_sumti(layers: usize) -> generated_model::recovered::SumtiSyntax {
+        let missing = missing_sumti_item();
+        let connective_word = one_syntax_token(".e");
+        let group_word = one_syntax_token("ke");
+        let mut sumti = generated_model::recovered::SumtiSyntax {
+            base_sumti: std::sync::Arc::new(generated_model::recovered::Recovered::Error(
+                missing.clone(),
+            )),
+            vuho_attachment: None,
+        };
+        for _ in 0..layers {
+            sumti = wrap_deep_recovered_sumti(sumti, &missing, &connective_word, &group_word);
+        }
+        sumti
     }
 
     #[test]

@@ -2076,6 +2076,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generic wrapper delegates validity to its payload and FreeModifierSyntax",
     ),
     (
+        "crates/jbotci-tree-macros/src/guarded_traits.rs:SelectedTraits",
+        "the four flags are independent switches for the traits the generator emits",
+    ),
+    (
         "crates/jbotci-tree-macros/src/lib.rs:TreeChildFlags",
         "tree macro child flags are independent switches parsed from field attributes",
     ),
@@ -2132,6 +2136,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the test link stores one optional boxed next node. Every value is a valid chain",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:DirectLink",
+        "the test link stores one inner node. Every value is a valid chain",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:Chain",
         "structural head/links pair generic over both components, so every combination is valid by construction; chain traversal is audited by the jbotci-tree walker tests and the chain-link split tests in the Gentufa and output renderers",
     ),
@@ -2142,6 +2150,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:FreeModifierSyntax",
         "the test marker has no fields",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:InnerLink",
+        "the test link stores one optional boxed next node. Every value is a valid chain",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:LeafNode",
@@ -2166,6 +2178,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:ProjectionRecoveryItem",
         "projection test probes intentionally exercise independent recovery kind, index, and span combinations",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:VecLink",
+        "the test link stores one vector of next nodes. Every value is a valid chain",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:RecordingVisitor",

@@ -51,7 +51,11 @@ where
         let diagnostic_snapshot = input.state().diagnostic_checkpoint();
         match input.parse(&parser) {
             Ok(jbotci_tree::Recovered::Valid(value)) => Ok(*value),
-            Ok(jbotci_tree::Recovered::Error(_) | jbotci_tree::Recovered::Prefix(_)) => {
+            Ok(
+                jbotci_tree::Recovered::Error(_)
+                | jbotci_tree::Recovered::Prefix(_)
+                | jbotci_tree::Recovered::Released,
+            ) => {
                 input.rewind(before);
                 input.state().restore_diagnostics(diagnostic_snapshot);
                 Err(expected_found_named_at_current(input, expected.to_owned()))
@@ -1325,6 +1329,7 @@ impl<T> RecoveredSyntaxSlot for jbotci_tree::Recovered<T, SyntaxRecoveryItem> {
                 Self::prefix_boxed(errors, value)
             }
             Self::Error(existing) => Self::error(existing),
+            Self::Released => panic!("released recovery slot has no value"),
         }
     }
 }

@@ -190,11 +190,59 @@ pub fn release_arc_recovered<T: 'static, E: 'static>(slot: &mut Arc<crate::Recov
     let Ok(recovered) = Arc::try_unwrap(taken) else {
         return;
     };
+    enqueue_taken_recovered(recovered);
+}
+
+/// Move the node out of an owned recovered value and drop it from the heap queue.
+///
+/// `Recovered::Released` has no node. The caller leaves that stand-in in the slot.
+#[inline]
+#[requires(true)]
+#[ensures(true)]
+pub fn enqueue_taken_recovered<T: 'static, E: 'static>(recovered: crate::Recovered<T, E>) {
     match recovered {
         crate::Recovered::Valid(node) => enqueue(*node),
         crate::Recovered::Prefix(prefix) => enqueue(*prefix.value),
         crate::Recovered::Error(error) => drop(error),
+        crate::Recovered::Released => {}
     }
+}
+
+/// Leave `Recovered::Released` in `slot` and drop the node from the heap queue.
+#[inline]
+#[requires(true)]
+#[ensures(true)]
+pub fn enqueue_recovered_node<T: 'static, E: 'static>(slot: &mut crate::Recovered<T, E>) {
+    let taken = std::mem::replace(slot, crate::Recovered::Released);
+    enqueue_taken_recovered(taken);
+}
+
+/// Move a boxed node out of an owned recovered slot and drop the node.
+///
+/// The recovered value owns `Box<T>`. The queue receives `T`, not the box.
+#[inline]
+#[requires(true)]
+#[ensures(true)]
+pub fn enqueue_taken_boxed_recovered<T: 'static, E: 'static>(
+    recovered: crate::Recovered<Box<T>, E>,
+) {
+    match recovered {
+        crate::Recovered::Valid(node) => enqueue(*node),
+        crate::Recovered::Prefix(prefix) => enqueue(*prefix.value),
+        crate::Recovered::Error(error) => drop(error),
+        crate::Recovered::Released => {}
+    }
+}
+
+/// Leave `Recovered::Released` in `slot` and drop the boxed node from the queue.
+#[inline]
+#[requires(true)]
+#[ensures(true)]
+pub fn enqueue_recovered_boxed_node<T: 'static, E: 'static>(
+    slot: &mut crate::Recovered<Box<T>, E>,
+) {
+    let taken = std::mem::replace(slot, crate::Recovered::Released);
+    enqueue_taken_boxed_recovered(taken);
 }
 
 /// Move `value` onto the active heap queue.

@@ -569,7 +569,7 @@ pub(super) fn expand(
                 match value {
                     super::recovered::Recovered::Valid(value) => Slot::Valid(project(value)),
                     super::recovered::Recovered::Prefix(prefix) => Slot::Prefix(project(&prefix.value)),
-                    super::recovered::Recovered::Error(_) => Slot::Error,
+                    super::recovered::Recovered::Error(_) | super::recovered::Recovered::Released => Slot::Error,
                 }
             }
             #[bityzba::contract_trait]

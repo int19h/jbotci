@@ -2708,6 +2708,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generic recovery slot wrapper delegates prefix error validity to Vec1 and typed recovery items",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Released",
+        "The drop queue writes this stand-in after the node moves onto the heap queue.",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:Recovered::Valid",
         "generic recovery slot wrapper delegates semantic validity to the contained recovered field state",
     ),

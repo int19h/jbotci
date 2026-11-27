@@ -153,6 +153,7 @@ fn trace_recovered_classification(
         recovered::Recovered::Valid(_) => "valid",
         recovered::Recovered::Prefix(_) => "prefix",
         recovered::Recovered::Error(_) => "error",
+        recovered::Recovered::Released => "released",
     };
     let decision = if rejected { "reject" } else { "permit" };
     eprintln!(

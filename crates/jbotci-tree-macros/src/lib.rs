@@ -2,6 +2,7 @@
 
 extern crate proc_macro;
 
+mod guarded_traits;
 mod node_drop_gen;
 mod view;
 
@@ -58,6 +59,10 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
     } else {
         quote!()
     };
+    let valid_trait_impls = guarded_traits::emit_guarded_traits(&items, false);
+    for item in &mut items {
+        guarded_traits::strip_guarded_derives(item);
+    }
     let cleaned_items = items
         .iter_mut()
         .map(strip_tree_attrs_from_item)
@@ -66,6 +71,8 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
 
     Ok(quote! {
         #(#cleaned_items)*
+
+        #valid_trait_impls
 
         #node_drop_impls
 
@@ -237,6 +244,10 @@ fn recovered_module(
         &recovered_atom_types,
         has_with_free_modifiers,
     )?;
+    let recovered_trait_impls = guarded_traits::emit_guarded_traits(&recovered_items, true);
+    for item in &mut recovered_items {
+        guarded_traits::strip_guarded_derives(item);
+    }
     let cleaned_items = recovered_items
         .iter_mut()
         .map(strip_tree_attrs_from_item)
@@ -258,6 +269,8 @@ fn recovered_module(
             #with_free_modifiers
 
             #(#cleaned_items)*
+
+            #recovered_trait_impls
 
             #node_drop_impls
 
@@ -693,18 +706,8 @@ fn recovered_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
     if !attrs_derive_trait(&recovered_attrs, "Deserialize") {
         recovered_attrs.push(parse_quote!(#[derive(::serde::Deserialize)]));
     }
-    // A valid syntax node implements Clone, PartialEq, and Eq by hand.
-    // Each of those walks grows the stack at every node.
-    // The recovered copy keeps derived impls.
-    // This adds a missing derive so the recovered node still implements the traits.
-    let missing_traits: Vec<Ident> = ["Clone", "PartialEq", "Eq"]
-        .into_iter()
-        .filter(|trait_name| !attrs_derive_trait(&recovered_attrs, trait_name))
-        .map(|trait_name| format_ident!("{trait_name}"))
-        .collect();
-    if !missing_traits.is_empty() {
-        recovered_attrs.push(parse_quote!(#[derive(#(#missing_traits),*)]));
-    }
+    // Clone, PartialEq, Eq, and Debug are emitted as guarded impls.
+    // A derived impl on the recovered copy would recurse on the native stack.
     recovered_attrs
 }
 
@@ -864,10 +867,41 @@ fn recovered_with_free_modifiers(emit: bool) -> proc_macro2::TokenStream {
         // its nodes has to be able to share this sequence too; it is carried by
         // every word in the tree. The default keeps every existing
         // single-argument use compiling unchanged.
-        #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
+        #[derive(::serde::Serialize, ::serde::Deserialize)]
         pub struct WithFreeModifiers<T, F = Recovered<FreeModifierSyntax>> {
             pub value: T,
             pub free_modifiers: Vec<F>,
+        }
+
+        impl<T: ::core::clone::Clone, F: ::core::clone::Clone> ::core::clone::Clone for WithFreeModifiers<T, F> {
+            fn clone(&self) -> Self {
+                ::jbotci_tree::with_tree_stack(|| Self {
+                    value: self.value.clone(),
+                    free_modifiers: self.free_modifiers.clone(),
+                })
+            }
+        }
+
+        impl<T: ::core::cmp::PartialEq, F: ::core::cmp::PartialEq> ::core::cmp::PartialEq for WithFreeModifiers<T, F> {
+            fn eq(&self, other: &Self) -> bool {
+                ::jbotci_tree::with_tree_stack(|| {
+                    self.value == other.value && self.free_modifiers == other.free_modifiers
+                })
+            }
+        }
+
+        impl<T: ::core::cmp::Eq, F: ::core::cmp::Eq> ::core::cmp::Eq for WithFreeModifiers<T, F> {}
+
+        impl<T: ::core::fmt::Debug, F: ::core::fmt::Debug> ::core::fmt::Debug for WithFreeModifiers<T, F> {
+            fn fmt(&self, formatter: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                ::jbotci_tree::with_tree_stack(|| {
+                    formatter
+                        .debug_struct("WithFreeModifiers")
+                        .field("value", &self.value)
+                        .field("free_modifiers", &self.free_modifiers)
+                        .finish()
+                })
+            }
         }
     }
 }
@@ -2915,7 +2949,7 @@ fn wrapper_trait_impls(
                 fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
                     match self {
                         ::jbotci_tree::Recovered::Valid(value) => value.as_node_ref(),
-                        ::jbotci_tree::Recovered::Error(_) => None,
+                        ::jbotci_tree::Recovered::Error(_) | ::jbotci_tree::Recovered::Released => None,
                         ::jbotci_tree::Recovered::Prefix(prefix) => prefix.value.as_node_ref(),
                     }
                 }
@@ -2930,6 +2964,7 @@ fn wrapper_trait_impls(
                             ::jbotci_tree::Recovered::Error(item) => {
                                 visitor.visit_recovered_error(item)
                             }
+                            ::jbotci_tree::Recovered::Released => {}
                             ::jbotci_tree::Recovered::Prefix(prefix) => {
                                 for item in &prefix.errors {
                                     visitor.visit_recovered_error(item);
@@ -2950,7 +2985,7 @@ fn wrapper_trait_impls(
                             ::jbotci_tree::Recovered::Valid(value) => {
                                 value.path_to_node_from(target, path)
                             }
-                            ::jbotci_tree::Recovered::Error(_) => false,
+                            ::jbotci_tree::Recovered::Error(_) | ::jbotci_tree::Recovered::Released => false,
                             ::jbotci_tree::Recovered::Prefix(prefix) => {
                                 prefix.value.path_to_node_from(target, path)
                             }
@@ -2967,7 +3002,7 @@ fn wrapper_trait_impls(
                             ::jbotci_tree::Recovered::Valid(value) => {
                                 value.node_at_path_steps(steps)
                             }
-                            ::jbotci_tree::Recovered::Error(_) => None,
+                            ::jbotci_tree::Recovered::Error(_) | ::jbotci_tree::Recovered::Released => None,
                             ::jbotci_tree::Recovered::Prefix(prefix) => {
                                 prefix.value.node_at_path_steps(steps)
                             }
@@ -3620,6 +3655,7 @@ fn walk_wrapper_functions(
                 }
                 TreeWalkable::walk_with(&prefix.value, walker);
                 }
+                ::jbotci_tree::Recovered::Released => {}
                 }
             })}
         }
@@ -4016,7 +4052,7 @@ fn tree_walkable_node_impl(ident: &Ident) -> proc_macro2::TokenStream {
             where
                 W: TreeWalker<'tree> + ?Sized,
             {
-                walker.#method(self);
+                ::jbotci_tree::with_tree_stack(|| walker.#method(self));
             }
         }
     }
