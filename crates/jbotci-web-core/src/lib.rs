@@ -11352,7 +11352,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn vlacku_word_search_prefers_exact_phrase_before_segmenting() {
+    fn vlacku_word_search_shows_the_exact_phrase_before_each_word() {
+        // Owner ruling for #1130 (2026-11-27): a query with a space shows the
+        // exact phrase match first, then the result for each word on its own,
+        // as the CLI does.
         let result = build_vlacku_web_result(&VlackuWebState {
             min_votes: Default::default(),
             mode: VlackuWebMode::Word,
@@ -11363,14 +11366,12 @@ mod tests {
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
         assert_eq!(
-            result.cards.first().map(|card| card.word.as_str()),
-            Some("ca ma")
-        );
-        assert!(
-            !result
+            result
                 .cards
                 .iter()
-                .any(|card| card.word == "ca" || card.word == "ma")
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ca ma", "ca", "ma"]
         );
     }
 
