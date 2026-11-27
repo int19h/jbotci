@@ -4494,12 +4494,33 @@ mod tests {
             let words = jbotci_morphology::segment_words_with_modifiers(&source)
                 .expect("nested input has valid morphology");
             parse_syntax_tree(&words).expect("strict nested parse returns a tree");
-            parse_syntax_tree_recovered_with_source_and_options(
+            let recovered = parse_syntax_tree_recovered_with_source_and_options(
                 &words,
                 &source,
                 &ParseOptions::default(),
             )
             .expect("recovered nested parse returns a tree");
+            assert_eq!(
+                jbotci_tree::RecoveredFieldState::recovery_error_slots(
+                    recovered.parse_tree.as_ref()
+                ),
+                0,
+                "a valid nested recovered tree reports zero error slots"
+            );
+            assert_eq!(
+                jbotci_tree::RecoveredFieldState::missing_error_slots(
+                    recovered.parse_tree.as_ref()
+                ),
+                0,
+                "a valid nested recovered tree reports zero missing slots"
+            );
+            assert_eq!(
+                jbotci_tree::RecoveredFieldState::invalid_error_slots(
+                    recovered.parse_tree.as_ref()
+                ),
+                0,
+                "a valid nested recovered tree reports zero invalid slots"
+            );
         }
         let cadga = "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo lo ka ce'u xendo ije cnikansa ro lo jmive kei ta'i lo racli";
         let words = jbotci_morphology::segment_words_with_modifiers(cadga)
@@ -4514,6 +4535,64 @@ mod tests {
             &ParseOptions::default(),
         )
         .expect("recovered cadga parse returns a tree");
+    }
+
+    /// A deep recovered tree reports its error slots on the default test stack.
+    ///
+    /// The thread is the libtest thread. One copy and 128 copies of `lo nu`
+    /// wrap the same inner `mi ku` error. Both trees report the same slot count.
+    /// The valid nested test covers 512 copies. An error parse at that depth
+    /// keeps a multi-gigabyte diagnostic record.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deep_recovered_syntax_counts_error_slots_on_the_default_test_stack() {
+        let (shallow_slots, shallow_missing, _, _, _) = recovered_nested_error_slots(1);
+        let (deep_slots, deep_missing, deep_invalid, deep_unconsumed, errors_empty) =
+            recovered_nested_error_slots(128);
+        assert!(
+            shallow_slots >= 1,
+            "the inner mi ku error occupies at least one slot"
+        );
+        assert_eq!(
+            deep_slots, shallow_slots,
+            "128 copies of lo nu keep the same error-slot count as one copy"
+        );
+        assert_eq!(deep_missing, shallow_missing);
+        assert_eq!(
+            deep_invalid,
+            deep_slots.saturating_sub(deep_missing),
+            "invalid slots are the error slots that are not missing"
+        );
+        assert_eq!(deep_unconsumed, deep_missing);
+        assert!(!errors_empty);
+        assert_eq!(errors_empty, deep_slots == 0);
+    }
+
+    #[requires(copies > 0)]
+    #[ensures(true)]
+    fn recovered_nested_error_slots(copies: usize) -> (usize, usize, usize, usize, bool) {
+        let mut source = String::from("mi klama ");
+        for _ in 0..copies {
+            source.push_str("lo nu ");
+        }
+        source.push_str("mi ku");
+        let words = jbotci_morphology::segment_words_with_modifiers(&source)
+            .expect("nested error input has valid morphology");
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            &source,
+            &ParseOptions::default(),
+        )
+        .expect("recovered nested error parse returns a tree");
+        let tree = recovered.parse_tree.as_ref();
+        (
+            jbotci_tree::RecoveredFieldState::recovery_error_slots(tree),
+            jbotci_tree::RecoveredFieldState::missing_error_slots(tree),
+            jbotci_tree::RecoveredFieldState::invalid_error_slots(tree),
+            jbotci_tree::RecoveredFieldState::unconsumed_missing_error_slots(tree),
+            recovered.errors.is_empty(),
+        )
     }
 
     #[test]

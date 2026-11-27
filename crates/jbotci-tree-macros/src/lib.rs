@@ -693,6 +693,18 @@ fn recovered_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
     if !attrs_derive_trait(&recovered_attrs, "Deserialize") {
         recovered_attrs.push(parse_quote!(#[derive(::serde::Deserialize)]));
     }
+    // A valid syntax node implements Clone, PartialEq, and Eq by hand.
+    // Each of those walks grows the stack at every node.
+    // The recovered copy keeps derived impls.
+    // This adds a missing derive so the recovered node still implements the traits.
+    let missing_traits: Vec<Ident> = ["Clone", "PartialEq", "Eq"]
+        .into_iter()
+        .filter(|trait_name| !attrs_derive_trait(&recovered_attrs, trait_name))
+        .map(|trait_name| format_ident!("{trait_name}"))
+        .collect();
+    if !missing_traits.is_empty() {
+        recovered_attrs.push(parse_quote!(#[derive(#(#missing_traits),*)]));
+    }
     recovered_attrs
 }
 
@@ -918,15 +930,23 @@ fn recovered_field_state_impls(
                 #[::bityzba::requires(true)]
                 #[::bityzba::ensures(true)]
                 fn recovery_error_slots(&self) -> usize {
-                    ::jbotci_tree::RecoveredFieldState::recovery_error_slots(&self.value)
-                        + ::jbotci_tree::RecoveredFieldState::recovery_error_slots(&self.free_modifiers)
+                    ::jbotci_tree::with_tree_stack(|| {
+                        ::jbotci_tree::RecoveredFieldState::recovery_error_slots(&self.value)
+                            + ::jbotci_tree::RecoveredFieldState::recovery_error_slots(
+                                &self.free_modifiers,
+                            )
+                    })
                 }
 
                 #[::bityzba::requires(true)]
                 #[::bityzba::ensures(true)]
                 fn missing_error_slots(&self) -> usize {
-                    ::jbotci_tree::RecoveredFieldState::missing_error_slots(&self.value)
-                        + ::jbotci_tree::RecoveredFieldState::missing_error_slots(&self.free_modifiers)
+                    ::jbotci_tree::with_tree_stack(|| {
+                        ::jbotci_tree::RecoveredFieldState::missing_error_slots(&self.value)
+                            + ::jbotci_tree::RecoveredFieldState::missing_error_slots(
+                                &self.free_modifiers,
+                            )
+                    })
                 }
             }
         }
@@ -1044,13 +1064,13 @@ fn recovered_struct_field_state_impl(item: &ItemStruct) -> syn::Result<proc_macr
             #[::bityzba::requires(true)]
             #[::bityzba::ensures(true)]
             fn recovery_error_slots(&self) -> usize {
-                #sum
+                ::jbotci_tree::with_tree_stack(|| #sum)
             }
 
             #[::bityzba::requires(true)]
             #[::bityzba::ensures(true)]
             fn missing_error_slots(&self) -> usize {
-                #missing_sum
+                ::jbotci_tree::with_tree_stack(|| #missing_sum)
             }
         }
     })
@@ -1127,17 +1147,21 @@ fn recovered_enum_field_state_impl(item: &ItemEnum) -> syn::Result<proc_macro2::
             #[::bityzba::requires(true)]
             #[::bityzba::ensures(true)]
             fn recovery_error_slots(&self) -> usize {
-                match self {
-                    #(#error_slot_arms,)*
-                }
+                ::jbotci_tree::with_tree_stack(|| {
+                    match self {
+                        #(#error_slot_arms,)*
+                    }
+                })
             }
 
             #[::bityzba::requires(true)]
             #[::bityzba::ensures(true)]
             fn missing_error_slots(&self) -> usize {
-                match self {
-                    #(#missing_slot_arms,)*
-                }
+                ::jbotci_tree::with_tree_stack(|| {
+                    match self {
+                        #(#missing_slot_arms,)*
+                    }
+                })
             }
         }
     })
@@ -1282,27 +1306,35 @@ fn recovered_struct_conversion_impl(
         }
     };
     let destructure = recovered_struct_conversion_destructure(item, &raw_bindings);
+    // Each entry grows the stack, then reads the node once.
+    // A child conversion calls the boxed method, so each edge grows.
     Ok(quote! {
         impl #ident {
             pub fn try_into_valid(self) -> Result<#valid_ty, RecoveryError> {
-                let mut path = ::jbotci_tree::TreePath::new();
-                Box::new(self).try_into_valid_boxed_at_path(&mut path)
+                ::jbotci_tree::with_tree_stack(|| {
+                    let mut path = ::jbotci_tree::TreePath::new();
+                    Box::new(self).try_into_valid_boxed_at_path(&mut path)
+                })
             }
 
             pub(crate) fn try_into_valid_at_path(
                 self,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> Result<#valid_ty, RecoveryError> {
-                Box::new(self).try_into_valid_boxed_at_path(path)
+                ::jbotci_tree::with_tree_stack(|| {
+                    Box::new(self).try_into_valid_boxed_at_path(path)
+                })
             }
 
             pub(crate) fn try_into_valid_boxed_at_path(
                 self: Box<Self>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> Result<#valid_ty, RecoveryError> {
-                #destructure
-                #(#field_conversions)*
-                Ok(#construct)
+                ::jbotci_tree::with_tree_stack(|| {
+                    #destructure
+                    #(#field_conversions)*
+                    Ok(#construct)
+                })
             }
         }
     })
@@ -1492,28 +1524,36 @@ fn recovered_enum_conversion_impl(
             }
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    // Each entry grows the stack, then reads the node once.
+    // A child conversion calls the boxed method, so each edge grows.
     Ok(quote! {
         impl #enum_ident {
             pub fn try_into_valid(self) -> Result<#valid_ty, RecoveryError> {
-                let mut path = ::jbotci_tree::TreePath::new();
-                Box::new(self).try_into_valid_boxed_at_path(&mut path)
+                ::jbotci_tree::with_tree_stack(|| {
+                    let mut path = ::jbotci_tree::TreePath::new();
+                    Box::new(self).try_into_valid_boxed_at_path(&mut path)
+                })
             }
 
             pub(crate) fn try_into_valid_at_path(
                 self,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> Result<#valid_ty, RecoveryError> {
-                Box::new(self).try_into_valid_boxed_at_path(path)
+                ::jbotci_tree::with_tree_stack(|| {
+                    Box::new(self).try_into_valid_boxed_at_path(path)
+                })
             }
 
             pub(crate) fn try_into_valid_boxed_at_path(
                 self: Box<Self>,
                 path: &mut ::jbotci_tree::TreePath,
             ) -> Result<#valid_ty, RecoveryError> {
-                let __jbotci_owned = ::std::mem::ManuallyDrop::new(*self);
-                match &*__jbotci_owned {
-                    #(#arms,)*
-                }
+                ::jbotci_tree::with_tree_stack(|| {
+                    let __jbotci_owned = ::std::mem::ManuallyDrop::new(*self);
+                    match &*__jbotci_owned {
+                        #(#arms,)*
+                    }
+                })
             }
         }
     })

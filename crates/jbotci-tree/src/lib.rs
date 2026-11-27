@@ -249,17 +249,17 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn recovery_error_slots(&self) -> usize {
-        match self {
+        with_tree_stack(|| match self {
             Self::Valid(value) => value.recovery_error_slots(),
             Self::Error(_) => 1,
             Self::Prefix(prefix) => prefix.errors.len() + prefix.value.recovery_error_slots(),
-        }
+        })
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn missing_error_slots(&self) -> usize {
-        match self {
+        with_tree_stack(|| match self {
             Self::Valid(value) => value.missing_error_slots(),
             Self::Error(item) => {
                 usize::from(item.recovery_item_kind() == RecoveryItemKind::Missing)
@@ -272,13 +272,13 @@ where
                     .count()
                     + prefix.value.missing_error_slots()
             }
-        }
+        })
     }
 
     #[requires(true)]
     #[ensures(ret == self.recovery_error_slots().saturating_sub(self.missing_error_slots()))]
     fn invalid_error_slots(&self) -> usize {
-        match self {
+        with_tree_stack(|| match self {
             Self::Valid(value) => value.invalid_error_slots(),
             Self::Error(item) => {
                 usize::from(item.recovery_item_kind() == RecoveryItemKind::Invalid)
@@ -291,7 +291,7 @@ where
                     .count()
                     + prefix.value.invalid_error_slots()
             }
-        }
+        })
     }
 }
 
@@ -303,19 +303,23 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn recovery_error_slots(&self) -> usize {
-        self.as_ref().recovery_error_slots()
+        with_tree_stack(|| self.as_ref().recovery_error_slots())
     }
 
+    // The body is the child count.
+    // A postcondition that calls the same method repeats the child at every box.
     #[requires(true)]
-    #[ensures(ret == self.as_ref().missing_error_slots())]
+    #[ensures(true)]
     fn missing_error_slots(&self) -> usize {
-        self.as_ref().missing_error_slots()
+        with_tree_stack(|| self.as_ref().missing_error_slots())
     }
 
+    // The body is the child count.
+    // A postcondition that calls the same method repeats the child at every box.
     #[requires(true)]
-    #[ensures(ret == self.as_ref().invalid_error_slots())]
+    #[ensures(true)]
     fn invalid_error_slots(&self) -> usize {
-        self.as_ref().invalid_error_slots()
+        with_tree_stack(|| self.as_ref().invalid_error_slots())
     }
 }
 
@@ -327,19 +331,23 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn recovery_error_slots(&self) -> usize {
-        self.as_ref().recovery_error_slots()
+        with_tree_stack(|| self.as_ref().recovery_error_slots())
     }
 
+    // The body is the child count.
+    // A postcondition that calls the same method repeats the child at every arc.
     #[requires(true)]
-    #[ensures(ret == self.as_ref().missing_error_slots())]
+    #[ensures(true)]
     fn missing_error_slots(&self) -> usize {
-        self.as_ref().missing_error_slots()
+        with_tree_stack(|| self.as_ref().missing_error_slots())
     }
 
+    // The body is the child count.
+    // A postcondition that calls the same method repeats the child at every arc.
     #[requires(true)]
-    #[ensures(ret == self.as_ref().invalid_error_slots())]
+    #[ensures(true)]
     fn invalid_error_slots(&self) -> usize {
-        self.as_ref().invalid_error_slots()
+        with_tree_stack(|| self.as_ref().invalid_error_slots())
     }
 }
 
@@ -351,22 +359,28 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn recovery_error_slots(&self) -> usize {
-        self.as_ref()
-            .map_or(0, RecoveredFieldState::recovery_error_slots)
+        with_tree_stack(|| {
+            self.as_ref()
+                .map_or(0, RecoveredFieldState::recovery_error_slots)
+        })
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn missing_error_slots(&self) -> usize {
-        self.as_ref()
-            .map_or(0, RecoveredFieldState::missing_error_slots)
+        with_tree_stack(|| {
+            self.as_ref()
+                .map_or(0, RecoveredFieldState::missing_error_slots)
+        })
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn invalid_error_slots(&self) -> usize {
-        self.as_ref()
-            .map_or(0, RecoveredFieldState::invalid_error_slots)
+        with_tree_stack(|| {
+            self.as_ref()
+                .map_or(0, RecoveredFieldState::invalid_error_slots)
+        })
     }
 }
 
@@ -470,19 +484,19 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn recovery_error_slots(&self) -> usize {
-        self.first.recovery_error_slots() + self.links.recovery_error_slots()
+        with_tree_stack(|| self.first.recovery_error_slots() + self.links.recovery_error_slots())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn missing_error_slots(&self) -> usize {
-        self.first.missing_error_slots() + self.links.missing_error_slots()
+        with_tree_stack(|| self.first.missing_error_slots() + self.links.missing_error_slots())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn invalid_error_slots(&self) -> usize {
-        self.first.invalid_error_slots() + self.links.invalid_error_slots()
+        with_tree_stack(|| self.first.invalid_error_slots() + self.links.invalid_error_slots())
     }
 }
 
@@ -523,19 +537,19 @@ macro_rules! impl_recovered_field_state_for_tuple {
             #[requires(true)]
             #[ensures(true)]
             fn recovery_error_slots(&self) -> usize {
-                0usize $(+ self.$index.recovery_error_slots())+
+                with_tree_stack(|| 0usize $(+ self.$index.recovery_error_slots())+)
             }
 
             #[requires(true)]
             #[ensures(true)]
             fn missing_error_slots(&self) -> usize {
-                0usize $(+ self.$index.missing_error_slots())+
+                with_tree_stack(|| 0usize $(+ self.$index.missing_error_slots())+)
             }
 
             #[requires(true)]
             #[ensures(true)]
             fn unconsumed_missing_error_slots(&self) -> usize {
-                0usize $(+ self.$index.unconsumed_missing_error_slots())+
+                with_tree_stack(|| 0usize $(+ self.$index.unconsumed_missing_error_slots())+)
             }
         }
     };

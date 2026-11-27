@@ -2072,31 +2072,52 @@ impl<'tokens> ParserState<'tokens> {
         store: &SyntaxRecoveryMemoStore<'tokens>,
         node: usize,
     ) -> Option<usize> {
-        if let Some(cached) = self
+        let mut cache = self
             .syntax_rule_observation_latest_recovery_target_indices
-            .borrow()
-            .get(&node)
-        {
+            .borrow_mut();
+        if let Some(cached) = cache.get(&node) {
             return *cached;
         }
 
-        let observation = &store.rule_observation_nodes[node].observation;
-        let mut latest = self
-            .recovery_rule_target_last_indices
-            .get(observation)
-            .copied();
-        for child_index in 0..store.rule_observation_nodes[node].children.len() {
-            let child = store.rule_observation_nodes[node].children[child_index];
-            if let Some(child_latest) =
-                self.syntax_rule_observation_latest_recovery_target_index(store, child)
-            {
+        // A child can have any index. The walk keeps each node on the heap.
+        // `false` enters the node. `true` reads the children after they are stored.
+        let mut stack = vec![(node, false)];
+        let mut open = FxHashSet::default();
+        while let Some((current, children_done)) = stack.pop() {
+            if cache.contains_key(&current) {
+                continue;
+            }
+            if !children_done {
+                if !open.insert(current) {
+                    continue;
+                }
+                stack.push((current, true));
+                for child in store.rule_observation_nodes[current].children.iter().rev() {
+                    if !cache.contains_key(child) {
+                        stack.push((*child, false));
+                    }
+                }
+                continue;
+            }
+
+            let observation_node = &store.rule_observation_nodes[current];
+            let mut latest = self
+                .recovery_rule_target_last_indices
+                .get(&observation_node.observation)
+                .copied();
+            for child in &observation_node.children {
+                let Some(child_latest) = cache.get(child).copied().flatten() else {
+                    continue;
+                };
                 latest = Some(latest.map_or(child_latest, |index| index.max(child_latest)));
             }
+            cache.insert(current, latest);
+            open.remove(&current);
         }
-        self.syntax_rule_observation_latest_recovery_target_indices
-            .borrow_mut()
-            .insert(node, latest);
-        latest
+        cache
+            .get(&node)
+            .copied()
+            .expect("the requested observation is stored")
     }
 
     #[requires(start_location <= end_location)]
@@ -6179,23 +6200,26 @@ fn should_attach_indicator(prev: &Token, indicator: &Word) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn furthest_candidate_start(observations: &[SyntaxDiagnosticObservation<'_>]) -> Option<usize> {
-    observations
-        .iter()
-        .filter_map(|observation| match observation.as_data() {
-            data!(SyntaxDiagnosticObservation::Candidate(error)) => Some(error.span().start),
-            data!(SyntaxDiagnosticObservation::Nested(nested)) => {
-                nested_furthest_candidate_start(&nested.observations)
-            }
-            data!(SyntaxDiagnosticObservation::Restricted {
-                start,
-                observations,
-                ..
-            }) => furthest_candidate_start(observations)
-                .filter(|furthest| furthest >= start)
-                .map(|_| *start),
-            data!(SyntaxDiagnosticObservation::Preserved(_)) => None,
-        })
-        .max()
+    // Each nested or restricted edge grows the stack. The observation tree follows the parse.
+    jbotci_tree::with_tree_stack(|| {
+        observations
+            .iter()
+            .filter_map(|observation| match observation.as_data() {
+                data!(SyntaxDiagnosticObservation::Candidate(error)) => Some(error.span().start),
+                data!(SyntaxDiagnosticObservation::Nested(nested)) => {
+                    nested_furthest_candidate_start(&nested.observations)
+                }
+                data!(SyntaxDiagnosticObservation::Restricted {
+                    start,
+                    observations,
+                    ..
+                }) => furthest_candidate_start(observations)
+                    .filter(|furthest| furthest >= start)
+                    .map(|_| *start),
+                data!(SyntaxDiagnosticObservation::Preserved(_)) => None,
+            })
+            .max()
+    })
 }
 
 /// [`furthest_candidate_start`] for the observations of a memoized evaluation, cached in them.
@@ -6303,6 +6327,17 @@ impl<'tokens> SyntaxFrameRankWalk<'tokens> {
         observations: &[SyntaxDiagnosticObservation<'tokens>],
         base: usize,
     ) -> Option<SyntaxFrameRank> {
+        // Each restricted edge and each first nested evaluation grows the stack.
+        jbotci_tree::with_tree_stack(|| self.observations_inner(observations, base))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|inner| old(self.next_order) <= inner.order && inner.order < self.next_order))]
+    fn observations_inner(
+        &mut self,
+        observations: &[SyntaxDiagnosticObservation<'tokens>],
+        base: usize,
+    ) -> Option<SyntaxFrameRank> {
         let mut min_inner = None::<SyntaxFrameRank>;
         let mut found = |inner: SyntaxFrameRank| {
             min_inner = Some(min_inner.map_or(inner, |current| current.min(inner)));
@@ -6381,6 +6416,16 @@ impl<'tokens> SyntaxFrameRankWalk<'tokens> {
         &mut self,
         observations: &Rc<SyntaxDiagnosticObservations<'tokens>>,
     ) -> Option<SyntaxFrameRank> {
+        // The first visit of an evaluation grows the stack before the inner walk.
+        jbotci_tree::with_tree_stack(|| self.nested_inner(observations))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|inner| inner.order < self.next_order))]
+    fn nested_inner(
+        &mut self,
+        observations: &Rc<SyntaxDiagnosticObservations<'tokens>>,
+    ) -> Option<SyntaxFrameRank> {
         if nested_furthest_candidate_start(observations)
             .is_none_or(|furthest| furthest < self.position)
         {
@@ -6429,6 +6474,15 @@ mod tests {
                 }
             )));
         }
+        assert_eq!(
+            furthest_candidate_start(std::slice::from_ref(&observation)),
+            None,
+            "a preserved observation chain reports no candidate"
+        );
+        assert!(
+            recovery_frame_ranks_at(std::slice::from_ref(&observation), 0).is_empty(),
+            "a preserved observation chain gives no frame rank"
+        );
         drop(observation);
 
         // A recursive drop of this chain overflows the libtest stack.
