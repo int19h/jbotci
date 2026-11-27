@@ -26,6 +26,27 @@ fn lsp_watchdog_panic(payload: Box<dyn std::any::Any + Send>) -> String {
     "the lsp watchdog panicked".to_owned()
 }
 
+/// Stop an LSP child after its deadline is due.
+/// The reap uses the shared drain bound.
+/// The text is the timeout.
+/// A stop error is part of that text.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn lsp_child_timeout(child: &mut Child, timeout: Duration) -> String {
+    let reap = jbotci_interrupt::reap_after_kill(
+        child,
+        jbotci_interrupt::bound_after_deadline(Duration::ZERO),
+        false,
+    );
+    match reap.error {
+        Some(error) => format!(
+            "shutdown timed out after {} seconds. The stop failed: {error}",
+            timeout.as_secs_f64()
+        ),
+        None => format!("shutdown timed out after {} seconds", timeout.as_secs_f64()),
+    }
+}
+
 /// Recover a watchdog.
 /// The join result is inspected first.
 /// A panic is reported even when a channel operation fails.
@@ -1002,26 +1023,30 @@ fn shutdown_is_orderly_during_background_confirmation() {
     let (child_sender, child_receiver) = mpsc::sync_channel(1);
     let watchdog = thread::spawn(move || {
         let mut child = child;
-        let timed_out = disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err();
-        if timed_out {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        let _ = child_sender.send((child, timed_out));
+        let timeout_message = if disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err() {
+            Some(lsp_child_timeout(&mut child, SHUTDOWN_TIMEOUT))
+        } else {
+            None
+        };
+        let _ = child_sender.send((child, timeout_message));
     });
 
     assert_eq!(client.request("shutdown", Value::Null), Value::Null);
     let send_result = disarm_sender.send(());
     let recv_result = child_receiver.recv();
     let join_result = watchdog.join();
-    let (child, timed_out) = recover_lsp_watchdog(
+    let (child, timeout_message) = recover_lsp_watchdog(
         join_result,
         send_result,
         recv_result,
         "disarm confirmation shutdown watchdog",
         "recover LSP child",
     );
-    assert!(!timed_out, "shutdown timed out during confirming parse");
+    assert!(
+        timeout_message.is_none(),
+        "{}",
+        timeout_message.unwrap_or_default()
+    );
     client.child = Some(child);
     client.exit_after_shutdown();
 }
@@ -1323,12 +1348,12 @@ fn shutdown_completes_during_an_in_flight_completion() {
     let (child_sender, child_receiver) = mpsc::sync_channel(1);
     let watchdog = thread::spawn(move || {
         let mut child = child;
-        let timed_out = disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err();
-        if timed_out {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        let _ = child_sender.send((child, timed_out));
+        let timeout_message = if disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err() {
+            Some(lsp_child_timeout(&mut child, SHUTDOWN_TIMEOUT))
+        } else {
+            None
+        };
+        let _ = child_sender.send((child, timeout_message));
     });
 
     let _completion_id = client.start_request(
@@ -1344,7 +1369,7 @@ fn shutdown_completes_during_an_in_flight_completion() {
     let send_result = disarm_sender.send(());
     let recv_result = child_receiver.recv();
     let join_result = watchdog.join();
-    let (child, timed_out) = recover_lsp_watchdog(
+    let (child, timeout_message) = recover_lsp_watchdog(
         join_result,
         send_result,
         recv_result,
@@ -1352,8 +1377,9 @@ fn shutdown_completes_during_an_in_flight_completion() {
         "watchdog returns the LSP child",
     );
     assert!(
-        !timed_out,
-        "shutdown response exceeded {SHUTDOWN_TIMEOUT:?}"
+        timeout_message.is_none(),
+        "{}",
+        timeout_message.unwrap_or_default()
     );
     client.child = Some(child);
     client.exit_after_shutdown();
@@ -1851,6 +1877,16 @@ fn server_survives_socketpair_stdio() {
         "utf-8"
     );
 
-    child.kill().expect("kill server");
-    let _ = child.wait();
+    // The server already answered.
+    // The kill is cleanup.
+    // The reap stops at the drain bound.
+    // An unreaped child stays unreaped.
+    let reap = jbotci_interrupt::reap_after_kill(
+        &mut child,
+        jbotci_interrupt::bound_after_deadline(Duration::ZERO),
+        false,
+    );
+    if let Some(error) = reap.error {
+        panic!("kill server: {error}");
+    }
 }

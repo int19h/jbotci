@@ -8566,9 +8566,19 @@ mod tests {
                     }
                 }
                 PlaceProbeStep::TimedOut => {
-                    child.kill().expect("stop the stalled place-boundary probe");
-                    child.wait().expect("reap the place-boundary probe");
-                    panic!("The place-boundary probe did not finish within 30 seconds.");
+                    let reap = jbotci_interrupt::reap_after_kill(
+                        &mut child,
+                        jbotci_interrupt::bound_after_deadline(std::time::Duration::ZERO),
+                        false,
+                    );
+                    match reap.error {
+                        Some(error) => panic!(
+                            "The place-boundary probe did not finish within 30 seconds. The stop failed: {error}"
+                        ),
+                        None => {
+                            panic!("The place-boundary probe did not finish within 30 seconds.")
+                        }
+                    }
                 }
                 PlaceProbeStep::Failed => {
                     let error = failed.expect("the probe status failed");

@@ -18,9 +18,6 @@ use crate::r2_skip::{LiveMetadata, local_proof_with};
 
 const WRANGLER_VERSION: &str = "4.149.0";
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(180);
-/// Time for a killed pipe to deliver stderr after the command deadline.
-/// A pipe that stays open hits this bound.
-const READBACK_DRAIN_AFTER_DEADLINE: Duration = Duration::from_secs(1);
 const ATTEMPTS: usize = 3;
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
@@ -594,15 +591,25 @@ fn readback_step(
 }
 
 /// Stop the child and its process group.
+/// The reap stops at `limit`.
+/// An unreaped child stays unreaped.
+/// A stop error is added to `result`.
+/// An earlier `result` error stays in the chain.
 #[requires(true)]
 #[ensures(true)]
-fn stop_publisher_child(child: &mut std::process::Child) {
-    #[cfg(unix)]
-    unsafe {
-        libc::kill(-(child.id() as i32), libc::SIGKILL);
+fn stop_publisher_child(
+    child: &mut std::process::Child,
+    limit: Duration,
+    result: Result<()>,
+) -> Result<()> {
+    let reap = jbotci_interrupt::reap_after_kill(child, limit, true);
+    match reap.error {
+        Some(error) => match result {
+            Ok(()) => Err(anyhow::anyhow!("the publisher stop failed: {error}")),
+            Err(cause) => Err(cause.context(format!("the publisher stop failed: {error}"))),
+        },
+        None => result,
     }
-    let _ = child.kill();
-    let _ = child.wait();
 }
 
 /// Read one non-blocking child status.
@@ -673,15 +680,21 @@ fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()
                 }
             }
             WaitStepKind::TimedOut => {
-                stop_publisher_child(child);
-                bail!(
-                    "Publisher command timed out after {} seconds",
-                    timeout.as_secs_f64()
+                return stop_publisher_child(
+                    child,
+                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    Err(anyhow::anyhow!(
+                        "Publisher command timed out after {} seconds",
+                        timeout.as_secs_f64()
+                    )),
                 );
             }
             WaitStepKind::Failed => {
-                stop_publisher_child(child);
-                return child_status_result(kind, status, failure);
+                return stop_publisher_child(
+                    child,
+                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    child_status_result(kind, status, failure),
+                );
             }
         }
     }
@@ -884,8 +897,11 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
         ) {
             ReadbackStep::ReportWorker => {
                 let child_result = child_status_result(kind, status, failure);
-                stop_publisher_child(&mut child);
-                break child_result;
+                break stop_publisher_child(
+                    &mut child,
+                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    child_result,
+                );
             }
             ReadbackStep::Child(WaitStepKind::Succeeded) => {
                 break child_status_result(kind, status, failure);
@@ -897,28 +913,35 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
                 }
             }
             ReadbackStep::Child(WaitStepKind::TimedOut) => {
-                stop_publisher_child(&mut child);
-                break Err(anyhow::anyhow!(
-                    "Publisher command timed out after {} seconds",
-                    timeout.as_secs_f64()
-                ));
+                break stop_publisher_child(
+                    &mut child,
+                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    Err(anyhow::anyhow!(
+                        "Publisher command timed out after {} seconds",
+                        timeout.as_secs_f64()
+                    )),
+                );
             }
             ReadbackStep::Child(WaitStepKind::Failed) => {
-                stop_publisher_child(&mut child);
-                break child_status_result(kind, status, failure);
+                break stop_publisher_child(
+                    &mut child,
+                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    child_status_result(kind, status, failure),
+                );
             }
         }
     };
     // Kill the group before the reader wait.
     // The kill is cleanup.
+    // The reap before this kill is bounded.
+    // An unreaped child stays unreaped.
     // A grandchild in a new session keeps the pipe.
     // The reader wait stops at the time that remains.
     // A due deadline uses the drain bound so a killed pipe can deliver stderr.
     // A pipe that stays open hits that bound.
     // An expired wait is a timeout.
     // A finished reader keeps the child result, the worker error, and the stderr text.
-    // The child is already reaped.
-    // A second kill is harmless.
+    // A second kill does not wait.
     #[cfg(unix)]
     unsafe {
         libc::kill(-(child.id() as i32), libc::SIGKILL);
@@ -931,19 +954,19 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
         // The kill can still close a pipe in the group.
         // The reader then delivers the bytes already written.
         // A pipe that stays open hits the drain bound.
-        let limit = if remaining.is_zero() {
-            READBACK_DRAIN_AFTER_DEADLINE
-        } else {
-            remaining
-        };
+        let limit = jbotci_interrupt::bound_after_deadline(remaining);
         let reader = reader.take().expect("the reader handle is present");
         match join_readback_reader(reader, limit) {
             Some(outcome) => outcome,
             None => {
-                return Err(anyhow::anyhow!(
+                let timeout_error = anyhow::anyhow!(
                     "Publisher command timed out after {} seconds",
                     timeout.as_secs_f64()
-                ));
+                );
+                return match result {
+                    Ok(()) => Err(timeout_error),
+                    Err(error) => Err(error.context(timeout_error)),
+                };
             }
         }
     };

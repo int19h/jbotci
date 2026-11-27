@@ -1196,6 +1196,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Both states of the shared flag are valid. The owner decides when the flag becomes set.",
     ),
     (
+        "crates/jbotci-interrupt/src/lib.rs:ReapAfterKill",
+        "The status is present only after a poll reaps the child. The error is present only while the child stays unreaped. Either field can be absent.",
+    ),
+    (
+        "crates/jbotci-interrupt/src/lib.rs:StuckChild",
+        "The model stores a kill error, a kill count, a poll count, and an optional status. Any combination is a valid test control.",
+    ),
+    (
         "crates/jbotci-interrupt/src/lib.rs:CancellationSource",
         "The source is the owner of one flag. A clear flag and a set flag are both valid owners.",
     ),

@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock};
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, requires};
 
 /// Flag shared by one computation and the owner that may stop it.
 ///
@@ -231,6 +231,196 @@ pub fn assert_exit_check<T: fmt::Debug, E: fmt::Debug>(
     run(&CancellationToken::trip_after_checks(n)).expect("one more clear load finishes the call")
 }
 
+/// Time after a due command deadline.
+/// A killed pipe uses this time to deliver stderr.
+/// A killed child uses this time to reap.
+/// A pipe that stays open hits this bound.
+/// A child that does not reap hits this bound.
+#[cfg(not(target_arch = "wasm32"))]
+pub const READBACK_DRAIN_AFTER_DEADLINE: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// The wait after a command deadline.
+/// Positive remaining time stays that time.
+/// A due deadline uses [`READBACK_DRAIN_AFTER_DEADLINE`].
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+pub fn bound_after_deadline(remaining: std::time::Duration) -> std::time::Duration {
+    if remaining.is_zero() {
+        READBACK_DRAIN_AFTER_DEADLINE
+    } else {
+        remaining
+    }
+}
+
+/// A child the caller can kill and poll.
+/// `try_wait` does not block.
+#[cfg(not(target_arch = "wasm32"))]
+#[contract_trait]
+pub trait PollableChild {
+    type Status;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn id(&self) -> u32;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn kill(&mut self) -> std::io::Result<()>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn try_wait(&mut self) -> std::io::Result<Option<Self::Status>>;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[contract_trait]
+impl PollableChild for std::process::Child {
+    type Status = std::process::ExitStatus;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn id(&self) -> u32 {
+        std::process::Child::id(self)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn kill(&mut self) -> std::io::Result<()> {
+        std::process::Child::kill(self)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn try_wait(&mut self) -> std::io::Result<Option<Self::Status>> {
+        std::process::Child::try_wait(self)
+    }
+}
+
+/// The result of a bounded reap.
+/// `status` is present only after the child is reaped.
+/// `error` is present only while the child stays unreaped.
+/// Either field can be absent.
+/// The error is a failed kill or a failed poll.
+#[cfg(not(target_arch = "wasm32"))]
+#[invariant(true)]
+#[derive(Debug)]
+pub struct ReapAfterKill<S> {
+    pub status: Option<S>,
+    pub error: Option<std::io::Error>,
+}
+
+/// Kill `child`, then poll `try_wait` until `limit`.
+/// A child that is already reaped keeps that status and is not killed again.
+/// A recorded error stays with an unreaped child.
+/// A later poll that reaps the child drops that error.
+/// The caller leaves an unreaped child unreaped.
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+pub fn reap_after_kill<C: PollableChild>(
+    child: &mut C,
+    limit: std::time::Duration,
+    kill_group: bool,
+) -> ReapAfterKill<C::Status> {
+    let mut failure = None;
+    match poll_reap(child) {
+        Ok(Some(status)) => {
+            return ReapAfterKill {
+                status: Some(status),
+                error: None,
+            };
+        }
+        Ok(None) => {}
+        Err(error) => failure = Some(error),
+    }
+    failure = merge_reap_error(failure, signal_for_reap(child, kill_group));
+    let start = std::time::Instant::now();
+    loop {
+        match poll_reap(child) {
+            Ok(Some(status)) => {
+                return ReapAfterKill {
+                    status: Some(status),
+                    error: None,
+                };
+            }
+            Ok(None) => {}
+            Err(error) => failure = merge_reap_error(failure, Some(error)),
+        }
+        let elapsed = start.elapsed();
+        if elapsed >= limit {
+            return ReapAfterKill {
+                status: None,
+                error: failure,
+            };
+        }
+        let pause = std::time::Duration::from_millis(20).min(limit.saturating_sub(elapsed));
+        if pause.is_zero() {
+            return ReapAfterKill {
+                status: None,
+                error: failure,
+            };
+        }
+        std::thread::sleep(pause);
+    }
+}
+
+/// One non-blocking poll.
+/// `Ok(None)` means the child is still unreaped.
+/// An interrupt stays unreaped.
+/// Any other poll error is returned.
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn poll_reap<C: PollableChild>(child: &mut C) -> std::io::Result<Option<C::Status>> {
+    match child.try_wait() {
+        Ok(status) => Ok(status),
+        Err(error) if error.kind() == std::io::ErrorKind::Interrupted => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+/// Send the stop signal.
+/// A group kill uses the child id as the process group.
+/// The child kill always runs.
+/// The first error is kept, and a second error is appended.
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn signal_for_reap<C: PollableChild>(child: &mut C, kill_group: bool) -> Option<std::io::Error> {
+    let mut error = None;
+    if kill_group {
+        #[cfg(unix)]
+        {
+            let pid = child.id();
+            if pid != 0 {
+                let rc = unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
+                if rc != 0 {
+                    error = Some(std::io::Error::last_os_error());
+                }
+            }
+        }
+    }
+    if let Err(kill_error) = child.kill() {
+        error = merge_reap_error(error, Some(kill_error));
+    }
+    error
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn merge_reap_error(
+    current: Option<std::io::Error>,
+    next: Option<std::io::Error>,
+) -> Option<std::io::Error> {
+    match (current, next) {
+        (None, next) => next,
+        (current, None) => current,
+        (Some(current), Some(next)) => Some(std::io::Error::other(format!("{current}. {next}"))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::thread;
@@ -274,5 +464,118 @@ mod tests {
             thread::sleep(Duration::from_millis(5));
         }
         handle.join().expect("canceller thread");
+    }
+
+    /// A child whose poll never returns a status.
+    /// Any field combination is a valid test control.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[invariant(true)]
+    struct StuckChild {
+        kill_error: Option<std::io::ErrorKind>,
+        kills: u32,
+        polls: u32,
+        status: Option<u8>,
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    impl StuckChild {
+        #[requires(true)]
+        #[ensures(true)]
+        fn stuck() -> Self {
+            Self {
+                kill_error: None,
+                kills: 0,
+                polls: 0,
+                status: None,
+            }
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn refused() -> Self {
+            Self {
+                kill_error: Some(std::io::ErrorKind::PermissionDenied),
+                kills: 0,
+                polls: 0,
+                status: None,
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[contract_trait]
+    impl super::PollableChild for StuckChild {
+        type Status = u8;
+
+        fn id(&self) -> u32 {
+            // The id is not a process group.
+            // Tests keep `kill_group` false.
+            1
+        }
+
+        fn kill(&mut self) -> std::io::Result<()> {
+            self.kills += 1;
+            match self.kill_error {
+                Some(kind) => Err(std::io::Error::new(kind, "kill failed")),
+                None => Ok(()),
+            }
+        }
+
+        fn try_wait(&mut self) -> std::io::Result<Option<u8>> {
+            self.polls += 1;
+            Ok(self.status)
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reap_returns_while_a_child_never_reaps() {
+        let mut child = StuckChild::stuck();
+        let limit = Duration::from_millis(100);
+        let started = std::time::Instant::now();
+        let reap = super::reap_after_kill(&mut child, limit, false);
+        let elapsed = started.elapsed();
+        assert!(reap.status.is_none(), "the stuck child has no status");
+        assert!(reap.error.is_none(), "the kill was accepted");
+        assert!(child.kills == 1, "the kill ran once");
+        assert!(child.polls > 1, "the reap polled after the kill");
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "the reap ran for {elapsed:?}"
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reap_reports_a_kill_error_inside_the_bound() {
+        let mut child = StuckChild::refused();
+        let limit = Duration::from_millis(100);
+        let started = std::time::Instant::now();
+        let reap = super::reap_after_kill(&mut child, limit, false);
+        let elapsed = started.elapsed();
+        assert!(reap.status.is_none(), "a refused kill does not reap");
+        let error = reap.error.expect("the kill error is kept");
+        assert!(error.to_string().contains("kill failed"), "{error}");
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "the reap ran for {elapsed:?}"
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reap_keeps_a_status_without_killing_again() {
+        let mut child = StuckChild::stuck();
+        child.status = Some(7);
+        let reap = super::reap_after_kill(&mut child, Duration::from_secs(5), false);
+        assert_eq!(reap.status, Some(7));
+        assert!(reap.error.is_none());
+        assert_eq!(child.kills, 0, "an exited child is not killed");
     }
 }
