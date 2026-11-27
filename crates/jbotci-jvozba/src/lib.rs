@@ -304,7 +304,20 @@ fn build_best_jvozba_with_evaluator(
         if cancellation.is_cancelled() {
             return Err(JvozbaError::Interrupted);
         }
-        let plan = plan_expansion(dictionary, input, cancellation)?;
+        let plan = match plan_expansion(dictionary, input, cancellation) {
+            Ok(plan) => plan,
+            Err(JvozbaError::Interrupted) => return Err(JvozbaError::Interrupted),
+            Err(error) => {
+                return Err(first_error_before_failed_plan(
+                    mode,
+                    dictionary,
+                    plans,
+                    count.filter(|count| *count <= limits.max_pieces),
+                    error,
+                    cancellation,
+                ));
+            }
+        };
         count = count.and_then(|count| count.checked_add(plan.piece_count()));
         // Count every occurrence for the exact refusal reason. Retain a plan
         // only while the eventual expansion can still fit the piece limit.
@@ -407,13 +420,16 @@ pub fn entry_can_enter_jvozba_pane(
 
 /// Whether the jvozba pane admits a word.
 ///
-/// A lujvo-form word is always admitted, also when a build with it can only
-/// fail, for example when one of its rafsi names no dictionary word
-/// (`lefkroli`, or the dictionary lujvo `golfyjvi`). The owner ruled so on
-/// 2026-11-26: the user sees why the word cannot build, which is better than
-/// a hidden word. The pane build then shows the error that names the rafsi.
-/// Do not make this test refuse such a word. Any other word is admitted when
-/// it gives a candidate in some position.
+/// A word is admitted when it gives a candidate in some position, as before
+/// #1149. A word with no candidate is also admitted when the morphology reads
+/// it as a lujvo, even when a build with it can only fail, for example when
+/// one of its rafsi names no dictionary word (`lefkroli`). The owner ruled so
+/// on 2026-11-26: the user sees why the word cannot build, which is better
+/// than a hidden word, and the pane build then shows the error that names the
+/// rafsi. Do not make this test refuse such a word. The ruling keeps these
+/// words admitted and adds no others: a cmevla that the build expands into
+/// source words (`lojban`, `moskov`) has no candidate of its own, so it stays
+/// out, as before.
 #[requires(true)]
 #[ensures(true)]
 fn input_can_enter_jvozba_pane(
@@ -422,9 +438,6 @@ fn input_can_enter_jvozba_pane(
     input: ExpandedInput<'_>,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
-    if decompose_lujvo_like(dictionary, word_text, cancellation)?.is_some() {
-        return Ok(true);
-    }
     for is_last_input in [false, true] {
         if pane_candidate_available(candidate_list_for_input(
             JvozbaMode::Lujvo,
@@ -436,7 +449,25 @@ fn input_can_enter_jvozba_pane(
             return Ok(true);
         }
     }
-    Ok(false)
+    is_morphology_lujvo(word_text, cancellation)
+}
+
+/// Whether the morphology reads `raw_word` as one lujvo.
+///
+/// This is the one test for "lujvo form" in jvozba. A cmevla that reads as a
+/// compound of known words is not a lujvo here, though
+/// `decompose_lujvo_like` also decomposes it.
+#[requires(true)]
+#[ensures(true)]
+fn is_morphology_lujvo(
+    raw_word: &str,
+    cancellation: &CancellationToken,
+) -> Result<bool, JvozbaError> {
+    let normalized = normalize_lujvo_like_input(raw_word);
+    if normalized.is_empty() {
+        return Ok(false);
+    }
+    Ok(morphology_lujvo_parts(&normalized, cancellation)?.is_some())
 }
 
 /// A missing rafsi is "no", and a set flag is an interrupt. The two must not share one answer.
@@ -569,6 +600,40 @@ impl<'input> ExpansionPlan<'input> {
         }
     }
 }
+/// The error to report when the plan of one input fails.
+///
+/// jvozba reports the error of the first failing input, in the order that the
+/// user wrote, as main does. A plan error of a later input must not hide a
+/// candidate error of an earlier one (`djan lefkroli` names `djan`). So the
+/// earlier inputs get their candidates first. Each of them is followed by the
+/// failing input, so none of them is the last input. When the earlier inputs
+/// are over the piece limit (`count` is `None`), their candidates are not
+/// made, and the plan error stands.
+#[requires(true)]
+#[ensures(true)]
+fn first_error_before_failed_plan(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    earlier: Vec<ExpansionPlan<'_>>,
+    count: Option<usize>,
+    plan_error: JvozbaError,
+    cancellation: &CancellationToken,
+) -> JvozbaError {
+    if count.is_none() {
+        return plan_error;
+    }
+    let mut expanded = Vec::new();
+    for plan in earlier {
+        plan.append_to(&mut expanded);
+    }
+    for input in expanded {
+        if let Err(error) = candidate_list_for_input(mode, dictionary, false, input, cancellation) {
+            return error;
+        }
+    }
+    plan_error
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn plan_expansion<'input>(
@@ -2390,6 +2455,71 @@ mod tests {
             word_can_enter_jvozba_pane(dictionary, "lefmeq", &token),
             Ok(false)
         );
+        // The ruling adds no words: a dictionary cmevla that the build
+        // expands into source words has no candidate of its own, and it stays
+        // out, as before #1149.
+        for text in ["lojban", "moskov"] {
+            assert_eq!(
+                word_can_enter_jvozba_pane(dictionary, text, &token),
+                Ok(false),
+                "{text}"
+            );
+            let entry_index = dictionary.lookup_word_index(text).expect("cmevla entry");
+            assert_eq!(
+                entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
+                Ok(false),
+                "{text}"
+            );
+            assert!(
+                decompose_lujvo_like(dictionary, text, &token)
+                    .unwrap()
+                    .is_some(),
+                "{text} still expands in a build"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_first_failing_input_names_the_error() {
+        // jvozba reports the error of the first failing input, in the order
+        // that the user wrote. A part error of a later input does not hide a
+        // candidate error of an earlier one.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let rafsi = |text: &str| JvozbaInput::FixedRafsi(text.to_owned());
+        let lef = JvozbaError::LujvoPartWithoutSource {
+            word: "lefkroli".to_owned(),
+            part: "lef".to_owned(),
+        };
+        let djan = JvozbaError::NoDictionaryEntry {
+            offending: "djan".to_owned(),
+        };
+        for (inputs, expected) in [
+            (vec![word("djan"), word("lefkroli")], djan.clone()),
+            (vec![word("lefkroli"), word("djan")], lef.clone()),
+            (
+                vec![word("bajra"), word("djan"), word("lefkroli")],
+                djan.clone(),
+            ),
+            (
+                vec![rafsi(","), word("lefkroli")],
+                JvozbaError::FixedRafsiEmpty,
+            ),
+            (vec![word("djan"), word("eskykukte")], djan),
+            (
+                vec![word("eskykukte"), word("djan")],
+                JvozbaError::AmbiguousFuivlaRafsi {
+                    stem: "esk".to_owned(),
+                },
+            ),
+        ] {
+            let error = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
+                .expect_err("one input fails");
+            assert_eq!(error, expected, "{inputs:?}");
+        }
     }
 
     #[test]
