@@ -957,24 +957,60 @@ fn long_gismu_stem(form: &str) -> String {
     form.chars().take(4).collect()
 }
 
-/// The one candidate a final part offers in each position.
+/// The candidates a final part offers in each position.
+///
+/// A gismu form is the full word finally and its long rafsi non-finally.
+/// A short rafsi is itself in both positions. A fu'ivla form is the full
+/// word finally; non-finally it offers both of its positional forms, the
+/// stem and the full word (CLL 4.16), when `stem` is one of them. Both
+/// forms are the same kept part, so the scorer still cannot re-choose a
+/// different rafsi.
 #[requires(!form.is_empty())]
 #[ensures(!ret.is_empty())]
 fn final_part_candidates(
     form: &str,
     kind: FinalPartKind,
     is_last_input: bool,
+    stem: Option<String>,
 ) -> Vec<LujvoBuildPart> {
-    let candidate = match (kind, is_last_input) {
+    match (kind, is_last_input) {
         (FinalPartKind::Gismu, false) => {
-            new!(LujvoBuildPart::Rafsi(long_gismu_stem(form)))
+            vec![new!(LujvoBuildPart::Rafsi(long_gismu_stem(form)))]
         }
-        (FinalPartKind::Gismu, true) | (FinalPartKind::FullBrivla, _) => {
-            new!(LujvoBuildPart::BrivlaCore(form.to_owned()))
+        (FinalPartKind::Gismu, true) => {
+            vec![new!(LujvoBuildPart::BrivlaCore(form.to_owned()))]
         }
-        (FinalPartKind::Rafsi, _) => new!(LujvoBuildPart::Rafsi(form.to_owned())),
+        (FinalPartKind::FullBrivla, false) => stem
+            .map(|stem| new!(LujvoBuildPart::FuhivlaStem(stem)))
+            .into_iter()
+            .chain(std::iter::once(new!(LujvoBuildPart::BrivlaCore(
+                form.to_owned(),
+            ))))
+            .collect(),
+        (FinalPartKind::FullBrivla, true) => {
+            vec![new!(LujvoBuildPart::BrivlaCore(form.to_owned()))]
+        }
+        (FinalPartKind::Rafsi, _) => vec![new!(LujvoBuildPart::Rafsi(form.to_owned()))],
+    }
+}
+
+/// The stem a kept fu'ivla final part may use non-finally, when it still
+/// names the same word. A sourced part uses the dictionary stem that names
+/// its entry; a self-sourced part uses its derived stem when the morphology
+/// reads that stem as a fu'ivla rafsi.
+#[requires(true)]
+#[ensures(true)]
+fn kept_fuivla_stem(
+    dictionary: &Dictionary<'_>,
+    form: &str,
+    source: Option<EntryIndex>,
+) -> Option<String> {
+    let stem = fuivla_stem_rafsi(form)?;
+    let names_same_word = match source {
+        Some(entry_index) => fuivla_rafsi_names_entry(dictionary, &stem, entry_index),
+        None => is_fuhivla_rafsi_form(&stem),
     };
-    vec![candidate]
+    names_same_word.then_some(stem)
 }
 
 #[requires(true)]
@@ -1060,12 +1096,22 @@ fn candidate_list_for_input(
             }])
         }
         ExpandedInput::KeptFinalPart(kept) => {
-            let data!(KeptFinalPart { form, kind, .. }) = kept.into_data();
-            Ok(final_part_candidates(&form, kind, is_last_input))
+            let data!(KeptFinalPart { form, kind, source }) = kept.into_data();
+            let stem = if kind == FinalPartKind::FullBrivla && !is_last_input {
+                kept_fuivla_stem(dictionary, &form, Some(source))
+            } else {
+                None
+            };
+            Ok(final_part_candidates(&form, kind, is_last_input, stem))
         }
         ExpandedInput::SelfSourcedFinalPart(part) => {
             let data!(SelfSourcedFinalPart { form, kind }) = part.into_data();
-            Ok(final_part_candidates(&form, kind, is_last_input))
+            let stem = if kind == FinalPartKind::FullBrivla && !is_last_input {
+                kept_fuivla_stem(dictionary, &form, None)
+            } else {
+                None
+            };
+            Ok(final_part_candidates(&form, kind, is_last_input, stem))
         }
         ExpandedInput::PinnedLongRafsi(pinned) => {
             let data!(PinnedLongRafsi { stem }) = pinned.into_data();
@@ -1662,7 +1708,9 @@ fn sources_match(
             Some(ExpandedInput::SelfSourcedFinalPart(part_form)) => {
                 let pinned = surface == part_form.form.as_str()
                     || (part_form.kind == FinalPartKind::Gismu
-                        && surface == long_gismu_stem(&part_form.form));
+                        && surface == long_gismu_stem(&part_form.form))
+                    || (part_form.kind == FinalPartKind::FullBrivla
+                        && fuivla_stem_rafsi(&part_form.form).as_deref() == Some(surface.as_str()));
                 if !pinned {
                     return false;
                 }
@@ -2950,6 +2998,20 @@ mod tests {
         // A short final rafsi is kept as it is in both positions.
         assert_eq!(build(&[word("klama"), word("jbobau")]), "klajbobau");
         assert_eq!(build(&[word("jbobau"), word("klama")]), "jbobaukla");
+        // Keeping the rafsi can also make a build impossible: `dut` plus
+        // the stem of `ku'arka` reads as one fu'ivla rafsi in the longer
+        // word (`dutku'arkykla` parses as `dutku'ark` + `kla`), so no
+        // valid lujvo exists from the kept forms of `dutyku'arka`. Main
+        // built only by substituting `dukt` for `dut`.
+        assert_eq!(
+            build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[word("dutyku'arka"), word("klama")],
+                &token,
+            ),
+            Err(JvozbaError::CouldNotBuildLujvo)
+        );
     }
 
     #[test]
