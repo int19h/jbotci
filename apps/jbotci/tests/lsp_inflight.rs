@@ -1,5 +1,9 @@
 //! The stdio server must answer a burst larger than its worker pool.
 //!
+//! A hover on a confirmed document returns before waits on a new document.
+//! A cancel of a waiting folding range returns code -32800.
+//! A timeout message includes stderr text that has already arrived.
+//!
 //! The burst is larger than the worker pool.
 //! Linux pins the child to one CPU in the current mask.
 //! The pool size is then two.
@@ -89,9 +93,18 @@ impl RunningServer {
         let stderr_log = Arc::new(Mutex::new(String::new()));
         let logged = Arc::clone(&stderr_log);
         let stderr_reader = thread::spawn(move || {
-            let mut buffer = String::new();
-            let _ = Read::read_to_string(&mut BufReader::new(stderr), &mut buffer);
-            *logged.lock().expect("stderr log poisoned") = buffer;
+            let mut reader = BufReader::new(stderr);
+            let mut chunk = [0_u8; 1024];
+            loop {
+                match Read::read(&mut reader, &mut chunk) {
+                    Ok(0) => break,
+                    Ok(size) => {
+                        let text = String::from_utf8_lossy(&chunk[..size]);
+                        logged.lock().expect("stderr log poisoned").push_str(&text);
+                    }
+                    Err(_) => break,
+                }
+            }
         });
         let (messages, stdout_reader) = spawn_reader(stdout);
         (
@@ -400,17 +413,21 @@ fn wait_for_id(
     stdin: &mut ChildStdin,
     id: u64,
     deadline: Instant,
-    stderr: &str,
+    server: &RunningServer,
 ) -> Value {
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
         assert!(
             !remaining.is_zero(),
-            "timed out waiting for LSP id {id}. stderr: {stderr}"
+            "timed out waiting for LSP id {id}. stderr: {}",
+            server.stderr_text(),
         );
-        let message = messages
-            .recv_timeout(remaining)
-            .unwrap_or_else(|_| panic!("timed out waiting for LSP id {id}. stderr: {stderr}"));
+        let message = messages.recv_timeout(remaining).unwrap_or_else(|_| {
+            panic!(
+                "timed out waiting for LSP id {id}. stderr: {}",
+                server.stderr_text(),
+            )
+        });
         if reply_to_server_request(stdin, &message) {
             continue;
         }
@@ -420,7 +437,10 @@ fn wait_for_id(
         if message.get("id") == Some(&json!(id)) {
             return message;
         }
-        panic!("unexpected LSP response while waiting for {id}: {message}. stderr: {stderr}");
+        panic!(
+            "unexpected LSP response while waiting for {id}: {message}. stderr: {}",
+            server.stderr_text(),
+        );
     }
 }
 
@@ -450,7 +470,7 @@ fn drive_stdio_server(
         &mut stdin,
         &request_message(1, "initialize", initialize_params()),
     );
-    let initialized = wait_for_id(&messages, &mut stdin, 1, deadline, &server.stderr_text());
+    let initialized = wait_for_id(&messages, &mut stdin, 1, deadline, server);
     assert!(initialized.get("error").is_none(), "{initialized}");
     assert!(initialized["result"]["capabilities"]["diagnosticProvider"].is_object());
     write_message(&mut stdin, &notification_message("initialized", json!({})));
@@ -549,13 +569,7 @@ fn drive_stdio_server(
             params_for("textDocument/diagnostic", DOCUMENT_URI),
         ),
     );
-    let edited = wait_for_id(
-        &messages,
-        &mut stdin,
-        edited_id,
-        deadline,
-        &server.stderr_text(),
-    );
+    let edited = wait_for_id(&messages, &mut stdin, edited_id, deadline, server);
     assert!(edited.get("error").is_none(), "{edited}");
     let result_id = edited["result"]["resultId"]
         .as_str()
@@ -569,13 +583,7 @@ fn drive_stdio_server(
         &mut stdin,
         &request_message(shutdown_id, "shutdown", Value::Null),
     );
-    let shutdown = wait_for_id(
-        &messages,
-        &mut stdin,
-        shutdown_id,
-        deadline,
-        &server.stderr_text(),
-    );
+    let shutdown = wait_for_id(&messages, &mut stdin, shutdown_id, deadline, server);
     assert_eq!(shutdown["result"], Value::Null, "{shutdown}");
     write_message(&mut stdin, &notification_message("exit", Value::Null));
     drop(stdin);
@@ -603,6 +611,265 @@ fn drive_stdio_server(
         "unexpected LSP stderr: {}",
         server.stderr_text()
     );
+}
+
+#[requires(true)]
+#[ensures(ret >= 2)]
+fn pinned_worker_pool_size() -> usize {
+    // Linux pins the child to one CPU.
+    // The server pool is then two.
+    if cfg!(target_os = "linux") {
+        return 2;
+    }
+    std::thread::available_parallelism()
+        .map(NonZeroUsize::get)
+        .unwrap_or(2)
+        .max(2)
+}
+
+#[requires(true)]
+#[ensures(ret.contains("mi klama lo zarci"))]
+fn large_document_text() -> String {
+    "mi klama lo zarci .i ".repeat(600)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn initialize_server(
+    server: &RunningServer,
+    stdin: &mut ChildStdin,
+    messages: &std::sync::mpsc::Receiver<Value>,
+    deadline: Instant,
+) {
+    write_message(
+        stdin,
+        &request_message(1, "initialize", initialize_params()),
+    );
+    let initialized = wait_for_id(messages, stdin, 1, deadline, server);
+    assert!(initialized.get("error").is_none(), "{initialized}");
+    write_message(stdin, &notification_message("initialized", json!({})));
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn open_document(stdin: &mut ChildStdin, uri: &str, version: i32, text: &str) {
+    write_message(
+        stdin,
+        &notification_message(
+            "textDocument/didOpen",
+            json!({
+                "textDocument": {
+                    "uri": uri,
+                    "languageId": "lojban",
+                    "version": version,
+                    "text": text,
+                }
+            }),
+        ),
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn shutdown_server(
+    server: &RunningServer,
+    stdin: &mut ChildStdin,
+    messages: &std::sync::mpsc::Receiver<Value>,
+    id: u64,
+    deadline: Instant,
+) {
+    write_message(stdin, &request_message(id, "shutdown", Value::Null));
+    let shutdown = wait_for_id(messages, stdin, id, deadline, server);
+    assert_eq!(shutdown["result"], Value::Null, "{shutdown}");
+    write_message(stdin, &notification_message("exit", Value::Null));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn confirmed_hover_returns_before_waits_on_a_new_document() {
+    let (server, mut stdin, messages) = RunningServer::spawn();
+    let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        drive_confirmed_hover(&server, &mut stdin, &messages);
+    }));
+    server.stop();
+    if let Err(payload) = result {
+        resume_unwind(payload);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn drive_confirmed_hover(
+    server: &RunningServer,
+    stdin: &mut ChildStdin,
+    messages: &std::sync::mpsc::Receiver<Value>,
+) {
+    let deadline = Instant::now() + RESPONSE_DEADLINE;
+    initialize_server(server, stdin, messages, deadline);
+    let confirmed = "file:///confirmed.jbo";
+    let fresh = "file:///fresh.jbo";
+    open_document(stdin, confirmed, 1, DOCUMENT_TEXT);
+    write_message(
+        stdin,
+        &request_message(
+            2,
+            "textDocument/foldingRange",
+            params_for("textDocument/foldingRange", confirmed),
+        ),
+    );
+    let confirmed_folding = wait_for_id(messages, stdin, 2, deadline, server);
+    assert!(
+        confirmed_folding.get("error").is_none(),
+        "{confirmed_folding}"
+    );
+
+    let pool = pinned_worker_pool_size();
+    let hover_id = 50_u64;
+    let mut buffer = Vec::new();
+    push_message(
+        &mut buffer,
+        &notification_message(
+            "textDocument/didOpen",
+            json!({
+                "textDocument": {
+                    "uri": fresh,
+                    "languageId": "lojban",
+                    "version": 1,
+                    "text": large_document_text(),
+                }
+            }),
+        ),
+    );
+    let mut folding_ids = Vec::new();
+    for offset in 0..pool {
+        let id = 100 + u64::try_from(offset).expect("pool offset fits");
+        folding_ids.push(id);
+        push_message(
+            &mut buffer,
+            &request_message(
+                id,
+                "textDocument/foldingRange",
+                params_for("textDocument/foldingRange", fresh),
+            ),
+        );
+    }
+    push_message(
+        &mut buffer,
+        &request_message(
+            hover_id,
+            "textDocument/hover",
+            params_for("textDocument/hover", confirmed),
+        ),
+    );
+    stdin
+        .write_all(&buffer)
+        .expect("write the waiting requests");
+    stdin.flush().expect("flush the waiting requests");
+
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        assert!(
+            !remaining.is_zero(),
+            "timed out waiting for the confirmed hover. stderr: {}",
+            server.stderr_text(),
+        );
+        let message = messages.recv_timeout(remaining).unwrap_or_else(|_| {
+            panic!(
+                "timed out waiting for the confirmed hover. stderr: {}",
+                server.stderr_text(),
+            )
+        });
+        if reply_to_server_request(stdin, &message) || message.get("method").is_some() {
+            continue;
+        }
+        let id = message
+            .get("id")
+            .and_then(Value::as_u64)
+            .unwrap_or_else(|| panic!("response has no numeric id: {message}"));
+        if folding_ids.contains(&id) {
+            panic!(
+                "foldingRange on the new document answered before hover: {message}. stderr: {}",
+                server.stderr_text(),
+            );
+        }
+        if id == hover_id {
+            assert!(message.get("error").is_none(), "{message}");
+            assert!(message.get("result").is_some(), "{message}");
+            break;
+        }
+        panic!(
+            "unexpected response before the confirmed hover: {message}. stderr: {}",
+            server.stderr_text(),
+        );
+    }
+    shutdown_server(server, stdin, messages, 900, deadline);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cancel_of_a_waiting_folding_range_returns_cancelled() {
+    let (server, mut stdin, messages) = RunningServer::spawn();
+    let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        drive_cancelled_folding_range(&server, &mut stdin, &messages);
+    }));
+    server.stop();
+    if let Err(payload) = result {
+        resume_unwind(payload);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn drive_cancelled_folding_range(
+    server: &RunningServer,
+    stdin: &mut ChildStdin,
+    messages: &std::sync::mpsc::Receiver<Value>,
+) {
+    let deadline = Instant::now() + RESPONSE_DEADLINE;
+    initialize_server(server, stdin, messages, deadline);
+    let fresh = "file:///cancelled.jbo";
+    let mut buffer = Vec::new();
+    push_message(
+        &mut buffer,
+        &notification_message(
+            "textDocument/didOpen",
+            json!({
+                "textDocument": {
+                    "uri": fresh,
+                    "languageId": "lojban",
+                    "version": 1,
+                    "text": large_document_text(),
+                }
+            }),
+        ),
+    );
+    push_message(
+        &mut buffer,
+        &request_message(
+            2,
+            "textDocument/foldingRange",
+            params_for("textDocument/foldingRange", fresh),
+        ),
+    );
+    push_message(
+        &mut buffer,
+        &notification_message("$/cancelRequest", json!({ "id": 2 })),
+    );
+    stdin
+        .write_all(&buffer)
+        .expect("write the cancelled folding range");
+    stdin.flush().expect("flush the cancelled folding range");
+    let response = wait_for_id(messages, stdin, 2, deadline, server);
+    assert_eq!(
+        response["error"]["code"].as_i64(),
+        Some(-32800),
+        "{response}. stderr: {}",
+        server.stderr_text(),
+    );
+    assert!(response.get("result").is_none(), "{response}");
+    shutdown_server(server, stdin, messages, 3, deadline);
 }
 
 #[requires(message.is_object())]

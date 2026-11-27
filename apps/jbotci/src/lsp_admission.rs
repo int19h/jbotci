@@ -1,14 +1,13 @@
-//! Admit each LSP request without a stop of the read loop.
+//! Cancel an LSP request without a stop of the read loop.
 //!
 //! The main loop calls `poll_ready` before it reads the next message.
-//! During that call, the main loop does not poll accepted requests.
-//! `poll_ready` stays ready after the worker pool is full.
-//! The request future waits for a worker permit.
-//! The main loop can read, cancel, and write during that wait.
+//! This layer forwards that call.
+//! It does not wait for a worker permit.
+//! `call` starts the inner request at once.
+//! The request future also watches `$/cancelRequest`.
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -16,7 +15,6 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 use async_lsp::lsp_types::notification::Notification;
-use async_lsp::lsp_types::request::{self, Request};
 use async_lsp::lsp_types::{CancelParams, NumberOrString};
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ErrorCode, LspService, ResponseError,
@@ -24,10 +22,8 @@ use async_lsp::{
 };
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
-use tokio::sync::{Semaphore, oneshot};
+use tokio::sync::oneshot;
 use tower::Service;
-
-const MIN_HEAVY_REQUESTS: usize = 2;
 
 /// One cancel slot for one request id.
 ///
@@ -74,59 +70,25 @@ impl Drop for CancelGuard {
     }
 }
 
-#[invariant(*heavy_limit >= MIN_HEAVY_REQUESTS && *heavy_limit <= Semaphore::MAX_PERMITS)]
-#[invariant(heavy_permits.available_permits() <= *heavy_limit)]
+#[invariant(cancels.as_data().next_token.load(std::sync::atomic::Ordering::Relaxed) > 0)]
 pub(super) struct RequestAdmission<S> {
-    service: Arc<Mutex<S>>,
+    service: S,
     cancels: Arc<CancelBook>,
-    heavy_permits: Arc<Semaphore>,
-    heavy_limit: usize,
-}
-
-#[requires(true)]
-#[ensures(ret >= MIN_HEAVY_REQUESTS)]
-#[ensures(ret <= Semaphore::MAX_PERMITS)]
-fn heavy_request_limit() -> usize {
-    std::thread::available_parallelism()
-        .map(NonZeroUsize::get)
-        .unwrap_or(MIN_HEAVY_REQUESTS)
-        .max(MIN_HEAVY_REQUESTS)
-}
-
-#[requires(true)]
-#[ensures(ret.heavy_limit == heavy_request_limit())]
-pub(super) fn request_admission<S>(service: S) -> RequestAdmission<S> {
-    request_admission_with_limit(service, heavy_request_limit())
-}
-
-#[requires(heavy_limit >= MIN_HEAVY_REQUESTS && heavy_limit <= Semaphore::MAX_PERMITS)]
-#[ensures(ret.heavy_limit == heavy_limit)]
-#[ensures(ret.heavy_permits.available_permits() == heavy_limit)]
-fn request_admission_with_limit<S>(service: S, heavy_limit: usize) -> RequestAdmission<S> {
-    new!(RequestAdmission {
-        service: Arc::new(Mutex::new(service)),
-        cancels: Arc::new(new!(CancelBook {
-            next_token: AtomicU64::new(1),
-            entries: Mutex::new(HashMap::new()),
-        })),
-        heavy_permits: Arc::new(Semaphore::new(heavy_limit)),
-        heavy_limit,
-    })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn request_uses_analysis_worker(method: &str) -> bool {
-    matches!(
-        method,
-        request::DocumentDiagnosticRequest::METHOD
-            | request::HoverRequest::METHOD
-            | request::SelectionRangeRequest::METHOD
-            | request::FoldingRangeRequest::METHOD
-            | request::Completion::METHOD
-            | request::SemanticTokensFullRequest::METHOD
-            | request::InlayHintRequest::METHOD
-    )
+pub(super) fn request_admission<S>(service: S) -> RequestAdmissionData<S> {
+    // `new!` checks the cancel-token invariant.
+    // The data value keeps a mutable service and uses no lock.
+    new!(RequestAdmission {
+        service,
+        cancels: Arc::new(new!(CancelBook {
+            next_token: AtomicU64::new(1),
+            entries: Mutex::new(HashMap::new()),
+        })),
+    })
+    .into_data()
 }
 
 #[requires(true)]
@@ -136,7 +98,7 @@ fn cancelled_response() -> ResponseError {
     ResponseError::new(ErrorCode::REQUEST_CANCELLED, "Client cancelled the request")
 }
 
-impl<S> RequestAdmission<S> {
+impl<S> RequestAdmissionData<S> {
     #[requires(true)]
     #[ensures(true)]
     fn register_cancel(&self, id: NumberOrString) -> (oneshot::Receiver<()>, CancelGuard) {
@@ -187,7 +149,7 @@ fn take_cancel_token(book: &CancelBook) -> u64 {
     }
 }
 
-impl<S> Service<AnyRequest> for RequestAdmission<S>
+impl<S> Service<AnyRequest> for RequestAdmissionData<S>
 where
     S: Service<AnyRequest, Response = serde_json::Value, Error = ResponseError> + Send + 'static,
     S::Future: Send,
@@ -198,18 +160,17 @@ where
 
     #[requires(true)]
     #[ensures(matches!(ret, Poll::Ready(Ok(()))))]
-    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), ResponseError>> {
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), ResponseError>> {
         // A pending result here stops the next read and the next response write.
-        Poll::Ready(Ok(()))
+        // This layer adds no wait. The inner router stays ready.
+        self.service.poll_ready(cx)
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn call(&mut self, req: AnyRequest) -> <Self as Service<AnyRequest>>::Future {
-        let heavy = request_uses_analysis_worker(&req.method);
         let (cancel, guard) = self.register_cancel(req.id.clone());
-        let permits = Arc::clone(&self.heavy_permits);
-        let service = Arc::clone(&self.service);
+        let inner = self.service.call(req);
         Box::pin(async move {
             // The guard stays in this future.
             // The future drop removes the cancel entry for this token.
@@ -224,48 +185,13 @@ where
             tokio::select! {
                 biased;
                 () = cancel_requested => Err(cancelled_response()),
-                result = run_admitted(heavy, permits, service, req) => result,
+                result = inner => result,
             }
         })
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-async fn run_admitted<S>(
-    heavy: bool,
-    permits: Arc<Semaphore>,
-    service: Arc<Mutex<S>>,
-    req: AnyRequest,
-) -> Result<serde_json::Value, ResponseError>
-where
-    S: Service<AnyRequest, Response = serde_json::Value, Error = ResponseError> + Send,
-    S::Future: Send,
-{
-    if heavy {
-        let permit = permits
-            .acquire_owned()
-            .await
-            .expect("LSP worker semaphore stays open");
-        // The guard ends before the inner future waits.
-        // A waiting analysis request does not block shutdown or the next notification.
-        let fut = {
-            let mut service = service.lock().expect("LSP request admission lock poisoned");
-            service.call(req)
-        };
-        let result = fut.await;
-        drop(permit);
-        result
-    } else {
-        let fut = {
-            let mut service = service.lock().expect("LSP request admission lock poisoned");
-            service.call(req)
-        };
-        fut.await
-    }
-}
-
-impl<S> LspService for RequestAdmission<S>
+impl<S> LspService for RequestAdmissionData<S>
 where
     S: Service<AnyRequest, Response = serde_json::Value, Error = ResponseError>
         + LspService
@@ -282,19 +208,13 @@ where
             }
             return ControlFlow::Continue(());
         }
-        self.service
-            .lock()
-            .expect("LSP request admission lock poisoned")
-            .notify(notif)
+        self.service.notify(notif)
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn emit(&mut self, event: AnyEvent) -> ControlFlow<LspResult<()>> {
-        self.service
-            .lock()
-            .expect("LSP request admission lock poisoned")
-            .emit(event)
+        self.service.emit(event)
     }
 }
 
@@ -319,7 +239,7 @@ mod tests {
     use tokio::sync::watch;
     use tower::Service;
 
-    use super::request_admission_with_limit;
+    use super::request_admission;
 
     #[invariant(started.load(Ordering::Relaxed) >= *started_floor)]
     struct PendingService {
@@ -417,33 +337,30 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     #[requires(true)]
     #[ensures(true)]
-    async fn full_pool_still_reads_cancel_and_a_cheap_request() {
+    async fn a_pending_request_can_be_cancelled_while_the_reader_stays_ready() {
         let started = Arc::new(AtomicUsize::new(0));
         let (ready_tx, ready_rx) = watch::channel(false);
-        let mut admission =
-            request_admission_with_limit(pending_service(Arc::clone(&started), ready_rx), 2);
+        let mut admission = request_admission(pending_service(Arc::clone(&started), ready_rx));
         let waker = Waker::noop();
         let mut cx = Context::from_waker(&waker);
         assert!(admission.poll_ready(&mut cx).is_ready());
 
         let mut first = admission.call(request(1, request::HoverRequest::METHOD));
-        let mut second = admission.call(request(2, request::HoverRequest::METHOD));
+        let mut second = admission.call(request(2, request::FoldingRangeRequest::METHOD));
         let mut third = admission.call(request(3, request::HoverRequest::METHOD));
         let mut shutdown = admission.call(request(4, request::Shutdown::METHOD));
+        // Every call starts at once. None of them waits for a worker permit.
+        assert_eq!(started.load(Ordering::SeqCst), 4);
         assert!(admission.poll_ready(&mut cx).is_ready());
-
         assert!(first.as_mut().poll(&mut cx).is_pending());
         assert!(second.as_mut().poll(&mut cx).is_pending());
-        assert_eq!(started.load(Ordering::SeqCst), 2);
-        assert!(admission.poll_ready(&mut cx).is_ready());
+        assert!(third.as_mut().poll(&mut cx).is_pending());
+        assert!(shutdown.as_mut().poll(&mut cx).is_pending());
         assert!(matches!(
             admission.notify(notification("textDocument/didChange")),
             ControlFlow::Continue(())
         ));
-        assert!(third.as_mut().poll(&mut cx).is_pending());
-        assert_eq!(started.load(Ordering::SeqCst), 2);
-        assert!(shutdown.as_mut().poll(&mut cx).is_pending());
-        assert_eq!(started.load(Ordering::SeqCst), 3);
+        assert!(admission.poll_ready(&mut cx).is_ready());
 
         assert!(matches!(
             admission.notify(cancel(1)),
@@ -453,8 +370,6 @@ mod tests {
         assert_eq!(cancelled.code, ErrorCode::REQUEST_CANCELLED);
         assert_eq!(cancelled.message, "Client cancelled the request");
 
-        assert!(third.as_mut().poll(&mut cx).is_pending());
-        assert_eq!(started.load(Ordering::SeqCst), 4);
         ready_tx.send(true).expect("test watch stays open");
         assert!(second.await.expect("second request").is_null());
         assert!(third.await.expect("third request").is_null());
@@ -467,8 +382,7 @@ mod tests {
     async fn dropped_request_removes_only_its_cancel_entry() {
         let started = Arc::new(AtomicUsize::new(0));
         let (_ready_tx, ready_rx) = watch::channel(false);
-        let mut admission =
-            request_admission_with_limit(pending_service(Arc::clone(&started), ready_rx), 2);
+        let mut admission = request_admission(pending_service(Arc::clone(&started), ready_rx));
         let first = admission.call(request(7, request::HoverRequest::METHOD));
         assert_eq!(cancel_token(&admission, 7), Some(1));
         let second = admission.call(request(7, request::HoverRequest::METHOD));
@@ -481,7 +395,10 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn cancel_token(admission: &super::RequestAdmission<PendingService>, id: i32) -> Option<u64> {
+    fn cancel_token(
+        admission: &super::RequestAdmissionData<PendingService>,
+        id: i32,
+    ) -> Option<u64> {
         admission
             .cancels
             .as_data()

@@ -1,7 +1,10 @@
 //! Language Server Protocol adapter for the `jbotci lsp` stdio subcommand.
 
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
+#[cfg(test)]
+use std::sync::atomic::AtomicBool;
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicU64, Ordering as AtomicOrdering},
@@ -43,7 +46,7 @@ use jbotci_ide::{
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
 use serde::Deserialize;
 use serde_json::json;
-use tokio::sync::watch;
+use tokio::sync::{Semaphore, watch};
 use tokio::task::AbortHandle;
 use tower::ServiceBuilder;
 
@@ -54,6 +57,7 @@ const DIAGNOSTIC_IDENTIFIER: &str = "jbotci";
 const SERVER_NAME: &str = "jbotci";
 const COMPLETION_DATA_WORD: &str = "jbotciWord";
 const DEBOUNCE_DELAY: Duration = Duration::from_millis(200);
+const MIN_WORKER_PERMITS: usize = 2;
 const LEGACY_STRUCTURE_INLAYS_WARNING: &str = "initializationOptions.structureInlays is deprecated; use initializationOptions.inlays.structureBrackets instead";
 
 type DiagnosticsPublisher = Arc<dyn Fn(Url, i32, Arc<DiagnosticSnapshot>) + Send + Sync + 'static>;
@@ -68,6 +72,11 @@ struct ServerState {
     completion_grammar_time_limit: Option<Duration>,
     initialization_warnings: Vec<&'static str>,
     diagnostics_publisher: DiagnosticsPublisher,
+    /// Permits for blocking jobs.
+    ///
+    /// A permit covers one running job.
+    /// A request that only waits takes none.
+    worker_permits: Arc<Semaphore>,
 }
 
 #[invariant(true)]
@@ -172,6 +181,12 @@ struct ParsedInlayInitialization {
 struct DocumentStore {
     documents: Arc<Mutex<HashMap<Url, DocumentState>>>,
     next_epoch: Arc<AtomicU64>,
+    worker_permits: Arc<Semaphore>,
+    /// The next analysis job panics once.
+    ///
+    /// Production builds leave this flag clear.
+    #[cfg(test)]
+    fail_next_analysis: Arc<AtomicBool>,
 }
 
 #[invariant(true)]
@@ -209,6 +224,10 @@ struct DocumentState {
     confirmed: watch::Sender<Option<Arc<DocumentSnapshot>>>,
     latest_diagnostics: Option<Arc<PublishedDiagnostics>>,
     diagnostics: watch::Sender<Option<Arc<PublishedDiagnostics>>>,
+    /// The current analysis panicked.
+    ///
+    /// A newer edit clears this flag.
+    analysis_failed: bool,
     pending_analysis: Option<AbortHandle>,
 }
 
@@ -226,13 +245,60 @@ impl Drop for CompletionCancellationGuard {
     }
 }
 
+#[requires(true)]
+#[ensures(ret >= MIN_WORKER_PERMITS)]
+#[ensures(ret <= Semaphore::MAX_PERMITS)]
+fn worker_permit_limit() -> usize {
+    std::thread::available_parallelism()
+        .map(NonZeroUsize::get)
+        .unwrap_or(MIN_WORKER_PERMITS)
+        .max(MIN_WORKER_PERMITS)
+        .min(Semaphore::MAX_PERMITS)
+}
+
+/// Run `job` on the blocking pool.
+///
+/// The permit stays inside the worker.
+/// A dropped caller does not release it.
+/// The permit ends when `job` returns.
+#[requires(true)]
+#[ensures(true)]
+async fn run_with_worker_permit<T, F>(
+    permits: Arc<Semaphore>,
+    job: F,
+) -> Result<T, tokio::task::JoinError>
+where
+    T: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+{
+    let permit = Arc::clone(&permits)
+        .acquire_owned()
+        .await
+        .expect("LSP worker semaphore stays open");
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        job()
+    })
+    .await
+}
+
 impl DocumentStore {
+    #[cfg(test)]
     #[requires(true)]
     #[ensures(true)]
     fn new() -> Self {
+        Self::with_worker_permits(Arc::new(Semaphore::new(worker_permit_limit())))
+    }
+
+    #[requires(worker_permits.available_permits() > 0)]
+    #[ensures(true)]
+    fn with_worker_permits(worker_permits: Arc<Semaphore>) -> Self {
         Self {
             documents: Arc::new(Mutex::new(HashMap::new())),
             next_epoch: Arc::new(AtomicU64::new(1)),
+            worker_permits,
+            #[cfg(test)]
+            fail_next_analysis: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -266,6 +332,7 @@ impl DocumentStore {
                     confirmed,
                     latest_diagnostics: None,
                     diagnostics,
+                    analysis_failed: false,
                     pending_analysis: None,
                 },
             );
@@ -308,7 +375,10 @@ impl DocumentStore {
                 .checked_add(1)
                 .expect("strictly increasing i32 versions cannot exhaust a u64 generation");
             document.latest_diagnostics = None;
+            document.analysis_failed = false;
+            // `send_replace` wakes a waiter for an unchanged empty value.
             document.diagnostics.send_replace(None);
+            document.confirmed.send_replace(None);
             document.generation
         };
         self.schedule_analysis(uri.clone(), generation, publisher);
@@ -333,19 +403,29 @@ impl DocumentStore {
     fn schedule_analysis(&self, uri: Url, generation: u64, publisher: DiagnosticsPublisher) {
         let store = self.clone();
         let task_uri = uri.clone();
+        let permits = Arc::clone(&self.worker_permits);
+        #[cfg(test)]
+        let fail_analysis = Arc::clone(&self.fail_next_analysis);
         let task = tokio::spawn(async move {
             let debounce_deadline = tokio::time::Instant::now() + DEBOUNCE_DELAY;
             let Some((text, version, confirmed)) = store.analysis_input(&task_uri, generation)
             else {
                 return;
             };
-            let prepared = match tokio::task::spawn_blocking(move || {
+            let prepared = match run_with_worker_permit(Arc::clone(&permits), move || {
+                #[cfg(test)]
+                if fail_analysis.swap(false, AtomicOrdering::SeqCst) {
+                    panic!("test analysis failure");
+                }
                 PreparedDocumentAnalysis::prepare(confirmed.as_deref(), text, i64::from(version))
             })
             .await
             {
                 Ok(prepared) => prepared,
-                Err(_) => return,
+                Err(_) => {
+                    store.note_analysis_failure(&task_uri, generation);
+                    return;
+                }
             };
             if let Some(provisional) = prepared.provisional() {
                 if !store.install_provisional(
@@ -359,9 +439,12 @@ impl DocumentStore {
                 }
                 tokio::time::sleep_until(debounce_deadline).await;
             }
-            let snapshot = match tokio::task::spawn_blocking(move || prepared.confirm()).await {
+            let snapshot = match run_with_worker_permit(permits, move || prepared.confirm()).await {
                 Ok(snapshot) => Arc::new(snapshot),
-                Err(_) => return,
+                Err(_) => {
+                    store.note_analysis_failure(&task_uri, generation);
+                    return;
+                }
             };
             store.complete_confirmation(task_uri, generation, version, snapshot, publisher);
         });
@@ -427,6 +510,7 @@ impl DocumentStore {
                 snapshot,
             }));
             document.latest_diagnostics = Some(Arc::clone(&publication));
+            document.analysis_failed = false;
             document
                 .diagnostics
                 .send_replace(Some(Arc::clone(&publication)));
@@ -471,6 +555,7 @@ impl DocumentStore {
             document.confirmed_snapshot = Some(Arc::clone(&snapshot));
             document.confirmed.send_replace(Some(snapshot));
             document.latest_diagnostics = Some(Arc::clone(&publication));
+            document.analysis_failed = false;
             document
                 .diagnostics
                 .send_replace(Some(Arc::clone(&publication)));
@@ -480,7 +565,29 @@ impl DocumentStore {
         publisher(uri, version, Arc::clone(&publication.snapshot));
     }
 
+    /// Wake waiters after this generation fails.
+    ///
+    /// A newer generation keeps its own result.
+    #[requires(true)]
+    #[ensures(true)]
+    fn note_analysis_failure(&self, uri: &Url, generation: u64) {
+        let mut documents = self.documents.lock().expect("document store poisoned");
+        let Some(document) = documents.get_mut(uri) else {
+            return;
+        };
+        if document.generation != generation {
+            return;
+        }
+        document.analysis_failed = true;
+        // `send_replace` wakes a waiter for an unchanged empty value.
+        document.confirmed.send_replace(None);
+        document.diagnostics.send_replace(None);
+    }
+
     /// Return the last confirmed tree, waiting only when a document has never been confirmed.
+    ///
+    /// A failed analysis returns no tree.
+    /// A replaced analysis wakes this wait.
     #[requires(true)]
     #[ensures(true)]
     async fn snapshot_for_features(&self, uri: &Url) -> Option<Arc<DocumentSnapshot>> {
@@ -490,12 +597,27 @@ impl DocumentStore {
             if let Some(snapshot) = &document.confirmed_snapshot {
                 return Some(Arc::clone(snapshot));
             }
+            if document.analysis_failed {
+                return None;
+            }
             document.confirmed.subscribe()
         };
 
         loop {
-            if let Some(snapshot) = confirmed.borrow_and_update().as_ref() {
-                return Some(Arc::clone(snapshot));
+            if let Some(snapshot) = confirmed.borrow_and_update().clone() {
+                return Some(snapshot);
+            }
+            {
+                let documents = self.documents.lock().expect("document store poisoned");
+                let Some(document) = documents.get(uri) else {
+                    return None;
+                };
+                if let Some(snapshot) = &document.confirmed_snapshot {
+                    return Some(Arc::clone(snapshot));
+                }
+                if document.analysis_failed {
+                    return None;
+                }
             }
             if confirmed.changed().await.is_err() {
                 return None;
@@ -513,6 +635,9 @@ impl DocumentStore {
             if let Some(diagnostics) = &document.latest_diagnostics {
                 return Some(Arc::clone(diagnostics));
             }
+            if document.analysis_failed {
+                return None;
+            }
             (
                 document.epoch,
                 document.generation,
@@ -522,12 +647,28 @@ impl DocumentStore {
         };
 
         loop {
-            if let Some(publication) = diagnostics.borrow_and_update().as_ref()
+            if let Some(publication) = diagnostics.borrow_and_update().clone()
                 && publication.epoch == target_epoch
                 && publication.generation >= target_generation
                 && publication.version >= target_version
             {
-                return Some(Arc::clone(publication));
+                return Some(publication);
+            }
+            {
+                let documents = self.documents.lock().expect("document store poisoned");
+                let Some(document) = documents.get(uri) else {
+                    return None;
+                };
+                if let Some(publication) = &document.latest_diagnostics
+                    && publication.epoch == target_epoch
+                    && publication.generation >= target_generation
+                    && publication.version >= target_version
+                {
+                    return Some(Arc::clone(publication));
+                }
+                if document.analysis_failed {
+                    return None;
+                }
             }
             if diagnostics.changed().await.is_err() {
                 return None;
@@ -555,15 +696,17 @@ impl ServerState {
     #[requires(true)]
     #[ensures(true)]
     fn new(client: ClientSocket) -> Self {
+        let worker_permits = Arc::new(Semaphore::new(worker_permit_limit()));
         Self {
             client,
-            documents: DocumentStore::new(),
+            documents: DocumentStore::with_worker_permits(Arc::clone(&worker_permits)),
             position_encoding: PositionEncoding::Utf16,
             pull_diagnostics: true,
             inlay_options: InlayOptions::default(),
             completion_grammar_time_limit: Some(COMPLETION_GRAMMAR_TIME_LIMIT),
             initialization_warnings: Vec::new(),
             diagnostics_publisher: no_diagnostics_publisher(),
+            worker_permits,
         }
     }
 
@@ -743,8 +886,16 @@ async fn run_server() -> Result<()> {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
                 let grammar_time_limit = state.completion_grammar_time_limit;
+                let worker_permits = Arc::clone(&state.worker_permits);
                 async move {
-                    Ok(document_completion(documents, encoding, params, grammar_time_limit).await)
+                    Ok(document_completion(
+                        documents,
+                        encoding,
+                        params,
+                        grammar_time_limit,
+                        worker_permits,
+                    )
+                    .await)
                 }
             })
             .request::<request::ResolveCompletionItem, _>(|_, item| async move {
@@ -789,9 +940,8 @@ async fn run_server() -> Result<()> {
         ServiceBuilder::new()
             .layer(LifecycleLayer::default())
             .layer(async_lsp::panic::CatchUnwindLayer::default())
-            // Admission leaves poll_ready ready after the worker pool is full.
-            // The main loop can read the next message and write a finished response.
-            // The worker pool size is at least two.
+            // Admission cancels a request and forwards poll_ready.
+            // A worker permit covers one blocking job.
             .service(lsp_admission::request_admission(router))
     });
 
@@ -1143,6 +1293,7 @@ async fn document_completion(
     encoding: PositionEncoding,
     params: lsp_types::CompletionParams,
     grammar_time_limit: Option<Duration>,
+    worker_permits: Arc<Semaphore>,
 ) -> Option<CompletionResponse> {
     let position = params.text_document_position.position;
     let uri = params.text_document_position.text_document.uri;
@@ -1152,10 +1303,10 @@ async fn document_completion(
         encoding,
     );
     let cancellation = CompletionCancellationToken::new();
-    let _cancel_on_drop = CompletionCancellationGuard {
+    let cancel_on_drop = CompletionCancellationGuard {
         cancellation: cancellation.clone(),
     };
-    tokio::task::spawn_blocking(move || {
+    let completion = run_with_worker_permit(worker_permits, move || {
         let result = snapshot.completions_with_grammar_time_limit_and_cancellation(
             char_offset,
             grammar_time_limit,
@@ -1168,7 +1319,9 @@ async fn document_completion(
     })
     .await
     .ok()
-    .flatten()
+    .flatten();
+    drop(cancel_on_drop);
+    completion
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
@@ -1694,6 +1847,72 @@ mod tests {
         let error = initialization_inlay_options(Some(&unknown))
             .expect_err("unimplemented profiles must not silently change meaning");
         assert_eq!(error.code, ErrorCode::INVALID_PARAMS);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_dropped_worker_future_keeps_the_permit_until_the_job_ends() {
+        let permits = Arc::new(Semaphore::new(1));
+        let started = Arc::new(AtomicBool::new(false));
+        let release = Arc::new(AtomicBool::new(false));
+        let started_job = Arc::clone(&started);
+        let release_job = Arc::clone(&release);
+        let worker = tokio::spawn(run_with_worker_permit(Arc::clone(&permits), move || {
+            started_job.store(true, AtomicOrdering::SeqCst);
+            while !release_job.load(AtomicOrdering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        }));
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while !started.load(AtomicOrdering::SeqCst) {
+            assert!(std::time::Instant::now() < deadline, "worker did not start");
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(permits.available_permits(), 0);
+        worker.abort();
+        while !worker.is_finished() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "aborted worker future did not end"
+            );
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(permits.available_permits(), 0);
+        release.store(true, AtomicOrdering::SeqCst);
+        let release_deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while permits.available_permits() == 0 {
+            assert!(
+                std::time::Instant::now() < release_deadline,
+                "worker kept the permit after the job ended"
+            );
+            tokio::task::yield_now().await;
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_panicked_analysis_ends_feature_and_diagnostic_waits() {
+        let store = DocumentStore::new();
+        store.fail_next_analysis.store(true, AtomicOrdering::SeqCst);
+        let uri = Url::parse("file:///panicked-analysis.jbo").expect("valid test URI");
+        store.open(
+            uri.clone(),
+            "mi klama".to_owned(),
+            1,
+            no_diagnostics_publisher(),
+        );
+        let feature =
+            tokio::time::timeout(Duration::from_secs(5), store.snapshot_for_features(&uri))
+                .await
+                .expect("feature wait ends");
+        assert!(feature.is_none());
+        let diagnostics =
+            tokio::time::timeout(Duration::from_secs(5), store.diagnostics_for_current(&uri))
+                .await
+                .expect("diagnostic wait ends");
+        assert!(diagnostics.is_none());
     }
 
     #[tokio::test(flavor = "current_thread")]
