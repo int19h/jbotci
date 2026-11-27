@@ -185,6 +185,19 @@ struct DocumentStore {
     /// Production builds leave this flag clear.
     #[cfg(test)]
     fail_next_analysis: Arc<AtomicBool>,
+    /// The next blocking analysis job waits until the test releases it.
+    ///
+    /// The pair is the arrival signal and the release wait.
+    /// Production builds omit this gate.
+    #[cfg(test)]
+    analysis_hold: Arc<
+        Mutex<
+            Option<(
+                std::sync::mpsc::SyncSender<()>,
+                std::sync::mpsc::Receiver<()>,
+            )>,
+        >,
+    >,
 }
 
 #[invariant(true)]
@@ -314,6 +327,8 @@ impl DocumentStore {
             worker_permits,
             #[cfg(test)]
             fail_next_analysis: Arc::new(AtomicBool::new(false)),
+            #[cfg(test)]
+            analysis_hold: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -421,6 +436,8 @@ impl DocumentStore {
         let permits = Arc::clone(&self.worker_permits);
         #[cfg(test)]
         let fail_analysis = Arc::clone(&self.fail_next_analysis);
+        #[cfg(test)]
+        let analysis_hold = Arc::clone(&self.analysis_hold);
         let task = tokio::spawn(async move {
             let debounce_deadline = tokio::time::Instant::now() + DEBOUNCE_DELAY;
             let Some((text, version, confirmed, epoch)) =
@@ -439,8 +456,18 @@ impl DocumentStore {
             );
             let prepared = match run_with_worker_permit(Arc::clone(&permits), move || {
                 #[cfg(test)]
-                if fail_analysis.swap(false, AtomicOrdering::SeqCst) {
-                    panic!("test analysis failure");
+                {
+                    // Stop before prepare so a test can poll a request that is waiting.
+                    let hold = analysis_hold.lock().expect("analysis hold poisoned").take();
+                    if let Some((arrived, release)) = hold {
+                        arrived
+                            .send(())
+                            .expect("the test waits for the analysis job");
+                        release.recv().expect("the test releases the analysis job");
+                    }
+                    if fail_analysis.swap(false, AtomicOrdering::SeqCst) {
+                        panic!("test analysis failure");
+                    }
                 }
                 PreparedDocumentAnalysis::prepare(confirmed.as_deref(), text, i64::from(version))
             })
@@ -1917,11 +1944,44 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn arm_analysis_hold(
+        store: &DocumentStore,
+    ) -> (std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
+        let (arrived_tx, arrived_rx) = std::sync::mpsc::sync_channel(1);
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        *store.analysis_hold.lock().expect("analysis hold poisoned") =
+            Some((arrived_tx, release_rx));
+        (arrived_rx, release_tx)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    async fn wait_for_signal(receiver: std::sync::mpsc::Receiver<()>, failure: &'static str) {
+        tokio::task::spawn_blocking(move || receiver.recv_timeout(Duration::from_secs(5)))
+            .await
+            .expect("signal wait")
+            .expect(failure);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn poll_now<F>(future: std::pin::Pin<&mut F>) -> std::task::Poll<F::Output>
+    where
+        F: std::future::Future,
+    {
+        let waker = std::task::Waker::noop();
+        let mut context = std::task::Context::from_waker(&waker);
+        future.poll(&mut context)
+    }
+
     #[tokio::test(flavor = "current_thread")]
     #[requires(true)]
     #[ensures(true)]
     async fn a_panicked_analysis_ends_feature_and_diagnostic_waits() {
         let store = DocumentStore::new();
+        let (arrived, release) = arm_analysis_hold(&store);
         store.fail_next_analysis.store(true, AtomicOrdering::SeqCst);
         let uri = Url::parse("file:///panicked-analysis.jbo").expect("valid test URI");
         store.open(
@@ -1930,19 +1990,37 @@ mod tests {
             1,
             no_diagnostics_publisher(),
         );
-        let feature =
-            tokio::time::timeout(Duration::from_secs(5), store.snapshot_for_features(&uri))
-                .await
-                .expect("feature wait ends");
+        wait_for_signal(arrived, "analysis did not reach the failure").await;
+        {
+            let documents = store.documents.lock().expect("document store poisoned");
+            let document = documents.get(&uri).expect("open document");
+            assert!(!document.analysis_failed);
+            assert!(document.confirmed_snapshot.is_none());
+            assert!(document.latest_diagnostics.is_none());
+        }
+        let mut feature = std::pin::pin!(store.snapshot_for_features(&uri));
+        let mut diagnostics = std::pin::pin!(store.diagnostics_for_current(&uri));
+        assert!(
+            poll_now(feature.as_mut()).is_pending(),
+            "the feature request must wait before the failure"
+        );
+        assert!(
+            poll_now(diagnostics.as_mut()).is_pending(),
+            "the diagnostic request must wait before the failure"
+        );
+
+        release.send(()).expect("release the analysis failure");
+        let feature = tokio::time::timeout(Duration::from_secs(5), feature)
+            .await
+            .expect("feature wait ends");
         assert!(feature.is_none());
-        let diagnostics =
-            tokio::time::timeout(Duration::from_secs(5), store.diagnostics_for_current(&uri))
-                .await
-                .expect("diagnostic wait ends");
+        let diagnostics = tokio::time::timeout(Duration::from_secs(5), diagnostics)
+            .await
+            .expect("diagnostic wait ends");
         assert!(diagnostics.is_none());
     }
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[requires(true)]
     #[ensures(true)]
     async fn a_publisher_panic_after_provisional_publication_ends_the_feature_wait() {
@@ -1962,8 +2040,22 @@ mod tests {
             .expect("initial confirmation");
         assert_eq!(initial.phase, PublishedDiagnosticPhase::Confirmed);
 
-        let permits_before = store.worker_permits.available_permits();
-        let publisher: DiagnosticsPublisher = Arc::new(|_, _, _| panic!("test publisher failure"));
+        let (job_arrived, job_release) = arm_analysis_hold(&store);
+        let (arrived_tx, arrived_rx) = std::sync::mpsc::sync_channel(1);
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let release_rx = Mutex::new(Some(release_rx));
+        let publisher: DiagnosticsPublisher = Arc::new(move |_, _, _| {
+            arrived_tx
+                .send(())
+                .expect("the test waits for the publisher");
+            let release = release_rx
+                .lock()
+                .expect("publisher release poisoned")
+                .take()
+                .expect("the publisher runs once");
+            release.recv().expect("the test releases the publisher");
+            panic!("test publisher failure");
+        });
         assert!(store.change(
             &uri,
             2,
@@ -1975,39 +2067,81 @@ mod tests {
             PositionEncoding::Utf16,
             publisher,
         ));
-
-        let started = std::time::Instant::now();
-        loop {
-            let task_finished = {
-                let documents = store.documents.lock().expect("document store poisoned");
-                documents
-                    .get(&uri)
-                    .expect("open document")
-                    .pending_analysis
-                    .as_ref()
-                    .is_some_and(tokio::task::AbortHandle::is_finished)
-            };
-            if task_finished || store.worker_permits.available_permits() < permits_before {
-                break;
-            }
-            assert!(
-                started.elapsed() < Duration::from_secs(5),
-                "analysis did not start"
-            );
-            tokio::task::yield_now().await;
-        }
+        wait_for_signal(job_arrived, "analysis did not reach the hold").await;
         {
-            // The feature request has no tree, so it must wait for a wake.
+            // The edit cleared diagnostics. The previous tree is still stored.
+            // Remove that tree so the feature request has to wait.
             let mut documents = store.documents.lock().expect("document store poisoned");
             let document = documents.get_mut(&uri).expect("open document");
+            assert!(!document.analysis_failed);
+            assert!(document.latest_diagnostics.is_none());
             document.confirmed_snapshot = None;
-            document.confirmed.send_replace(None);
         }
-        let feature =
-            tokio::time::timeout(Duration::from_secs(5), store.snapshot_for_features(&uri))
-                .await
-                .expect("feature wait ends");
+        let mut feature = std::pin::pin!(store.snapshot_for_features(&uri));
+        let mut diagnostics = std::pin::pin!(store.diagnostics_for_current(&uri));
+        assert!(
+            poll_now(feature.as_mut()).is_pending(),
+            "the feature request must wait before publication"
+        );
+        assert!(
+            poll_now(diagnostics.as_mut()).is_pending(),
+            "the diagnostic request must wait before publication"
+        );
+        job_release.send(()).expect("release the analysis hold");
+        wait_for_signal(arrived_rx, "publisher did not arrive").await;
+        {
+            let documents = store.documents.lock().expect("document store poisoned");
+            let document = documents.get(&uri).expect("open document");
+            assert!(!document.analysis_failed, "the failure has not happened");
+            assert!(
+                document.confirmed_snapshot.is_none(),
+                "the feature request has no tree"
+            );
+            let published = document
+                .latest_diagnostics
+                .as_ref()
+                .expect("provisional diagnostics");
+            assert_eq!(published.phase, PublishedDiagnosticPhase::Provisional);
+            assert!(published.result_id.ends_with(":2:provisional"));
+        }
+        // Provisional publication does not confirm a tree.
+        // The feature request is still waiting when the publisher panics.
+        assert!(
+            poll_now(feature.as_mut()).is_pending(),
+            "the feature request must still wait after provisional publication"
+        );
+        // `latest_diagnostics` already holds the provisional publication.
+        // A new diagnostic request returns that publication. It is not waiting.
+        let mut current = std::pin::pin!(store.diagnostics_for_current(&uri));
+        let provisional = match poll_now(current.as_mut()) {
+            std::task::Poll::Ready(publication) => publication.expect("provisional diagnostics"),
+            std::task::Poll::Pending => {
+                panic!("diagnostics already have a provisional publication")
+            }
+        };
+        assert_eq!(provisional.phase, PublishedDiagnosticPhase::Provisional);
+        assert!(provisional.result_id.ends_with(":2:provisional"));
+
+        release_tx.send(()).expect("release the publisher");
+        let feature = tokio::time::timeout(Duration::from_secs(5), feature)
+            .await
+            .expect("feature wait ends");
         assert!(feature.is_none());
+        // The waiter subscribed before publication.
+        // The failure does not remove `latest_diagnostics`.
+        // The waiter therefore keeps the provisional publication.
+        let waited = tokio::time::timeout(Duration::from_secs(5), diagnostics)
+            .await
+            .expect("diagnostic wait ends")
+            .expect("the provisional publication");
+        assert_eq!(waited.result_id, provisional.result_id);
+        assert_eq!(waited.phase, PublishedDiagnosticPhase::Provisional);
+        let after =
+            tokio::time::timeout(Duration::from_secs(5), store.diagnostics_for_current(&uri))
+                .await
+                .expect("diagnostic read ends")
+                .expect("the provisional publication remains");
+        assert_eq!(after.result_id, provisional.result_id);
     }
 
     #[tokio::test(flavor = "current_thread")]
