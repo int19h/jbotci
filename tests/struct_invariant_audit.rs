@@ -524,6 +524,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "completion cancellation guard owns one independently valid shared token and cancels it on drop",
     ),
     (
+        "apps/jbotci/src/lsp.rs:DocumentStore",
+        "DocumentTable holds the epoch rule, and the permit pool has no second constraint",
+    ),
+    (
         "apps/jbotci/src/lsp.rs:InlayInitializationOptions",
         "kind enablement booleans and the independently validated structure-bracket value form accept every typed combination",
     ),

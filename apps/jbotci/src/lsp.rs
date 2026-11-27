@@ -3,10 +3,7 @@
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicU64, Ordering as AtomicOrdering},
-};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -28,7 +25,7 @@ use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
 use async_lsp::{ClientSocket, ErrorCode, ResponseError};
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_diagnostics::{
     Diagnostic as JbotciDiagnostic, DiagnosticPhase, DiagnosticSeverity as JbotciSeverity,
     diagnostic_text_segments_text,
@@ -197,18 +194,29 @@ struct ParsedInlayInitialization {
 
 /// The open documents for one server.
 ///
-/// The next epoch stays above zero.
-#[invariant(next_epoch.load(std::sync::atomic::Ordering::Relaxed) > 0)]
+/// `DocumentTable` keeps every open epoch below the next epoch.
+/// The permit pool has no second constraint.
+#[invariant(true)]
 #[derive(Clone)]
 struct DocumentStore {
-    documents: Arc<Mutex<HashMap<Url, DocumentState>>>,
-    next_epoch: Arc<AtomicU64>,
+    documents: Arc<Mutex<DocumentTable>>,
     /// Permits for blocking jobs.
     ///
     /// A permit covers one running job.
     /// A request that only waits takes none.
     /// The store is the only owner, so the server has one pool.
     worker_permits: Arc<Semaphore>,
+}
+
+/// The open documents and the next epoch.
+///
+/// The next epoch stays above zero.
+/// Every open document uses an epoch below the next epoch.
+#[invariant(*next_epoch > 0)]
+#[invariant(documents.values().all(|document| document.revision.identity.epoch < *next_epoch))]
+struct DocumentTable {
+    documents: HashMap<Url, DocumentState>,
+    next_epoch: u64,
 }
 
 /// The epoch and the generation of one analysis.
@@ -309,12 +317,12 @@ mod publication {
         #[requires(true)]
         #[ensures(true)]
         pub(super) fn emit(&self, send: impl FnOnce(&Url, i32, &DiagnosticSnapshot)) -> bool {
-            let documents = self
+            let table = self
                 .store
                 .documents
                 .lock()
                 .expect("document store poisoned");
-            let Some(document) = documents.get(&self.uri) else {
+            let Some(document) = table.documents.get(&self.uri) else {
                 return false;
             };
             if document.revision.identity != self.identity
@@ -344,10 +352,24 @@ struct DocumentRevision {
 /// One open document behind the store lock.
 ///
 /// The confirmed tree is absent, or its version is this revision or an older one.
+/// A confirmed tree at this revision version has the same text as `text_index`.
+/// An older confirmed tree may have different text.
+/// Current diagnostics have the same text as `text_index`.
 /// `revision` keeps the identity, the version, and the diagnostics together.
-/// The text, the failure flag, the watches, and the pending task accept every value.
+/// The failure flag, the watches, and the pending task accept every value.
 #[invariant(match confirmed_snapshot.as_ref() {
     Some(snapshot) => snapshot.version <= i64::from(revision.version),
+    None => true,
+})]
+#[expensive_invariant(match confirmed_snapshot.as_ref() {
+    Some(snapshot) => {
+        snapshot.version != i64::from(revision.version)
+            || snapshot.text.as_ref() == text_index.text()
+    }
+    None => true,
+})]
+#[expensive_invariant(match revision.latest_diagnostics.as_ref() {
+    Some(diagnostics) => diagnostics.snapshot.text.as_ref() == text_index.text(),
     None => true,
 })]
 struct DocumentState {
@@ -458,15 +480,48 @@ where
     .await
 }
 
+impl DocumentTable {
+    #[requires(true)]
+    #[ensures(ret.next_epoch == 1)]
+    #[ensures(ret.documents.is_empty())]
+    fn empty() -> Self {
+        new!(DocumentTable {
+            documents: HashMap::new(),
+            next_epoch: 1,
+        })
+    }
+}
+
 impl DocumentStore {
     #[requires(worker_permits.available_permits() > 0)]
     #[ensures(true)]
     fn with_worker_permits(worker_permits: Arc<Semaphore>) -> Self {
-        new!(DocumentStore {
-            documents: Arc::new(Mutex::new(HashMap::new())),
-            next_epoch: Arc::new(AtomicU64::new(1)),
+        DocumentStore {
+            documents: Arc::new(Mutex::new(DocumentTable::empty())),
             worker_permits,
-        })
+        }
+    }
+
+    /// Replace the table, apply `edit`, and check the epoch relation again.
+    ///
+    /// The check reads the table fields. It does not lock the map.
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_locked_documents<T>(
+        mut guard: std::sync::MutexGuard<'_, DocumentTable>,
+        edit: impl FnOnce(&mut DocumentTableData) -> T,
+    ) -> T {
+        let mut data = std::mem::replace(&mut *guard, DocumentTable::empty()).into_data();
+        let result = edit(&mut data);
+        *guard = DocumentTable::from_data(data);
+        result
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn edit_documents<T>(&self, edit: impl FnOnce(&mut DocumentTableData) -> T) -> T {
+        let guard = self.documents.lock().expect("document store poisoned");
+        Self::write_locked_documents(guard, edit)
     }
 
     #[requires(true)]
@@ -485,42 +540,43 @@ impl DocumentStore {
         + Send
         + 'static,
     ) {
-        let epoch = self
-            .next_epoch
-            .fetch_update(AtomicOrdering::Relaxed, AtomicOrdering::Relaxed, |epoch| {
-                epoch.checked_add(1)
-            })
-            .expect("document epochs cannot wrap without reusing diagnostic result IDs");
         let identity = {
-            let mut documents = self.documents.lock().expect("document store poisoned");
-            if let Some(previous) = documents.remove(&uri)
-                && let Some(pending) = previous.into_data().pending_analysis
-            {
-                pending.abort();
-            }
-            let (confirmed, _) = watch::channel(());
-            let (diagnostics, _) = watch::channel(());
-            let identity = new!(AnalysisIdentity {
-                epoch,
-                generation: 1,
-            });
-            documents.insert(
-                uri.clone(),
-                new!(DocumentState {
-                    text_index: LineIndex::new(Arc::from(text)),
-                    revision: new!(DocumentRevision {
-                        identity,
-                        version,
-                        latest_diagnostics: None,
+            let guard = self.documents.lock().expect("document store poisoned");
+            let epoch = guard.next_epoch;
+            let next_epoch = epoch
+                .checked_add(1)
+                .expect("document epochs cannot wrap without reusing diagnostic result IDs");
+            Self::write_locked_documents(guard, |data| {
+                data.next_epoch = next_epoch;
+                if let Some(previous) = data.documents.remove(&uri)
+                    && let Some(pending) = previous.into_data().pending_analysis
+                {
+                    pending.abort();
+                }
+                let (confirmed, _) = watch::channel(());
+                let (diagnostics, _) = watch::channel(());
+                let identity = new!(AnalysisIdentity {
+                    epoch,
+                    generation: 1,
+                });
+                data.documents.insert(
+                    uri.clone(),
+                    new!(DocumentState {
+                        text_index: LineIndex::new(Arc::from(text)),
+                        revision: new!(DocumentRevision {
+                            identity,
+                            version,
+                            latest_diagnostics: None,
+                        }),
+                        confirmed_snapshot: None,
+                        confirmed,
+                        diagnostics,
+                        analysis_failed: false,
+                        pending_analysis: None,
                     }),
-                    confirmed_snapshot: None,
-                    confirmed,
-                    diagnostics,
-                    analysis_failed: false,
-                    pending_analysis: None,
-                }),
-            );
-            identity
+                );
+                identity
+            })
         };
         self.schedule_analysis(uri, identity, publisher, prepare);
     }
@@ -543,47 +599,51 @@ impl DocumentStore {
         + Send
         + 'static,
     ) -> bool {
-        let identity = {
-            let mut documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get(uri) else {
-                return false;
-            };
-            if version <= document.revision.version {
-                return false;
-            }
-
-            let Some(next_index) = apply_content_changes(&document.text_index, changes, encoding)
-            else {
-                return false;
-            };
-            let epoch = document.revision.identity.epoch;
-            let generation = document
-                .revision
-                .identity
-                .generation
-                .checked_add(1)
-                .expect("strictly increasing i32 versions cannot exhaust a u64 generation");
-            let document = documents
+        let identity = self.edit_documents(|data| {
+            let (epoch, generation, next_index) =
+                {
+                    let Some(document) = data.documents.get(uri) else {
+                        return None;
+                    };
+                    if version <= document.revision.version {
+                        return None;
+                    }
+                    let Some(next_index) =
+                        apply_content_changes(&document.text_index, changes, encoding)
+                    else {
+                        return None;
+                    };
+                    let generation =
+                        document.revision.identity.generation.checked_add(1).expect(
+                            "strictly increasing i32 versions cannot exhaust a u64 generation",
+                        );
+                    (document.revision.identity.epoch, generation, next_index)
+                };
+            let document = data
+                .documents
                 .remove(uri)
                 .expect("the document stays open until the edit is stored");
-            let document = document.edit(|data| {
-                if let Some(pending) = data.pending_analysis.take() {
+            let document = document.edit(|state| {
+                if let Some(pending) = state.pending_analysis.take() {
                     pending.abort();
                 }
-                data.text_index = next_index;
-                data.revision = new!(DocumentRevision {
+                state.text_index = next_index;
+                state.revision = new!(DocumentRevision {
                     identity: new!(AnalysisIdentity { epoch, generation }),
                     version,
                     latest_diagnostics: None,
                 });
-                data.analysis_failed = false;
+                state.analysis_failed = false;
                 // `send_replace` wakes a waiter when the value is already the signal.
-                data.diagnostics.send_replace(());
-                data.confirmed.send_replace(());
+                state.diagnostics.send_replace(());
+                state.confirmed.send_replace(());
             });
             let identity = document.revision.identity;
-            documents.insert(uri.clone(), document);
-            identity
+            data.documents.insert(uri.clone(), document);
+            Some(identity)
+        });
+        let Some(identity) = identity else {
+            return false;
         };
         self.schedule_analysis(uri.clone(), identity, publisher, prepare);
         true
@@ -592,14 +652,15 @@ impl DocumentStore {
     #[requires(true)]
     #[ensures(true)]
     fn close(&self, uri: &Url) -> bool {
-        let mut documents = self.documents.lock().expect("document store poisoned");
-        let Some(document) = documents.remove(uri) else {
-            return false;
-        };
-        if let Some(pending) = document.into_data().pending_analysis {
-            pending.abort();
-        }
-        true
+        self.edit_documents(|data| {
+            let Some(document) = data.documents.remove(uri) else {
+                return false;
+            };
+            if let Some(pending) = document.into_data().pending_analysis {
+                pending.abort();
+            }
+            true
+        })
     }
 
     /// `prepare` turns the current text into an analysis.
@@ -672,20 +733,25 @@ impl DocumentStore {
             }
         });
         let abort_handle = task.abort_handle();
-
-        let mut documents = self.documents.lock().expect("document store poisoned");
-        if documents
-            .get(&uri)
-            .is_some_and(|document| document.revision.identity == identity)
-        {
-            let document = documents
+        let stored = self.edit_documents(|data| {
+            let current = data
+                .documents
+                .get(&uri)
+                .is_some_and(|document| document.revision.identity == identity);
+            if !current {
+                return false;
+            }
+            let document = data
+                .documents
                 .remove(&uri)
                 .expect("the document stays open until the task is stored");
-            let document = document.edit(|data| {
-                data.pending_analysis = Some(abort_handle);
+            let document = document.edit(|state| {
+                state.pending_analysis = Some(abort_handle);
             });
-            documents.insert(uri, document);
-        } else {
+            data.documents.insert(uri, document);
+            true
+        });
+        if !stored {
             task.abort();
         }
     }
@@ -697,8 +763,8 @@ impl DocumentStore {
         uri: &Url,
         identity: AnalysisIdentity,
     ) -> Option<(String, i32, Option<Arc<DocumentSnapshot>>)> {
-        let documents = self.documents.lock().expect("document store poisoned");
-        let document = documents.get(uri)?;
+        let table = self.documents.lock().expect("document store poisoned");
+        let document = table.documents.get(uri)?;
         (document.revision.identity == identity).then(|| {
             (
                 document.text_index.text().to_owned(),
@@ -718,13 +784,12 @@ impl DocumentStore {
         snapshot: Arc<DiagnosticSnapshot>,
         publisher: &DiagnosticsPublisher,
     ) -> bool {
-        let publication = {
-            let mut documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get(uri) else {
-                return false;
-            };
-            if document.revision.identity != identity || document.revision.version != version {
-                return false;
+        let publication = self.edit_documents(|data| {
+            let current = data.documents.get(uri).is_some_and(|document| {
+                document.revision.identity == identity && document.revision.version == version
+            });
+            if !current {
+                return None;
             }
             let publication = Arc::new(new!(PublishedDiagnostics {
                 result_id: diagnostic_result_id(
@@ -738,20 +803,24 @@ impl DocumentStore {
                 phase: PublishedDiagnosticPhase::Provisional,
                 snapshot,
             }));
-            let document = documents
+            let document = data
+                .documents
                 .remove(uri)
                 .expect("the document stays open until provisional diagnostics are stored");
-            let document = document.edit(|data| {
-                data.revision = new!(DocumentRevision {
+            let document = document.edit(|state| {
+                state.revision = new!(DocumentRevision {
                     identity,
                     version,
                     latest_diagnostics: Some(Arc::clone(&publication)),
                 });
-                data.analysis_failed = false;
-                data.diagnostics.send_replace(());
+                state.analysis_failed = false;
+                state.diagnostics.send_replace(());
             });
-            documents.insert(uri.clone(), document);
-            publication
+            data.documents.insert(uri.clone(), document);
+            Some(publication)
+        });
+        let Some(publication) = publication else {
+            return false;
         };
         publisher(publication::DiagnosticPublication::from_analysis(
             self.clone(),
@@ -772,41 +841,45 @@ impl DocumentStore {
         version: i32,
         snapshot: Arc<DocumentSnapshot>,
     ) -> Option<Arc<PublishedDiagnostics>> {
-        let mut documents = self.documents.lock().expect("document store poisoned");
-        let document = documents.get(uri)?;
-        if document.revision.identity != identity || document.revision.version != version {
-            return None;
-        }
-        let diagnostics = Arc::new(DiagnosticSnapshot::from_confirmed(&snapshot));
-        let publication = Arc::new(new!(PublishedDiagnostics {
-            result_id: diagnostic_result_id(
-                identity.epoch,
-                identity.generation,
-                version,
-                PublishedDiagnosticPhase::Confirmed,
-            ),
-            identity,
-            version,
-            phase: PublishedDiagnosticPhase::Confirmed,
-            snapshot: diagnostics,
-        }));
-        let document = documents
-            .remove(uri)
-            .expect("the document stays open until confirmation is stored");
-        let document = document.edit(|data| {
-            data.confirmed_snapshot = Some(snapshot);
-            data.confirmed.send_replace(());
-            data.revision = new!(DocumentRevision {
+        self.edit_documents(|data| {
+            let current = data.documents.get(uri).is_some_and(|document| {
+                document.revision.identity == identity && document.revision.version == version
+            });
+            if !current {
+                return None;
+            }
+            let diagnostics = Arc::new(DiagnosticSnapshot::from_confirmed(&snapshot));
+            let publication = Arc::new(new!(PublishedDiagnostics {
+                result_id: diagnostic_result_id(
+                    identity.epoch,
+                    identity.generation,
+                    version,
+                    PublishedDiagnosticPhase::Confirmed,
+                ),
                 identity,
                 version,
-                latest_diagnostics: Some(Arc::clone(&publication)),
+                phase: PublishedDiagnosticPhase::Confirmed,
+                snapshot: diagnostics,
+            }));
+            let document = data
+                .documents
+                .remove(uri)
+                .expect("the document stays open until confirmation is stored");
+            let document = document.edit(|state| {
+                state.confirmed_snapshot = Some(snapshot);
+                state.confirmed.send_replace(());
+                state.revision = new!(DocumentRevision {
+                    identity,
+                    version,
+                    latest_diagnostics: Some(Arc::clone(&publication)),
+                });
+                state.analysis_failed = false;
+                state.diagnostics.send_replace(());
+                state.pending_analysis = None;
             });
-            data.analysis_failed = false;
-            data.diagnostics.send_replace(());
-            data.pending_analysis = None;
-        });
-        documents.insert(uri.clone(), document);
-        Some(publication)
+            data.documents.insert(uri.clone(), document);
+            Some(publication)
+        })
     }
 
     /// Wake waiters after this generation ends before confirmation.
@@ -816,24 +889,26 @@ impl DocumentStore {
     #[requires(true)]
     #[ensures(true)]
     fn note_analysis_failure(&self, uri: &Url, identity: AnalysisIdentity) {
-        let mut documents = self
+        let guard = self
             .documents
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let Some(document) = documents.remove(uri) else {
-            return;
-        };
-        if document.revision.identity != identity {
-            documents.insert(uri.clone(), document);
-            return;
-        }
-        let document = document.edit(|data| {
-            data.analysis_failed = true;
-            // `send_replace` wakes a waiter when the value is already the signal.
-            data.confirmed.send_replace(());
-            data.diagnostics.send_replace(());
+        Self::write_locked_documents(guard, |data| {
+            let Some(document) = data.documents.remove(uri) else {
+                return;
+            };
+            if document.revision.identity != identity {
+                data.documents.insert(uri.clone(), document);
+                return;
+            }
+            let document = document.edit(|state| {
+                state.analysis_failed = true;
+                // `send_replace` wakes a waiter when the value is already the signal.
+                state.confirmed.send_replace(());
+                state.diagnostics.send_replace(());
+            });
+            data.documents.insert(uri.clone(), document);
         });
-        documents.insert(uri.clone(), document);
     }
 
     /// Return the last confirmed tree, waiting only when a document has never been confirmed.
@@ -845,8 +920,8 @@ impl DocumentStore {
     #[ensures(true)]
     async fn snapshot_for_features(&self, uri: &Url) -> DocumentWait<Arc<DocumentSnapshot>> {
         let mut confirmed = {
-            let documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get(uri) else {
+            let table = self.documents.lock().expect("document store poisoned");
+            let Some(document) = table.documents.get(uri) else {
                 return DocumentWait::Closed;
             };
             if let Some(snapshot) = &document.confirmed_snapshot {
@@ -862,8 +937,8 @@ impl DocumentStore {
             if confirmed.changed().await.is_err() {
                 return DocumentWait::Closed;
             }
-            let documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get(uri) else {
+            let table = self.documents.lock().expect("document store poisoned");
+            let Some(document) = table.documents.get(uri) else {
                 return DocumentWait::Closed;
             };
             if let Some(snapshot) = &document.confirmed_snapshot {
@@ -883,8 +958,8 @@ impl DocumentStore {
     #[ensures(true)]
     async fn diagnostics_for_current(&self, uri: &Url) -> DocumentWait<Arc<PublishedDiagnostics>> {
         let (target_identity, target_version, mut diagnostics) = {
-            let documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get(uri) else {
+            let table = self.documents.lock().expect("document store poisoned");
+            let Some(document) = table.documents.get(uri) else {
                 return DocumentWait::Closed;
             };
             if let Some(diagnostics) = &document.revision.latest_diagnostics {
@@ -904,8 +979,8 @@ impl DocumentStore {
             if diagnostics.changed().await.is_err() {
                 return DocumentWait::Closed;
             }
-            let documents = self.documents.lock().expect("document store poisoned");
-            let Some(document) = documents.get(uri) else {
+            let table = self.documents.lock().expect("document store poisoned");
+            let Some(document) = table.documents.get(uri) else {
                 return DocumentWait::Closed;
             };
             if let Some(publication) = &document.revision.latest_diagnostics
@@ -2007,7 +2082,7 @@ fn lsp_range(range: jbotci_ide::PositionRange) -> Range {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 
     use super::*;
 
@@ -2079,6 +2154,210 @@ mod tests {
             document_state_with_snapshot(2, Some(future)).is_err(),
             "a confirmed tree newer than the revision is rejected"
         );
+    }
+
+    #[requires(!text.is_empty())]
+    #[requires(epoch > 0)]
+    #[ensures(ret.version == version)]
+    #[ensures(ret.snapshot.text.as_ref() == text)]
+    fn published_diagnostics_for_text(
+        text: &str,
+        version: i32,
+        epoch: u64,
+    ) -> Arc<PublishedDiagnostics> {
+        let snapshot = Arc::new(DocumentSnapshot::new(text.to_owned(), i64::from(version)));
+        let diagnostics = Arc::new(DiagnosticSnapshot::from_confirmed(&snapshot));
+        let identity = new!(AnalysisIdentity {
+            epoch,
+            generation: 1,
+        });
+        Arc::new(new!(PublishedDiagnostics {
+            result_id: diagnostic_result_id(
+                identity.epoch,
+                identity.generation,
+                version,
+                PublishedDiagnosticPhase::Confirmed,
+            ),
+            identity,
+            version,
+            phase: PublishedDiagnosticPhase::Confirmed,
+            snapshot: diagnostics,
+        }))
+    }
+
+    #[requires(!text.is_empty())]
+    #[requires(epoch > 0)]
+    #[ensures(true)]
+    fn try_document_state(
+        text: &str,
+        version: i32,
+        epoch: u64,
+        snapshot: Option<Arc<DocumentSnapshot>>,
+        latest_diagnostics: Option<Arc<PublishedDiagnostics>>,
+    ) -> Result<DocumentState, DocumentStateInvariantError> {
+        let (confirmed, _) = watch::channel(());
+        let (diagnostics, _) = watch::channel(());
+        bityzba::try_new!(DocumentState {
+            text_index: LineIndex::new(Arc::from(text)),
+            revision: new!(DocumentRevision {
+                identity: new!(AnalysisIdentity {
+                    epoch,
+                    generation: 1,
+                }),
+                version,
+                latest_diagnostics,
+            }),
+            confirmed_snapshot: snapshot,
+            confirmed,
+            diagnostics,
+            analysis_failed: false,
+            pending_analysis: None,
+        })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_state_requires_the_current_text_at_the_current_version() {
+        let stale = Arc::new(DocumentSnapshot::new("stale".to_owned(), 7));
+        let same_version = try_document_state("current", 7, 1, Some(stale), None);
+        if cfg!(feature = "expensive_contracts") {
+            assert!(
+                same_version.is_err(),
+                "same-version text must match the document"
+            );
+        } else {
+            assert!(
+                same_version.is_ok(),
+                "the text compare runs with expensive contracts"
+            );
+        }
+
+        let stale_diagnostics = published_diagnostics_for_text("stale", 7, 1);
+        let current_diagnostics =
+            try_document_state("current", 7, 1, None, Some(stale_diagnostics));
+        if cfg!(feature = "expensive_contracts") {
+            assert!(
+                current_diagnostics.is_err(),
+                "current diagnostics must match the document text"
+            );
+        } else {
+            assert!(
+                current_diagnostics.is_ok(),
+                "the text compare runs with expensive contracts"
+            );
+        }
+
+        let older = Arc::new(DocumentSnapshot::new("stale".to_owned(), 6));
+        let older_state = try_document_state("current", 7, 1, Some(older), None)
+            .expect("an older snapshot may use different text");
+        assert_eq!(older_state.text_index.text(), "current");
+        assert_eq!(
+            older_state
+                .confirmed_snapshot
+                .as_ref()
+                .expect("older tree")
+                .text
+                .as_ref(),
+            "stale"
+        );
+
+        let matching = published_diagnostics_for_text("current", 7, 1);
+        let current_tree = Arc::new(DocumentSnapshot::new("current".to_owned(), 7));
+        let accepted = try_document_state("current", 7, 1, Some(current_tree), Some(matching))
+            .expect("matching current text is valid");
+        assert_eq!(accepted.revision.version, 7);
+        assert_eq!(accepted.text_index.text(), "current");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_table_rejects_an_open_epoch_that_is_not_below_the_next_epoch() {
+        assert!(
+            bityzba::try_new!(DocumentTable {
+                documents: HashMap::new(),
+                next_epoch: 0,
+            })
+            .is_err(),
+            "the next epoch stays above zero"
+        );
+        let uri = Url::parse("file:///epoch.jbo").expect("valid test URI");
+        let document = document_state_with_snapshot(1, None).expect("document");
+        assert_eq!(document.revision.identity.epoch, 1);
+        let mut documents = HashMap::new();
+        documents.insert(uri.clone(), document);
+        assert!(
+            bityzba::try_new!(DocumentTable {
+                documents,
+                next_epoch: 1,
+            })
+            .is_err(),
+            "an open epoch equal to the next epoch is rejected"
+        );
+        let document = document_state_with_snapshot(1, None).expect("document");
+        let mut documents = HashMap::new();
+        documents.insert(uri, document);
+        let table = bityzba::try_new!(DocumentTable {
+            documents,
+            next_epoch: 2,
+        })
+        .expect("an open epoch below the next epoch is valid");
+        assert_eq!(table.next_epoch, 2);
+        assert_eq!(
+            table
+                .documents
+                .values()
+                .next()
+                .expect("open document")
+                .revision
+                .identity
+                .epoch,
+            1
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn an_open_document_keeps_its_epoch_below_the_next_epoch() {
+        let store = DocumentStore::new();
+        let first = Url::parse("file:///epoch-one.jbo").expect("valid test URI");
+        let second = Url::parse("file:///epoch-two.jbo").expect("valid test URI");
+        store.open(
+            first.clone(),
+            "coi".to_owned(),
+            1,
+            no_diagnostics_publisher(),
+            PreparedDocumentAnalysis::prepare,
+        );
+        store.open(
+            second.clone(),
+            "coi".to_owned(),
+            1,
+            no_diagnostics_publisher(),
+            PreparedDocumentAnalysis::prepare,
+        );
+        let table = store.documents.lock().expect("document store poisoned");
+        let first_epoch = table
+            .documents
+            .get(&first)
+            .expect("first document")
+            .revision
+            .identity
+            .epoch;
+        let second_epoch = table
+            .documents
+            .get(&second)
+            .expect("second document")
+            .revision
+            .identity
+            .epoch;
+        assert_eq!(first_epoch, 1);
+        assert_eq!(second_epoch, 2);
+        assert_eq!(table.next_epoch, 3);
+        assert!(first_epoch < table.next_epoch);
+        assert!(second_epoch < table.next_epoch);
     }
 
     #[test]
@@ -2380,8 +2659,8 @@ mod tests {
         );
         wait_for_signal(arrived_rx, "analysis did not reach the failure").await;
         {
-            let documents = store.documents.lock().expect("document store poisoned");
-            let document = documents.get(&uri).expect("open document");
+            let table = store.documents.lock().expect("document store poisoned");
+            let document = table.documents.get(&uri).expect("open document");
             assert!(!document.analysis_failed);
             assert!(document.confirmed_snapshot.is_none());
             assert!(document.revision.latest_diagnostics.is_none());
@@ -2463,8 +2742,8 @@ mod tests {
         let deadline = std::time::Instant::now() + Duration::from_secs(5);
         loop {
             let failed = {
-                let documents = store.documents.lock().expect("document store poisoned");
-                let document = documents.get(&uri).expect("the document stays open");
+                let table = store.documents.lock().expect("document store poisoned");
+                let document = table.documents.get(&uri).expect("the document stays open");
                 document.analysis_failed
             };
             if failed {
@@ -2638,14 +2917,15 @@ mod tests {
         {
             // The edit cleared diagnostics. The previous tree is still stored.
             // Remove that tree so the feature request has to wait.
-            let mut documents = store.documents.lock().expect("document store poisoned");
-            let document = documents.remove(&uri).expect("open document");
-            assert!(!document.analysis_failed);
-            assert!(document.revision.latest_diagnostics.is_none());
-            let document = document.edit(|data| {
-                data.confirmed_snapshot = None;
+            store.edit_documents(|data| {
+                let document = data.documents.remove(&uri).expect("open document");
+                assert!(!document.analysis_failed);
+                assert!(document.revision.latest_diagnostics.is_none());
+                let document = document.edit(|state| {
+                    state.confirmed_snapshot = None;
+                });
+                data.documents.insert(uri.clone(), document);
             });
-            documents.insert(uri.clone(), document);
         }
         let mut feature = std::pin::pin!(store.snapshot_for_features(&uri));
         let mut diagnostics = std::pin::pin!(store.diagnostics_for_current(&uri));
@@ -2660,8 +2940,8 @@ mod tests {
         job_release_tx.send(()).expect("release the analysis hold");
         wait_for_signal(arrived_rx, "publisher did not arrive").await;
         {
-            let documents = store.documents.lock().expect("document store poisoned");
-            let document = documents.get(&uri).expect("open document");
+            let table = store.documents.lock().expect("document store poisoned");
+            let document = table.documents.get(&uri).expect("open document");
             assert!(!document.analysis_failed, "the failure has not happened");
             assert!(
                 document.confirmed_snapshot.is_none(),
@@ -2844,8 +3124,8 @@ mod tests {
         ));
         wait_for_signal(arrived_rx, "publisher did not arrive").await;
         {
-            let documents = store.documents.lock().expect("document store poisoned");
-            let document = documents.get(&uri).expect("open document");
+            let table = store.documents.lock().expect("document store poisoned");
+            let document = table.documents.get(&uri).expect("open document");
             let published = document
                 .revision
                 .latest_diagnostics
@@ -2974,14 +3254,15 @@ mod tests {
         );
         assert_eq!(tree.version, 1);
         {
-            let documents = store.documents.lock().expect("document store poisoned");
-            let document = documents.get(&uri).expect("open document");
+            let table = store.documents.lock().expect("document store poisoned");
+            let document = table.documents.get(&uri).expect("open document");
             assert_eq!(document.revision.version, 2);
         }
 
         let mut confirmations = {
-            let documents = store.documents.lock().expect("document store poisoned");
-            documents
+            let table = store.documents.lock().expect("document store poisoned");
+            table
+                .documents
                 .get(&uri)
                 .expect("open document")
                 .confirmed
@@ -2990,8 +3271,9 @@ mod tests {
         tokio::time::timeout(Duration::from_secs(30), async {
             loop {
                 let confirmed = {
-                    let documents = store.documents.lock().expect("document store poisoned");
-                    documents
+                    let table = store.documents.lock().expect("document store poisoned");
+                    table
+                        .documents
                         .get(&uri)
                         .expect("open document")
                         .confirmed_snapshot

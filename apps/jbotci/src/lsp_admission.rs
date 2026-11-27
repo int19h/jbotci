@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::ops::ControlFlow;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
@@ -38,10 +37,13 @@ struct CancelSlot {
 /// The cancel tokens and the live cancel senders.
 ///
 /// The next token stays above zero.
-#[invariant(next_token.load(std::sync::atomic::Ordering::Relaxed) > 0)]
+/// Every stored token is below the next token.
+/// The counter does not wrap.
+#[invariant(*next_token > 0)]
+#[invariant(entries.values().all(|slot| slot.token < *next_token))]
 struct CancelBook {
-    next_token: AtomicU64,
-    entries: Mutex<HashMap<NumberOrString, CancelSlot>>,
+    next_token: u64,
+    entries: HashMap<NumberOrString, CancelSlot>,
 }
 
 /// Removes one cancel map entry when dropped.
@@ -49,7 +51,7 @@ struct CancelBook {
 /// Any book, id, and token can be stored.
 #[invariant(true)]
 struct CancelRemoval {
-    book: Arc<CancelBook>,
+    book: Arc<Mutex<CancelBook>>,
     id: NumberOrString,
     token: u64,
 }
@@ -58,19 +60,40 @@ impl Drop for CancelRemoval {
     #[requires(true)]
     #[ensures(true)]
     fn drop(&mut self) {
-        let mut entries = self
-            .book
-            .entries
-            .lock()
-            .expect("LSP cancel map lock poisoned");
+        let mut book = self.book.lock().expect("LSP cancel map lock poisoned");
         // Drop removes the entry for this token.
         // A newer entry for the same id stays in the map.
-        if entries
-            .get(&self.id)
-            .is_some_and(|slot| slot.token == self.token)
-        {
-            entries.remove(&self.id);
-        }
+        CancelBook::edit(&mut *book, |data| {
+            if data
+                .entries
+                .get(&self.id)
+                .is_some_and(|slot| slot.token == self.token)
+            {
+                data.entries.remove(&self.id);
+            }
+        });
+    }
+}
+
+impl CancelBook {
+    #[requires(true)]
+    #[ensures(ret.next_token == 1)]
+    #[ensures(ret.entries.is_empty())]
+    fn empty() -> Self {
+        new!(CancelBook {
+            next_token: 1,
+            entries: HashMap::new(),
+        })
+    }
+
+    /// Replace the book, apply `edit`, and check the token relation again.
+    #[requires(true)]
+    #[ensures(true)]
+    fn edit<T>(book: &mut Self, edit: impl FnOnce(&mut CancelBookData) -> T) -> T {
+        let mut data = std::mem::replace(book, Self::empty()).into_data();
+        let result = edit(&mut data);
+        *book = Self::from_data(data);
+        result
     }
 }
 
@@ -90,7 +113,7 @@ struct CancelGuard {
 #[invariant(true)]
 pub(super) struct RequestAdmission<S> {
     service: S,
-    cancels: Arc<CancelBook>,
+    cancels: Arc<Mutex<CancelBook>>,
 }
 
 #[requires(true)]
@@ -98,10 +121,7 @@ pub(super) struct RequestAdmission<S> {
 pub(super) fn request_admission<S>(service: S) -> RequestAdmission<S> {
     RequestAdmission {
         service,
-        cancels: Arc::new(new!(CancelBook {
-            next_token: AtomicU64::new(1),
-            entries: Mutex::new(HashMap::new()),
-        })),
+        cancels: Arc::new(Mutex::new(CancelBook::empty())),
     }
 }
 
@@ -112,18 +132,32 @@ fn cancelled_response() -> ResponseError {
     ResponseError::new(ErrorCode::REQUEST_CANCELLED, "Client cancelled the request")
 }
 
+#[requires(true)]
+#[ensures(ret.code == ErrorCode::INTERNAL_ERROR)]
+#[ensures(ret.message == CANCEL_TOKENS_EXHAUSTED_MESSAGE)]
+fn cancel_tokens_exhausted_response() -> ResponseError {
+    ResponseError::new(ErrorCode::INTERNAL_ERROR, CANCEL_TOKENS_EXHAUSTED_MESSAGE)
+}
+
 impl<S> RequestAdmission<S> {
+    /// Register one cancel token for `id`.
+    ///
+    /// `None` means the counter is exhausted.
+    /// The book does not change in that case.
     #[requires(true)]
     #[ensures(true)]
-    fn register_cancel(&self, id: NumberOrString) -> (oneshot::Receiver<()>, CancelGuard) {
+    fn register_cancel(&self, id: NumberOrString) -> Option<(oneshot::Receiver<()>, CancelGuard)> {
+        let mut book = self.cancels.lock().expect("LSP cancel map lock poisoned");
+        let token = book.next_token;
+        let next_token = token.checked_add(1)?;
         let (sender, receiver) = oneshot::channel();
-        let token = take_cancel_token(&self.cancels);
-        self.cancels
-            .entries
-            .lock()
-            .expect("LSP cancel map lock poisoned")
-            .insert(id.clone(), new!(CancelSlot { token, sender }));
-        (
+        CancelBook::edit(&mut *book, |data| {
+            data.next_token = next_token;
+            data.entries
+                .insert(id.clone(), new!(CancelSlot { token, sender }));
+        });
+        drop(book);
+        Some((
             receiver,
             new!(CancelGuard {
                 token,
@@ -133,43 +167,22 @@ impl<S> RequestAdmission<S> {
                     token,
                 },
             }),
-        )
+        ))
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn cancel_request(&self, id: &NumberOrString) {
-        let mut entries = self
-            .cancels
-            .entries
-            .lock()
-            .expect("LSP cancel map lock poisoned");
-        if let Some(slot) = entries.remove(id) {
-            let _ = slot.into_data().sender.send(());
-        }
+        let mut book = self.cancels.lock().expect("LSP cancel map lock poisoned");
+        CancelBook::edit(&mut *book, |data| {
+            if let Some(slot) = data.entries.remove(id) {
+                let _ = slot.into_data().sender.send(());
+            }
+        });
     }
 }
 
-#[requires(book.as_data().next_token.load(Ordering::Relaxed) > 0)]
-#[ensures(ret > 0)]
-fn take_cancel_token(book: &CancelBook) -> u64 {
-    // Zero is not a token.
-    // The counter wraps after the last u64 value.
-    let token = &book.as_data().next_token;
-    loop {
-        let current = token.load(Ordering::Relaxed);
-        let next = match current.wrapping_add(1) {
-            0 => 1,
-            value => value,
-        };
-        if token
-            .compare_exchange(current, next, Ordering::Relaxed, Ordering::Relaxed)
-            .is_ok()
-        {
-            return current;
-        }
-    }
-}
+const CANCEL_TOKENS_EXHAUSTED_MESSAGE: &str = "cancel token space is exhausted";
 
 impl<S> Service<AnyRequest> for RequestAdmission<S>
 where
@@ -191,7 +204,9 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn call(&mut self, req: AnyRequest) -> <Self as Service<AnyRequest>>::Future {
-        let (cancel, guard) = self.register_cancel(req.id.clone());
+        let Some((cancel, guard)) = self.register_cancel(req.id.clone()) else {
+            return Box::pin(async { Err(cancel_tokens_exhausted_response()) });
+        };
         let inner = self.service.call(req);
         Box::pin(async move {
             // The guard stays in this future.
@@ -242,6 +257,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::future::Future;
     use std::ops::ControlFlow;
     use std::pin::Pin;
@@ -413,14 +429,98 @@ mod tests {
         assert_eq!(cancel_token(&admission, 7), None);
     }
 
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn exhausted_cancel_tokens_leave_the_live_request_in_place() {
+        let started = Arc::new(AtomicUsize::new(0));
+        let (_ready_tx, ready_rx) = watch::channel(false);
+        let mut admission = request_admission(pending_service(Arc::clone(&started), ready_rx));
+        set_next_cancel_token(&admission, u64::MAX - 1);
+
+        let first = admission.call(request(7, request::HoverRequest::METHOD));
+        assert_eq!(cancel_token(&admission, 7), Some(u64::MAX - 1));
+        assert_eq!(started.load(Ordering::SeqCst), 1);
+
+        let same_id = admission.call(request(7, request::HoverRequest::METHOD));
+        let same_id = same_id.await.expect_err("the counter is exhausted");
+        assert_eq!(same_id.code, ErrorCode::INTERNAL_ERROR);
+        assert_eq!(same_id.message, "cancel token space is exhausted");
+        assert_eq!(cancel_token(&admission, 7), Some(u64::MAX - 1));
+
+        let other = admission.call(request(8, request::HoverRequest::METHOD));
+        let other = other.await.expect_err("the counter is exhausted");
+        assert_eq!(other.code, ErrorCode::INTERNAL_ERROR);
+        assert_eq!(other.message, "cancel token space is exhausted");
+        assert_eq!(started.load(Ordering::SeqCst), 1);
+        assert_eq!(cancel_token(&admission, 7), Some(u64::MAX - 1));
+        assert_eq!(cancel_token(&admission, 8), None);
+
+        drop(first);
+        assert_eq!(cancel_token(&admission, 7), None);
+        assert_eq!(cancel_token(&admission, 8), None);
+    }
+
+    #[requires(next > 0)]
+    #[ensures(true)]
+    fn set_next_cancel_token(admission: &super::RequestAdmission<PendingService>, next: u64) {
+        let mut book = admission
+            .cancels
+            .lock()
+            .expect("LSP cancel map lock poisoned");
+        super::CancelBook::edit(&mut *book, |data| {
+            assert!(data.entries.is_empty());
+            data.next_token = next;
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cancel_book_rejects_a_token_that_is_not_below_the_next_token() {
+        let (low_sender, _low_receiver) = tokio::sync::oneshot::channel();
+        let mut entries = HashMap::new();
+        entries.insert(
+            NumberOrString::Number(1),
+            new!(super::CancelSlot {
+                token: 1,
+                sender: low_sender,
+            }),
+        );
+        let accepted = bityzba::try_new!(super::CancelBook {
+            next_token: 2,
+            entries,
+        })
+        .expect("a stored token below the next token is valid");
+        assert_eq!(accepted.next_token, 2);
+
+        let (high_sender, _high_receiver) = tokio::sync::oneshot::channel();
+        let mut entries = HashMap::new();
+        entries.insert(
+            NumberOrString::Number(1),
+            new!(super::CancelSlot {
+                token: 2,
+                sender: high_sender,
+            }),
+        );
+        assert!(
+            bityzba::try_new!(super::CancelBook {
+                next_token: 2,
+                entries,
+            })
+            .is_err(),
+            "a stored token must stay below the next token"
+        );
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn cancel_token(admission: &super::RequestAdmission<PendingService>, id: i32) -> Option<u64> {
         admission
             .cancels
-            .entries
             .lock()
             .expect("LSP cancel map lock poisoned")
+            .entries
             .get(&NumberOrString::Number(id))
             .map(|slot| slot.token)
     }
