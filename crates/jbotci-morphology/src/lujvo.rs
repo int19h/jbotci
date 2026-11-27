@@ -183,11 +183,19 @@ pub struct ShortRafsiForm {
 // check runs the recognizer, so it is expensive. bityzba allows one invariant
 // for each variant, so the cheap non-empty check is part of this one.
 #[expensive_invariant(::FuhivlaStem(text) => !text.is_empty() && crate::is_fuhivla_rafsi_form(text))]
+#[invariant(::RafsiWithHyphen { text, hyphen } => !text.is_empty() && is_bonding_hyphen(hyphen), "a prescribed hyphen is a bonding hyphen after a non-empty rafsi")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LujvoBuildPart {
     Rafsi(String),
     FuhivlaStem(String),
     BrivlaCore(String),
+    /// A rafsi whose following hyphen is prescribed, not chosen by the
+    /// bonding rules. It copies a joint that an existing lujvo already
+    /// wrote, so the built word keeps that joint exactly.
+    RafsiWithHyphen {
+        text: String,
+        hyphen: String,
+    },
 }
 
 impl LujvoBuildPart {
@@ -198,6 +206,17 @@ impl LujvoBuildPart {
             data!(LujvoBuildPart::Rafsi(text))
             | data!(LujvoBuildPart::FuhivlaStem(text))
             | data!(LujvoBuildPart::BrivlaCore(text)) => text,
+            data!(LujvoBuildPart::RafsiWithHyphen { text, .. }) => text,
+        }
+    }
+
+    /// The hyphen this part prescribes after itself, when it carries one.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|hyphen| is_bonding_hyphen(hyphen)))]
+    fn prescribed_hyphen(&self) -> Option<&str> {
+        match self.as_data() {
+            data!(LujvoBuildPart::RafsiWithHyphen { hyphen, .. }) => Some(hyphen),
+            _ => None,
         }
     }
 
@@ -357,7 +376,12 @@ fn bond_lujvo_build_part_refs(parts: &[&LujvoBuildPart]) -> Option<Vec<String>> 
     let second = parts.get(1)?.as_text();
     let mut bonded = Vec::with_capacity(parts.len() * 2);
     bonded.push(first.to_owned());
-    if !first_part.is_brivla_core() && should_insert_cvv_hyphen(first, second, parts.len()) {
+    // A prescribed hyphen is the joint the parts already carry, so the
+    // first-pair CVV rule does not also fire for that joint.
+    if first_part.prescribed_hyphen().is_none()
+        && !first_part.is_brivla_core()
+        && should_insert_cvv_hyphen(first, second, parts.len())
+    {
         bonded.push(if second.starts_with('r') {
             "n".to_owned()
         } else {
@@ -367,12 +391,18 @@ fn bond_lujvo_build_part_refs(parts: &[&LujvoBuildPart]) -> Option<Vec<String>> 
     for pair in parts.windows(2) {
         let previous = pair[0];
         let next = pair[1];
-        if let Some(hyphen) = hyphen_for_build_part_pair(previous, next) {
-            bonded.push(hyphen.to_owned());
+        // A prescribed hyphen wins over the pair rules for its joint.
+        let hyphen = previous
+            .prescribed_hyphen()
+            .map(str::to_owned)
+            .or_else(|| hyphen_for_build_part_pair(previous, next).map(str::to_owned));
+        if let Some(hyphen) = hyphen {
+            bonded.push(hyphen);
         }
         bonded.push(next.as_text().to_owned());
     }
-    if tosmabru(&bonded) {
+    // A joint that already carries a hyphen is not a tosmabru joint.
+    if tosmabru(&bonded) && !bonded.get(1).is_some_and(|part| is_bonding_hyphen(part)) {
         bonded.insert(1, "y".to_owned());
     }
     Some(bonded)

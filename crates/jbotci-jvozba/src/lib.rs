@@ -586,6 +586,10 @@ struct KeptRafsi {
     form: String,
     is_fuhivla_stem: bool,
     source: EntryIndex,
+    /// The hyphen the input wrote after this rafsi, when it wrote one.
+    /// The joint between two kept parts of one input is copied as the
+    /// input wrote it; the builder chooses hyphens only between inputs.
+    hyphen_after: Option<String>,
 }
 
 /// The final part of an input lujvo that names a dictionary word, kept in
@@ -618,9 +622,12 @@ struct SelfSourcedFinalPart {
 /// like a `--rafsi` form. It is built only in a non-final position, so it
 /// never has to end a lujvo.
 #[invariant(!stem.is_empty())]
+#[invariant(!hyphen.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PinnedLongRafsi {
     stem: String,
+    /// The `y` hyphen the input wrote after this rafsi.
+    hyphen: String,
 }
 
 /// The source chosen before the builder generates any candidate spellings.
@@ -814,6 +821,20 @@ fn decomposition_pieces(
             word: offending_spelling(word, &normalized_spelling(word)),
             part: form.clone(),
         };
+        // The hyphen the input wrote after this rafsi, for a rafsi that is
+        // not the last one. The last rafsi has no internal joint: the joint
+        // after it joins a different input and the builder chooses it.
+        let hyphen_after = if Some(index) == last_rafsi {
+            None
+        } else {
+            match segments.get(index + 1) {
+                Some(next) => match &next.segment {
+                    LujvoPart::Hyphen(phonemes) => Some(canonicalize_text(phonemes.as_str())),
+                    LujvoPart::Rafsi(_) => None,
+                },
+                None => None,
+            }
+        };
         if segment.kind == DictionaryLujvoSegmentKind::FuivlaRafsi {
             // A fu'ivla rafsi is never the final segment: that kind is
             // defined by the segment that follows it.
@@ -827,6 +848,7 @@ fn decomposition_pieces(
                 form,
                 is_fuhivla_stem: true,
                 source: first.entry_index,
+                hyphen_after,
             })));
             continue;
         }
@@ -866,14 +888,24 @@ fn decomposition_pieces(
                 form,
                 is_fuhivla_stem: false,
                 source: first.entry_index,
+                hyphen_after,
             }))),
             None => {
-                let next_is_y_hyphen = segments.get(index + 1).is_some_and(|next| {
-                    matches!(&next.segment, LujvoPart::Hyphen(phonemes) if phonemes.as_str().starts_with('y'))
-                });
-                if next_is_y_hyphen && is_long_gismu_stem(&form, cancellation)? {
+                let y_hyphen = match segments.get(index + 1) {
+                    Some(next) => match &next.segment {
+                        LujvoPart::Hyphen(phonemes) if phonemes.as_str().starts_with('y') => {
+                            Some(canonicalize_text(phonemes.as_str()))
+                        }
+                        _ => None,
+                    },
+                    None => None,
+                };
+                if let Some(hyphen) = y_hyphen
+                    && is_long_gismu_stem(&form, cancellation)?
+                {
                     pieces.push(ExpandedInput::PinnedLongRafsi(new!(PinnedLongRafsi {
                         stem: form,
+                        hyphen,
                     })));
                 } else {
                     return Err(missing());
@@ -1087,12 +1119,16 @@ fn candidate_list_for_input(
             let data!(KeptRafsi {
                 form,
                 is_fuhivla_stem,
+                hyphen_after,
                 ..
             }) = kept.into_data();
-            Ok(vec![if is_fuhivla_stem {
-                new!(LujvoBuildPart::FuhivlaStem(form))
-            } else {
-                new!(LujvoBuildPart::Rafsi(form))
+            // A hyphen the input wrote is prescribed, so this joint is
+            // copied as the input wrote it. Without one, the builder
+            // chooses the hyphen for the joint.
+            Ok(vec![match hyphen_after {
+                Some(hyphen) => new!(LujvoBuildPart::RafsiWithHyphen { text: form, hyphen }),
+                None if is_fuhivla_stem => new!(LujvoBuildPart::FuhivlaStem(form)),
+                None => new!(LujvoBuildPart::Rafsi(form)),
             }])
         }
         ExpandedInput::KeptFinalPart(kept) => {
@@ -1114,8 +1150,11 @@ fn candidate_list_for_input(
             Ok(final_part_candidates(&form, kind, is_last_input, stem))
         }
         ExpandedInput::PinnedLongRafsi(pinned) => {
-            let data!(PinnedLongRafsi { stem }) = pinned.into_data();
-            Ok(vec![new!(LujvoBuildPart::Rafsi(stem))])
+            let data!(PinnedLongRafsi { stem, hyphen }) = pinned.into_data();
+            Ok(vec![new!(LujvoBuildPart::RafsiWithHyphen {
+                text: stem,
+                hyphen,
+            })])
         }
         ExpandedInput::UnlistedWord(word_text) => {
             let canonical_word = normalized_spelling(word_text);
@@ -2998,20 +3037,49 @@ mod tests {
         // A short final rafsi is kept as it is in both positions.
         assert_eq!(build(&[word("klama"), word("jbobau")]), "klajbobau");
         assert_eq!(build(&[word("jbobau"), word("klama")]), "jbobaukla");
-        // Keeping the rafsi can also make a build impossible: `dut` plus
-        // the stem of `ku'arka` reads as one fu'ivla rafsi in the longer
-        // word (`dutku'arkykla` parses as `dutku'ark` + `kla`), so no
-        // valid lujvo exists from the kept forms of `dutyku'arka`. Main
-        // built only by substituting `dukt` for `dut`.
-        assert_eq!(
-            build_best_jvozba_detailed(
-                JvozbaMode::Lujvo,
-                dictionary,
-                &[word("dutyku'arka"), word("klama")],
-                &token,
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_input_lujvo_keeps_its_joints_too() {
+        // The kept parts of an input lujvo keep their own joints: the
+        // kept sequence is copied as the input wrote it, with its
+        // hyphens (`y`, `r`, `n`, and the apostrophe forms), and the
+        // builder chooses hyphens only between different inputs. Without
+        // the written `y`, `dutyku'arkykla` is the word that morphology
+        // builds, and it reads as one fu'ivla rafsi plus `kla`, not as
+        // the input's parts.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let build = |inputs: &[JvozbaInput]| {
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, inputs, &token)
+                .expect("the input lujvo keeps its joints")
+                .word
+                .clone()
+        };
+        for (lujvo, first, last) in [
+            ("dutyku'arka", "dutyku'arkykla", "kladutyku'arka"),
+            ("gosymantodi", "gosymantodi'ykla", "klagosymantodi"),
+            ("kutysetmima", "kutysetmima'ykla", "klakutysetmima"),
+            (
+                "prejumydu'a'y'utka",
+                "prejumydu'a'y'utkykla",
+                "klaprejumydu'a'y'utka",
             ),
-            Err(JvozbaError::CouldNotBuildLujvo)
-        );
+            (
+                "selprejumydu'a'y'utka",
+                "selprejumydu'a'y'utkykla",
+                "klaselprejumydu'a'y'utka",
+            ),
+            ("xunysinjabu", "xunysinjabu'ykla", "klaxunysinjabu"),
+            ("zasyku'arka", "zasyku'arkykla", "klazasyku'arka"),
+            ("velski'y'esku", "velski'y'esku'ykla", "klamyvelski'y'esku"),
+        ] {
+            assert_eq!(build(&[word(lujvo), word("klama")]), first, "{lujvo} first");
+            assert_eq!(build(&[word("klama"), word(lujvo)]), last, "{lujvo} last");
+        }
     }
 
     #[test]
