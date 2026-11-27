@@ -5237,6 +5237,15 @@ mod tests {
                 attached(&format!("a{decomposed}")),
                 "{composed:?} {decomposed:?}"
             );
+            // An invalid tail after the letter, which the relaxed search
+            // reports.
+            for (before, after) in [("k", "ibrodybra"), ("", "brodybra"), ("kai", "dybra")] {
+                assert_eq!(
+                    segment_around_unit(before, &composed_text, after),
+                    segment_around_unit(before, &decomposed, after),
+                    "{composed:?} {decomposed:?} {before} {after}"
+                );
+            }
             checked += 1;
         }
         // Mark sequences in either canonical order give one result, for the
@@ -5264,6 +5273,18 @@ mod tests {
                             attached(&other),
                             "{forward:?} {other:?}"
                         );
+                        // An unread mark is named where it was typed, so two
+                        // mark orders can name it at different positions. The
+                        // kind must still agree.
+                        let unit = |text: &str| text.chars().skip(1).collect::<String>();
+                        let tail =
+                            |text: &str| match segment_around_unit("а", &unit(text), "brodybra") {
+                                Err((MorphologyErrorKind::InvalidCharacter, _, _)) => {
+                                    Err((MorphologyErrorKind::InvalidCharacter, 0, 0))
+                                }
+                                other => other,
+                            };
+                        assert_eq!(tail(&forward), tail(&other), "{forward:?} {other:?}");
                         assert_eq!(strict(&forward), strict(&other), "{forward:?} {other:?}");
                     }
                     pairs += 1;
@@ -5426,6 +5447,139 @@ mod tests {
         // starts the next word.
         let carrier = words("\u{ed8c}\u{eda4}\u{edaa}\u{ed8c}\u{eda6}");
         assert_eq!(carrier[1].1, 2, "{carrier:?}");
+    }
+
+    /// The result of segmenting `text`: the phonemes and the end of each word,
+    /// or the error kind and range. Positions count from the end of the text,
+    /// so a composed and a decomposed spelling compare alike.
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_from_end(
+        text: &str,
+    ) -> Result<Vec<(String, usize)>, (MorphologyErrorKind, usize, usize)> {
+        let length = text.chars().count();
+        match segment_words_with_modifiers(text) {
+            Ok(words) => Ok(words
+                .iter()
+                .filter_map(base_word)
+                .map(|word| {
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        length - word.span().char_end,
+                    )
+                })
+                .collect()),
+            Err(MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                ..
+            }) => Err((kind, length - char_start, length - char_end)),
+            Err(error) => panic!("{text:?}: {error}"),
+        }
+    }
+
+    /// The result of segmenting `before` + `unit` + `after`, with each position
+    /// in a frame where `unit` is one character. So two spellings of one unit
+    /// compare alike. A position inside `unit` maps to `usize::MAX`, so a word
+    /// boundary inside a unit shows as a difference.
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_around_unit(
+        before: &str,
+        unit: &str,
+        after: &str,
+    ) -> Result<Vec<(String, usize, usize)>, (MorphologyErrorKind, usize, usize)> {
+        let unit_start = before.chars().count();
+        let unit_length = unit.chars().count();
+        let frame = |position: usize| {
+            if position <= unit_start {
+                position
+            } else if position >= unit_start + unit_length {
+                position + 1 - unit_length
+            } else {
+                usize::MAX
+            }
+        };
+        let text = format!("{before}{unit}{after}");
+        match segment_words_with_modifiers(&text) {
+            Ok(words) => Ok(words
+                .iter()
+                .filter_map(base_word)
+                .map(|word| {
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        frame(word.span().char_start),
+                        frame(word.span().char_end),
+                    )
+                })
+                .collect()),
+            Err(MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                ..
+            }) => Err((kind, frame(char_start), frame(char_end))),
+            Err(error) => panic!("{text:?}: {error}"),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_invalid_tail_after_a_unit_is_found_in_every_spelling() {
+        // The relaxed search looks for the longest valid word before an
+        // error. A position inside a unit used to stop that search, so
+        // `ka` + U+0301 + `ibrodybra` reported `invalid-lujvo` on the whole
+        // word, while `káibrodybra` reports `unrecognized-word` on `bra`, as
+        // on main. Every spelling now reports `bra`.
+        let unrecognized_bra = Err((MorphologyErrorKind::UnrecognizedWord, 3, 0));
+        for mark in ['\u{0301}', '\u{0300}'] {
+            for text in [
+                "káibrodybra".to_owned(),
+                format!("ka{mark}ibrodybra"),
+                "bródadybra".to_owned(),
+                format!("bro{mark}dadybra"),
+                "śáibrodybra".to_owned(),
+                format!("s{mark}áibrodybra"),
+                "káibrobródabra".to_owned(),
+                format!("káibrobro{mark}dabra"),
+                "клѐмадыбра".to_owned(),
+                format!("кле{mark}мадыбра"),
+                "каѝбродыбра".to_owned(),
+                format!("каи{mark}бродыбра"),
+                // Zbalermorna `bródadybra`, and the shorthand in
+                // `ta'íbrodybra`, with each mark.
+                format!(
+                    "\u{ed90}\u{ed94}\u{eda3}{mark}\u{ed91}\u{eda0}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}"
+                ),
+                format!(
+                    "\u{ed81}\u{ed8b}\u{eda0}\u{edb2}{mark}\u{ed90}\u{ed94}\u{eda3}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}"
+                ),
+            ] {
+                assert_eq!(segment_from_end(&text), unrecognized_bra, "{text:?}");
+            }
+        }
+        // A combining mark after a diphthong glyph stresses nothing, because
+        // the glyph ends in a glide. So that spelling reads `kaĭ bródybra`, as
+        // on main, and only U+ED98 gives `káibrodybra`.
+        for mark in ['\u{0301}', '\u{0300}'] {
+            let text = format!(
+                "\u{ed82}\u{eda6}{mark}\u{ed90}\u{ed94}\u{eda3}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}"
+            );
+            assert_eq!(
+                segment_from_end(&text),
+                Ok(vec![("kaĭ".to_owned(), 8), ("bródybra".to_owned(), 0)]),
+                "{text:?}"
+            );
+        }
+        for text in [
+            "\u{ed82}\u{eda6}\u{ed98}\u{ed90}\u{ed94}\u{eda3}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}",
+            "\u{ed90}\u{ed94}\u{eda3}\u{ed98}\u{ed91}\u{eda0}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}",
+            "\u{ed81}\u{ed8b}\u{eda0}\u{edb2}\u{ed98}\u{ed90}\u{ed94}\u{eda3}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}",
+        ] {
+            assert_eq!(segment_from_end(text), unrecognized_bra, "{text:?}");
+        }
     }
 
     #[test]
