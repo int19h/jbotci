@@ -256,6 +256,19 @@ pub(crate) fn canonical_converter_units(
     units
 }
 
+/// The combining mark that changes the unit before it: the breve marks a
+/// glide on the Latin or Cyrillic vowel before it, so `и` + U+0306 is the
+/// glide `й`, not a vowel with an implicit apostrophe.
+pub const GLIDE_PARTNER_MARK: char = '\u{0306}';
+
+/// Whether `value` waits for the unit after it: the Zbalermorna shorthand
+/// mark U+ED8B takes the vowel after it as its payload.
+#[requires(true)]
+#[ensures(ret == (value == '\u{ed8b}'))]
+pub fn awaits_next_unit(value: char) -> bool {
+    is_zbalermorna_attitudinal_shorthand(value)
+}
+
 /// True when `value` can take part in a word under the active scripts.
 ///
 /// A character counts by itself when the converter reads it, after its
@@ -268,8 +281,8 @@ pub(crate) fn canonical_converter_units(
 pub(crate) fn converter_can_spell_with(value: char, options: &MorphologyOptions) -> bool {
     let mut encoded = [0_u8; 4];
     normalize_word_checked_with_options(value.encode_utf8(&mut encoded), options).is_some()
-        || (value == '\u{0306}' && (options.accept_latin || options.accept_cyrillic))
-        || (options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value))
+        || (value == GLIDE_PARTNER_MARK && (options.accept_latin || options.accept_cyrillic))
+        || (options.accept_zbalermorna && awaits_next_unit(value))
 }
 
 /// True when the converter reads `value` as a letter.

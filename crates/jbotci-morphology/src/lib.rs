@@ -89,7 +89,9 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
 };
-pub use segment::{LookupStep, LookupStepData, transcribe_lookup_run};
+pub use segment::{
+    GLIDE_PARTNER_MARK, LookupStep, LookupStepData, awaits_next_unit, transcribe_lookup_run,
+};
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,
     word_needs_leading_pause_in_context,

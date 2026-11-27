@@ -15,9 +15,9 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    LookupStep, LookupStepData, MorphologyOptions, MorphologyWarningKind, ShortRafsiShape,
-    canonicalize_text, ends_with_vowel, fold_lojban_diacritic, is_fuhivla_rafsi_form,
-    normalize_lojban_input_text, possible_short_rafsi_forms,
+    GLIDE_PARTNER_MARK, LookupStep, LookupStepData, MorphologyOptions, MorphologyWarningKind,
+    ShortRafsiShape, awaits_next_unit, canonicalize_text, ends_with_vowel, fold_lojban_diacritic,
+    is_fuhivla_rafsi_form, normalize_lojban_input_text, possible_short_rafsi_forms,
     segment_words_with_modifiers_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id_attempt, strip_lojban_diacritic,
     transcribe_lookup_run,
@@ -376,7 +376,7 @@ impl<'a> Dictionary<'a> {
     #[ensures(true)]
     pub fn entries_by_word_prefix<'lookup>(
         &'lookup self,
-        prefix: &LookupKey,
+        prefix: &LookupPrefix,
     ) -> impl Iterator<Item = &'lookup DictionaryEntry<'a>> + 'lookup {
         let normalized = prefix.as_str();
         let start = self
@@ -1267,6 +1267,61 @@ pub struct LookupKey {
     text: String,
 }
 
+/// The key of a typed prefix of a word, for a search by word prefix.
+///
+/// A prefix is not a whole query: it is the text before a cursor, so its
+/// last unit can still wait for a partner. The prefix rule follows the
+/// typed-query rule (`LookupKey::from_typed`) with two differences, both for
+/// such a last unit:
+///
+/// - A Zbalermorna shorthand mark with no payload yet (a bare U+ED8B at the
+///   end) adds nothing, because its letters come from the payload.
+/// - A vowel that a following breve would turn into a glide keys only as far
+///   as both readings agree. Cyrillic `шои` reads `co'i`, and `шои` + U+0306
+///   reads `coĭ`, so the prefix key is `co`.
+///
+/// A prefix with any other character that a lookup rejects is still an
+/// error. This is a separate type, so an exact lookup cannot take a prefix
+/// key, and a prefix search cannot take an exact key.
+#[invariant(key.as_str() == key.as_str().trim(), "a prefix key has no space at either end")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LookupPrefix {
+    key: LookupKey,
+}
+
+impl LookupPrefix {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|prefix| LookupKey::from_typed(text).is_ok_and(|exact| exact.as_str().starts_with(prefix.as_str()))) || ret.is_err() || text.trim_end().ends_with(awaits_next_unit))]
+    pub fn from_typed(text: &str) -> Result<Self, LookupPatternError> {
+        let text = text.trim_end();
+        if let Some(rest) = text.strip_suffix(awaits_next_unit) {
+            let key = LookupKey::from_typed(rest)?;
+            return Ok(new!(LookupPrefix { key }));
+        }
+        let exact = LookupKey::from_typed(text)?;
+        let key = match LookupKey::from_typed(&format!("{text}{GLIDE_PARTNER_MARK}")) {
+            Ok(glide) if glide != exact => {
+                let common = exact
+                    .as_str()
+                    .chars()
+                    .zip(glide.as_str().chars())
+                    .take_while(|(left, right)| left == right)
+                    .map(|(value, _)| value)
+                    .collect::<String>();
+                LookupKey::from_stored(common.trim_end())
+            }
+            _ => exact,
+        };
+        Ok(new!(LookupPrefix { key }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn as_str(&self) -> &str {
+        self.key.as_str()
+    }
+}
+
 impl LookupKey {
     /// The key of text that a user typed. Empty or blank text gives the
     /// empty key.
@@ -2069,6 +2124,39 @@ mod tests {
         assert_eq!(normalize_lookup_query("da\u{a78b}oi"), "da'oi");
         assert_eq!(normalize_lookup_query("dahoi"), "da'oi");
         assert_eq!(normalize_lookup_query("lo  brodá"), "lo broda");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_prefix_key_allows_a_last_unit_that_waits_for_a_partner() {
+        let prefix =
+            |text: &str| LookupPrefix::from_typed(text).map(|prefix| prefix.as_str().to_owned());
+        // A bare shorthand mark waits for its payload. An exact lookup
+        // rejects it, and a prefix keys the text before it.
+        assert_eq!(prefix("\u{ed8b}").as_deref(), Ok(""));
+        assert_eq!(prefix("co\u{ed8b}").as_deref(), Ok("co"));
+        assert_eq!(
+            LookupKey::from_typed("\u{ed8b}").map_err(|error| error.invalid_character()),
+            Err(Some('\u{ed8b}'))
+        );
+        // A Cyrillic vowel before a breve keys as far as both readings agree.
+        assert_eq!(prefix("шои").as_deref(), Ok("co"));
+        assert_eq!(prefix("шои\u{0306}").as_deref(), Ok("coi"));
+        // A Latin vowel keys alike with or without the breve.
+        assert_eq!(prefix("coi").as_deref(), Ok("coi"));
+        // A base letter before its combining mark, or before a stress mark,
+        // is a whole unit.
+        assert_eq!(prefix("kla").as_deref(), Ok("kla"));
+        assert_eq!(prefix("kl").as_deref(), Ok("kl"));
+        // Any other rejected character is still an error.
+        for (text, character) in [("klâ", 'â'), ("kla#", '#'), ("q", 'q')] {
+            assert_eq!(
+                LookupPrefix::from_typed(text).map_err(|error| error.invalid_character()),
+                Err(Some(character)),
+                "{text}"
+            );
+        }
     }
 
     #[test]
@@ -2950,7 +3038,7 @@ mod tests {
         );
         assert_eq!(
             dictionary
-                .entries_by_word_prefix(&LookupKey::from_stored("gaurki"))
+                .entries_by_word_prefix(&LookupPrefix::from_typed("gaurki").expect("prefix"))
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["gaurki'u", "gaurkihu"]
@@ -3191,21 +3279,21 @@ mod tests {
         assert!(dictionary.validate().is_ok());
         assert_eq!(
             dictionary
-                .entries_by_word_prefix(&LookupKey::from_stored("BÁ"))
+                .entries_by_word_prefix(&LookupPrefix::from_typed("BÁ").expect("prefix"))
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["BÁJRA", "bajra", "barda"],
         );
         assert!(
             dictionary
-                .entries_by_word_prefix(&LookupKey::from_stored("bas"))
+                .entries_by_word_prefix(&LookupPrefix::from_typed("bas").expect("prefix"))
                 .next()
                 .is_none(),
             "the partitioned range must stop before adjacent non-matches",
         );
         assert_eq!(
             dictionary
-                .entries_by_word_prefix(&LookupKey::from_stored(""))
+                .entries_by_word_prefix(&LookupPrefix::from_typed("").expect("prefix"))
                 .count(),
             entries.len(),
             "an empty prefix covers the complete index without a separate scan",

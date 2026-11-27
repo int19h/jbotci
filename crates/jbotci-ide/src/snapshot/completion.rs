@@ -9,7 +9,7 @@ use std::{
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_dictionary::{Dictionary, LookupKey, WordType, normalize_lookup_query};
+use jbotci_dictionary::{Dictionary, LookupKey, LookupPrefix, WordType, normalize_lookup_query};
 use jbotci_morphology::{
     Cmavo, MorphologyContextKind, MorphologyError, NodeRef as MorphologyNodeRef, Selmaho,
     TreeNode as MorphologyTreeNode, Word, WordKind, WordLike, WordLikeData, analyze_valsi,
@@ -218,10 +218,11 @@ struct CompletionContext<'snapshot, 'dictionary, 'entries, 'cancellation> {
     interpretation: CompletionInterpretation,
     replacement_span: SourceSpan,
     insert_leading_space: bool,
-    /// The typed-query key of the prefix, or `None` when the prefix has a
-    /// character that a lookup rejects, so that no dictionary word starts
-    /// with it.
-    normalized_prefix: Option<LookupKey>,
+    /// The prefix key of the text before the cursor, or `None` when the
+    /// prefix has a character that a lookup rejects, so that no dictionary
+    /// word starts with it. A last unit that still waits for a partner, such
+    /// as a bare U+ED8B, does not make the prefix invalid.
+    normalized_prefix: Option<LookupPrefix>,
     suffix_consistent_labels: BTreeSet<String>,
 }
 
@@ -631,12 +632,12 @@ impl DocumentSnapshot {
             interpretation,
             replacement_span,
             insert_leading_space,
-            normalized_prefix: match LookupKey::from_typed(prefix) {
-                Ok(key) => Some(key),
+            normalized_prefix: match LookupPrefix::from_typed(prefix) {
+                Ok(prefix) => Some(prefix),
                 // A prefix with no key character, such as `,`, keys as the
                 // empty prefix.
                 Err(error) if error.invalid_character().is_none() => {
-                    Some(LookupKey::from_stored(""))
+                    Some(LookupPrefix::from_typed("").expect("the empty prefix"))
                 }
                 Err(_) => None,
             },
@@ -1324,10 +1325,25 @@ mod tests {
             "{cyrillic:?}"
         );
         // Inside `\u{ed8b}\u{eda2}` the replacement covers the shorthand mark too.
+        // A bare shorthand mark waits for its payload, so the prefix is not
+        // invalid, and completion still offers words.
         let shorthand = replaced_words("\u{ed8b}|\u{eda2}");
+        assert!(!shorthand.is_empty(), "a bare U+ED8B keeps its completions");
         assert!(
             shorthand.iter().all(|(_, start, _)| *start == 0),
             "{shorthand:?}"
+        );
+        let bare = replaced_words("\u{ed8b}|");
+        assert!(
+            !bare.is_empty(),
+            "a bare U+ED8B at the end keeps its completions"
+        );
+        // A Cyrillic vowel before its breve keys as far as both readings
+        // agree, so `шои` offers `coi`, which `шои` + U+0306 spells.
+        let before_breve = replaced_words("шои|");
+        assert!(
+            before_breve.iter().any(|(label, ..)| label == "coi"),
+            "{before_breve:?}"
         );
     }
 
@@ -2020,7 +2036,7 @@ mod tests {
             interpretation: CompletionInterpretation::Continue,
             replacement_span,
             insert_leading_space: false,
-            normalized_prefix: Some(LookupKey::from_stored("")),
+            normalized_prefix: Some(LookupPrefix::from_typed("").expect("the empty prefix")),
             suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();
@@ -2056,7 +2072,7 @@ mod tests {
             interpretation: CompletionInterpretation::Extend,
             replacement_span,
             insert_leading_space: false,
-            normalized_prefix: Some(LookupKey::from_stored("l")),
+            normalized_prefix: Some(LookupPrefix::from_typed("l").expect("prefix")),
             suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();
