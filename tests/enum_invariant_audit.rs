@@ -700,6 +700,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI gimfihi scorer is a closed selector mapped directly to the typed scoring mode",
     ),
     (
+        "apps/jbotci/src/lsp.rs:DocumentWait::Ready",
+        "the ready variant carries the stored document value",
+    ),
+    (
         "apps/jbotci/src/lsp.rs:StructureBracketsInitialization::Enabled",
         "the boolean wire variant directly represents every valid structure-bracket enablement state",
     ),

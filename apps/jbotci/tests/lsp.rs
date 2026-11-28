@@ -1,8 +1,15 @@
 use std::io::{BufRead, BufReader, Read, Write};
-use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::mpsc;
+use std::panic::AssertUnwindSafe;
+use std::process::{ChildStderr, ChildStdin, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
+
+#[path = "support/lsp_frame.rs"]
+mod lsp_frame;
+#[path = "support/test_process.rs"]
+mod test_process;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
@@ -17,9 +24,9 @@ const UTF16_ERROR_END: u64 = 17;
 
 #[invariant(true)]
 struct LspClient {
-    child: Option<Child>,
+    process: Arc<Mutex<test_process::TestProcess>>,
     stdin: Option<ChildStdin>,
-    stdout: BufReader<ChildStdout>,
+    messages: mpsc::Receiver<Value>,
     stderr: ChildStderr,
     next_id: u64,
 }
@@ -48,13 +55,34 @@ impl LspClient {
         let stdin = child.stdin.take().expect("child stdin");
         let stdout = child.stdout.take().expect("child stdout");
         let stderr = child.stderr.take().expect("child stderr");
+        let (messages, stdout_reader) = lsp_frame::spawn_lsp_reader(stdout);
+        let mut process = test_process::TestProcess::new(child);
+        process.add_reader(stdout_reader);
         Self {
-            child: Some(child),
+            process: Arc::new(Mutex::new(process)),
             stdin: Some(stdin),
-            stdout: BufReader::new(stdout),
+            messages,
             stderr,
             next_id: 1,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    fn process_id(&self) -> u32 {
+        self.process.lock().expect("LSP process lock").id()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn reader_joined(&self) -> Arc<AtomicBool> {
+        self.process.lock().expect("LSP process lock").joined_flag()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn child_reaped(&self) -> Arc<AtomicBool> {
+        self.process.lock().expect("LSP process lock").reaped_flag()
     }
 
     #[requires(!method.is_empty())]
@@ -150,31 +178,26 @@ impl LspClient {
     #[requires(true)]
     #[ensures(ret.is_object())]
     fn read(&mut self) -> Value {
-        let mut content_length = None;
-        loop {
-            let mut header = String::new();
-            let read = self.stdout.read_line(&mut header).expect("read LSP header");
-            assert_ne!(read, 0, "LSP server closed stdout before a response");
-            if header == "\r\n" || header == "\n" {
-                break;
-            }
-            if let Some(value) = header
-                .strip_prefix("Content-Length:")
-                .or_else(|| header.strip_prefix("content-length:"))
-            {
-                content_length = Some(
-                    value
-                        .trim()
-                        .parse::<usize>()
-                        .expect("numeric LSP content length"),
-                );
+        self.messages
+            .recv()
+            .expect("LSP server closed stdout before a response")
+    }
+
+    /// Read one message when it arrives before `timeout`.
+    ///
+    /// The reader thread owns the buffered stdout.
+    /// This call waits on the channel.
+    /// A quiet server returns none.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|message| message.is_object()))]
+    fn next_message_within(&mut self, timeout: Duration) -> Option<Value> {
+        match self.messages.recv_timeout(timeout) {
+            Ok(message) => Some(message),
+            Err(mpsc::RecvTimeoutError::Timeout) => None,
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("LSP server closed stdout before a response");
             }
         }
-        let mut body = vec![0; content_length.expect("LSP Content-Length header")];
-        self.stdout
-            .read_exact(&mut body)
-            .expect("read complete LSP body");
-        serde_json::from_slice(&body).expect("valid JSON-RPC body")
     }
 
     #[requires(true)]
@@ -184,17 +207,19 @@ impl LspClient {
         self.exit_after_shutdown();
     }
 
-    #[requires(self.child.is_some())]
+    #[requires(true)]
     #[ensures(true)]
     fn exit_after_shutdown(mut self) {
         self.notify("exit", Value::Null);
         drop(self.stdin.take());
-        let status = self
-            .child
-            .take()
-            .expect("LSP child remains owned until exit")
-            .wait()
-            .expect("wait for LSP server");
+        let mut process = self.process.lock().expect("LSP process lock");
+        // The server sees EOF on stdin and exits.
+        // Wait without killing so a non-zero status still fails this test.
+        let status = process.wait().expect("wait for LSP server");
+        // The child has exited, so its stdout is closed.
+        // The reader thread finishes, then this call joins it.
+        process.join_readers_strict();
+        drop(process);
         let mut stderr = String::new();
         self.stderr
             .read_to_string(&mut stderr)
@@ -202,6 +227,46 @@ impl LspClient {
         assert!(status.success(), "LSP exit {status}: {stderr}");
         assert!(stderr.is_empty(), "unexpected LSP stderr: {stderr}");
     }
+}
+
+impl Drop for LspClient {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        // A failed assertion skips `exit_after_shutdown`.
+        // Close stdin first so a live server can leave its read.
+        // Then reap and join. Ignore errors so unwind does not panic again.
+        drop(self.stdin.take());
+        let mut process = self
+            .process
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        process.finish_quiet();
+    }
+}
+
+/// Hold cleanup until `shutdown` returns, and run it if that wait expires.
+///
+/// The child stays in the client.
+/// A timeout, or a dropped disarm sender, uses the same quiet cleanup as `Drop`.
+#[requires(true)]
+#[ensures(true)]
+fn spawn_shutdown_watchdog(
+    process: Arc<Mutex<test_process::TestProcess>>,
+    timeout: Duration,
+) -> (mpsc::SyncSender<()>, thread::JoinHandle<bool>) {
+    let (disarm_sender, disarm_receiver) = mpsc::sync_channel(1);
+    let watchdog = thread::spawn(move || {
+        let timed_out = disarm_receiver.recv_timeout(timeout).is_err();
+        if timed_out {
+            let mut process = process
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            process.finish_quiet();
+        }
+        timed_out
+    });
+    (disarm_sender, watchdog)
 }
 
 #[requires(matches!(position_encoding, "utf-8" | "utf-16"))]
@@ -953,33 +1018,18 @@ fn shutdown_is_orderly_during_background_confirmation() {
             .is_some_and(|result_id| result_id.ends_with(":2:provisional"))
     );
 
-    // The confirming phase starts at the 200 ms debounce deadline. Keep
-    // process ownership in a watchdog so a shutdown regression is bounded.
+    // The confirming phase starts at the 200 ms debounce deadline.
+    // A watchdog kills the server if shutdown does not return in time.
     thread::sleep(Duration::from_millis(205));
-    let child = client
-        .child
-        .take()
-        .expect("watchdog temporarily owns the LSP child");
-    let (disarm_sender, disarm_receiver) = mpsc::sync_channel(1);
-    let (child_sender, child_receiver) = mpsc::sync_channel(1);
-    let watchdog = thread::spawn(move || {
-        let mut child = child;
-        let timed_out = disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err();
-        if timed_out {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        let _ = child_sender.send((child, timed_out));
-    });
+    let (disarm_sender, watchdog) =
+        spawn_shutdown_watchdog(Arc::clone(&client.process), SHUTDOWN_TIMEOUT);
 
     assert_eq!(client.request("shutdown", Value::Null), Value::Null);
     disarm_sender
         .send(())
         .expect("disarm confirmation shutdown watchdog");
-    let (child, timed_out) = child_receiver.recv().expect("recover LSP child");
-    watchdog.join().expect("confirmation watchdog joins");
+    let timed_out = watchdog.join().expect("confirmation watchdog joins");
     assert!(!timed_out, "shutdown timed out during confirming parse");
-    client.child = Some(child);
     client.exit_after_shutdown();
 }
 
@@ -1241,24 +1291,11 @@ fn shutdown_completes_during_an_in_flight_completion() {
     );
     assert_eq!(diagnostics["kind"], "full");
 
-    // Keep process ownership in a watchdog while the main test thread blocks
-    // on protocol input. A regression that wedges the protocol loop therefore
-    // fails in bounded time instead of hanging the entire test process.
-    let child = client
-        .child
-        .take()
-        .expect("watchdog temporarily owns the LSP child");
-    let (disarm_sender, disarm_receiver) = mpsc::sync_channel(1);
-    let (child_sender, child_receiver) = mpsc::sync_channel(1);
-    let watchdog = thread::spawn(move || {
-        let mut child = child;
-        let timed_out = disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err();
-        if timed_out {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        let _ = child_sender.send((child, timed_out));
-    });
+    // A watchdog kills the server if shutdown does not return in time.
+    // A regression that wedges the protocol loop therefore fails in bounded
+    // time instead of hanging the entire test process.
+    let (disarm_sender, watchdog) =
+        spawn_shutdown_watchdog(Arc::clone(&client.process), SHUTDOWN_TIMEOUT);
 
     let _completion_id = client.start_request(
         "textDocument/completion",
@@ -1273,15 +1310,11 @@ fn shutdown_completes_during_an_in_flight_completion() {
     disarm_sender
         .send(())
         .expect("disarm the shutdown watchdog");
-    let (child, timed_out) = child_receiver
-        .recv()
-        .expect("watchdog returns the LSP child");
-    watchdog.join().expect("shutdown watchdog must not panic");
+    let timed_out = watchdog.join().expect("shutdown watchdog must not panic");
     assert!(
         !timed_out,
         "shutdown response exceeded {SHUTDOWN_TIMEOUT:?}"
     );
-    client.child = Some(child);
     client.exit_after_shutdown();
 }
 
@@ -1627,6 +1660,214 @@ fn clients_without_pull_support_receive_push_diagnostics_and_close_clears_them()
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn two_frames_in_one_write_both_arrive_before_the_timeout() {
+    use std::net::{TcpListener, TcpStream};
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind a local socket");
+    let port = listener.local_addr().expect("read the local port").port();
+    let mut writer = TcpStream::connect(("127.0.0.1", port)).expect("connect to the local socket");
+    let (reader, _) = listener.accept().expect("accept the local socket");
+    let frame = |body: &str| format!("Content-Length: {}\r\n\r\n{body}", body.len());
+    let first_body = r#"{"jsonrpc":"2.0","id":1}"#;
+    let second_body = r#"{"jsonrpc":"2.0","id":2}"#;
+    write!(writer, "{}{}", frame(first_body), frame(second_body)).expect("write two frames");
+    writer.flush().expect("flush two frames");
+
+    let (messages, reader_thread) = lsp_frame::spawn_lsp_reader(reader);
+    let mut guard = test_process::ReaderGuard::new(writer, reader_thread);
+    let first = messages
+        .recv_timeout(Duration::from_secs(2))
+        .expect("the first frame arrives");
+    let second = messages
+        .recv_timeout(Duration::from_millis(200))
+        .expect("the second frame arrives from the buffer");
+    assert_eq!(first["id"], 1);
+    assert_eq!(second["id"], 2);
+    guard.finish();
+}
+
+/// A panic must reap the server and join the reader before the test continues.
+///
+/// The joined flag changes only after `join` returns.
+/// A finished thread and a joined thread look the same in `/proc`.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_panic_inside_the_client_reaps_the_child_and_joins_the_reader() {
+    let client = LspClient::spawn();
+    let pid = client.process_id();
+    let joined = client.reader_joined();
+    let reaped = client.child_reaped();
+    assert!(pid > 0, "the child has a process id");
+    assert!(!reaped.load(Ordering::SeqCst), "the child is still live");
+    assert!(
+        !joined.load(Ordering::SeqCst),
+        "the reader is not joined yet"
+    );
+    let caught = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let _client = client;
+        panic!("planned panic inside the LSP client scope");
+    }));
+    assert!(caught.is_err(), "the planned panic reaches the test");
+    assert!(reaped.load(Ordering::SeqCst), "the child was waited on");
+    assert!(joined.load(Ordering::SeqCst), "the reader was joined");
+    #[cfg(target_os = "linux")]
+    assert!(
+        !child_is_zombie_of_this_process(pid),
+        "the child is not a zombie of this test"
+    );
+}
+
+/// Read `/proc/<pid>/stat` and report a zombie whose parent is this process.
+///
+/// The command name can contain spaces.
+/// The state follows the last `)`.
+#[cfg(target_os = "linux")]
+#[requires(pid > 0)]
+#[ensures(true)]
+fn child_is_zombie_of_this_process(pid: u32) -> bool {
+    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+        return false;
+    };
+    let Some(marker) = stat.rfind(')') else {
+        return false;
+    };
+    let mut fields = stat[marker + 1..].split_whitespace();
+    let Some(state) = fields.next() else {
+        return false;
+    };
+    let Ok(ppid) = fields.next().unwrap_or("").parse::<u32>() else {
+        return false;
+    };
+    state == "Z" && ppid == std::process::id()
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn an_unanswered_refresh_does_not_block_the_next_refresh() {
+    let uri = "file:///refresh-order.jbo";
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, uri, 1, "mi klama");
+
+    let mut refreshes = Vec::new();
+    let first = next_refresh_within(&mut client, Duration::from_secs(10))
+        .expect("the first refresh arrives");
+    refreshes.push(first);
+
+    for (version, text) in [
+        (2, "mi klama le zarci"),
+        (3, "mi klama le zdani"),
+        (4, "do klama"),
+    ] {
+        client.notify(
+            "textDocument/didChange",
+            json!({
+                "textDocument": { "uri": uri, "version": version },
+                "contentChanges": [{ "text": text }]
+            }),
+        );
+    }
+
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let mut confirmed = false;
+    while Instant::now() < deadline && !confirmed {
+        let request_id = client.start_request(
+            "textDocument/diagnostic",
+            json!({
+                "textDocument": { "uri": uri },
+                "identifier": "jbotci",
+                "previousResultId": null
+            }),
+        );
+        let round_deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < round_deadline {
+            let Some(message) = client
+                .next_message_within(round_deadline.saturating_duration_since(Instant::now()))
+            else {
+                break;
+            };
+            if message.get("method").and_then(Value::as_str) == Some("workspace/diagnostic/refresh")
+            {
+                refreshes.push(message);
+                continue;
+            }
+            if message.get("id") == Some(&json!(request_id)) && message.get("method").is_none() {
+                let result_id = message
+                    .get("result")
+                    .and_then(|result| result.get("resultId"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                confirmed = result_id.ends_with(":4:confirmed");
+                break;
+            }
+        }
+    }
+    assert!(
+        confirmed,
+        "version 4 confirms while the first refresh is unanswered"
+    );
+    let quiet_deadline = Instant::now() + Duration::from_secs(1);
+    while Instant::now() < quiet_deadline {
+        let Some(message) =
+            client.next_message_within(quiet_deadline.saturating_duration_since(Instant::now()))
+        else {
+            break;
+        };
+        if message.get("method").and_then(Value::as_str) == Some("workspace/diagnostic/refresh") {
+            refreshes.push(message);
+        }
+    }
+    assert!(
+        refreshes.len() >= 2,
+        "a later edit sends another refresh while the first is unanswered"
+    );
+    assert_ne!(refreshes[0]["id"], refreshes[1]["id"]);
+
+    for refresh in &refreshes {
+        client.send(json!({
+            "jsonrpc": "2.0",
+            "id": refresh["id"],
+            "result": null
+        }));
+    }
+    let replay_deadline = Instant::now() + Duration::from_secs(1);
+    while Instant::now() < replay_deadline {
+        let Some(message) =
+            client.next_message_within(replay_deadline.saturating_duration_since(Instant::now()))
+        else {
+            break;
+        };
+        assert_ne!(
+            message.get("method").and_then(Value::as_str),
+            Some("workspace/diagnostic/refresh"),
+            "a late answer must not replay a refresh"
+        );
+    }
+    client.shutdown();
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|message| message.is_object()))]
+fn next_refresh_within(client: &mut LspClient, timeout: Duration) -> Option<Value> {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        let Some(message) =
+            client.next_message_within(deadline.saturating_duration_since(Instant::now()))
+        else {
+            return None;
+        };
+        if message.get("method").and_then(Value::as_str) == Some("workspace/diagnostic/refresh") {
+            return Some(message);
+        }
+    }
+    None
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn stale_versions_are_rejected_full_sync_is_accepted_and_close_drops_state() {
     let mut client = LspClient::spawn();
     initialize(&mut client, "utf-16", true);
@@ -1727,13 +1968,14 @@ fn server_survives_socketpair_stdio() {
 
     let (mut parent, child_end) = UnixStream::pair().expect("socketpair");
     let child_stdin = child_end.try_clone().expect("clone socket for child stdin");
-    let mut child = Command::new(env!("CARGO_BIN_EXE_jbotci"))
+    let child = Command::new(env!("CARGO_BIN_EXE_jbotci"))
         .arg("lsp")
         .stdin(Stdio::from(OwnedFd::from(child_stdin)))
         .stdout(Stdio::from(OwnedFd::from(child_end)))
         .stderr(Stdio::piped())
         .spawn()
         .expect("spawn jbotci lsp over socketpair");
+    let mut process = test_process::TestProcess::new(child);
 
     let body = serde_json::to_vec(&json!({
         "jsonrpc": "2.0",
@@ -1777,6 +2019,5 @@ fn server_survives_socketpair_stdio() {
         "utf-8"
     );
 
-    child.kill().expect("kill server");
-    let _ = child.wait();
+    process.kill_and_wait();
 }

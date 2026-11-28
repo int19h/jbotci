@@ -516,16 +516,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector is validated by clap and vlatai command execution",
     ),
     (
+        "apps/jbotci/src/lsp.rs:AnalysisExitGuard",
+        "drop hook marks the current analysis failed, and AnalysisIdentity carries the epoch and the generation",
+    ),
+    (
         "apps/jbotci/src/lsp.rs:CompletionCancellationGuard",
         "completion cancellation guard owns one independently valid shared token and cancels it on drop",
     ),
     (
-        "apps/jbotci/src/lsp.rs:DocumentState",
-        "document state is mutable under the document-store lock and its transition methods enforce text, version, generation, and snapshot coherence",
-    ),
-    (
         "apps/jbotci/src/lsp.rs:DocumentStore",
-        "document store is an unconstrained shared mutex wrapper whose contents are governed by its transition methods",
+        "DocumentTable holds the epoch rule, and the permit pool has no second constraint",
     ),
     (
         "apps/jbotci/src/lsp.rs:InlayInitializationOptions",
@@ -537,7 +537,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "apps/jbotci/src/lsp.rs:ServerState",
-        "LSP adapter state combines independently valid transport, document-store, encoding, capability, and callback values",
+        "the position encoding is only UTF-8 or UTF-16, and the socket, store, flags, inlay options, time limit, warnings, and publisher accept every value",
+    ),
+    (
+        "apps/jbotci/src/lsp_admission.rs:CancelRemoval",
+        "any book, id, and token form a valid drop record",
+    ),
+    (
+        "apps/jbotci/src/lsp_admission.rs:PendingService",
+        "test double with an unconstrained call count and a watch",
+    ),
+    (
+        "apps/jbotci/src/lsp_admission.rs:RequestAdmission",
+        "request wrapper adds no second constraint, and CancelBook holds the token invariant",
     ),
     (
         "apps/jbotci/src/tool.rs:StringEnumTypeTransform",
@@ -594,6 +606,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/tests/support/cli.rs:CapturedCliRun",
         "test helper records CLI process output after run_cli returns a status",
+    ),
+    (
+        "apps/jbotci/tests/support/test_process.rs:ReaderGuard",
+        "socket reader guard closes its input and joins the reader in Drop, and it does not own a child",
+    ),
+    (
+        "apps/jbotci/tests/support/test_process.rs:TestProcess",
+        "test process owner reaps its child and joins its readers in Drop, so both states are valid",
     ),
     (
         "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:ImplType",
@@ -1546,6 +1566,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:PlaceAnalysis",
         "place-analysis map consistency is produced by PlaceAnalysisBuilder and exposed through typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceBoundaryProbe",
+        "place-boundary probe reaps its child in Drop when the wait loop does not",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:PlaceCursor",
