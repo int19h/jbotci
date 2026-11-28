@@ -84,11 +84,10 @@ use jbotci_search::compounds::{
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuRequest,
-    VlackuSearchOptions, WordTypeFilter, dictionary_cards_for_word_likes_with_limit,
-    dictionary_entry_card, dictionary_entry_passes_vlacku_entry_filters,
-    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
-    grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
-    vlacku_exact_query_is_pattern,
+    VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
+    dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
+    dictionary_matches_for_word_likes, format_vote_display, grouped_word_type_filter_key,
+    is_brivla_like, normalize_word_type_filter, run_vlacku_requests, vlacku_exact_query_is_pattern,
 };
 use jbotci_semantics::references::{
     GeneratedReferenceAnalysis, PlaceSlot, RawSyntaxNodeId, SelbriPlaceFrameId,
@@ -9402,7 +9401,7 @@ mod tests {
             assert!(!leaf.components.is_empty(), "{word}");
 
             let words = jbotci_morphology::segment_words_with_modifiers(&text).expect("morphology");
-            let cards = dictionary_cards_for_word_likes_with_limit(
+            let cards = jbotci_search::vlacku::dictionary_cards_for_word_likes_with_limit(
                 jbotci_dictionary_data::english(),
                 &words,
                 std::num::NonZeroUsize::MAX,
@@ -11268,7 +11267,10 @@ mod tests {
             );
             assert_eq!(result.cards.len(), 1, "{query:?}");
             assert_eq!(result.cards[0].word, "klama");
-            assert!(result.errors.is_empty(), "{query:?}");
+            assert_eq!(
+                result.errors,
+                [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")]
+            );
         }
         let missing = build_vlacku_web_result_with_dictionary(
             &VlackuWebState {
@@ -11336,7 +11338,7 @@ mod tests {
         let result = build_vlacku_web_result(&VlackuWebState {
             min_votes: new!(VlackuVoteFilter::Any),
             mode: VlackuWebMode::Word,
-            query: "prulamdei#".to_owned(),
+            query: "prulamdeÍ".to_owned(),
             count: 20,
             word_types: Vec::new(),
         });
@@ -11348,7 +11350,7 @@ mod tests {
         assert!(!card.invalid_lojban_word);
         assert!(!card.decomposition.is_empty());
         assert!(card.can_add_to_jvozba);
-        let tooltip = dictionary_tooltip_for_word("", "prulamdei#").expect("valid tooltip");
+        let tooltip = dictionary_tooltip_for_word("", "prulamdeÍ").expect("valid tooltip");
         assert!(!tooltip.invalid_lojban_word);
         assert!(!tooltip.decomposition.is_empty());
         assert!(tooltip.can_add_to_jvozba);
@@ -11356,7 +11358,7 @@ mod tests {
         let klama = build_vlacku_web_result(&VlackuWebState {
             min_votes: new!(VlackuVoteFilter::Any),
             mode: VlackuWebMode::Word,
-            query: "klama#".to_owned(),
+            query: "klamÁ".to_owned(),
             count: 20,
             word_types: Vec::new(),
         });
@@ -11367,11 +11369,11 @@ mod tests {
             .expect("valid klama card");
         assert!(!klama_card.invalid_lojban_word);
         assert!(klama_card.can_add_to_jvozba);
-        let klama_tooltip = dictionary_tooltip_for_word("", "klama#").expect("klama tooltip");
+        let klama_tooltip = dictionary_tooltip_for_word("", "klamÁ").expect("klama tooltip");
         assert!(!klama_tooltip.invalid_lojban_word);
         assert!(klama_tooltip.can_add_to_jvozba);
 
-        for (query, invalid_word) in [("xa", "xa!"), ("mau", "ma;u")] {
+        for (query, invalid_word) in [("xa", "xa!"), ("ma;u", "ma;u")] {
             let result = build_vlacku_web_result(&VlackuWebState {
                 min_votes: new!(VlackuVoteFilter::Any),
                 mode: VlackuWebMode::Word,

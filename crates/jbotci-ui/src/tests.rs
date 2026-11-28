@@ -1314,13 +1314,14 @@ fn page_find_collects_vlacku_card_text_without_controls() {
 #[requires(!word.is_empty())]
 #[ensures(ret.word == word)]
 fn page_find_vlacku_card(word: &str, decomposition: Vec<VlackuCompositionPiece>) -> VlackuWebCard {
-    VlackuWebCard {
+    new!(VlackuWebCard {
         entry_index: None,
         rank: 1,
         word: word.to_owned(),
         display_word: word.to_owned(),
         word_type: "lujvo".to_owned(),
         word_type_key: "lujvo".to_owned(),
+        invalid_lojban_word: false,
         selmaho: None,
         author: None,
         ipa: None,
@@ -1334,7 +1335,7 @@ fn page_find_vlacku_card(word: &str, decomposition: Vec<VlackuCompositionPiece>)
         etymology: Vec::new(),
         decomposition,
         can_add_to_jvozba: false,
-    }
+    })
 }
 
 /// A decomposition piece with one source for the page-find tests.

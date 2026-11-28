@@ -225,7 +225,9 @@ impl<'a> Dictionary<'a> {
         targets
             .iter()
             .copied()
-            .filter(|index| !query.is_empty() || self.entry_at(*index).word == query.source_spelling())
+            .filter(|index| {
+                !query.is_empty() || self.entry_at(*index).word == query.source_spelling()
+            })
             .min_by(|left, right| {
                 self.entry_at(*right)
                     .score
@@ -452,6 +454,9 @@ impl<'a> Dictionary<'a> {
                 .flat_map(|entry| {
                     entry.rafsi.iter().filter_map(move |rafsi| {
                         (rafsi.form == query.source_spelling()).then_some(RafsiMatch {
+                            entry_index: self
+                                .entry_index_for_entry(entry)
+                                .expect("a dictionary entry has an index"),
                             entry,
                             source: RafsiSource::Listed {
                                 standing: rafsi.standing,
@@ -1363,7 +1368,7 @@ fn plain_lojban_key(raw: &str) -> Option<String> {
 /// index through the index rule by accident.
 #[invariant(!text.starts_with(' ') && !text.ends_with(' ') && !text.contains("  "), "one space between key words")]
 #[invariant(text.chars().all(|value| value == ' ' || is_lookup_char(value)), "only key characters")]
-#[invariant(source_spelling.as_ref().is_none_or(|_| text.is_empty()), "the original spelling is kept only for an empty key")]
+#[invariant(text.is_empty() == source_spelling.is_some(), "an empty key keeps its original spelling")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LookupKey {
     text: String,
@@ -1441,17 +1446,17 @@ impl LookupPrefix {
 }
 
 impl LookupKey {
-    /// The key of text that a user typed. Empty or blank text gives the
-    /// empty key.
+    /// The key of text that a user typed. Text with no key characters gives
+    /// the empty key and keeps its original spelling.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|key| !key.is_empty()) || text.trim().is_empty() || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|key| key.text.is_empty() == key.source_spelling.is_some()) || ret.is_err())]
     pub fn from_typed(text: &str) -> Result<Self, LookupPatternError> {
         let keyed =
             build_lookup_key::<()>(&[LookupPatternPart::Literal(text)], LookupKeyMode::Lookup)?;
-        let text = key_text_of(&keyed);
-        let source_spelling = text.is_empty().then(|| text.trim().into());
+        let normalized = key_text_of(&keyed);
+        let source_spelling = normalized.is_empty().then(|| text.into());
         Ok(new!(LookupKey {
-            text,
+            text: normalized,
             source_spelling,
         }))
     }
@@ -1461,7 +1466,7 @@ impl LookupKey {
     #[ensures(true)]
     pub fn from_stored(text: &str) -> Self {
         let normalized = normalize_lookup_query(text);
-        let source_spelling = normalized.is_empty().then(|| text.trim().into());
+        let source_spelling = normalized.is_empty().then(|| text.into());
         new!(LookupKey {
             text: normalized,
             source_spelling,
@@ -1474,6 +1479,7 @@ impl LookupKey {
         &self.text
     }
 
+    /// The normalized key, or the original spelling when that key is empty.
     #[requires(true)]
     #[ensures(true)]
     pub fn source_spelling(&self) -> &str {
@@ -1940,7 +1946,6 @@ fn build_lookup_key<T: Clone>(
         keyed.push(new!(LookupKeyPart::Text(current)));
     }
     Ok(keyed)
-
 }
 
 #[requires(true)]
@@ -2412,6 +2417,8 @@ mod tests {
             );
             assert_eq!(LookupKey::from_stored(text).as_str(), key, "{text}");
         }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -2421,7 +2428,9 @@ mod tests {
         assert_eq!(normalize_lookup_query("# , fa'onai"), "fa'onai");
         assert_eq!(normalize_lookup_query("#"), "");
         assert_eq!(normalize_lookup_query(","), "");
-    }
+        assert!(LookupKey::from_typed(" , ").is_err());
+        assert_eq!(LookupKey::from_stored(" , ").source_spelling(), " , ");
+        assert_eq!(LookupKey::from_stored("#").source_spelling(), "#");
     }
 
     #[test]

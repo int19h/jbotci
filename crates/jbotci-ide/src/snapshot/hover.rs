@@ -1,12 +1,13 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_dictionary::{LookupKey, normalize_lookup_query};
+use jbotci_dictionary::{EntryIndex, LookupKey, normalize_lookup_query};
 use jbotci_morphology::{LujvoPart, Word, WordKind, WordLike, WordLikeData, canonicalize_text};
 use jbotci_output::{render_vlacku_cards_markdown, render_vlacku_headword_markdown};
 use jbotci_search::compounds::{cmavo_sequence_containing, compound_cards};
 use jbotci_search::vlacku::{
-    VlackuCard, VlackuCompositionKind, VlackuCompositionPiece, VlackuRequest, VlackuSearchOptions,
-    dictionary_entry_card, run_vlacku_requests, word_like_lookup_text,
+    VlackuCard, VlackuCompositionKind, VlackuCompositionPiece, VlackuCompositionSource,
+    VlackuRequest, VlackuSearchOptions, dictionary_entry_card, run_vlacku_requests,
+    word_like_lookup_text,
 };
 use jbotci_source::SourceSpan;
 
@@ -660,7 +661,10 @@ mod tests {
             vec![VlackuCompositionPiece {
                 kind: VlackuCompositionKind::Rafsi,
                 surface: "fa".to_owned(),
-                source: Some("facki".to_owned()),
+                sources: vec![new!(VlackuCompositionSource {
+                    entry_index: EntryIndex(0),
+                    word: "facki".to_owned(),
+                })],
             }],
         );
         assert!(card.invalid_lojban_word);
