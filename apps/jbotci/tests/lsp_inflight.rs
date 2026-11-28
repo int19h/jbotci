@@ -148,9 +148,11 @@ impl RunningServer {
     #[requires(true)]
     #[ensures(true)]
     fn stop(&self) {
+        // `try_wait` can panic while it holds this lock.
+        // Recover the poison so cleanup does not hide that panic.
         self.process
             .lock()
-            .expect("server process lock poisoned")
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .finish_quiet();
     }
 
@@ -173,8 +175,9 @@ fn first_allowed_cpu(set: &libc::cpu_set_t) -> Option<usize> {
 
 /// The child uses the first CPU in the current mask.
 ///
-/// An empty mask returns an error.
-/// Spawn fails after that error.
+/// This hook runs after `fork`, so an error must not allocate.
+/// A running process has a non-empty mask, so the empty path does not run.
+/// Spawn fails when this function returns an error.
 #[cfg(target_os = "linux")]
 #[requires(true)]
 #[ensures(true)]
@@ -186,10 +189,7 @@ fn restrict_child_to_one_cpu() -> std::io::Result<()> {
             return Err(std::io::Error::last_os_error());
         }
         let Some(cpu) = first_allowed_cpu(&current) else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "the current CPU mask is empty",
-            ));
+            return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
         };
         let mut set = std::mem::zeroed::<libc::cpu_set_t>();
         libc::CPU_ZERO(&mut set);

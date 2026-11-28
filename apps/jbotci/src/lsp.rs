@@ -544,7 +544,9 @@ impl DocumentStore {
     ///
     /// A poisoned lock means an update panicked while it held the table.
     /// `write_locked_documents` may have left the empty table in place.
-    /// This method panics on that lock, so later requests stop.
+    /// This method panics on that lock.
+    /// Each later request panics and gets an error response.
+    /// The next open, change, or close notification panics on the loop thread and ends the process.
     /// `note_analysis_failure` is the one exception.
     /// It runs from `Drop`, and a second panic there aborts the process.
     #[requires(true)]
@@ -882,7 +884,9 @@ impl DocumentStore {
     }
 
     #[requires(snapshot.version == i64::from(version))]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().is_none_or(|publication| publication.identity == identity
+        && publication.version == version
+        && publication.phase == PublishedDiagnosticPhase::Confirmed))]
     fn store_confirmation(
         &self,
         uri: &Url,
@@ -1216,14 +1220,22 @@ impl ServerState {
             self.documents.close(&uri);
             return;
         }
-        // The clear uses the same socket as a push publication.
-        // Both calls queue under the document-store lock.
-        let clear = PublishDiagnosticsParams::new(uri.clone(), Vec::new(), None);
-        let client = self.client.clone();
-        self.documents.close_and_send(&uri, move || {
-            let _ = client.notify::<notification::PublishDiagnostics>(clear);
-        });
+        close_and_clear(&self.documents, &self.client, &uri);
     }
+}
+
+/// Remove the document and queue an empty diagnostic clear.
+///
+/// The clear uses the same socket as a push publication.
+/// Both calls queue under the document-store lock.
+#[requires(true)]
+#[ensures(true)]
+fn close_and_clear(store: &DocumentStore, client: &ClientSocket, uri: &Url) -> bool {
+    let clear = PublishDiagnosticsParams::new(uri.clone(), Vec::new(), None);
+    let client = client.clone();
+    store.close_and_send(uri, move || {
+        let _ = client.notify::<notification::PublishDiagnostics>(clear);
+    })
 }
 
 #[requires(true)]
@@ -1497,9 +1509,7 @@ fn semantic_tokens_legend() -> SemanticTokensLegend {
 #[requires(true)]
 #[ensures(true)]
 fn no_diagnostics_publisher() -> DiagnosticsPublisher {
-    Arc::new(|publication| {
-        publication.emit(|| {});
-    })
+    Arc::new(|_publication| {})
 }
 
 #[requires(true)]
@@ -3249,7 +3259,6 @@ mod tests {
             );
             let publisher =
                 push_diagnostics_publisher(client.clone(), ServerPositionEncoding::Utf16);
-            let clear = PublishDiagnosticsParams::new(uri.clone(), Vec::new(), None);
             let close_client = client.clone();
             let close_store = store.clone();
             let close_uri = uri.clone();
@@ -3262,9 +3271,7 @@ mod tests {
             });
             let close_task = tokio::task::spawn_blocking(move || {
                 close_barrier.wait();
-                close_store.close_and_send(&close_uri, move || {
-                    let _ = close_client.notify::<notification::PublishDiagnostics>(clear);
-                });
+                close_and_clear(&close_store, &close_client, &close_uri);
             });
             publish_task.await.expect("the publish task finishes");
             close_task.await.expect("the close task finishes");

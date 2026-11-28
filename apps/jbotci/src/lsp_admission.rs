@@ -104,10 +104,8 @@ impl CancelBook {
 /// Removes one cancel entry on drop.
 ///
 /// The token stays above zero.
-/// The removal record uses that same token.
-#[invariant(*token > 0 && removal.token == *token)]
+#[invariant(removal.token > 0)]
 struct CancelGuard {
-    token: u64,
     removal: CancelRemoval,
 }
 
@@ -164,7 +162,6 @@ impl<S> RequestAdmission<S> {
         Some((
             receiver,
             new!(CancelGuard {
-                token,
                 removal: CancelRemoval {
                     book: Arc::clone(&self.cancels),
                     id,
