@@ -1256,10 +1256,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "an unread step carries any source character and its index, as the user wrote it",
     ),
     (
-        "crates/jbotci-morphology/src/segment.rs:LookupStep::Unread",
-        "an unread lookup step carries any character that the converter cannot read, as the user wrote it",
-    ),
-    (
         "crates/jbotci-dictionary/src/lib.rs:LookupKeyChar::Removed",
         "a unit variant for a character that a lookup key leaves out",
     ),

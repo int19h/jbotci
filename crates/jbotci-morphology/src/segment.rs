@@ -94,7 +94,7 @@ pub(crate) fn normalize_word_checked_with_options(
 /// authority on what a letter is.
 #[invariant(::Letter(value) => is_valid_normalized_char(*value))]
 #[invariant(::WordBreak(value) => is_separator(*value))]
-#[invariant(::Unread(_) => true)]
+#[invariant(::Unread(value) => !is_separator(*value))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LookupStep {
     Letter(char),
