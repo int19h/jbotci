@@ -60,10 +60,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The payload is a validated kept rafsi.",
     ),
     (
-        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::PinnedFuhivlaRafsi",
-        "The payload is a validated pinned fu'ivla rafsi.",
-    ),
-    (
         "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::PinnedLongRafsi",
         "The payload is a validated pinned long rafsi.",
     ),

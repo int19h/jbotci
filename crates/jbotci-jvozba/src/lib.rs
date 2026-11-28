@@ -609,22 +609,6 @@ struct KeptFuhivlaStem {
     hyphen: String,
 }
 
-/// A full fu'ivla inside an input lujvo that names no dictionary word,
-/// pinned before its written `'y` hyphen.
-///
-/// The full form is the fu'ivla itself, so it is kept whole; its stem
-/// would lose the final vowel and could collide with a dictionary stem.
-#[invariant(!form.is_empty())]
-#[invariant(
-    is_bonding_hyphen(hyphen),
-    "a pinned fu'ivla carries its bonding hyphen"
-)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct PinnedFuhivlaRafsi {
-    form: String,
-    hyphen: String,
-}
-
 /// The final part of an input lujvo that names a dictionary word, kept in
 /// the form the input used (see [`FinalPartKind`]).
 #[invariant(!form.is_empty())]
@@ -675,7 +659,6 @@ struct PinnedLongRafsi {
 #[invariant(::KeptFinalPart(_) => true)]
 #[invariant(::SelfSourcedFinalPart(_) => true)]
 #[invariant(::PinnedLongRafsi(_) => true)]
-#[invariant(::PinnedFuhivlaRafsi(_) => true)]
 #[derive(Debug, Clone)]
 enum ExpandedInput<'a> {
     FixedRafsi(&'a str),
@@ -686,7 +669,6 @@ enum ExpandedInput<'a> {
     KeptFinalPart(KeptFinalPart),
     SelfSourcedFinalPart(SelfSourcedFinalPart),
     PinnedLongRafsi(PinnedLongRafsi),
-    PinnedFuhivlaRafsi(PinnedFuhivlaRafsi),
 }
 
 impl<'a> ExpandedInput<'a> {
@@ -893,20 +875,11 @@ fn decomposition_pieces(
                     })));
                 }
                 None => {
-                    // A full fu'ivla before its hyphen is the word itself,
-                    // so it is pinned whole without a dictionary entry. A
-                    // stem that names no word (`bolvii`) is not a full
-                    // word, and it still names no dictionary word.
-                    if word_kind_of_form(&form, cancellation)? == Some(WordKind::Fuhivla)
-                        && is_bonding_hyphen(&hyphen)
-                        && hyphen.contains('y')
-                    {
-                        pieces.push(ExpandedInput::PinnedFuhivlaRafsi(new!(
-                            PinnedFuhivlaRafsi { form, hyphen }
-                        )));
-                    } else {
-                        return Err(missing());
-                    }
+                    // An unlisted fu'ivla is accepted only as the final
+                    // part of a lujvo, as the word itself. Inside a lujvo
+                    // it is in a non-final position, so it still names no
+                    // dictionary word (`bolvii`, `gamseti`).
+                    return Err(missing());
                 }
             }
             continue;
@@ -1018,6 +991,22 @@ fn self_sourced_final_kind(
 #[ensures(true)]
 fn is_long_gismu_stem(form: &str) -> bool {
     form.chars().count() == 4 && GismuShape::classify(&format!("{form}a")).is_some()
+}
+
+/// Whether `form` is a fu'ivla word form that names no dictionary
+/// fu'ivla at all: not a dictionary word, and not a short stem of one.
+/// Such a form cannot round-trip without a dictionary entry.
+#[requires(true)]
+#[ensures(true)]
+fn is_unknown_fuhivla_form(
+    dictionary: &Dictionary<'_>,
+    form: &str,
+    cancellation: &CancellationToken,
+) -> Result<bool, JvozbaError> {
+    Ok(
+        word_kind_of_form(form, cancellation)? == Some(WordKind::Fuhivla)
+            && fuivla_rafsi_source_set(dictionary, form).is_empty(),
+    )
 }
 
 /// The morphology kind of one word form, or `None` when it is not one word.
@@ -1152,6 +1141,16 @@ fn candidate_list_for_input(
                     offending: rafsi_text,
                 });
             }
+            // A pinned rafsi whose form is an unknown fu'ivla is refused
+            // non-finally, like any other unlisted fu'ivla: without a
+            // dictionary entry it cannot round-trip reliably. A form
+            // that names a dictionary fu'ivla (`actce` names `actce'o`
+            // by its stem) is known, and it still works.
+            if !is_last_input && is_unknown_fuhivla_form(dictionary, &rafsi_text, cancellation)? {
+                return Err(JvozbaError::NoDictionaryEntry {
+                    offending: rafsi_text,
+                });
+            }
             // A literal fu'ivla rafsi takes its `y` or `'y` hyphen by rule, not by the
             // consonant pair rule, so `--rafsi tci'il` builds like `tci'ile`.
             // The literal form stays a candidate too, and the score and the
@@ -1189,13 +1188,6 @@ fn candidate_list_for_input(
                 hyphen,
             })])
         }
-        ExpandedInput::PinnedFuhivlaRafsi(pinned) => {
-            let data!(PinnedFuhivlaRafsi { form, hyphen }) = pinned.into_data();
-            Ok(vec![new!(LujvoBuildPart::RafsiWithHyphen {
-                text: form,
-                hyphen,
-            })])
-        }
         ExpandedInput::KeptFinalPart(kept) => {
             let data!(KeptFinalPart { form, kind, source }) = kept.into_data();
             let stem = if kind == FinalPartKind::FullBrivla && !is_last_input {
@@ -1213,8 +1205,12 @@ fn candidate_list_for_input(
         }
         ExpandedInput::SelfSourcedFinalPart(part) => {
             let data!(SelfSourcedFinalPart { form, kind }) = part.into_data();
-            // No stem: the full form is the only predictable form of an
-            // unlisted fu'ivla, in every position.
+            // An unlisted fu'ivla is accepted only as the final part, as
+            // the word itself. In a non-final position it is refused as a
+            // word with no dictionary entry.
+            if kind == FinalPartKind::FullBrivla && !is_last_input {
+                return Err(JvozbaError::NoDictionaryEntry { offending: form });
+            }
             Ok(final_part_candidates(
                 &form,
                 kind,
@@ -1365,7 +1361,11 @@ fn non_dictionary_word_candidates(
         WordKind::Gismu if mode == JvozbaMode::Cmevla || !is_last_input => {
             new!(LujvoBuildPart::Rafsi(long_gismu_stem(&full)))
         }
-        WordKind::Gismu | WordKind::Fuhivla => new!(LujvoBuildPart::BrivlaCore(full)),
+        WordKind::Gismu => new!(LujvoBuildPart::BrivlaCore(full)),
+        // An unlisted fu'ivla is accepted only as the final part, as the
+        // word itself; a non-final one has no candidate here and is
+        // refused as a word with no dictionary entry by the caller.
+        WordKind::Fuhivla if is_last_input => new!(LujvoBuildPart::BrivlaCore(full)),
         _ => return Ok(None),
     };
     Ok(Some(vec![candidate]))
@@ -1797,11 +1797,6 @@ fn sources_match(
         // A parsed part can carry stress marks (`ĭísmu`), while a pinned
         // form is canonical text, so the pinned comparisons canonicalize.
         let surface = canonicalize_text(phonemes.as_str());
-        // An unsourced fu'ivla part matches only when the dictionary has
-        // no fu'ivla stem for its surface either: the full form must not
-        // be read back as a dictionary word's short stem.
-        let fuhivla_source_free = !part.is_fuhivla_rafsi_before(parsed.get(index + 1))
-            || fuivla_rafsi_source_set(dictionary, &surface).is_empty();
         match inputs.next() {
             Some(ExpandedInput::DictionaryWord(expected)) => {
                 if !names_entry(*expected) {
@@ -1820,11 +1815,6 @@ fn sources_match(
                     return false;
                 }
             }
-            Some(ExpandedInput::PinnedFuhivlaRafsi(pinned)) => {
-                if surface != pinned.form.as_str() || !fuhivla_source_free {
-                    return false;
-                }
-            }
             Some(ExpandedInput::KeptFinalPart(kept)) => {
                 let pinned = surface == kept.form.as_str()
                     || (kept.kind == FinalPartKind::Gismu
@@ -1835,10 +1825,9 @@ fn sources_match(
                 }
             }
             Some(ExpandedInput::SelfSourcedFinalPart(part_form)) => {
-                let pinned = (surface == part_form.form.as_str()
+                let pinned = surface == part_form.form.as_str()
                     || (part_form.kind == FinalPartKind::Gismu
-                        && surface == long_gismu_stem(&part_form.form)))
-                    && fuhivla_source_free;
+                        && surface == long_gismu_stem(&part_form.form));
                 if !pinned {
                     return false;
                 }
@@ -1848,14 +1837,7 @@ fn sources_match(
                     return false;
                 }
             }
-            Some(ExpandedInput::FixedRafsi(_)) => {}
-            Some(ExpandedInput::UnlistedWord(_)) => {
-                if part.is_fuhivla_rafsi_before(parsed.get(index + 1))
-                    && !fuivla_rafsi_source_set(dictionary, &surface).is_empty()
-                {
-                    return false;
-                }
-            }
+            Some(ExpandedInput::FixedRafsi(_) | ExpandedInput::UnlistedWord(_)) => {}
             None => return false,
         }
     }
@@ -3218,9 +3200,7 @@ mod tests {
     #[ensures(true)]
     fn an_unlisted_gismu_form_input_works_in_any_position() {
         // #1161 rule 4: an unlisted gismu-form input works through its
-        // long rafsi in a non-final position and as itself finally. An
-        // unlisted fu'ivla likewise stands as itself in both positions
-        // (CLL 4.16).
+        // long rafsi in a non-final position and as itself finally.
         let dictionary = jbotci_dictionary_data::english();
         let token = CancellationToken::never();
         let word = |text: &str| JvozbaInput::Word(text.to_owned());
@@ -3236,65 +3216,96 @@ mod tests {
             build(&[word("lefmo"), word("bajra"), word("klama")]),
             "lefmybajykla"
         );
-        assert_eq!(build(&[word("tciile"), word("kukte")]), "tciile'ykukte");
+        // An unlisted fu'ivla stands as itself in the final position.
         assert_eq!(build(&[word("kukte"), word("tciile")]), "kuktytciile");
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn an_unlisted_fuhivla_keeps_its_full_form_in_every_position() {
-        // An unlisted fu'ivla has one predictable form: its full word
-        // (CLL 4.16). Shortening it to a stem loses the final vowel and
-        // can collide with a dictionary stem, so a self-sourced part
-        // never offers a stem, an unsourced full fu'ivla inside an input
-        // lujvo is pinned whole, and a full form that the dictionary
-        // reads as another word's stem does not build.
+    fn an_unlisted_fuhivla_is_accepted_only_as_the_final_part() {
+        // An unlisted fu'ivla has no dictionary entry, so for fu'ivla
+        // the dictionary is needed outside the final position: the word
+        // is accepted only as the final part, as itself. Everywhere
+        // else it is refused with the error that names it (gismu are
+        // different, because a gismu has one long rafsi form). A rafsi
+        // pinned with --rafsi whose form is an unknown fu'ivla is
+        // refused too, because it cannot round-trip reliably without a
+        // dictionary entry.
         let dictionary = jbotci_dictionary_data::english();
         let token = CancellationToken::never();
         let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let rafsi = |text: &str| JvozbaInput::FixedRafsi(text.to_owned());
         let build = |inputs: &[JvozbaInput]| {
             build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, inputs, &token)
         };
         let built = |inputs: &[JvozbaInput]| {
             build(inputs)
-                .expect("the unlisted fu'ivla keeps its full form")
+                .expect("the unlisted fu'ivla is the final part")
                 .word
                 .clone()
         };
-        // The final part of an input lujvo stays whole non-finally.
-        assert_eq!(built(&[word("aktyiismu"), word("klama")]), "aktyiismu'ykla");
-        assert_eq!(built(&[word("iismu"), word("klama")]), "iismu'ykla");
-        assert_eq!(
-            built(&[word("aktytci'ilo"), word("klama")]),
-            "aktytci'ilo'ykla"
-        );
-        assert_eq!(built(&[word("akty'esko"), word("klama")]), "akty'esko'ykla");
-        // An unsourced full fu'ivla inside an input lujvo is pinned.
-        assert_eq!(
-            built(&[word("tciile'ykukte"), word("bajra")]),
-            "tciile'ykuktybajra"
-        );
-        assert_eq!(
-            built(&[word("iismu'ykla"), word("bajra")]),
-            "iismu'yklabajra"
-        );
-        assert_eq!(
-            built(&[word("gamseti'yra'a"), word("klama")]),
-            "gamseti'yra'akla"
-        );
-        // A full form that is a dictionary word's stem builds nothing:
-        // the built word would decompose back to that word, not to the
-        // input. `actce` is the stem of `actce'o`, and `barbekei` is the
-        // stem of `barbekeiu`.
-        for inputs in [
-            vec![word("actce"), word("klama")],
-            vec![word("barbekei"), word("klama")],
-            vec![word("bajybarbekei"), word("klama")],
+        // The final position stays, plain and inside an input lujvo.
+        assert_eq!(built(&[word("bajra"), word("aktyiismu")]), "bajy'aktyiismu");
+        assert_eq!(built(&[word("klama"), word("iismu")]), "klamyiismu");
+        assert_eq!(built(&[word("kukte"), word("tciile")]), "kuktytciile");
+        // Plain and final-part pieces in a non-final position name the
+        // word. `actce` and `barbekei` are also dictionary stems (of
+        // `actce'o` and `barbekeiu`), and they get the same named error,
+        // not the generic build failure.
+        for (inputs, offending) in [
+            (vec![word("iismu"), word("klama")], "iismu"),
+            (vec![word("aktyiismu"), word("klama")], "iismu"),
+            (vec![word("tciile"), word("kukte")], "tciile"),
+            (vec![word("actce"), word("klama")], "actce"),
+            (vec![word("barbekei"), word("klama")], "barbekei"),
+            (vec![word("bajybarbekei"), word("klama")], "barbekei"),
+            (vec![word("aktytci'ilo"), word("klama")], "tci'ilo"),
+            (vec![word("akty'esko"), word("klama")], "esko"),
         ] {
             assert_eq!(
                 build(&inputs),
-                Err(JvozbaError::CouldNotBuildLujvo),
+                Err(JvozbaError::NoDictionaryEntry {
+                    offending: offending.to_owned(),
+                }),
+                "{inputs:?}"
+            );
+        }
+        // An unsourced fu'ivla part inside an input lujvo names the
+        // part as a rafsi with no dictionary word, in any position.
+        for (lujvo, part) in [
+            ("iismu'ykla", "iismu"),
+            ("tciile'ykukte", "tciile"),
+            ("gamseti'yra'a", "gamseti"),
+        ] {
+            for inputs in [
+                vec![word(lujvo), word("bajra")],
+                vec![word("bajra"), word(lujvo)],
+            ] {
+                assert_eq!(
+                    build(&inputs),
+                    Err(JvozbaError::LujvoPartWithoutSource {
+                        word: lujvo.to_owned(),
+                        part: part.to_owned(),
+                    }),
+                    "{inputs:?}"
+                );
+            }
+        }
+        // A pinned rafsi whose form is an unknown fu'ivla is refused
+        // the same way: without a dictionary entry it cannot round-trip
+        // reliably. A pinned form that names a dictionary fu'ivla
+        // (`actce`, the stem of `actce'o`) still works; the apostrophe
+        // test in this module builds `actce'y'enri` from it.
+        for (inputs, offending) in [
+            (vec![rafsi("iismu"), word("klama")], "iismu"),
+            (vec![rafsi("tciile"), word("kukte")], "tciile"),
+        ] {
+            assert_eq!(
+                build(&inputs),
+                Err(JvozbaError::NoDictionaryEntry {
+                    offending: offending.to_owned(),
+                }),
                 "{inputs:?}"
             );
         }
@@ -3349,6 +3360,20 @@ mod tests {
             built(&[word("cidjyspageti"), word("kukte")]),
             "cidjyspageti'ykuk"
         );
+        // An unlisted fu'ivla is refused non-finally in cmevla mode too,
+        // with the same named error, and accepted as the final part.
+        assert_eq!(
+            build_best_jvozba_detailed(
+                JvozbaMode::Cmevla,
+                dictionary,
+                &[word("tciile"), word("kukte")],
+                &token,
+            ),
+            Err(JvozbaError::NoDictionaryEntry {
+                offending: "tciile".to_owned(),
+            })
+        );
+        assert!(built(&[word("kukte"), word("tciile")]).ends_with("tciiles"));
     }
 
     #[test]
@@ -3362,6 +3387,31 @@ mod tests {
         // parsed part names the source that built it.
         let dictionary = jbotci_dictionary_data::english();
         let token = CancellationToken::never();
+        // A dictionary fu'ivla built through its full form decomposes
+        // back into that fu'ivla itself: `esku'ykukte` names `esku`.
+        let esku = dictionary.lookup_word_index("esku").expect("esku entry");
+        let built = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word("esku".to_owned()),
+                JvozbaInput::Word("kukte".to_owned()),
+            ],
+            &token,
+        )
+        .expect("esku builds through its full form");
+        assert_eq!(built.word, "esku'ykukte");
+        let decomposition = decompose_lujvo_like(dictionary, &built.word, &token)
+            .expect("the built word decomposes")
+            .expect("the built word has a decomposition");
+        assert_eq!(
+            decomposition.segments[0].sources,
+            vec![jbotci_dictionary::DictionaryLujvoSource {
+                entry_index: esku,
+                word: "esku",
+            }],
+            "the full form names the fu'ivla itself"
+        );
         let word = |text: &str| JvozbaInput::Word(text.to_owned());
         let words = dictionary
             .entries()
