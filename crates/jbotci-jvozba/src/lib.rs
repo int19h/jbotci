@@ -3405,6 +3405,76 @@ mod tests {
             })
         );
         assert!(built(&[word("kukte"), word("tciile")]).ends_with("tciiles"));
+        // A vowel-final rafsi before a vowel-initial fu'ivla takes the
+        // `y'` joint, in every piece path, because the built word must
+        // be one cmevla as the segmenter decides: the hiatus spelling
+        // is not a word at all, so it is never the winner.
+        let rafsi = |text: &str| JvozbaInput::FixedRafsi(text.to_owned());
+        assert_eq!(built(&[word("klama"), word("onji")]), "klamy'onjis");
+        assert_eq!(built(&[word("klama"), word("actce")]), "klamy'actces");
+        assert_eq!(
+            built(&[word("klama"), word("aktyiismu")]),
+            "klamy'aktyiismus"
+        );
+        // The spelling Carbon's probe printed on the old head,
+        // `kerlyu'ukerl`, is not a word (a `y` cannot be followed by a
+        // vowel nucleus); the apostrophe spelling is the valid one.
+        assert_eq!(
+            built(&[rafsi("kerl"), rafsi("u'u"), word("kerlo")]),
+            "kerly'u'uker"
+        );
+        // With no valid cmevla candidate, the error is the cmevla one.
+        for inputs in [
+            vec![rafsi("kla"), word("onji")],
+            vec![rafsi("kla.bai"), word("gasnu")],
+            vec![rafsi("kla bai"), word("gasnu")],
+        ] {
+            assert_eq!(
+                build_best_jvozba_detailed(JvozbaMode::Cmevla, dictionary, &inputs, &token),
+                Err(JvozbaError::CouldNotBuildCompound),
+                "{inputs:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_cmevla_sweep_result_is_one_cmevla_word() {
+        // The cmevla counterpart of the round-trip sweep: every word
+        // the cmevla mode builds from a dictionary lujvo or fu'ivla, in
+        // both positions, is exactly one cmevla as the segmenter
+        // decides.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let words = dictionary
+            .entries()
+            .iter()
+            .filter(|entry| matches!(entry.word_type, WordType::Lujvo | WordType::Fuivla))
+            .map(|entry| entry.word)
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut built_count = 0usize;
+        for entry_word in words {
+            for inputs in [
+                vec![word(entry_word), word("klama")],
+                vec![word("klama"), word(entry_word)],
+            ] {
+                let Ok(result) =
+                    build_best_jvozba_detailed(JvozbaMode::Cmevla, dictionary, &inputs, &token)
+                else {
+                    continue;
+                };
+                built_count += 1;
+                assert!(
+                    is_cmevla_word(&result.word, &token)
+                        .expect("a built word segments without interruption"),
+                    "{} is not one cmevla word",
+                    result.word
+                );
+            }
+        }
+        assert!(built_count > 0, "the sweep must build some words");
     }
 
     /// The source entry a built part must name on decomposition, or

@@ -263,7 +263,8 @@ pub fn choose_best_lujvo_candidate_from_parts(
 }
 
 /// Filter parsed lujvo after their parts match the joined candidate.
-/// Cmevla candidates keep their separate rules and skip this filter.
+/// In cmevla mode the filter does not apply: each candidate is checked
+/// against the segmenter as one cmevla instead.
 #[requires(true)]
 #[ensures(true)]
 pub fn choose_best_lujvo_candidate_from_parts_with_filter(
@@ -302,9 +303,11 @@ fn choose_best_candidate_from_parts<'a>(
             parts: bonded,
             word,
         });
-        if mode == LujvoBuildMode::Lujvo
-            && !is_valid_lujvo_candidate(&candidate, cancellation, accept)?
-        {
+        let is_valid = match mode {
+            LujvoBuildMode::Lujvo => is_valid_lujvo_candidate(&candidate, cancellation, accept)?,
+            LujvoBuildMode::Cmevla => is_valid_cmevla_candidate(&candidate, cancellation)?,
+        };
+        if !is_valid {
             return Ok(best);
         }
         return Ok(Some(select_better_candidate(best, candidate)));
@@ -461,6 +464,32 @@ fn is_valid_lujvo_candidate(
     Ok(word.lujvo_parts().is_some_and(|parts| {
         lujvo_parts_match(parts.as_slice(), &candidate.parts) && accept(parts.as_slice())
     }))
+}
+
+/// Whether a candidate is exactly one bare cmevla, as the segmenter
+/// decides. The checked spelling is the word the builder returns, so it
+/// includes the `s` that `ensure_cmevla_word` adds to a vowel-final base.
+#[requires(true)]
+#[ensures(true)]
+fn is_valid_cmevla_candidate(
+    candidate: &LujvoCandidate,
+    cancellation: &CancellationToken,
+) -> Result<bool, crate::MorphologyError> {
+    let word_text = ensure_cmevla_word(&candidate.word);
+    let options = crate::MorphologyOptions::default().with_cancellation(cancellation);
+    let words = match crate::segment_words_with_modifiers_with_options_and_source_id(
+        &word_text, &options, None,
+    ) {
+        Ok(words) => words,
+        Err(error) if error.is_interrupted() => return Err(error),
+        Err(_) => return Ok(false),
+    };
+    let [word_like] = words.as_slice() else {
+        return Ok(false);
+    };
+    Ok(word_like
+        .bare_word()
+        .is_some_and(|word| word.kind() == crate::WordKind::Cmevla))
 }
 
 #[requires(true)]
