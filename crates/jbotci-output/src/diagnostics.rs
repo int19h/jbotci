@@ -666,15 +666,14 @@ fn push_run_windows(
         }));
         return;
     }
-    // One snippet for the run. Each cut line keeps the planned window.
-    // A later render does not trim that window again.
-    pieces.push(joined_run_piece(source, run, layouts, labels));
+    // One snippet for the run. Every line keeps the planned window.
+    // A later render does not trim or escape that window again.
+    pieces.push(joined_run_piece(run, layouts, labels));
 }
 
 #[requires(run.len() == layouts.len())]
 #[ensures(ret.origin.len() == ret.text.len() && ret.source_start <= ret.source_end && ret.line_number >= 1)]
 fn joined_run_piece(
-    source: &str,
     run: &[annotate_snippets::renderer::KeptSourceLine],
     layouts: Vec<annotate_snippets::renderer::LaidOutLine>,
     labels: Vec<usize>,
@@ -688,28 +687,22 @@ fn joined_run_piece(
             text.push('\n');
             origin.push(line.start_byte.saturating_sub(1));
         }
+        // An uncut line uses the same laid-out text as a cut line.
+        // That text is the escaped form the budget charges.
         let base = text.len();
-        if laid.clipped {
-            text.push_str(&laid.text);
-            for byte in laid.origin {
-                origin.push(if byte == usize::MAX {
-                    usize::MAX
-                } else {
-                    byte.saturating_add(line.start_byte)
-                });
-            }
-            for range in laid.marks {
-                marks.push(base + range.start..base + range.end);
-            }
-            for range in laid.gaps {
-                gaps.push(base + range.start..base + range.end);
-            }
-        } else {
-            let raw = source.get(line.start_byte..line.end_byte).unwrap_or("");
-            text.push_str(raw);
-            for byte in line.start_byte..line.end_byte {
-                origin.push(byte);
-            }
+        text.push_str(&laid.text);
+        for byte in laid.origin {
+            origin.push(if byte == usize::MAX {
+                usize::MAX
+            } else {
+                byte.saturating_add(line.start_byte)
+            });
+        }
+        for range in laid.marks {
+            marks.push(base + range.start..base + range.end);
+        }
+        for range in laid.gaps {
+            gaps.push(base + range.start..base + range.end);
         }
     }
     let line_number = run.first().map(|line| line.line_index).unwrap_or(1);
@@ -1509,6 +1502,165 @@ mod tests {
         assert_eq!(caret_at, marked, "{rendered}");
     }
 
+    /// `go` plus BEL, ESC, DEL, NEL, CSI, and APC, then ` ku`.
+    /// The escaped form is 40 bytes. The raw line is 14 bytes.
+    const ESCAPED_CONTROL_LINE: &str = "go\\u{7}\\u{1b}\\u{7f}\\u{85}\\u{9b}\\u{9f} ku";
+
+    #[requires(true)]
+    #[ensures(ret.len() == 14)]
+    fn raw_control_line() -> String {
+        format!("go\u{7}\u{1b}\u{7f}\u{85}\u{9b}\u{9f} ku")
+    }
+
+    #[requires(end <= source.len())]
+    #[ensures(!ret.labels.is_empty())]
+    fn span_diagnostic(source: &str, end: usize) -> Diagnostic {
+        let span =
+            source_span_from_byte_offsets(Some(SourceId("<input>".to_owned())), source, 0, end)
+                .expect("span");
+        Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Syntax,
+            "syntax.sample".to_owned(),
+            "sample".to_owned(),
+            vec![DiagnosticLabel::new(span, "here".to_owned(), true)],
+            Vec::new(),
+            None,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.terminal_width == DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH && !ret.color)]
+    fn ascii_excerpt_options() -> DiagnosticRenderOptions {
+        new!(DiagnosticRenderOptions {
+            color: false,
+            detail: DiagnosticDetailMode::Summary,
+            glyphs: GlyphStyle::Ascii,
+            terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+        })
+    }
+
+    /// The uncut line is escaped text. The budget accepts that text and rejects
+    /// a budget that only covers the raw line.
+    #[requires(span_end <= source.len() && (line_index == 0 || line_index == 1))]
+    #[ensures(true)]
+    fn assert_prepared_control_charge(source: &str, span_end: usize, line_index: usize) {
+        let diagnostic = span_diagnostic(source, span_end);
+        let options = ascii_excerpt_options();
+        let limit = ByteLimit::new(usize::MAX).expect("positive limit");
+        let excerpt =
+            diagnostic_source_excerpt(source, &diagnostic, options, usize::MAX, limit, "<input>")
+                .expect("excerpt");
+        assert_eq!(excerpt.retained.len(), 1, "one prepared window");
+        let window = &excerpt.retained[0];
+        assert!(!window.origin.is_empty(), "prepared text");
+        let lines: Vec<&str> = window.escaped.text.lines().collect();
+        assert!(lines.len() >= 2, "{}", window.escaped.text);
+        assert_eq!(
+            lines[line_index], ESCAPED_CONTROL_LINE,
+            "{}",
+            window.escaped.text
+        );
+        assert_eq!(ESCAPED_CONTROL_LINE.len(), 40);
+        assert!(!lines[line_index].contains("..."), "uncut line was cut");
+        let cut_index = 1 - line_index;
+        assert!(
+            lines[cut_index].contains("..."),
+            "cut line missing mark: {lines:?}"
+        );
+        for control in [
+            '\u{0007}', '\u{001b}', '\u{007f}', '\u{0085}', '\u{009b}', '\u{009f}',
+        ] {
+            assert!(
+                !window.escaped.text.contains(control),
+                "raw {control:?} in {}",
+                window.escaped.text
+            );
+        }
+        let charged = window.escaped.text.len();
+        // The raw line is 14 bytes. Its escaped form is 40 bytes.
+        let raw_gap = 40 - 14;
+        let under = diagnostic_source_excerpt(
+            source,
+            &diagnostic,
+            options,
+            charged - raw_gap,
+            limit,
+            "<input>",
+        );
+        assert!(
+            matches!(under, Err(OutputError::Limit { .. })),
+            "raw-sized budget accepted the escaped window"
+        );
+        let short =
+            diagnostic_source_excerpt(source, &diagnostic, options, charged - 2, limit, "<input>");
+        assert!(
+            matches!(short, Err(OutputError::Limit { .. })),
+            "one byte under the escaped length was accepted"
+        );
+        let fits =
+            diagnostic_source_excerpt(source, &diagnostic, options, charged - 1, limit, "<input>")
+                .expect("escaped length fits");
+        assert_eq!(fits.retained.len(), 1);
+        assert_eq!(
+            fits.retained[0].escaped.text.as_ref(),
+            window.escaped.text.as_ref()
+        );
+        assert_eq!(fits.retained[0].escaped.text.len(), charged);
+
+        let rendered =
+            render_diagnostics("<input>", source, &[diagnostic], options).expect("render");
+        for control in [
+            '\u{0007}', '\u{001b}', '\u{007f}', '\u{0085}', '\u{009b}', '\u{009f}',
+        ] {
+            assert!(!rendered.contains(control), "{rendered:?}");
+        }
+        let body = rendered_source_text(&rendered, line_index + 1);
+        assert_eq!(body, ESCAPED_CONTROL_LINE, "{rendered}");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn rendered_source_text(rendered: &str, line_number: usize) -> String {
+        let body = split_gutter(numbered_source_body(rendered, line_number))
+            .expect("gutter")
+            .1;
+        let mut rest = body.trim();
+        loop {
+            let trimmed = rest.trim_start();
+            let Some(mark) = trimmed.chars().next() else {
+                return String::new();
+            };
+            if !matches!(mark, '|' | '│' | '┃' | '/' | '┏') {
+                return trimmed.to_owned();
+            }
+            rest = &trimmed[mark.len_utf8()..];
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_uncut_line_before_a_cut_charges_the_escaped_controls() {
+        // The span stops at the start of the long line. A span over every
+        // column of that line is not a cut.
+        let mut source = raw_control_line();
+        source.push('\n');
+        let span_end = source.len() + 4;
+        source.push_str(&"a".repeat(200));
+        assert_prepared_control_charge(&source, span_end, 0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_uncut_line_after_a_cut_charges_the_escaped_controls() {
+        let mut source = "a".repeat(200);
+        source.push('\n');
+        source.push_str(&raw_control_line());
+        assert_prepared_control_charge(&source, source.len(), 1);
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1901,7 +2053,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
-    fn render_parser_diagnostics_colored(source: &str, glyphs: GlyphStyle, color: bool) -> String {
+    fn parser_diagnostics(source: &str) -> Vec<Diagnostic> {
         let source_id = SourceId("<input>".to_owned());
         let morphology = jbotci_morphology::segment_words_with_modifiers_recovered(source);
         let mut diagnostics = Vec::new();
@@ -1939,10 +2091,16 @@ mod tests {
                 }
             }
         }
+        diagnostics
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn render_parser_diagnostics_colored(source: &str, glyphs: GlyphStyle, color: bool) -> String {
         render_diagnostics(
             "<input>",
             source,
-            &diagnostics,
+            &parser_diagnostics(source),
             new!(DiagnosticRenderOptions {
                 color,
                 detail: DiagnosticDetailMode::Summary,
@@ -2490,6 +2648,111 @@ mod tests {
             numbered_source_body(&rendered, 2).contains("def"),
             "{rendered}"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_parser_line_after_a_cut_charges_the_escaped_controls() {
+        let source = format!("mi cusku zoi gy. {}\ndef\u{85}\u{9f}", "a".repeat(90));
+        let escaped_tail = "def\\u{85}\\u{9f}";
+        assert_eq!(escaped_tail.len(), 15);
+        let options = new!(DiagnosticRenderOptions {
+            color: false,
+            detail: DiagnosticDetailMode::Summary,
+            glyphs: GlyphStyle::Unicode,
+            terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+        });
+        let limit = ByteLimit::new(usize::MAX).expect("positive limit");
+        let mut charged_window = None;
+        for diagnostic in parser_diagnostics(&source) {
+            let excerpt = diagnostic_source_excerpt(
+                &source,
+                &diagnostic,
+                options,
+                usize::MAX,
+                limit,
+                "<input>",
+            )
+            .expect("excerpt");
+            for window in &excerpt.retained {
+                if window.escaped.text.contains(escaped_tail) {
+                    charged_window = Some(window.escaped.text.clone());
+                }
+            }
+        }
+        let text = charged_window.expect("prepared window with the escaped tail");
+        let tail = text
+            .lines()
+            .find(|line| line.contains("def"))
+            .expect("def line");
+        assert_eq!(tail, escaped_tail, "{text}");
+        assert!(!tail.contains('…'), "{tail}");
+        assert!(!text.contains('\u{85}'), "{text:?}");
+        assert!(!text.contains('\u{9f}'), "{text:?}");
+        assert!(!text.contains('\u{9b}'), "{text:?}");
+        let charged = text.len();
+        // U+0085 and U+009F are 4 raw bytes and 12 escaped bytes.
+        let raw_gap = 12 - 4;
+        let diagnostic = parser_diagnostics(&source)
+            .into_iter()
+            .find(|diagnostic| {
+                diagnostic_source_excerpt(
+                    &source,
+                    diagnostic,
+                    options,
+                    usize::MAX,
+                    limit,
+                    "<input>",
+                )
+                .ok()
+                .is_some_and(|excerpt| {
+                    excerpt
+                        .retained
+                        .iter()
+                        .any(|window| window.escaped.text.contains(escaped_tail))
+                })
+            })
+            .expect("diagnostic");
+        let under = diagnostic_source_excerpt(
+            &source,
+            &diagnostic,
+            options,
+            charged - raw_gap,
+            limit,
+            "<input>",
+        );
+        assert!(
+            matches!(under, Err(OutputError::Limit { .. })),
+            "raw-sized budget accepted the escaped window"
+        );
+        let short =
+            diagnostic_source_excerpt(&source, &diagnostic, options, charged - 2, limit, "<input>");
+        assert!(
+            matches!(short, Err(OutputError::Limit { .. })),
+            "one byte under the escaped length was accepted"
+        );
+        let fits =
+            diagnostic_source_excerpt(&source, &diagnostic, options, charged - 1, limit, "<input>")
+                .expect("escaped length fits");
+        assert!(
+            fits.retained
+                .iter()
+                .any(|window| window.escaped.text.as_ref() == text.as_ref())
+        );
+        let rendered =
+            render_diagnostics("<input>", &source, &parser_diagnostics(&source), options)
+                .expect("render");
+        let body = rendered_source_text(&rendered, 2);
+        assert_eq!(body, escaped_tail, "{rendered}");
+        assert!(!rendered.contains('\u{85}'), "{rendered:?}");
+        assert!(!rendered.contains('\u{9f}'), "{rendered:?}");
+        assert!(!rendered.contains('\u{9b}'), "{rendered:?}");
+        let colored = render_parser_diagnostics_colored(&source, GlyphStyle::Unicode, true);
+        assert!(colored.contains(escaped_tail), "{colored:?}");
+        assert!(!colored.contains('\u{85}'), "{colored:?}");
+        assert!(!colored.contains('\u{9f}'), "{colored:?}");
+        assert!(!colored.contains('\u{9b}'), "{colored:?}");
     }
 
     #[test]
