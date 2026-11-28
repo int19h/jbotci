@@ -41,7 +41,7 @@ use jbotci_ide::{
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
 use serde::Deserialize;
 use serde_json::json;
-use tokio::sync::{Semaphore, mpsc, watch};
+use tokio::sync::{Semaphore, watch};
 use tokio::task::AbortHandle;
 use tower::ServiceBuilder;
 
@@ -336,9 +336,9 @@ mod publication {
         ///
         /// The caller builds the message before this call.
         /// `send` runs while this function holds the document-store lock.
-        /// `send` only queues that message with `UnboundedSender::send`.
-        /// It does not build the message and it does not wait.
-        /// A close or a reopen takes that same lock.
+        /// A push `send` queues that message on the client socket.
+        /// A pull `send` spawns the refresh and does not wait for the answer.
+        /// A close takes that same lock and queues its clear on the push socket.
         #[requires(true)]
         #[ensures(true)]
         pub(super) fn emit(&self, send: impl FnOnce()) -> bool {
@@ -688,6 +688,18 @@ impl DocumentStore {
     #[requires(true)]
     #[ensures(true)]
     fn close(&self, uri: &Url) -> bool {
+        self.close_and_send(uri, || {})
+    }
+
+    /// Remove the document, then queue `send` before the lock is released.
+    ///
+    /// `send` uses the same client socket as `DiagnosticPublication::emit`.
+    /// A publication that still owns the document queues first.
+    /// This close then queues the clear.
+    /// `send` does not wait.
+    #[requires(true)]
+    #[ensures(true)]
+    fn close_and_send(&self, uri: &Url, send: impl FnOnce()) -> bool {
         self.edit_documents(|data| {
             let Some(document) = data.documents.remove(uri) else {
                 return false;
@@ -695,6 +707,7 @@ impl DocumentStore {
             if let Some(pending) = document.into_data().pending_analysis {
                 pending.abort();
             }
+            send();
             true
         })
     }
@@ -1199,13 +1212,17 @@ impl ServerState {
     #[ensures(true)]
     fn did_close(&mut self, params: lsp_types::DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-        self.documents.close(&uri);
-        if !self.pull_diagnostics {
-            let client = self.client.clone();
-            let _ = client.notify::<notification::PublishDiagnostics>(
-                PublishDiagnosticsParams::new(uri, Vec::new(), None),
-            );
+        if self.pull_diagnostics {
+            self.documents.close(&uri);
+            return;
         }
+        // The clear uses the same socket as a push publication.
+        // Both calls queue under the document-store lock.
+        let clear = PublishDiagnosticsParams::new(uri.clone(), Vec::new(), None);
+        let client = self.client.clone();
+        self.documents.close_and_send(&uri, move || {
+            let _ = client.notify::<notification::PublishDiagnostics>(clear);
+        });
     }
 }
 
@@ -1491,13 +1508,6 @@ fn push_diagnostics_publisher(
     client: ClientSocket,
     encoding: ServerPositionEncoding,
 ) -> DiagnosticsPublisher {
-    // The task sends queued messages. It does not take the document-store lock.
-    let (tx, mut rx) = mpsc::unbounded_channel::<PublishDiagnosticsParams>();
-    tokio::spawn(async move {
-        while let Some(params) = rx.recv().await {
-            let _ = client.notify::<notification::PublishDiagnostics>(params);
-        }
-    });
     Arc::new(move |publication| {
         let diagnostics =
             diagnostic_snapshot_to_lsp(publication.snapshot(), publication.uri(), encoding);
@@ -1506,9 +1516,12 @@ fn push_diagnostics_publisher(
             diagnostics,
             Some(publication.version()),
         );
-        let tx = tx.clone();
+        let client = client.clone();
         publication.emit(move || {
-            let _ = tx.send(params);
+            // `notify` serializes this built message and queues it.
+            // `PublishDiagnosticsParams` has no extra data field.
+            // The call does not wait.
+            let _ = client.notify::<notification::PublishDiagnostics>(params);
         });
     })
 }
@@ -1516,19 +1529,18 @@ fn push_diagnostics_publisher(
 #[requires(true)]
 #[ensures(true)]
 fn pull_diagnostics_refresh_publisher(client: ClientSocket) -> DiagnosticsPublisher {
-    // The task sends the refresh. It does not take the document-store lock.
-    let (tx, mut rx) = mpsc::unbounded_channel::<()>();
-    tokio::spawn(async move {
-        while rx.recv().await.is_some() {
-            let _ = client
-                .request::<request::WorkspaceDiagnosticRefresh>(())
-                .await;
-        }
-    });
     Arc::new(move |publication| {
-        let tx = tx.clone();
+        let client = client.clone();
         publication.emit(move || {
-            let _ = tx.send(());
+            // The task queues one refresh and waits for that answer alone.
+            // The next publication spawns its own task.
+            // An unanswered refresh does not hold the next one.
+            // A late answer does not send another refresh.
+            tokio::spawn(async move {
+                let _ = client
+                    .request::<request::WorkspaceDiagnosticRefresh>(())
+                    .await;
+            });
         });
     })
 }
@@ -2138,6 +2150,7 @@ mod tests {
     use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 
     use super::*;
+    use tokio::sync::mpsc;
 
     impl DocumentStore {
         #[requires(true)]
@@ -3151,6 +3164,155 @@ mod tests {
             no_diagnostics_publisher(),
             PreparedDocumentAnalysis::prepare,
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    async fn read_lsp_json(
+        reader: &mut tokio::io::BufReader<tokio::io::DuplexStream>,
+    ) -> Option<serde_json::Value> {
+        use tokio::io::{AsyncBufReadExt, AsyncReadExt};
+        let mut content_length = None;
+        loop {
+            let mut line = String::new();
+            let size = reader.read_line(&mut line).await.ok()?;
+            if size == 0 {
+                return None;
+            }
+            if line == "\r\n" || line == "\n" {
+                break;
+            }
+            if let Some(value) = line
+                .strip_prefix("Content-Length:")
+                .or_else(|| line.strip_prefix("content-length:"))
+            {
+                content_length = value.trim().parse::<usize>().ok();
+            }
+        }
+        let length = content_length?;
+        let mut body = vec![0; length];
+        reader.read_exact(&mut body).await.ok()?;
+        serde_json::from_slice(&body).ok()
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_close_on_another_thread_does_not_leave_stale_diagnostics() {
+        let (input_client, input_server) = tokio::io::duplex(1024);
+        let (output_client, output_server) = tokio::io::duplex(1024 * 1024);
+        let (main_loop, client) =
+            async_lsp::MainLoop::new_server(|_| async_lsp::router::Router::new(()));
+        tokio::spawn(async move {
+            use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+            let _ = main_loop
+                .run_buffered(input_server.compat(), output_server.compat_write())
+                .await;
+        });
+        let _keep_input = input_client;
+        let (message_tx, mut message_rx) = mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            let mut reader = tokio::io::BufReader::new(output_client);
+            loop {
+                let Some(message) = read_lsp_json(&mut reader).await else {
+                    break;
+                };
+                if message_tx.send(message).is_err() {
+                    break;
+                }
+            }
+        });
+
+        for trial in 0..16 {
+            let uri =
+                Url::parse(&format!("file:///close-race-{trial}.jbo")).expect("valid test URI");
+            let store = DocumentStore::new();
+            store.open(
+                uri.clone(),
+                "mi klama\nni'o\ndo cadzu\nni'o\nmi ku i do".to_owned(),
+                1,
+                no_diagnostics_publisher(),
+                PreparedDocumentAnalysis::prepare,
+            );
+            let published = expect_ready(
+                tokio::time::timeout(Duration::from_secs(10), store.diagnostics_for_current(&uri))
+                    .await
+                    .expect("analysis finishes"),
+                "the document has diagnostics",
+            );
+            let publication = publication::DiagnosticPublication::from_analysis(
+                store.clone(),
+                uri.clone(),
+                published.identity,
+                published.version,
+                Arc::clone(&published.snapshot),
+            );
+            let publisher =
+                push_diagnostics_publisher(client.clone(), ServerPositionEncoding::Utf16);
+            let clear = PublishDiagnosticsParams::new(uri.clone(), Vec::new(), None);
+            let close_client = client.clone();
+            let close_store = store.clone();
+            let close_uri = uri.clone();
+            let barrier = Arc::new(std::sync::Barrier::new(2));
+            let publish_barrier = Arc::clone(&barrier);
+            let close_barrier = barrier;
+            let publish_task = tokio::task::spawn_blocking(move || {
+                publish_barrier.wait();
+                publisher(publication);
+            });
+            let close_task = tokio::task::spawn_blocking(move || {
+                close_barrier.wait();
+                close_store.close_and_send(&close_uri, move || {
+                    let _ = close_client.notify::<notification::PublishDiagnostics>(clear);
+                });
+            });
+            publish_task.await.expect("the publish task finishes");
+            close_task.await.expect("the close task finishes");
+
+            let mut saw_clear = false;
+            let mut stale_after_clear = false;
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+            while tokio::time::Instant::now() < deadline {
+                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                let Ok(Some(message)) = tokio::time::timeout(remaining, message_rx.recv()).await
+                else {
+                    break;
+                };
+                if message["method"].as_str() != Some("textDocument/publishDiagnostics") {
+                    continue;
+                }
+                if message["params"]["uri"].as_str() != Some(uri.as_str()) {
+                    continue;
+                }
+                let empty = message["params"]["diagnostics"]
+                    .as_array()
+                    .is_some_and(|items| items.is_empty());
+                if saw_clear && !empty {
+                    stale_after_clear = true;
+                }
+                if empty {
+                    saw_clear = true;
+                    let follow =
+                        tokio::time::timeout(Duration::from_millis(150), message_rx.recv()).await;
+                    if let Ok(Some(follow)) = follow {
+                        if follow["method"].as_str() == Some("textDocument/publishDiagnostics")
+                            && follow["params"]["uri"].as_str() == Some(uri.as_str())
+                            && follow["params"]["diagnostics"]
+                                .as_array()
+                                .is_some_and(|items| !items.is_empty())
+                        {
+                            stale_after_clear = true;
+                        }
+                    }
+                    break;
+                }
+            }
+            assert!(saw_clear, "trial {trial} sends the clear");
+            assert!(
+                !stale_after_clear,
+                "trial {trial} leaves stale diagnostics after the clear"
+            );
+        }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

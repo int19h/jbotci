@@ -177,6 +177,27 @@ impl LspClient {
         serde_json::from_slice(&body).expect("valid JSON-RPC body")
     }
 
+    /// Read one message when it arrives before `timeout`.
+    ///
+    /// A quiet server returns none.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|message| message.is_object()))]
+    fn next_message_within(&mut self, timeout: Duration) -> Option<Value> {
+        use std::os::fd::AsRawFd;
+        let fd = self.stdout.get_ref().as_raw_fd();
+        let mut fds = [libc::pollfd {
+            fd,
+            events: libc::POLLIN,
+            revents: 0,
+        }];
+        let millis = i32::try_from(timeout.as_millis()).unwrap_or(i32::MAX);
+        let ready = unsafe { libc::poll(fds.as_mut_ptr(), 1, millis) };
+        if ready <= 0 || fds[0].revents & libc::POLLIN == 0 {
+            return None;
+        }
+        Some(self.read())
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn shutdown(mut self) {
@@ -1622,6 +1643,129 @@ fn clients_without_pull_support_receive_push_diagnostics_and_close_clears_them()
     assert!(closed["params"].get("version").is_none());
     assert_eq!(closed["params"]["diagnostics"], json!([]));
     client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn an_unanswered_refresh_does_not_block_the_next_refresh() {
+    let uri = "file:///refresh-order.jbo";
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, uri, 1, "mi klama");
+
+    let mut refreshes = Vec::new();
+    let first = next_refresh_within(&mut client, Duration::from_secs(10))
+        .expect("the first refresh arrives");
+    refreshes.push(first);
+
+    for (version, text) in [
+        (2, "mi klama le zarci"),
+        (3, "mi klama le zdani"),
+        (4, "do klama"),
+    ] {
+        client.notify(
+            "textDocument/didChange",
+            json!({
+                "textDocument": { "uri": uri, "version": version },
+                "contentChanges": [{ "text": text }]
+            }),
+        );
+    }
+
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let mut confirmed = false;
+    while Instant::now() < deadline && !confirmed {
+        let request_id = client.start_request(
+            "textDocument/diagnostic",
+            json!({
+                "textDocument": { "uri": uri },
+                "identifier": "jbotci",
+                "previousResultId": null
+            }),
+        );
+        let round_deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < round_deadline {
+            let Some(message) = client
+                .next_message_within(round_deadline.saturating_duration_since(Instant::now()))
+            else {
+                break;
+            };
+            if message.get("method").and_then(Value::as_str) == Some("workspace/diagnostic/refresh")
+            {
+                refreshes.push(message);
+                continue;
+            }
+            if message.get("id") == Some(&json!(request_id)) && message.get("method").is_none() {
+                let result_id = message
+                    .get("result")
+                    .and_then(|result| result.get("resultId"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                confirmed = result_id.ends_with(":4:confirmed");
+                break;
+            }
+        }
+    }
+    assert!(
+        confirmed,
+        "version 4 confirms while the first refresh is unanswered"
+    );
+    let quiet_deadline = Instant::now() + Duration::from_secs(1);
+    while Instant::now() < quiet_deadline {
+        let Some(message) =
+            client.next_message_within(quiet_deadline.saturating_duration_since(Instant::now()))
+        else {
+            break;
+        };
+        if message.get("method").and_then(Value::as_str) == Some("workspace/diagnostic/refresh") {
+            refreshes.push(message);
+        }
+    }
+    assert!(
+        refreshes.len() >= 2,
+        "a later edit sends another refresh while the first is unanswered"
+    );
+    assert_ne!(refreshes[0]["id"], refreshes[1]["id"]);
+
+    for refresh in &refreshes {
+        client.send(json!({
+            "jsonrpc": "2.0",
+            "id": refresh["id"],
+            "result": null
+        }));
+    }
+    let replay_deadline = Instant::now() + Duration::from_secs(1);
+    while Instant::now() < replay_deadline {
+        let Some(message) =
+            client.next_message_within(replay_deadline.saturating_duration_since(Instant::now()))
+        else {
+            break;
+        };
+        assert_ne!(
+            message.get("method").and_then(Value::as_str),
+            Some("workspace/diagnostic/refresh"),
+            "a late answer must not replay a refresh"
+        );
+    }
+    client.shutdown();
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|message| message.is_object()))]
+fn next_refresh_within(client: &mut LspClient, timeout: Duration) -> Option<Value> {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        let Some(message) =
+            client.next_message_within(deadline.saturating_duration_since(Instant::now()))
+        else {
+            return None;
+        };
+        if message.get("method").and_then(Value::as_str) == Some("workspace/diagnostic/refresh") {
+            return Some(message);
+        }
+    }
+    None
 }
 
 #[test]
