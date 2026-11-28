@@ -580,19 +580,6 @@ pub(crate) struct TerminalExcerpt<'text> {
     pub(crate) map: Vec<usize>,
 }
 
-/// Escape `text` when the escaped form fits in `room` bytes.
-///
-/// A text that does not fit returns none. This does not allocate that text.
-#[requires(true)]
-#[ensures(ret.as_ref().is_some_and(|excerpt| excerpt.text.len() <= room) || ret.is_none())]
-pub(crate) fn escape_terminal_source_within<'text>(
-    text: &'text str,
-    room: usize,
-) -> Option<TerminalExcerpt<'text>> {
-    escaped_byte_len_within(text, room)?;
-    Some(escape_terminal_source(text))
-}
-
 #[requires(true)]
 #[ensures(ret.map.is_empty() || ret.map.len() == text.len() + 1)]
 pub(crate) fn escape_terminal_source(text: &str) -> TerminalExcerpt<'_> {

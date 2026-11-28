@@ -525,7 +525,7 @@ fn render_snippet_annotations(
     max_line_num_len: usize,
     snippet: &Snippet<'_, Annotation<'_>>,
     is_primary: bool,
-    sm: &SourceMap<'_>,
+    _sm: &SourceMap<'_>,
     annotated_lines: &[AnnotatedLineInfo<'_>],
     multiline_depth: usize,
     is_cont: bool,
@@ -748,59 +748,8 @@ fn render_snippet_annotations(
                     }
                 }
 
-                Ordering::Equal => {
-                    let unannotated_line = sm
-                        .get_line(annotated_lines[annotated_line_idx].line_index + 1)
-                        .unwrap_or("");
-
-                    let last_buffer_line_num = buffer.num_lines();
-
-                    draw_line(
-                        renderer,
-                        buffer,
-                        &normalize_whitespace(unannotated_line),
-                        unannotated_line,
-                        annotated_lines[annotated_line_idx + 1].line_index - 1,
-                        last_buffer_line_num,
-                        width_offset,
-                        code_offset,
-                        max_line_num_len,
-                        margin,
-                        false,
-                        &[],
-                        &[],
-                    );
-
-                    for (depth, style) in &multilines {
-                        draw_multiline_line(
-                            renderer,
-                            buffer,
-                            last_buffer_line_num,
-                            width_offset,
-                            *depth,
-                            *style,
-                        );
-                    }
-                    if let Some(line) = annotated_lines.get(annotated_line_idx) {
-                        for ann in &line.annotations {
-                            if let LineAnnotationType::MultilineStart(pos) = ann.annotation_type {
-                                draw_multiline_line(
-                                    renderer,
-                                    buffer,
-                                    last_buffer_line_num,
-                                    width_offset,
-                                    pos,
-                                    if ann.is_primary() {
-                                        ElementStyle::UnderlinePrimary
-                                    } else {
-                                        ElementStyle::UnderlineSecondary
-                                    },
-                                );
-                            }
-                        }
-                    }
-                }
-                Ordering::Less => {}
+                // A gap of one line is already a shown line. `shown_lines` inserted it.
+                Ordering::Equal | Ordering::Less => {}
             }
         }
 
@@ -1377,38 +1326,50 @@ fn render_source_line(
     // We look for individual *long* spans, and we trim the *middle*, so that we render
     // LL | ...= [0, 0, 0, ..., 0, 0];
     //    |      ^^^^^^^^^^...^^^^^^^ expected `&[u8]`, found `[{integer}; 1680]`
-    // A prepared window already applied this cut. Doing it again removes the ends.
-    if !prepared {
-    for (i, (_pos, annotation)) in annotations_position.iter().enumerate() {
-        // Skip cases where multiple spans overlap eachother.
-        if overlap[i] {
-            continue;
-        };
-        let LineAnnotationType::Singleline = annotation.annotation_type else {
-            continue;
-        };
-        let width = annotation.end.display - annotation.start.display;
+    // A prepared window already cut the source line. The underline row still needs the mark.
+    if prepared {
+        paint_prepared_middle_marks(
+            renderer,
+            buffer,
+            line_offset,
+            code_offset,
+            left,
+            line_info.line,
+            &annotations_position,
+            &overlap,
+            prepared_marks,
+        );
+    } else {
+        for (i, (_pos, annotation)) in annotations_position.iter().enumerate() {
+            // Skip cases where multiple spans overlap eachother.
+            if overlap[i] {
+                continue;
+            };
+            let LineAnnotationType::Singleline = annotation.annotation_type else {
+                continue;
+            };
+            let width = annotation.end.display - annotation.start.display;
 
-        let margin_width = str_width(renderer.decor_style.margin());
-        if let Some(pad) = long_span_pad(width, margin.term_width, margin_width) {
-            // If the terminal is *too* small, we keep at least a tiny bit of the span for
-            // display.
-            // Code line
-            buffer.replace(
-                line_offset,
-                code_offset + (annotation.start.display + pad).saturating_sub(left),
-                code_offset + (annotation.end.display - pad).saturating_sub(left),
-                renderer.decor_style.margin(),
-            );
-            // Underline line
-            buffer.replace(
-                line_offset + 1,
-                code_offset + (annotation.start.display + pad).saturating_sub(left),
-                code_offset + (annotation.end.display - pad).saturating_sub(left),
-                renderer.decor_style.margin(),
-            );
+            let margin_width = str_width(renderer.decor_style.margin());
+            if let Some(pad) = long_span_pad(width, margin.term_width, margin_width) {
+                // If the terminal is *too* small, we keep at least a tiny bit of the span for
+                // display.
+                // Code line
+                buffer.replace(
+                    line_offset,
+                    code_offset + (annotation.start.display + pad).saturating_sub(left),
+                    code_offset + (annotation.end.display - pad).saturating_sub(left),
+                    renderer.decor_style.margin(),
+                );
+                // Underline line
+                buffer.replace(
+                    line_offset + 1,
+                    code_offset + (annotation.start.display + pad).saturating_sub(left),
+                    code_offset + (annotation.end.display - pad).saturating_sub(left),
+                    renderer.decor_style.margin(),
+                );
+            }
         }
-    }
     }
     annotations_position
         .iter()
@@ -2091,6 +2052,56 @@ fn draw_line(
     left
 }
 
+/// Put the margin mark on the underline where a prepared line already cut a long span.
+fn paint_prepared_middle_marks(
+    renderer: &Renderer,
+    buffer: &mut StyledBuffer,
+    line_offset: usize,
+    code_offset: usize,
+    left: usize,
+    line: &str,
+    annotations_position: &[(usize, &LineAnnotation<'_>)],
+    overlap: &[bool],
+    prepared_marks: &[Range<usize>],
+) {
+    let margin = renderer.decor_style.margin();
+    for (index, (_pos, annotation)) in annotations_position.iter().enumerate() {
+        if overlap.get(index).copied().unwrap_or(false) {
+            continue;
+        }
+        let LineAnnotationType::Singleline = annotation.annotation_type else {
+            continue;
+        };
+        for mark in prepared_marks {
+            let start_col = display_before(line, mark.start);
+            let end_col = display_before(line, mark.end);
+            if start_col <= annotation.start.display || end_col >= annotation.end.display {
+                continue;
+            }
+            if start_col >= end_col {
+                continue;
+            }
+            buffer.replace(
+                line_offset + 1,
+                code_offset + start_col.saturating_sub(left),
+                code_offset + end_col.saturating_sub(left),
+                margin,
+            );
+        }
+    }
+}
+
+fn display_before(line: &str, byte: usize) -> usize {
+    let mut width = 0usize;
+    for (index, ch) in line.char_indices() {
+        if index >= byte {
+            break;
+        }
+        width += char_width(ch);
+    }
+    width
+}
+
 fn paint_prepared_ranges(
     buffer: &mut StyledBuffer,
     line_offset: usize,
@@ -2384,12 +2395,17 @@ pub(crate) fn str_width(s: &str) -> usize {
 /// `column_width` is the code columns after the gutter.
 /// Leading whitespace is the minimum across non-blank lines.
 /// Span bounds are the annotation columns, including a one-column multiline end.
+/// A bridging line is drawn, but it does not move the shared margin.
+fn line_sets_margin(line: &AnnotatedLineInfo<'_>) -> bool {
+    !line.annotations.is_empty() || line.keep
+}
+
 pub(crate) fn margin_for_annotated_lines(
     annotated_lines: &[AnnotatedLineInfo<'_>],
     column_width: usize,
 ) -> Margin {
     let mut whitespace_margin = usize::MAX;
-    for line_info in annotated_lines {
+    for line_info in annotated_lines.iter().filter(|line| line_sets_margin(line)) {
         let leading_whitespace = line_info
             .line
             .chars()
@@ -2408,7 +2424,7 @@ pub(crate) fn margin_for_annotated_lines(
     }
 
     let mut span_left_margin = usize::MAX;
-    for line_info in annotated_lines {
+    for line_info in annotated_lines.iter().filter(|line| line_sets_margin(line)) {
         for ann in &line_info.annotations {
             span_left_margin = min(span_left_margin, ann.start.display);
             span_left_margin = min(span_left_margin, ann.end.display);
@@ -2421,7 +2437,7 @@ pub(crate) fn margin_for_annotated_lines(
     let mut span_right_margin = 0;
     let mut label_right_margin = 0;
     let mut max_line_len = 0;
-    for line_info in annotated_lines {
+    for line_info in annotated_lines.iter().filter(|line| line_sets_margin(line)) {
         max_line_len = max(max_line_len, str_width(line_info.line));
         for ann in &line_info.annotations {
             span_right_margin = max(span_right_margin, ann.start.display);
@@ -2817,7 +2833,7 @@ fn pre_process<'a>(
                 Element::Cause(cause) => {
                     let sm = SourceMap::new(&cause.source, cause.line_start);
                     let (depth, annotated_lines) =
-                        sm.annotated_lines(cause.markers.clone(), cause.fold);
+                        sm.shown_lines(cause.markers.clone(), cause.fold);
 
                     if cause.fold {
                         let end = cause

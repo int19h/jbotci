@@ -123,6 +123,7 @@ pub fn render_diagnostics_with_limit(
 
 #[invariant(*source_start <= *source_end)]
 #[invariant(*line_number >= 1 && *header_line >= 1 && *header_column >= 1)]
+#[invariant(*line_count >= 1)]
 struct RetainedWindow<'source> {
     escaped: crate::styled::TerminalExcerpt<'source>,
     line_number: usize,
@@ -134,11 +135,10 @@ struct RetainedWindow<'source> {
     owns_primary: bool,
     /// Labels whose display anchor is this window.
     label_indexes: Vec<usize>,
-    /// Absolute source byte for each byte of `escaped.text`.
-    ///
-    /// Empty means the text is the source slice at `source_start`.
-    /// [`usize::MAX`] is a cut mark.
-    origin: Vec<usize>,
+    /// One boundary table per joined line. Empty means the text is the raw slice.
+    bounds: Vec<LineBound>,
+    /// Source lines in this window, including a bridging line.
+    line_count: usize,
     /// Byte ranges of synthetic cut marks in `escaped.text`.
     marks: Vec<Range<usize>>,
     /// Byte ranges of unstyled alignment gaps in `escaped.text`.
@@ -195,16 +195,18 @@ fn diagnostic_source_excerpt<'source>(
     let columns =
         annotate_snippets::renderer::code_columns(options.terminal_width, max_line, depth);
     let margin_mark = margin_mark(options.glyphs);
-    // An uncut contiguous run is one snippet. The renderer makes that window.
+    // An uncut shown-line set is one raw snippet, including a folded gap.
+    // The renderer draws that gap.
     if let Some((origin, end, line_start)) =
         whole_unclipped_excerpt(source, &anchors, &kept, columns, margin_mark)
     {
         let slice = source.get(origin..end).unwrap_or("");
-        let Some(escaped) = crate::styled::escape_terminal_source_within(slice, max_copy) else {
+        // The renderer draws this text. A second escape would change an uncut line.
+        if slice.len() > max_copy {
             return Err(OutputError::Limit { limit });
-        };
+        }
         return Ok(new!(DiagnosticSourceExcerpt {
-            escaped,
+            escaped: raw_terminal_excerpt(slice),
             origin,
             line_start,
             primary_line,
@@ -422,32 +424,20 @@ fn anchor_window_header(
     best.map(|(line, _, column, _)| (line, column))
         .unwrap_or_else(|| source_line_column(source, source_start))
 }
-/// Byte range of one contiguous run of kept lines.
+/// Original excerpt text. The renderer applies its own replacements.
 #[requires(true)]
-#[ensures(ret.is_none_or(|(origin, end, line)| origin <= end && line >= 1))]
-fn contiguous_kept_range(
-    kept: &[annotate_snippets::renderer::KeptSourceLine],
-) -> Option<(usize, usize, usize)> {
-    if kept.is_empty() {
-        return None;
-    }
-    let mut previous = kept[0].line_index;
-    for line in kept.iter().skip(1) {
-        if line.line_index != previous + 1 {
-            return None;
-        }
-        previous = line.line_index;
-    }
-    Some((
-        kept[0].start_byte,
-        kept[kept.len() - 1].end_byte,
-        kept[0].line_index,
-    ))
+#[ensures(ret.map.is_empty() && ret.text.len() == text.len())]
+fn raw_terminal_excerpt(text: &str) -> crate::styled::TerminalExcerpt<'_> {
+    new!(crate::styled::TerminalExcerpt {
+        text: std::borrow::Cow::Borrowed(text),
+        map: Vec::new(),
+    })
 }
 
-/// The labelled lines are one contiguous run, and the shared margin cuts none of them.
+/// The labelled lines are one shown-line set, and the shared margin cuts none of them.
 ///
-/// The margin is the one the renderer uses for the whole run.
+/// The margin is the one the renderer uses for the whole set.
+/// A folded gap stays inside the range. The renderer draws the fold.
 /// The returned range is original source.
 #[requires(true)]
 #[ensures(ret.is_none_or(|(origin, end, line)| origin <= end && end <= source.len() && line >= 1))]
@@ -458,9 +448,16 @@ fn whole_unclipped_excerpt(
     columns: usize,
     margin_mark: &str,
 ) -> Option<(usize, usize, usize)> {
-    let (origin, end, line_start) = contiguous_kept_range(kept)?;
+    let first = kept.first()?;
+    let last = kept.last()?;
+    let origin = first.start_byte;
+    let end = last.end_byte;
+    let line_start = first.line_index;
+    if origin > end || end > source.len() {
+        return None;
+    }
     let text = source.get(origin..end).unwrap_or("");
-    let spans = run_label_spans(anchors, origin, end);
+    let spans = run_label_spans(anchors, origin, end, kept.len() == 1);
     let laid = annotate_snippets::renderer::lay_out_run(
         text,
         &spans,
@@ -496,23 +493,16 @@ fn retained_display_windows<'source>(
 ) -> Result<Vec<RetainedWindow<'source>>, OutputError> {
     let mut pieces = Vec::new();
     let mut covered = vec![false; anchors.len()];
-    let mut index = 0usize;
-    while index < kept.len() {
-        let mut end = index + 1;
-        while end < kept.len() && kept[end].line_index == kept[end - 1].line_index + 1 {
-            end += 1;
-        }
-        push_run_windows(
-            source,
-            anchors,
-            &kept[index..end],
-            columns,
-            margin_mark,
-            &mut covered,
-            &mut pieces,
-        );
-        index = end;
-    }
+    // One shown-line set is one snippet. A larger gap is a fold inside it.
+    push_run_windows(
+        source,
+        anchors,
+        kept,
+        columns,
+        margin_mark,
+        &mut covered,
+        &mut pieces,
+    );
     for anchor in anchors {
         if covered.get(anchor.label_index).copied().unwrap_or(true) {
             continue;
@@ -520,12 +510,13 @@ fn retained_display_windows<'source>(
         covered[anchor.label_index] = true;
         pieces.push(new!(RawPiece {
             text: String::new(),
-            origin: Vec::new(),
+            bounds: Vec::new(),
             marks: Vec::new(),
             gaps: Vec::new(),
             source_start: anchor.start.min(source.len()),
             source_end: anchor.start.min(source.len()),
             line_number: anchor.line,
+            line_count: 1,
             labels: vec![anchor.label_index],
         }));
     }
@@ -553,12 +544,12 @@ fn retained_display_windows<'source>(
             snippet_separator_len(glyphs, source_label, header_line, header_column)
         };
         let room = max_copy.saturating_sub(accounted.saturating_add(separator));
-        let escaped = if data.origin.is_empty() {
+        let escaped = if data.bounds.is_empty() {
             let slice = source.get(data.source_start..data.source_end).unwrap_or("");
-            let Some(escaped) = crate::styled::escape_terminal_source_within(slice, room) else {
+            if slice.len() > room {
                 return Err(OutputError::Limit { limit });
-            };
-            escaped
+            }
+            raw_terminal_excerpt(slice)
         } else if data.text.len() > room {
             return Err(OutputError::Limit { limit });
         } else {
@@ -579,7 +570,8 @@ fn retained_display_windows<'source>(
             source_end: data.source_end,
             owns_primary,
             label_indexes: data.labels,
-            origin: data.origin,
+            bounds: data.bounds,
+            line_count: data.line_count,
             marks: data.marks,
             gaps: data.gaps,
         }));
@@ -588,16 +580,29 @@ fn retained_display_windows<'source>(
 }
 
 /// One copied window before its header is known.
-#[invariant(*source_start <= *source_end && *line_number >= 1)]
+#[invariant(*source_start <= *source_end && *line_number >= 1 && *line_count >= 1)]
 struct RawPiece {
     text: String,
-    origin: Vec<usize>,
+    bounds: Vec<LineBound>,
     marks: Vec<Range<usize>>,
     gaps: Vec<Range<usize>>,
     source_start: usize,
     source_end: usize,
     line_number: usize,
+    line_count: usize,
     labels: Vec<usize>,
+}
+
+/// Source bytes of one prepared line, mapped like an escape table.
+///
+/// `map` has one entry per source byte plus the exclusive end.
+/// Entry `i` is the window byte where source byte `source_start + i` begins.
+#[invariant(*source_end >= *source_start)]
+#[invariant(map.len() == source_end.saturating_sub(*source_start).saturating_add(1))]
+struct LineBound {
+    source_start: usize,
+    source_end: usize,
+    map: Vec<usize>,
 }
 
 #[requires(true)]
@@ -617,7 +622,7 @@ fn push_run_windows(
     let run_start = run[0].start_byte;
     let run_end = run[run.len() - 1].end_byte;
     let text = source.get(run_start..run_end).unwrap_or("");
-    let spans = run_label_spans(anchors, run_start, run_end);
+    let spans = run_label_spans(anchors, run_start, run_end, run.len() == 1);
     let laid_lines = annotate_snippets::renderer::lay_out_run(
         text,
         &spans,
@@ -656,48 +661,65 @@ fn push_run_windows(
     if !any_cut {
         pieces.push(new!(RawPiece {
             text: String::new(),
-            origin: Vec::new(),
+            bounds: Vec::new(),
             marks: Vec::new(),
             gaps: Vec::new(),
             source_start: run[0].start_byte,
             source_end: run[run.len() - 1].end_byte,
             line_number: run[0].line_index,
+            line_count: run.len().max(1),
             labels,
         }));
         return;
     }
     // One snippet for the run. Every line keeps the planned window.
     // A later render does not trim or escape that window again.
-    pieces.push(joined_run_piece(run, layouts, labels));
+    pieces.push(joined_run_piece(source, anchors, run, layouts, labels));
 }
 
 #[requires(run.len() == layouts.len())]
-#[ensures(ret.origin.len() == ret.text.len() && ret.source_start <= ret.source_end && ret.line_number >= 1)]
+#[ensures(!ret.bounds.is_empty() && ret.source_start <= ret.source_end && ret.line_number >= 1 && ret.line_count >= 1)]
 fn joined_run_piece(
+    source: &str,
+    anchors: &[DisplayAnchor],
     run: &[annotate_snippets::renderer::KeptSourceLine],
     layouts: Vec<annotate_snippets::renderer::LaidOutLine>,
     labels: Vec<usize>,
 ) -> RawPiece {
     let mut text = String::new();
-    let mut origin = Vec::new();
+    let mut bounds = Vec::new();
     let mut marks = Vec::new();
     let mut gaps = Vec::new();
+    let last = run.len().saturating_sub(1);
     for (index, (line, laid)) in run.iter().zip(layouts).enumerate() {
         if index > 0 {
-            text.push('\n');
-            origin.push(line.start_byte.saturating_sub(1));
+            // The bytes between shown lines are the fold. The renderer draws it.
+            // An empty shown line already consumed its break, so the slice is empty.
+            let previous = &run[index - 1];
+            let gap = source.get(previous.end_byte..line.start_byte).unwrap_or("");
+            if gap.is_empty() {
+                text.push('\n');
+            } else {
+                text.push_str(gap);
+            }
         }
         // An uncut line uses the same laid-out text as a cut line.
         // That text is the escaped form the budget charges.
         let base = text.len();
         text.push_str(&laid.text);
-        for byte in laid.origin {
-            origin.push(if byte == usize::MAX {
-                usize::MAX
-            } else {
-                byte.saturating_add(line.start_byte)
-            });
+        let content = laid_line_content(source, line);
+        let cover_break = index == last && span_covers_trailing_break(source, anchors, line);
+        let (map, append_newline) = source_boundary(&content, &laid.origin, base, cover_break);
+        if append_newline {
+            text.push('\n');
         }
+        let source_start = line.start_byte;
+        let source_end = source_start + content.len() + usize::from(cover_break);
+        bounds.push(new!(LineBound {
+            source_start,
+            source_end,
+            map,
+        }));
         for range in laid.marks {
             marks.push(base + range.start..base + range.end);
         }
@@ -706,18 +728,208 @@ fn joined_run_piece(
         }
     }
     let line_number = run.first().map(|line| line.line_index).unwrap_or(1);
-    let source_start = run.first().map(|line| line.start_byte).unwrap_or(0);
-    let source_end = run.last().map(|line| line.end_byte).unwrap_or(source_start);
+    let source_start = bounds.first().map(|line| line.source_start).unwrap_or(0);
+    let source_end = bounds
+        .last()
+        .map(|line| line.source_end)
+        .unwrap_or(source_start);
     new!(RawPiece {
         text,
-        origin,
+        bounds,
         marks,
         gaps,
         source_start,
         source_end,
         line_number,
+        line_count: run.len().max(1),
         labels,
     })
+}
+
+/// The line text the layout origins refer to. A kept empty line includes its break.
+#[requires(true)]
+#[ensures(ret.len() <= source.len())]
+fn laid_line_content<'a>(
+    source: &'a str,
+    line: &annotate_snippets::renderer::KeptSourceLine,
+) -> &'a str {
+    let end = line.end_byte.min(source.len());
+    let start = line.start_byte.min(end);
+    let slice = source.get(start..end).unwrap_or("");
+    if slice.as_bytes().last() == Some(&b'\n') {
+        let without_line_feed = &slice[..slice.len() - 1];
+        if without_line_feed.is_empty() || without_line_feed == "\r" {
+            return "";
+        }
+    }
+    slice
+}
+
+/// The multiline span consumes the break after this kept line.
+#[requires(true)]
+#[ensures(!ret || anchors.iter().any(|anchor| anchor.start < anchor.end))]
+fn span_covers_trailing_break(
+    source: &str,
+    anchors: &[DisplayAnchor],
+    line: &annotate_snippets::renderer::KeptSourceLine,
+) -> bool {
+    let break_at = line.end_byte;
+    if break_at == line.start_byte {
+        return false;
+    }
+    let Some(byte) = source.as_bytes().get(break_at).copied() else {
+        return false;
+    };
+    if byte != b'\n' && byte != b'\r' {
+        return false;
+    }
+    anchors.iter().any(|anchor| {
+        anchor.start != anchor.end && anchor.start < break_at && anchor.end > break_at
+    })
+}
+
+/// Map one laid-out line the way an escape table maps raw text.
+///
+/// The table has `content.len() + 1` entries, plus one when `trailing_newline`
+/// is set. A cut byte points at its mark. A point at the exclusive end points
+/// at the display end when the right side is not cut.
+/// The bool is true when the caller must append the trailing break.
+#[requires(true)]
+#[ensures(ret.0.len() == content.len() + usize::from(trailing_newline) + 1)]
+fn source_boundary(
+    content: &str,
+    origin: &[usize],
+    display_base: usize,
+    trailing_newline: bool,
+) -> (Vec<usize>, bool) {
+    let content_len = content.len();
+    let source_len = content_len + usize::from(trailing_newline);
+    let mut map = vec![display_base; source_len + 1];
+    let mut glyph_at = vec![None; content_len + 1];
+    let mut index = 0usize;
+    while index < origin.len() {
+        let src = origin[index];
+        let start = index;
+        while index < origin.len() && origin[index] == src {
+            index += 1;
+        }
+        if src != usize::MAX && src <= content_len && glyph_at[src].is_none() {
+            glyph_at[src] = Some(display_base + start);
+        }
+    }
+    let left_mark = if origin.first().copied() == Some(usize::MAX) {
+        Some(display_base)
+    } else {
+        None
+    };
+    let mut right_rel = origin.len();
+    while right_rel > 0 && origin[right_rel - 1] == usize::MAX {
+        right_rel -= 1;
+    }
+    let right_mark = if right_rel < origin.len() && right_rel > 0 {
+        Some(display_base + right_rel)
+    } else {
+        None
+    };
+    let display_end = display_base + origin.len();
+    let first_real = glyph_at.iter().position(|slot| slot.is_some());
+    let last_real = glyph_at.iter().rposition(|slot| slot.is_some());
+    for (start, ch) in content.char_indices() {
+        let next = start + ch.len_utf8();
+        let before_visible = match first_real {
+            None => true,
+            Some(first) => start < first,
+        };
+        if let Some(at) = glyph_at[start] {
+            let rel = at - display_base;
+            let mut end = rel;
+            while end < origin.len() && origin[end] == start {
+                end += 1;
+            }
+            let glyph_end = display_base + end;
+            for slot in map.iter_mut().take(next).skip(start) {
+                *slot = at;
+            }
+            if next <= source_len {
+                map[next] = glyph_end;
+            }
+        } else if before_visible {
+            let at = left_mark.unwrap_or(display_base);
+            for slot in map.iter_mut().take(next).skip(start) {
+                *slot = at;
+            }
+            if next <= source_len {
+                map[next] = at;
+            }
+        } else {
+            let at = if last_real.is_some_and(|last| start > last) {
+                right_mark.unwrap_or(display_end)
+            } else {
+                middle_mark_display(start, origin, &glyph_at, display_base)
+            };
+            for slot in map.iter_mut().take(next).skip(start) {
+                *slot = at;
+            }
+            if next <= source_len {
+                map[next] = at;
+            }
+        }
+    }
+    let append_newline = trailing_newline && right_mark.is_none();
+    if trailing_newline {
+        let newline_at = content_len;
+        if let Some(at) = right_mark {
+            map[newline_at] = at;
+            map[newline_at + 1] = at;
+        } else {
+            map[newline_at] = display_end;
+            map[newline_at + 1] = display_end + 1;
+        }
+    } else if let Some(at) = right_mark {
+        map[content_len] = at;
+    } else {
+        map[content_len] = display_end;
+    }
+    (map, append_newline)
+}
+
+#[requires(source_byte <= glyph_at.len())]
+#[ensures(ret >= display_base)]
+fn middle_mark_display(
+    source_byte: usize,
+    origin: &[usize],
+    glyph_at: &[Option<usize>],
+    display_base: usize,
+) -> usize {
+    let prev = glyph_at
+        .get(..source_byte)
+        .and_then(|slots| slots.iter().rposition(|slot| slot.is_some()));
+    let prev_end = prev
+        .and_then(|byte| {
+            let at = glyph_at.get(byte).and_then(|slot| *slot)?;
+            let rel = at - display_base;
+            let mut end = rel;
+            while end < origin.len() && origin[end] == byte {
+                end += 1;
+            }
+            Some(end)
+        })
+        .unwrap_or(0);
+    let next_start = glyph_at
+        .get(source_byte + 1..)
+        .and_then(|slots| slots.iter().position(|slot| slot.is_some()))
+        .map(|offset| source_byte + 1 + offset)
+        .and_then(|byte| glyph_at.get(byte).and_then(|slot| *slot))
+        .map(|at| at - display_base)
+        .unwrap_or(origin.len());
+    let mut index = prev_end;
+    while index < next_start && index < origin.len() {
+        if origin[index] == usize::MAX {
+            return display_base + index;
+        }
+        index += 1;
+    }
+    display_base + prev_end.min(origin.len())
 }
 
 #[requires(true)]
@@ -736,22 +948,40 @@ fn labels_on_run(
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|(start, end, columns)| *start <= *end && *columns >= 1))]
+#[ensures(ret.iter().all(|(start, end, _columns)| *start <= *end))]
 fn run_label_spans(
     anchors: &[DisplayAnchor],
     run_start: usize,
     run_end: usize,
+    single_line: bool,
 ) -> Vec<(usize, usize, usize)> {
     let len = run_end.saturating_sub(run_start);
-    anchors
-        .iter()
-        .filter(|anchor| anchor_mark_inside(anchor, run_start, run_end))
-        .map(|anchor| {
-            let start = anchor.start.saturating_sub(run_start).min(len);
-            let end = anchor.end.saturating_sub(run_start).min(len).max(start);
-            (start, end, anchor.label_columns.max(1))
-        })
-        .collect()
+    let mut spans = Vec::new();
+    for anchor in anchors {
+        if !anchor_mark_inside(anchor, run_start, run_end) {
+            continue;
+        }
+        let crosses = anchor.start < run_start || anchor.end > run_end;
+        if single_line && crosses && anchor.start != anchor.end {
+            if anchor.start < run_start && anchor.end > run_end {
+                continue;
+            }
+            if anchor.start >= run_start && anchor.end > run_end {
+                let start = anchor.start.saturating_sub(run_start).min(len);
+                spans.push((start, start, 0));
+                continue;
+            }
+            if anchor.start < run_start && anchor.end <= run_end {
+                let end = anchor.end.saturating_sub(run_start).min(len);
+                spans.push((end, end, anchor.label_columns.max(1)));
+                continue;
+            }
+        }
+        let start = anchor.start.saturating_sub(run_start).min(len);
+        let end = anchor.end.saturating_sub(run_start).min(len).max(start);
+        spans.push((start, end, anchor.label_columns.max(1)));
+    }
+    spans
 }
 
 #[requires(true)]
@@ -826,89 +1056,66 @@ fn window_shows_label_text(
     chosen.is_some_and(|candidate| std::ptr::eq(candidate, window))
 }
 
-/// Map a source span through the displayed bytes of a cut window.
-///
-/// [`usize::MAX`] is a cut mark. A mark between covered bytes stays in the span.
-/// A span that sits entirely in a cut-away part of a later line stays on that line.
+/// Map a source span through each prepared line's boundary table.
 #[requires(true)]
-#[ensures(ret.start <= ret.end && ret.end <= origin.len())]
-fn map_through_origin(origin: &[usize], text: &str, start: usize, end: usize) -> Range<usize> {
-    let point = start == end;
+#[ensures(ret.start <= ret.end && ret.end <= text_len)]
+fn map_through_bounds(
+    bounds: &[LineBound],
+    text_len: usize,
+    start: usize,
+    end: usize,
+) -> Range<usize> {
+    if start == end {
+        return map_point(bounds, text_len, start);
+    }
     let end = end.max(start);
-    let mut display_start = None;
-    let mut display_end = 0usize;
-    for (index, byte) in origin.iter().copied().enumerate() {
-        // The join records the source byte of a line break. That byte is not
-        // text on either line. A span that includes it must not cross the break.
-        if byte == usize::MAX || text.as_bytes().get(index) == Some(&b'\n') {
+    let mut from = None;
+    let mut to = 0usize;
+    for line in bounds {
+        if end <= line.source_start || start >= line.source_end {
             continue;
         }
-        let inside = if point {
-            byte == start
-        } else {
-            byte >= start && byte < end
-        };
-        if inside {
-            if display_start.is_none() {
-                display_start = Some(index);
-            }
-            display_end = index + 1;
+        let last = line.map.len().saturating_sub(1);
+        let local_start = start.max(line.source_start) - line.source_start;
+        let local_end = end.min(line.source_end) - line.source_start;
+        let mapped_from = line.map[local_start.min(last)].min(text_len);
+        let mapped_to = line.map[local_end.min(last)].min(text_len);
+        if from.is_none() {
+            from = Some(mapped_from);
         }
+        to = to.max(mapped_to);
     }
-    let Some(mut from) = display_start else {
-        let at = line_anchor_in_window(text, origin, start);
-        return at..at;
-    };
-    let mut to = display_end.max(from);
-    let first_real = origin.iter().copied().find(|byte| *byte != usize::MAX);
-    let last_real = origin
-        .iter()
-        .copied()
-        .rev()
-        .find(|byte| *byte != usize::MAX);
-    if first_real.is_some_and(|byte| start < byte) {
-        from = 0;
-    }
-    if last_real.is_some_and(|byte| end > byte.saturating_add(1)) {
-        to = origin.len();
-    }
-    from.min(origin.len())..to.min(origin.len()).max(from.min(origin.len()))
+    let from = from.unwrap_or_else(|| map_point(bounds, text_len, start).start);
+    let to = to.max(from).min(text_len);
+    from.min(text_len)..to
 }
 
-/// Window byte where a source point belongs when the cut kept none of its bytes.
-///
-/// Newline origins are the source bytes of the breaks between joined lines.
-/// The point stays on the joined line that owns that source byte.
+/// A point stays zero-width. The end of an uncut line is the display end.
 #[requires(true)]
-#[ensures(ret <= origin.len())]
-fn line_anchor_in_window(text: &str, origin: &[usize], point: usize) -> usize {
-    let bytes = text.as_bytes();
-    let mut line_start = 0usize;
-    let mut previous_break = None;
-    let mut index = 0usize;
-    while index <= text.len() {
-        let newline = bytes[index..]
-            .iter()
-            .position(|byte| *byte == b'\n')
-            .map(|relative| index + relative);
-        let break_source = newline.and_then(|at| origin.get(at).copied());
-        let on_line = match (previous_break, break_source) {
-            (None, None) => true,
-            (None, Some(break_byte)) => point <= break_byte,
-            (Some(previous), None) => point > previous,
-            (Some(previous), Some(break_byte)) => point > previous && point <= break_byte,
-        };
-        if on_line {
-            return line_start.min(origin.len());
+#[ensures(ret.start == ret.end && ret.end <= text_len)]
+fn map_point(bounds: &[LineBound], text_len: usize, point: usize) -> Range<usize> {
+    for line in bounds {
+        if point >= line.source_start && point < line.source_end {
+            let index = point - line.source_start;
+            let at = line.map.get(index).copied().unwrap_or(0).min(text_len);
+            return at..at;
         }
-        let Some(newline) = newline else {
-            break;
-        };
-        previous_break = break_source;
-        index = newline + 1;
-        line_start = index;
     }
-    0
+    if let Some(line) = bounds.iter().rev().find(|line| point == line.source_end) {
+        let at = line.map.last().copied().unwrap_or(0).min(text_len);
+        return at..at;
+    }
+    if let Some(line) = bounds.first() {
+        if point < line.source_start {
+            let at = line.map.first().copied().unwrap_or(0).min(text_len);
+            return at..at;
+        }
+    }
+    if let Some(line) = bounds.last() {
+        let at = line.map.last().copied().unwrap_or(0).min(text_len);
+        return at..at;
+    }
+    0..0
 }
 
 #[requires(!source_label.is_empty())]
@@ -964,13 +1171,13 @@ fn diagnostic_group<'diagnostic>(
                 .enumerate()
                 .zip(label_messages)
                 .filter(|((index, _), _)| window.label_indexes.contains(index))
-                .map(|((index, label), label_message)| {
-                    let mut annotation =
-                        annotation_kind(label.primary).span(window_label_span(label, window));
+                .filter_map(|((index, label), label_message)| {
+                    let span = mapped_window_span(label, window)?;
+                    let mut annotation = annotation_kind(label.primary).span(span);
                     if window_shows_label_text(&excerpt.retained, window, index, label) {
                         annotation = annotation.label(label_message.as_ref());
                     }
-                    annotation
+                    Some(annotation)
                 })
                 .collect::<Vec<_>>();
             let mut snippet = Snippet::source(window.escaped.text.as_ref())
@@ -978,7 +1185,7 @@ fn diagnostic_group<'diagnostic>(
                 .origin_position(window.header_line, window.header_column)
                 .path(source_label)
                 .annotations(annotations);
-            if !window.origin.is_empty() {
+            if !window.bounds.is_empty() {
                 snippet = snippet.prepared_window(window.marks.clone(), window.gaps.clone());
             }
             group = group.element(snippet);
@@ -1035,24 +1242,37 @@ fn mapped_label_span(
     )
 }
 
+/// The label's bytes in this window. A pass-through span on one line is absent.
 #[requires(true)]
-#[ensures(ret.start <= ret.end)]
-fn window_label_span(label: &DiagnosticLabel, window: &RetainedWindow<'_>) -> Range<usize> {
+#[ensures(ret.as_ref().is_none_or(|span| span.start <= span.end))]
+fn mapped_window_span(
+    label: &DiagnosticLabel,
+    window: &RetainedWindow<'_>,
+) -> Option<Range<usize>> {
     let span = label_span(label);
-    if !window.origin.is_empty() {
-        return map_through_origin(
-            &window.origin,
-            window.escaped.text.as_ref(),
-            span.start,
-            span.end.max(span.start),
-        );
+    let mut start = span.start;
+    let mut end = span.end.max(start);
+    let crosses = start < window.source_start || end > window.source_end;
+    if window.line_count == 1 && crosses && start != end {
+        if start < window.source_start && end > window.source_end {
+            return None;
+        }
+        if start >= window.source_start && end > window.source_end {
+            end = start;
+        } else if start < window.source_start && end <= window.source_end {
+            start = end;
+        }
     }
-    apply_escape_map(
-        span.start.saturating_sub(window.source_start),
-        span.end.max(span.start).saturating_sub(window.source_start),
-        &window.escaped.map,
-        window.escaped.text.len(),
-    )
+    let text_len = window.escaped.text.len();
+    if window.bounds.is_empty() {
+        return Some(apply_escape_map(
+            start.saturating_sub(window.source_start),
+            end.saturating_sub(window.source_start),
+            &window.escaped.map,
+            text_len,
+        ));
+    }
+    Some(map_through_bounds(&window.bounds, text_len, start, end))
 }
 
 #[requires(true)]
@@ -1402,6 +1622,7 @@ mod tests {
         DiagnosticTextRole, DiagnosticTextSegment, source_span_from_byte_offsets,
     };
     use jbotci_source::SourceId;
+    use unicode_width::UnicodeWidthStr;
 
     use super::*;
 
@@ -1482,24 +1703,26 @@ mod tests {
             }),
         )
         .expect("render excerpt");
-        assert!(rendered.contains("ab\\u{85}cd\\u{7f}"), "{rendered}");
-        assert!(!rendered.contains('\u{85}'), "{rendered}");
+        assert!(rendered.contains('\u{85}'), "{rendered}");
+        assert!(rendered.contains('␡'), "{rendered}");
+        assert!(!rendered.contains("\\u{85}"), "{rendered}");
         assert!(!rendered.contains('\u{7f}'), "{rendered}");
         let lines = rendered.lines().collect::<Vec<_>>();
         let source_line = lines
             .iter()
-            .find(|line| line.contains("ab\\u{85}cd\\u{7f}"))
+            .find(|line| line.contains('\u{85}') && line.contains("cd"))
             .expect("excerpt line");
-        let column = source_line
-            .find("ab\\u{85}cd\\u{7f}")
-            .expect("excerpt column");
-        let marked = column + "ab\\u{85}".len();
+        let marked = UnicodeWidthStr::width(&source_line[..source_line.find("cd").expect("cd")]);
         let caret_line = lines
             .iter()
             .find(|line| line.contains('^'))
             .expect("caret line");
         let caret_at = caret_line.find('^').expect("caret");
-        assert_eq!(caret_at, marked, "{rendered}");
+        assert_eq!(
+            UnicodeWidthStr::width(&caret_line[..caret_at]),
+            marked,
+            "{rendered}"
+        );
     }
 
     /// `go` plus BEL, ESC, DEL, NEL, CSI, and APC, then ` ku`.
@@ -1553,7 +1776,7 @@ mod tests {
                 .expect("excerpt");
         assert_eq!(excerpt.retained.len(), 1, "one prepared window");
         let window = &excerpt.retained[0];
-        assert!(!window.origin.is_empty(), "prepared text");
+        assert!(!window.bounds.is_empty(), "prepared text");
         let lines: Vec<&str> = window.escaped.text.lines().collect();
         assert!(lines.len() >= 2, "{}", window.escaped.text);
         assert_eq!(
@@ -1834,7 +2057,8 @@ mod tests {
             rendered.len(),
             source.len()
         );
-        assert!(rendered.contains("\\u{85}"), "missing escape");
+        assert!(rendered.contains('\u{85}'), "missing control");
+        assert!(!rendered.contains("\\u{85}"), "uncut line was pre-escaped");
         assert!(rendered.contains("near"), "missing near label");
         assert!(rendered.contains("far"), "missing far label");
         assert!(rendered.contains("do"), "missing far word");
@@ -1964,11 +2188,12 @@ mod tests {
         )
         .expect("two distant lines");
         assert!(location_shows(&rendered, "--> ", 1, 1), "{rendered}");
-        assert!(location_shows(&rendered, "::: ", far_line, 1), "{rendered}");
+        assert!(!rendered.contains(":::"), "{rendered}");
+        assert!(rendered.contains("..."), "{rendered}");
         assert!(source_line_shows(&rendered, 1, "NEAR"), "{rendered}");
         assert!(source_line_shows(&rendered, far_line, "FAR"), "{rendered}");
         assert!(!source_line_shows(&rendered, 3, "FAR"), "{rendered}");
-        assert!(!rendered.contains("pad"), "{rendered}");
+        assert!(rendered.matches("pad").count() < 30, "{rendered}");
     }
 
     #[test]
@@ -2026,7 +2251,8 @@ mod tests {
         .expect("remote primary");
         assert!(location_shows(&rendered, "--> ", far_line, 1), "{rendered}");
         assert!(!location_shows(&rendered, "--> ", 1, 1), "{rendered}");
-        assert!(location_shows(&rendered, "::: ", 1, 1), "{rendered}");
+        assert!(!rendered.contains(":::"), "{rendered}");
+        assert!(rendered.contains("..."), "{rendered}");
         assert_eq!(rendered.matches("near").count(), 1, "{rendered}");
         assert_eq!(rendered.matches("far").count(), 1, "{rendered}");
         assert!(source_line_shows(&rendered, 1, "NEAR"), "{rendered}");
@@ -3658,7 +3884,8 @@ mod tests {
         let rendered =
             render_diagnostics("<input>", &source, &[diagnostic], options).expect("two lines");
         assert!(rendered.len() < 5_000, "{}", rendered.len());
-        assert!(rendered.contains("\\u{85}"), "{rendered}");
+        assert!(rendered.contains('\u{85}'), "{rendered}");
+        assert!(!rendered.contains("\\u{85}"), "{rendered}");
         assert!(rendered.contains("do"), "{rendered}");
         assert!(!rendered.contains("pad"), "{rendered}");
     }
@@ -3693,23 +3920,25 @@ mod tests {
         )
         .expect("later line excerpt");
         assert!(!rendered.contains("zz"), "{rendered}");
-        assert!(rendered.contains("ab\\u{85}cd\\u{7f}"), "{rendered}");
-        assert!(!rendered.contains('\u{85}'), "{rendered}");
+        assert!(rendered.contains('\u{85}'), "{rendered}");
+        assert!(rendered.contains('␡'), "{rendered}");
+        assert!(!rendered.contains("\\u{85}"), "{rendered}");
         let lines = rendered.lines().collect::<Vec<_>>();
         let source_line = lines
             .iter()
-            .find(|line| line.contains("ab\\u{85}cd\\u{7f}"))
+            .find(|line| line.contains('\u{85}') && line.contains("cd"))
             .expect("excerpt line");
-        let column = source_line
-            .find("ab\\u{85}cd\\u{7f}")
-            .expect("excerpt column");
-        let marked = column + "ab\\u{85}".len();
+        let marked = UnicodeWidthStr::width(&source_line[..source_line.find("cd").expect("cd")]);
         let caret_line = lines
             .iter()
             .find(|line| line.contains('^'))
             .expect("caret line");
         let caret_at = caret_line.find('^').expect("caret");
-        assert_eq!(caret_at, marked, "{rendered}");
+        assert_eq!(
+            UnicodeWidthStr::width(&caret_line[..caret_at]),
+            marked,
+            "{rendered}"
+        );
     }
 
     #[test]
@@ -4114,5 +4343,550 @@ mod tests {
                 std::io::ErrorKind::FileTooLarge
             );
         }
+    }
+
+    #[requires(labels.iter().all(|(start, end, message, _)| {
+        *start <= *end && *end <= source.len() && !message.is_empty()
+    }))]
+    #[ensures(!ret.is_empty())]
+    fn render_carbon(source: &str, labels: &[(usize, usize, &str, bool)], ascii: bool) -> String {
+        let mut diagnostic_labels = Vec::new();
+        for (start, end, message, primary) in labels {
+            let span = source_span_from_byte_offsets(
+                Some(SourceId("<input>".to_owned())),
+                source,
+                *start,
+                *end,
+            )
+            .expect("span is on a character boundary");
+            diagnostic_labels.push(DiagnosticLabel::new(span, (*message).to_owned(), *primary));
+        }
+        let diagnostic = Diagnostic::new(
+            DiagnosticSeverity::Error,
+            DiagnosticPhase::Syntax,
+            "syntax.sample".to_owned(),
+            "sample".to_owned(),
+            diagnostic_labels,
+            Vec::new(),
+            None,
+        );
+        render_diagnostics(
+            "<input>",
+            source,
+            &[diagnostic],
+            new!(DiagnosticRenderOptions {
+                color: false,
+                detail: DiagnosticDetailMode::Summary,
+                glyphs: if ascii {
+                    GlyphStyle::Ascii
+                } else {
+                    GlyphStyle::Unicode
+                },
+                terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            }),
+        )
+        .expect("render")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn gutter_body(line: &str) -> Option<&str> {
+        line.split_once('│')
+            .or_else(|| line.split_once('|'))
+            .map(|(_, body)| body)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn numbered_body<'a>(lines: &'a [&'a str], number: usize) -> Option<&'a str> {
+        lines.iter().find_map(|line| {
+            let (gutter, body) = line.split_once('│').or_else(|| line.split_once('|'))?;
+            (gutter.trim() == number.to_string()).then_some(body)
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn display_columns(text: &str) -> usize {
+        UnicodeWidthStr::width(text)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn first_mark_column(line: &str) -> Option<usize> {
+        let mut width = 0usize;
+        for ch in line.chars() {
+            if matches!(ch, '^' | '-' | '━' | '─' | '┯' | '┬' | '╿') {
+                return Some(width);
+            }
+            width += UnicodeWidthStr::width(ch.encode_utf8(&mut [0; 4]));
+        }
+        None
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn corner_column(line: &str) -> Option<usize> {
+        let mut width = 0usize;
+        for ch in line.chars() {
+            if matches!(ch, '┛' | '┘') {
+                return Some(width);
+            }
+            width += UnicodeWidthStr::width(ch.encode_utf8(&mut [0; 4]));
+        }
+        None
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn mark_count(body: &str) -> usize {
+        body.chars()
+            .filter(|ch| {
+                matches!(
+                    ch,
+                    '^' | '-' | '_' | '━' | '─' | '┯' | '┬' | '╿' | '┛' | '┘'
+                )
+            })
+            .count()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn max_display_line(rendered: &str) -> usize {
+        rendered.lines().map(display_columns).max().unwrap_or(0)
+    }
+
+    /// Display column of a margin mark that has a real glyph on both sides.
+    /// A mark at either cut edge is not interior.
+    #[requires(!mark.is_empty())]
+    #[ensures(true)]
+    fn interior_mark_column(body: &str, mark: &str) -> Option<usize> {
+        let mut seen = 0usize;
+        let mut index = 0usize;
+        let mut saw_glyph = false;
+        for ch in body.chars() {
+            let mark_here = index + mark.len() <= body.len() && body[index..].starts_with(mark);
+            if saw_glyph && mark_here {
+                let after = &body[index + mark.len()..];
+                if after
+                    .chars()
+                    .any(|next| !next.is_whitespace() && !mark.starts_with(next))
+                {
+                    return Some(seen);
+                }
+            }
+            if !ch.is_whitespace() && !mark.starts_with(ch) {
+                saw_glyph = true;
+            }
+            seen += display_columns(ch.encode_utf8(&mut [0; 4]));
+            index += ch.len_utf8();
+        }
+        None
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_blank_comment_and_delimiter_bridges_stay_in_one_snippet() {
+        for (source, middle) in [
+            ("mi nelci lo\n\nku ku", ""),
+            ("mi cusku zoi gy. abc\n//x\nghi", "//x"),
+            ("mi cusku zoi gy. abc\n(\nghi", "("),
+            ("mi cusku zoi gy. abc\n{\nghi", "{"),
+            ("mi cusku zoi gy. abc\n[\nghi", "["),
+        ] {
+            let rendered = render_carbon(source, &[(0, source.len(), "here", true)], false);
+            assert_eq!(rendered.matches("error[").count(), 1, "{rendered}");
+            assert!(!rendered.contains('⸬'), "{rendered}");
+            assert!(!rendered.contains(":::"), "{rendered}");
+            assert!(!rendered_excerpt_is_cut(&rendered), "{rendered}");
+            let lines: Vec<_> = rendered.lines().collect();
+            assert!(numbered_body(&lines, 1).is_some(), "{rendered}");
+            assert!(numbered_body(&lines, 2).is_some(), "{rendered}");
+            assert!(numbered_body(&lines, 3).is_some(), "{rendered}");
+            if !middle.is_empty() {
+                let body = numbered_body(&lines, 2).expect("bridge");
+                assert!(body.contains(middle), "{rendered}");
+            }
+            let first = lines
+                .iter()
+                .position(|line| numbered_body(&[*line], 1).is_some())
+                .expect("line 1");
+            let third = lines
+                .iter()
+                .position(|line| numbered_body(&[*line], 3).is_some())
+                .expect("line 3");
+            assert!(first < third, "{rendered}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_a_larger_gap_stays_one_snippet_with_the_fold() {
+        let source = "mi nelci lo\n\n\nku ku";
+        let rendered = render_carbon(source, &[(0, source.len(), "here", true)], false);
+        assert_eq!(rendered.matches("error[").count(), 1, "{rendered}");
+        assert!(!rendered.contains('⸬'), "{rendered}");
+        assert!(rendered.contains('‡'), "{rendered}");
+        let lines: Vec<_> = rendered.lines().collect();
+        let first = lines
+            .iter()
+            .position(|line| numbered_body(&[*line], 1).is_some())
+            .expect("line 1");
+        let fourth = lines
+            .iter()
+            .position(|line| numbered_body(&[*line], 4).is_some())
+            .expect("line 4");
+        assert!(first < fourth, "{rendered}");
+        assert!(numbered_body(&lines, 2).is_none(), "{rendered}");
+        assert!(numbered_body(&lines, 3).is_none(), "{rendered}");
+
+        let ascii = render_carbon(source, &[(0, source.len(), "here", true)], true);
+        assert_eq!(ascii.matches("error[").count(), 1, "{ascii}");
+        assert!(!ascii.contains(":::"), "{ascii}");
+        assert!(ascii.lines().any(|line| line.starts_with("...")), "{ascii}");
+        let ascii_lines: Vec<_> = ascii.lines().collect();
+        let ascii_first = ascii_lines
+            .iter()
+            .position(|line| numbered_body(&[*line], 1).is_some())
+            .expect("ascii line 1");
+        let ascii_fourth = ascii_lines
+            .iter()
+            .position(|line| numbered_body(&[*line], 4).is_some())
+            .expect("ascii line 4");
+        assert!(ascii_first < ascii_fourth, "{ascii}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_point_after_a_left_cut_follows_the_visible_end() {
+        let source = "mi klama lo zarci .i ".repeat(5) + "lo";
+        let point = source.len();
+        let rendered = render_carbon(&source, &[(point, point, "ATEND", true)], false);
+        let lines: Vec<_> = rendered.lines().collect();
+        let source_line = lines
+            .iter()
+            .copied()
+            .find(|line| line.contains("lo") && line.contains('…'))
+            .expect("window");
+        let lo_at = source_line.rfind("lo").expect("lo");
+        let after_lo = display_columns(&source_line[..lo_at + 2]);
+        let caret_line = lines
+            .iter()
+            .copied()
+            .find(|line| first_mark_column(line).is_some())
+            .expect("caret");
+        let caret = first_mark_column(caret_line).expect("col");
+        let ellipsis = display_columns(&source_line[..source_line.find('…').expect("ellipsis")]);
+        assert_ne!(caret, ellipsis, "{rendered}");
+        assert_eq!(caret, after_lo, "{rendered}");
+        assert_eq!(mark_count(caret_line), 1, "{rendered}");
+        assert!(max_display_line(&rendered) <= 80, "{rendered}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_point_past_a_right_cut_lands_on_the_right_mark() {
+        for mark in ["…", "..."] {
+            let line = "a".repeat(160);
+            let columns = annotate_snippets::renderer::code_columns(80, 1, 0);
+            let laid = annotate_snippets::renderer::lay_out_line(
+                &line,
+                &[(0, 4, 2)],
+                columns,
+                mark,
+                crate::styled::expanded_terminal_control,
+            );
+            assert!(laid.clipped, "{}", laid.text);
+            assert!(
+                UnicodeWidthStr::width(laid.text.as_str()) <= columns,
+                "{}",
+                laid.text
+            );
+            let (map, append) = source_boundary(&line, &laid.origin, 0, false);
+            assert!(!append, "{}", laid.text);
+            let mark_at = laid.text.rfind(mark).expect("right mark");
+            let last_real = laid
+                .origin
+                .iter()
+                .copied()
+                .filter(|byte| *byte != usize::MAX)
+                .max()
+                .expect("visible byte");
+            assert!(last_real + 1 < line.len(), "{}", laid.text);
+            assert_eq!(map[last_real + 1], mark_at, "{}", laid.text);
+            assert_eq!(map[line.len()], mark_at, "{}", laid.text);
+            assert_ne!(map[0], mark_at, "{}", laid.text);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_points_on_wide_tab_and_escaped_glyphs_stay_one_column() {
+        let accented = "mi kláma";
+        let accent = accented.find('á').expect("accent");
+        let accented_render = render_carbon(accented, &[(accent, accent, "AT", true)], false);
+        let lines: Vec<_> = accented_render.lines().collect();
+        let source_line = lines
+            .iter()
+            .copied()
+            .find(|line| line.contains('á'))
+            .expect("source");
+        let accent_col = display_columns(&source_line[..source_line.find('á').expect("á")]);
+        let caret_line = lines
+            .iter()
+            .copied()
+            .find(|line| first_mark_column(line).is_some())
+            .expect("caret");
+        assert_eq!(
+            first_mark_column(caret_line),
+            Some(accent_col),
+            "{accented_render}"
+        );
+        assert_eq!(mark_count(caret_line), 1, "{accented_render}");
+        assert_point_stays_on_glyph_start(accented, accent, 'á'.len_utf8());
+
+        let tabbed = "mi\tlo";
+        let tab_render = render_carbon(tabbed, &[(2, 2, "AT", true)], false);
+        let tab_lines: Vec<_> = tab_render.lines().collect();
+        let tab_line = tab_lines
+            .iter()
+            .copied()
+            .find(|line| line.contains("mi") && line.contains("lo"))
+            .expect("source");
+        let spaces_at = tab_line.find("mi").expect("mi") + 2;
+        assert!(tab_line[spaces_at..].starts_with("    "), "{tab_render}");
+        let tab_caret = tab_lines
+            .iter()
+            .copied()
+            .find(|line| first_mark_column(line).is_some())
+            .expect("caret");
+        assert_eq!(
+            first_mark_column(tab_caret),
+            Some(display_columns(&tab_line[..spaces_at])),
+            "{tab_render}"
+        );
+        assert_eq!(mark_count(tab_caret), 1, "{tab_render}");
+        assert_point_stays_on_glyph_start(tabbed, 2, 1);
+
+        let control = "mi\u{7}lo";
+        let control_render = render_carbon(control, &[(2, 2, "AT", true)], false);
+        assert!(control_render.contains('␇'), "{control_render}");
+        assert!(!control_render.contains("\\u{7}"), "{control_render}");
+        let control_lines: Vec<_> = control_render.lines().collect();
+        let control_line = control_lines
+            .iter()
+            .copied()
+            .find(|line| line.contains('␇'))
+            .expect("source");
+        let picture_at = control_line.find('␇').expect("picture");
+        let control_caret = control_lines
+            .iter()
+            .copied()
+            .find(|line| first_mark_column(line).is_some())
+            .expect("caret");
+        assert_eq!(
+            first_mark_column(control_caret),
+            Some(display_columns(&control_line[..picture_at])),
+            "{control_render}"
+        );
+        assert_eq!(mark_count(control_caret), 1, "{control_render}");
+        assert_point_stays_on_glyph_start(control, 2, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_trailing_newline_keeps_the_end_column_past_the_last_word() {
+        let source = format!("mi cusku zoi gy. {}\ndef\n", "a".repeat(90));
+        let rendered = render_carbon(&source, &[(0, source.len(), "here", true)], false);
+        let lines: Vec<_> = rendered.lines().collect();
+        let def_line = lines
+            .iter()
+            .copied()
+            .find(|line| numbered_body(&[*line], 2).is_some_and(|body| body.contains("def")))
+            .expect("def");
+        let def_end = def_line.rfind("def").expect("def") + 3;
+        let past = display_columns(&def_line[..def_end]);
+        let mark_line = lines
+            .iter()
+            .copied()
+            .find(|line| corner_column(line).is_some())
+            .expect("end mark");
+        assert_eq!(corner_column(mark_line), Some(past), "{rendered}");
+        assert!(max_display_line(&rendered) <= 80, "{rendered}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_one_line_multiline_ends_stay_one_column() {
+        let mut start_only = format!("mi cusku zoi gy. {}", "a".repeat(90));
+        start_only.push('\n');
+        start_only.push_str(&"\n".repeat(98));
+        start_only.push_str("def");
+        let start_render =
+            render_carbon(&start_only, &[(9, start_only.len(), "here", true)], false);
+        assert!(max_display_line(&start_render) <= 80, "{start_render}");
+        assert!(!start_render.contains('⸬'), "{start_render}");
+        assert!(start_render.contains('‡'), "{start_render}");
+        let start_lines: Vec<_> = start_render.lines().collect();
+        let first_line = start_lines
+            .iter()
+            .copied()
+            .find(|line| numbered_body(&[*line], 1).is_some())
+            .expect("line 1");
+        let first = gutter_body(first_line).expect("body");
+        assert!(!first.contains(&"a".repeat(90)), "{start_render}");
+        let first_at = start_lines
+            .iter()
+            .position(|line| numbered_body(&[*line], 1).is_some())
+            .expect("line 1");
+        let end_at = start_lines
+            .iter()
+            .position(|line| numbered_body(&[*line], 100).is_some())
+            .expect("line 100");
+        assert!(first_at < end_at, "{start_render}");
+        assert!(numbered_body(&start_lines, 2).is_none(), "{start_render}");
+        let underline = start_lines[first_at + 1];
+        assert!(
+            underline.contains('┏') && underline.contains('┛'),
+            "{start_render}"
+        );
+        let close = corner_column(underline).expect("start hook");
+        let ellipsis = display_columns(&first_line[..first_line.find('…').expect("cut")]);
+        assert!(close < ellipsis, "{start_render}");
+        assert!(
+            mark_count(gutter_body(underline).unwrap_or("")) < 20,
+            "{start_render}"
+        );
+
+        let mut end_only = String::from("mi cusku zoi gy. abc\n");
+        end_only.push_str(&"\n".repeat(98));
+        end_only.push_str(&"d".repeat(120));
+        let end_render = render_carbon(&end_only, &[(0, end_only.len(), "here", true)], false);
+        assert!(!end_render.contains('⸬'), "{end_render}");
+        assert!(end_render.contains('‡'), "{end_render}");
+        let end_lines: Vec<_> = end_render.lines().collect();
+        let end_line = end_lines
+            .iter()
+            .copied()
+            .find(|line| numbered_body(&[*line], 100).is_some())
+            .expect("line 100");
+        let end_body = gutter_body(end_line).expect("body");
+        assert!(end_body.contains('┃'), "{end_render}");
+        assert!(end_body.contains(&"d".repeat(120)), "{end_render}");
+        let end_row = end_lines
+            .iter()
+            .position(|line| *line == end_line)
+            .expect("row");
+        let close = end_lines[end_row + 1];
+        assert!(close.contains('┗') && close.contains('┛'), "{end_render}");
+        let last_d = end_line.rfind('d').expect("d");
+        let d_column = display_columns(&end_line[..last_d]);
+        assert_eq!(corner_column(close), Some(d_column), "{end_render}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_a_pass_through_span_does_not_widen_the_middle_line() {
+        let mut source = String::from("mi cusku zoi gy. abc\n");
+        source.push_str(&"\n".repeat(10));
+        let middle = source.len();
+        source.push_str(&"a".repeat(150));
+        let point = middle + 40;
+        source.push('\n');
+        source.push_str(&"\n".repeat(10));
+        source.push_str("def");
+        let rendered = render_carbon(
+            &source,
+            &[
+                (0, source.len(), "CROSS", false),
+                (point, point, "POINT", true),
+            ],
+            false,
+        );
+        assert!(max_display_line(&rendered) <= 80, "{rendered}");
+        let lines: Vec<_> = rendered.lines().collect();
+        let window = lines
+            .iter()
+            .copied()
+            .find(|line| {
+                gutter_body(line).is_some_and(|body| body.contains('a') && body.contains('…'))
+            })
+            .expect("cut window");
+        let body = gutter_body(window).expect("body");
+        assert!(!body.contains(&"a".repeat(150)), "{rendered}");
+        let window_at = lines.iter().position(|line| *line == window).expect("row");
+        let underline = gutter_body(lines[window_at + 1]).unwrap_or("");
+        assert!(mark_count(underline) <= 3, "{rendered}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn carbon_long_span_underlines_keep_the_middle_mark() {
+        for ascii in [false, true] {
+            let mark = if ascii { "..." } else { "…" };
+            let keys = "k".repeat(200);
+            let key_render = render_carbon(&keys, &[(0, keys.len(), "here", true)], ascii);
+            assert_middle_mark_lines(&key_render, mark);
+
+            let words = format!("mi nelci lo {}ku ku", "barda ".repeat(150));
+            let word_render = render_carbon(&words, &[(0, words.len(), "here", true)], ascii);
+            assert_middle_mark_lines(&word_render, mark);
+
+            let wide = format!("mi nelci lo {}", "漢".repeat(80));
+            let wide_render = render_carbon(&wide, &[(0, wide.len(), "here", true)], ascii);
+            assert_middle_mark_lines(&wide_render, mark);
+        }
+    }
+
+    #[requires(!mark.is_empty())]
+    #[ensures(true)]
+    fn assert_middle_mark_lines(rendered: &str, mark: &str) {
+        let lines: Vec<_> = rendered.lines().collect();
+        let source_at = lines
+            .iter()
+            .position(|line| numbered_body(&[*line], 1).is_some_and(|body| body.contains(mark)))
+            .expect("cut source");
+        let source = lines[source_at];
+        let underline = lines.get(source_at + 1).copied().expect("underline");
+        let column = interior_mark_column(source, mark).expect("interior mark");
+        assert_eq!(
+            interior_mark_column(underline, mark),
+            Some(column),
+            "{rendered}"
+        );
+        assert!(max_display_line(rendered) <= 80, "{rendered}");
+    }
+
+    #[requires(glyph_bytes > 0 && point + glyph_bytes <= text.len())]
+    #[ensures(true)]
+    fn assert_point_stays_on_glyph_start(text: &str, point: usize, glyph_bytes: usize) {
+        let columns = annotate_snippets::renderer::code_columns(80, 1, 0);
+        let laid = annotate_snippets::renderer::lay_out_line(
+            text,
+            &[(point, point, 2)],
+            columns,
+            "…",
+            crate::styled::expanded_terminal_control,
+        );
+        let (map, append) = source_boundary(text, &laid.origin, 0, false);
+        assert!(!append, "{}", laid.text);
+        let bound = new!(LineBound {
+            source_start: 0,
+            source_end: text.len(),
+            map: map.clone(),
+        });
+        let mapped = map_point(&[bound], laid.text.len(), point);
+        assert_eq!(mapped.start, mapped.end, "{}", laid.text);
+        assert_eq!(mapped.start, map[point], "{}", laid.text);
+        assert!(map[point + glyph_bytes] > map[point], "{}", laid.text);
     }
 }

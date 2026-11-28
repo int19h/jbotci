@@ -89,7 +89,7 @@ pub fn kept_source_lines(
         .iter()
         .map(|span| AnnotationKind::Primary.span(span.start..span.end.min(source.len().saturating_add(1))))
         .collect();
-    let (depth, lines) = map.annotated_lines(annotations, true);
+    let (depth, lines) = map.shown_lines(annotations, true);
     let kept = lines
         .into_iter()
         .map(|line| {
@@ -170,7 +170,7 @@ pub fn lay_out_run(
         })
         .collect();
     let map = SourceMap::new(source, 1);
-    let (_depth, lines) = map.annotated_lines(annotations, true);
+    let (_depth, lines) = map.shown_lines(annotations, true);
     let margin = margin_for_annotated_lines(&lines, column_width);
     let mut laid_lines = Vec::with_capacity(lines.len());
     for info in &lines {
@@ -1175,5 +1175,60 @@ mod tests {
             lines[0].laid.text
         );
         assert!(lines.iter().any(|line| line.laid.text.contains("ku ku")));
+    }
+
+    #[test]
+    fn shown_lines_put_back_the_one_line_bridge() {
+        for source in [
+            "mi nelci lo\n\nku ku",
+            "mi nelci lo\n   \nku ku",
+            "mi cusku zoi gy. abc\n//x\nghi",
+            "mi cusku zoi gy. abc\n(\nghi",
+            "mi cusku zoi gy. abc\n{\nghi",
+            "mi cusku zoi gy. abc\n[\nghi",
+            "mi cusku zoi gy. abc\n)\nghi",
+        ] {
+            let (_depth, kept) = kept_source_lines(source, &[0..source.len()]);
+            let indexes: Vec<_> = kept.iter().map(|line| line.line_index).collect();
+            assert_eq!(indexes, vec![1, 2, 3], "{source:?} -> {indexes:?}");
+        }
+        let gapped = "mi nelci lo\n\n\nku ku";
+        let (_depth, kept) = kept_source_lines(gapped, &[0..gapped.len()]);
+        let indexes: Vec<_> = kept.iter().map(|line| line.line_index).collect();
+        assert_eq!(indexes, vec![1, 4], "{indexes:?}");
+    }
+
+    #[test]
+    fn a_prepared_long_span_keeps_the_middle_mark_on_the_underline() {
+        for (ascii, mark) in [(false, "…"), (true, "...")] {
+            let line = "k".repeat(200);
+            let columns = code_columns(80, 1, 0);
+            let laid = lay_out_line(&line, &[(0, line.len(), 2)], columns, mark, none_expand);
+            assert!(laid.text.contains(mark), "{}", laid.text);
+            let (start, end) = mapped_span(&laid.text, &laid.origin, 0, line.len()).expect("span");
+            let decor = if ascii {
+                DecorStyle::Ascii
+            } else {
+                DecorStyle::Unicode
+            };
+            let rendered = Renderer::plain().decor_style(decor).term_width(80).render(&[
+                crate::Group::with_title(Level::ERROR.primary_title("err")).element(
+                    Snippet::source(laid.text.as_str())
+                        .line_start(1)
+                        .annotation(AnnotationKind::Primary.span(start..end).label("x"))
+                        .prepared_window(laid.marks.clone(), laid.gaps.clone()),
+                ),
+            ]);
+            let lines: Vec<_> = rendered.lines().collect();
+            let source_at = lines
+                .iter()
+                .position(|row| row.contains('k'))
+                .expect("source");
+            let underline = lines.get(source_at + 1).copied().unwrap_or("");
+            assert!(
+                underline.contains(mark),
+                "underline lost {mark}\n{rendered}"
+            );
+        }
     }
 }

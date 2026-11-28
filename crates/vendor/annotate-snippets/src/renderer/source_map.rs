@@ -372,6 +372,39 @@ impl<'a> SourceMap<'a> {
         (max_depth, annotated_line_infos)
     }
 
+    /// Lines a snippet draws, including one bridging line when the folded gap is exactly one line.
+    ///
+    /// `annotated_lines` drops that line. The renderer still draws it when the
+    /// line numbers differ by two. This is the only place that puts it back.
+    pub(crate) fn shown_lines(
+        &self,
+        annotations: Vec<Annotation<'a>>,
+        fold: bool,
+    ) -> (usize, Vec<AnnotatedLineInfo<'a>>) {
+        let (depth, lines) = self.annotated_lines(annotations, fold);
+        if !fold || lines.len() < 2 {
+            return (depth, lines);
+        }
+        let mut shown = Vec::with_capacity(lines.len());
+        let mut previous = None;
+        for line in lines {
+            if let Some(prev) = previous {
+                if line.line_index == prev + 2 {
+                    let bridge_index = prev + 1;
+                    shown.push(AnnotatedLineInfo {
+                        line: self.get_line(bridge_index).unwrap_or(""),
+                        line_index: bridge_index,
+                        annotations: vec![],
+                        keep: false,
+                    });
+                }
+            }
+            previous = Some(line.line_index);
+            shown.push(line);
+        }
+        (depth, shown)
+    }
+
     fn add_annotation_to_file(
         &self,
         annotated_line_infos: &mut Vec<AnnotatedLineInfo<'a>>,
