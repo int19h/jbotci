@@ -21,12 +21,12 @@
 //! The Linux burst finishes inside the bound.
 
 use std::collections::{HashMap, HashSet};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufReader, Read, Write};
 use std::num::NonZeroUsize;
 #[cfg(target_os = "linux")]
 use std::os::unix::process::CommandExt;
 use std::panic::{AssertUnwindSafe, resume_unwind};
-use std::process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
+use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -35,6 +35,9 @@ use std::{thread, time};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
 use serde_json::{Value, json};
+
+#[path = "support/lsp_frame.rs"]
+mod lsp_frame;
 
 const DOCUMENT_URI: &str = "untitled:inflight-repro.jbo";
 const DOCUMENT_TEXT: &str = "mi klama .i do klama";
@@ -110,7 +113,7 @@ impl RunningServer {
                 }
             }
         });
-        let (messages, stdout_reader) = spawn_reader(stdout);
+        let (messages, stdout_reader) = lsp_frame::spawn_lsp_reader(stdout);
         (
             new!(RunningServer {
                 pid,
@@ -238,48 +241,6 @@ fn first_allowed_cpu_rejects_an_empty_mask() {
         libc::CPU_ZERO(&mut set);
     }
     assert!(first_allowed_cpu(&set).is_none());
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn spawn_reader(stdout: ChildStdout) -> (std::sync::mpsc::Receiver<Value>, JoinHandle<()>) {
-    let (sender, receiver) = std::sync::mpsc::channel();
-    let reader = thread::spawn(move || {
-        let mut stdout = BufReader::new(stdout);
-        while let Some(message) = read_message(&mut stdout) {
-            if sender.send(message).is_err() {
-                break;
-            }
-        }
-    });
-    (receiver, reader)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|message| message.is_object()))]
-fn read_message(stdout: &mut impl BufRead) -> Option<Value> {
-    let mut content_length = None;
-    loop {
-        let mut header = String::new();
-        let read = stdout.read_line(&mut header).ok()?;
-        if read == 0 {
-            return None;
-        }
-        if header == "\r\n" || header == "\n" {
-            break;
-        }
-        if let Some(value) = header
-            .strip_prefix("Content-Length:")
-            .or_else(|| header.strip_prefix("content-length:"))
-        {
-            content_length = Some(value.trim().parse::<usize>().ok()?);
-        }
-    }
-    let mut body = vec![0; content_length?];
-    if stdout.read_exact(&mut body).is_err() {
-        return None;
-    }
-    serde_json::from_slice(&body).ok()
 }
 
 #[requires(message.is_object())]

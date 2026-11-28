@@ -1,8 +1,11 @@
 use std::io::{BufRead, BufReader, Read, Write};
-use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStderr, ChildStdin, Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
+
+#[path = "support/lsp_frame.rs"]
+mod lsp_frame;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
@@ -19,7 +22,8 @@ const UTF16_ERROR_END: u64 = 17;
 struct LspClient {
     child: Option<Child>,
     stdin: Option<ChildStdin>,
-    stdout: BufReader<ChildStdout>,
+    messages: mpsc::Receiver<Value>,
+    stdout_reader: Option<thread::JoinHandle<()>>,
     stderr: ChildStderr,
     next_id: u64,
 }
@@ -48,10 +52,12 @@ impl LspClient {
         let stdin = child.stdin.take().expect("child stdin");
         let stdout = child.stdout.take().expect("child stdout");
         let stderr = child.stderr.take().expect("child stderr");
+        let (messages, stdout_reader) = lsp_frame::spawn_lsp_reader(stdout);
         Self {
             child: Some(child),
             stdin: Some(stdin),
-            stdout: BufReader::new(stdout),
+            messages,
+            stdout_reader: Some(stdout_reader),
             stderr,
             next_id: 1,
         }
@@ -150,52 +156,26 @@ impl LspClient {
     #[requires(true)]
     #[ensures(ret.is_object())]
     fn read(&mut self) -> Value {
-        let mut content_length = None;
-        loop {
-            let mut header = String::new();
-            let read = self.stdout.read_line(&mut header).expect("read LSP header");
-            assert_ne!(read, 0, "LSP server closed stdout before a response");
-            if header == "\r\n" || header == "\n" {
-                break;
-            }
-            if let Some(value) = header
-                .strip_prefix("Content-Length:")
-                .or_else(|| header.strip_prefix("content-length:"))
-            {
-                content_length = Some(
-                    value
-                        .trim()
-                        .parse::<usize>()
-                        .expect("numeric LSP content length"),
-                );
-            }
-        }
-        let mut body = vec![0; content_length.expect("LSP Content-Length header")];
-        self.stdout
-            .read_exact(&mut body)
-            .expect("read complete LSP body");
-        serde_json::from_slice(&body).expect("valid JSON-RPC body")
+        self.messages
+            .recv()
+            .expect("LSP server closed stdout before a response")
     }
 
     /// Read one message when it arrives before `timeout`.
     ///
+    /// The reader thread owns the buffered stdout.
+    /// This call waits on the channel.
     /// A quiet server returns none.
     #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|message| message.is_object()))]
     fn next_message_within(&mut self, timeout: Duration) -> Option<Value> {
-        use std::os::fd::AsRawFd;
-        let fd = self.stdout.get_ref().as_raw_fd();
-        let mut fds = [libc::pollfd {
-            fd,
-            events: libc::POLLIN,
-            revents: 0,
-        }];
-        let millis = i32::try_from(timeout.as_millis()).unwrap_or(i32::MAX);
-        let ready = unsafe { libc::poll(fds.as_mut_ptr(), 1, millis) };
-        if ready <= 0 || fds[0].revents & libc::POLLIN == 0 {
-            return None;
+        match self.messages.recv_timeout(timeout) {
+            Ok(message) => Some(message),
+            Err(mpsc::RecvTimeoutError::Timeout) => None,
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("LSP server closed stdout before a response");
+            }
         }
-        Some(self.read())
     }
 
     #[requires(true)]
@@ -216,6 +196,11 @@ impl LspClient {
             .expect("LSP child remains owned until exit")
             .wait()
             .expect("wait for LSP server");
+        // The child has exited, so its stdout is closed.
+        // The reader thread finishes, then this call joins it.
+        if let Some(reader) = self.stdout_reader.take() {
+            reader.join().expect("LSP stdout reader finishes");
+        }
         let mut stderr = String::new();
         self.stderr
             .read_to_string(&mut stderr)
@@ -1643,6 +1628,35 @@ fn clients_without_pull_support_receive_push_diagnostics_and_close_clears_them()
     assert!(closed["params"].get("version").is_none());
     assert_eq!(closed["params"]["diagnostics"], json!([]));
     client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn two_frames_in_one_write_both_arrive_before_the_timeout() {
+    use std::net::{TcpListener, TcpStream};
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind a local socket");
+    let port = listener.local_addr().expect("read the local port").port();
+    let mut writer = TcpStream::connect(("127.0.0.1", port)).expect("connect to the local socket");
+    let (reader, _) = listener.accept().expect("accept the local socket");
+    let frame = |body: &str| format!("Content-Length: {}\r\n\r\n{body}", body.len());
+    let first_body = r#"{"jsonrpc":"2.0","id":1}"#;
+    let second_body = r#"{"jsonrpc":"2.0","id":2}"#;
+    write!(writer, "{}{}", frame(first_body), frame(second_body)).expect("write two frames");
+    writer.flush().expect("flush two frames");
+
+    let (messages, reader_thread) = lsp_frame::spawn_lsp_reader(reader);
+    let first = messages
+        .recv_timeout(Duration::from_secs(2))
+        .expect("the first frame arrives");
+    let second = messages
+        .recv_timeout(Duration::from_millis(200))
+        .expect("the second frame arrives from the buffer");
+    assert_eq!(first["id"], 1);
+    assert_eq!(second["id"], 2);
+    drop(writer);
+    reader_thread.join().expect("the reader thread finishes");
 }
 
 #[test]
