@@ -6,6 +6,7 @@ use alloc::string::{String, ToString};
 use alloc::{format, vec, vec::Vec};
 use core::cmp::{max, min, Ordering, Reverse};
 use core::fmt;
+use core::ops::Range;
 
 use anstyle::Style;
 
@@ -643,86 +644,46 @@ fn render_snippet_annotations(
     // Contains the vertical lines' positions for active multiline annotations
     let mut multilines = Vec::new();
 
-    // Get the left-side margin to remove it
-    let mut whitespace_margin = usize::MAX;
-    for line_info in annotated_lines {
-        let leading_whitespace = line_info
-            .line
-            .chars()
-            .take_while(|c| c.is_whitespace())
-            .map(|c| {
-                match c {
-                    // Tabs are displayed as 4 spaces
-                    '\t' => 4,
-                    _ => 1,
-                }
-            })
-            .sum();
-        if line_info.line.chars().any(|c| !c.is_whitespace()) {
-            whitespace_margin = min(whitespace_margin, leading_whitespace);
-        }
-    }
-    if whitespace_margin == usize::MAX {
-        whitespace_margin = 0;
-    }
-
-    // Left-most column any visible span points at.
-    let mut span_left_margin = usize::MAX;
-    for line_info in annotated_lines {
-        for ann in &line_info.annotations {
-            span_left_margin = min(span_left_margin, ann.start.display);
-            span_left_margin = min(span_left_margin, ann.end.display);
-        }
-    }
-    if span_left_margin == usize::MAX {
-        span_left_margin = 0;
-    }
-
-    // Right-most column any visible span points at.
-    let mut span_right_margin = 0;
-    let mut label_right_margin = 0;
-    let mut max_line_len = 0;
-    for line_info in annotated_lines {
-        max_line_len = max(max_line_len, str_width(line_info.line));
-        for ann in &line_info.annotations {
-            span_right_margin = max(span_right_margin, ann.start.display);
-            span_right_margin = max(span_right_margin, ann.end.display);
-            // FIXME: account for labels not in the same line
-            let label_right = ann.label.as_ref().map_or(0, |l| str_width(l) + 1);
-            label_right_margin = max(label_right_margin, ann.end.display + label_right);
-        }
-    }
     let width_offset = 3 + max_line_num_len;
     let code_offset = if multiline_depth == 0 {
         width_offset
     } else {
         width_offset + multiline_depth + 1
     };
-
     let column_width = renderer.term_width.saturating_sub(code_offset);
-
-    let margin = Margin::new(
-        whitespace_margin,
-        span_left_margin,
-        span_right_margin,
-        label_right_margin,
-        column_width,
-        max_line_len,
-    );
+    let margin = margin_for_annotated_lines(annotated_lines, column_width);
 
     // Next, output the annotate source for this file
     for annotated_line_idx in 0..annotated_lines.len() {
         let previous_buffer_line = buffer.num_lines();
 
+        let line_info = &annotated_lines[annotated_line_idx];
+        let (prepared_marks, prepared_gaps) = if snippet.prepared {
+            let at = snippet_line_offset(
+                snippet.source.as_ref(),
+                snippet.line_start,
+                line_info.line_index,
+            );
+            let end = at.saturating_add(line_info.line.len());
+            (
+                ranges_on_line(&snippet.prepared_marks, at, end),
+                ranges_on_line(&snippet.prepared_gaps, at, end),
+            )
+        } else {
+            (Vec::new(), Vec::new())
+        };
         let depths = render_source_line(
             renderer,
-            &annotated_lines[annotated_line_idx],
+            line_info,
             buffer,
             width_offset,
             code_offset,
             max_line_num_len,
             margin,
             !is_cont && annotated_line_idx + 1 == annotated_lines.len(),
+            snippet.prepared,
+            &prepared_marks,
+            &prepared_gaps,
         );
 
         let mut to_add = BTreeMap::new();
@@ -798,12 +759,16 @@ fn render_snippet_annotations(
                         renderer,
                         buffer,
                         &normalize_whitespace(unannotated_line),
+                        unannotated_line,
                         annotated_lines[annotated_line_idx + 1].line_index - 1,
                         last_buffer_line_num,
                         width_offset,
                         code_offset,
                         max_line_num_len,
                         margin,
+                        false,
+                        &[],
+                        &[],
                     );
 
                     for (depth, style) in &multilines {
@@ -853,6 +818,9 @@ fn render_source_line(
     max_line_num_len: usize,
     margin: Margin,
     close_window: bool,
+    prepared: bool,
+    prepared_marks: &[Range<usize>],
+    prepared_gaps: &[Range<usize>],
 ) -> Vec<(usize, ElementStyle)> {
     // Draw:
     //
@@ -876,12 +844,16 @@ fn render_source_line(
         renderer,
         buffer,
         &source_string,
+        line_info.line,
         line_info.line_index,
         line_offset,
         width_offset,
         code_offset,
         max_line_num_len,
         margin,
+        prepared,
+        prepared_marks,
+        prepared_gaps,
     );
 
     // If there are no annotations, we are done
@@ -1405,6 +1377,8 @@ fn render_source_line(
     // We look for individual *long* spans, and we trim the *middle*, so that we render
     // LL | ...= [0, 0, 0, ..., 0, 0];
     //    |      ^^^^^^^^^^...^^^^^^^ expected `&[u8]`, found `[{integer}; 1680]`
+    // A prepared window already applied this cut. Doing it again removes the ends.
+    if !prepared {
     for (i, (_pos, annotation)) in annotations_position.iter().enumerate() {
         // Skip cases where multiple spans overlap eachother.
         if overlap[i] {
@@ -1434,6 +1408,7 @@ fn render_source_line(
                 renderer.decor_style.margin(),
             );
         }
+    }
     }
     annotations_position
         .iter()
@@ -1971,15 +1946,45 @@ fn draw_line(
     renderer: &Renderer,
     buffer: &mut StyledBuffer,
     source_string: &str,
+    raw_line: &str,
     line_index: usize,
     line_offset: usize,
     width_offset: usize,
     code_offset: usize,
     max_line_num_len: usize,
     margin: Margin,
+    prepared: bool,
+    prepared_marks: &[Range<usize>],
+    prepared_gaps: &[Range<usize>],
 ) -> usize {
     // Tabs are assumed to have been replaced by spaces in calling code.
     debug_assert!(!source_string.contains('\t'));
+    if prepared {
+        // The source is already the window. Trimming it again would treat a
+        // cut mark as source text.
+        buffer.puts(
+            line_offset,
+            code_offset,
+            source_string,
+            ElementStyle::Quotation,
+        );
+        paint_prepared_ranges(
+            buffer,
+            line_offset,
+            code_offset,
+            raw_line,
+            prepared_marks,
+            prepared_gaps,
+        );
+        buffer.puts(
+            line_offset,
+            0,
+            &maybe_anonymized(renderer, line_index, max_line_num_len),
+            ElementStyle::LineNumber,
+        );
+        draw_col_separator_no_space(renderer, buffer, line_offset, width_offset - 2);
+        return 0;
+    }
     let line_len = str_width(source_string);
     // Create the source line we will highlight.
     let mut left = margin.left(line_len);
@@ -1992,7 +1997,7 @@ fn draw_line(
     while let Some(ch) = pending.peek().copied() {
         // Skip the next character while `skipped` is still left of the edge,
         // even when that character is wider than the gap. Later column math
-        // uses the moved edge. The room stays the original window.
+        // uses the moved edge. The room is the width from the original edge.
         if skipped >= left {
             break;
         }
@@ -2002,9 +2007,7 @@ fn draw_line(
     if skipped > left {
         left = skipped;
     }
-    let keep_trailing_mark =
-        overflow_is_trailing_mark(source_string, line_len, right, placeholder);
-    let room = kept_source_room(right, window_left, line_len, keep_trailing_mark);
+    let room = right.saturating_sub(window_left);
     let mut taken = 0;
     let mut code = String::new();
     for ch in pending {
@@ -2055,7 +2058,7 @@ fn draw_line(
         ElementStyle::Quotation,
     );
 
-    if line_len > right && !keep_trailing_mark {
+    if line_len > right {
         // Replace every slot the margin mark covers, including a wide
         // character and the combining marks that sit on it.
         let mut char_taken = 0;
@@ -2086,6 +2089,73 @@ fn draw_line(
     draw_col_separator_no_space(renderer, buffer, line_offset, width_offset - 2);
 
     left
+}
+
+fn paint_prepared_ranges(
+    buffer: &mut StyledBuffer,
+    line_offset: usize,
+    code_offset: usize,
+    raw_line: &str,
+    marks: &[Range<usize>],
+    gaps: &[Range<usize>],
+) {
+    let mut raw_byte = 0usize;
+    let mut cell = 0usize;
+    for ch in raw_line.chars() {
+        let next = raw_byte + ch.len_utf8();
+        let style = if range_hits(marks, raw_byte, next) {
+            Some(ElementStyle::LineNumber)
+        } else if range_hits(gaps, raw_byte, next) {
+            Some(ElementStyle::NoStyle)
+        } else {
+            None
+        };
+        let count = match output_replacement(ch) {
+            Some(text) => text.chars().count(),
+            None => 1,
+        };
+        if let Some(style) = style {
+            for offset in 0..count {
+                buffer.set_style(line_offset, code_offset + cell + offset, style, true);
+            }
+        }
+        raw_byte = next;
+        cell += count;
+    }
+}
+
+fn range_hits(ranges: &[Range<usize>], start: usize, end: usize) -> bool {
+    ranges
+        .iter()
+        .any(|range| range.start < end && range.end > start)
+}
+
+fn snippet_line_offset(source: &str, line_start: usize, line_index: usize) -> usize {
+    let mut offset = 0usize;
+    let mut number = line_start;
+    while number < line_index {
+        let Some(relative) = source[offset..].find('\n') else {
+            return source.len();
+        };
+        offset += relative + 1;
+        number += 1;
+    }
+    offset
+}
+
+fn ranges_on_line(ranges: &[Range<usize>], start: usize, end: usize) -> Vec<Range<usize>> {
+    ranges
+        .iter()
+        .filter_map(|range| {
+            let from = range.start.max(start);
+            let to = range.end.min(end);
+            if from < to {
+                Some(from - start..to - start)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 fn draw_range(
@@ -2309,36 +2379,66 @@ pub(crate) fn str_width(s: &str) -> usize {
     s.chars().map(char_width).sum()
 }
 
-/// The columns past `right` are the margin mark already drawn on `line`.
+/// The margin for every line of one snippet.
 ///
-/// A second render then keeps that mark. The first render of a longer source
-/// still cuts at `right`, because that source does not end with the mark.
-pub(crate) fn overflow_is_trailing_mark(
-    line: &str,
-    line_len: usize,
-    right: usize,
-    mark: &str,
-) -> bool {
-    let mark_width = str_width(mark);
-    mark_width > 0 && line_len > right && line_len - right <= mark_width && line.ends_with(mark)
-}
-
-/// Display columns kept from the margin's left edge.
-///
-/// `window_left` is that edge before a wide character moves it forward.
-/// The room stays the original distance to `right`. The moved edge does not
-/// shrink it. A trailing mark that already covers the extra columns stays.
-pub(crate) fn kept_source_room(
-    right: usize,
-    window_left: usize,
-    line_len: usize,
-    keep_trailing_mark: bool,
-) -> usize {
-    if keep_trailing_mark {
-        line_len.saturating_sub(window_left)
-    } else {
-        right.saturating_sub(window_left)
+/// `column_width` is the code columns after the gutter.
+/// Leading whitespace is the minimum across non-blank lines.
+/// Span bounds are the annotation columns, including a one-column multiline end.
+pub(crate) fn margin_for_annotated_lines(
+    annotated_lines: &[AnnotatedLineInfo<'_>],
+    column_width: usize,
+) -> Margin {
+    let mut whitespace_margin = usize::MAX;
+    for line_info in annotated_lines {
+        let leading_whitespace = line_info
+            .line
+            .chars()
+            .take_while(|c| c.is_whitespace())
+            .map(|c| match c {
+                '\t' => 4,
+                _ => 1,
+            })
+            .sum();
+        if line_info.line.chars().any(|c| !c.is_whitespace()) {
+            whitespace_margin = min(whitespace_margin, leading_whitespace);
+        }
     }
+    if whitespace_margin == usize::MAX {
+        whitespace_margin = 0;
+    }
+
+    let mut span_left_margin = usize::MAX;
+    for line_info in annotated_lines {
+        for ann in &line_info.annotations {
+            span_left_margin = min(span_left_margin, ann.start.display);
+            span_left_margin = min(span_left_margin, ann.end.display);
+        }
+    }
+    if span_left_margin == usize::MAX {
+        span_left_margin = 0;
+    }
+
+    let mut span_right_margin = 0;
+    let mut label_right_margin = 0;
+    let mut max_line_len = 0;
+    for line_info in annotated_lines {
+        max_line_len = max(max_line_len, str_width(line_info.line));
+        for ann in &line_info.annotations {
+            span_right_margin = max(span_right_margin, ann.start.display);
+            span_right_margin = max(span_right_margin, ann.end.display);
+            // FIXME: account for labels not in the same line
+            let label_right = ann.label.as_ref().map_or(0, |l| str_width(l) + 1);
+            label_right_margin = max(label_right_margin, ann.end.display + label_right);
+        }
+    }
+    Margin::new(
+        whitespace_margin,
+        span_left_margin,
+        span_right_margin,
+        label_right_margin,
+        column_width,
+        max_line_len,
+    )
 }
 
 /// Padding kept on each side of a single-line span whose middle is replaced by the margin mark.

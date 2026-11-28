@@ -139,6 +139,10 @@ struct RetainedWindow<'source> {
     /// Empty means the text is the source slice at `source_start`.
     /// [`usize::MAX`] is a cut mark.
     origin: Vec<usize>,
+    /// Byte ranges of synthetic cut marks in `escaped.text`.
+    marks: Vec<Range<usize>>,
+    /// Byte ranges of unstyled alignment gaps in `escaped.text`.
+    gaps: Vec<Range<usize>>,
 }
 
 #[invariant(*line_start >= 1 && *primary_line >= 1 && *primary_column >= 1)]
@@ -191,8 +195,10 @@ fn diagnostic_source_excerpt<'source>(
     let columns =
         annotate_snippets::renderer::code_columns(options.terminal_width, max_line, depth);
     let margin_mark = margin_mark(options.glyphs);
-    let whole = whole_unclipped_excerpt(source, &anchors, &kept, columns, margin_mark);
-    if let Some((origin, end, line_start)) = whole {
+    // An uncut contiguous run is one snippet. The renderer makes that window.
+    if let Some((origin, end, line_start)) =
+        whole_unclipped_excerpt(source, &anchors, &kept, columns, margin_mark)
+    {
         let slice = source.get(origin..end).unwrap_or("");
         let Some(escaped) = crate::styled::escape_terminal_source_within(slice, max_copy) else {
             return Err(OutputError::Limit { limit });
@@ -416,17 +422,11 @@ fn anchor_window_header(
     best.map(|(line, _, column, _)| (line, column))
         .unwrap_or_else(|| source_line_column(source, source_start))
 }
-/// The labelled lines are exactly the lines the renderer keeps, and none of them is cut.
-///
-/// The returned range is original source. A later render then matches an unclipped diagnostic.
+/// Byte range of one contiguous run of kept lines.
 #[requires(true)]
-#[ensures(ret.is_none_or(|(origin, end, line)| origin <= end && end <= source.len() && line >= 1))]
-fn whole_unclipped_excerpt(
-    source: &str,
-    anchors: &[DisplayAnchor],
+#[ensures(ret.is_none_or(|(origin, end, line)| origin <= end && line >= 1))]
+fn contiguous_kept_range(
     kept: &[annotate_snippets::renderer::KeptSourceLine],
-    columns: usize,
-    margin_mark: &str,
 ) -> Option<(usize, usize, usize)> {
     if kept.is_empty() {
         return None;
@@ -438,25 +438,40 @@ fn whole_unclipped_excerpt(
         }
         previous = line.line_index;
     }
-    for line in kept {
-        let text = source.get(line.start_byte..line.end_byte).unwrap_or("");
-        let spans = line_label_spans(anchors, line.start_byte, line.end_byte, text.len());
-        let laid = annotate_snippets::renderer::lay_out_line(
-            text,
-            &spans,
-            columns,
-            margin_mark,
-            crate::styled::expanded_terminal_control,
-        );
-        if laid.clipped {
-            return None;
-        }
-    }
     Some((
         kept[0].start_byte,
         kept[kept.len() - 1].end_byte,
         kept[0].line_index,
     ))
+}
+
+/// The labelled lines are one contiguous run, and the shared margin cuts none of them.
+///
+/// The margin is the one the renderer uses for the whole run.
+/// The returned range is original source.
+#[requires(true)]
+#[ensures(ret.is_none_or(|(origin, end, line)| origin <= end && end <= source.len() && line >= 1))]
+fn whole_unclipped_excerpt(
+    source: &str,
+    anchors: &[DisplayAnchor],
+    kept: &[annotate_snippets::renderer::KeptSourceLine],
+    columns: usize,
+    margin_mark: &str,
+) -> Option<(usize, usize, usize)> {
+    let (origin, end, line_start) = contiguous_kept_range(kept)?;
+    let text = source.get(origin..end).unwrap_or("");
+    let spans = run_label_spans(anchors, origin, end);
+    let laid = annotate_snippets::renderer::lay_out_run(
+        text,
+        &spans,
+        columns,
+        margin_mark,
+        crate::styled::expanded_terminal_control,
+    );
+    if laid.len() != kept.len() || laid.iter().any(|line| line.laid.clipped) {
+        return None;
+    }
+    Some((origin, end, line_start))
 }
 
 /// Copy the windows the renderer will draw.
@@ -506,6 +521,8 @@ fn retained_display_windows<'source>(
         pieces.push(new!(RawPiece {
             text: String::new(),
             origin: Vec::new(),
+            marks: Vec::new(),
+            gaps: Vec::new(),
             source_start: anchor.start.min(source.len()),
             source_end: anchor.start.min(source.len()),
             line_number: anchor.line,
@@ -563,6 +580,8 @@ fn retained_display_windows<'source>(
             owns_primary,
             label_indexes: data.labels,
             origin: data.origin,
+            marks: data.marks,
+            gaps: data.gaps,
         }));
     }
     Ok(windows)
@@ -573,6 +592,8 @@ fn retained_display_windows<'source>(
 struct RawPiece {
     text: String,
     origin: Vec<usize>,
+    marks: Vec<Range<usize>>,
+    gaps: Vec<Range<usize>>,
     source_start: usize,
     source_end: usize,
     line_number: usize,
@@ -593,32 +614,51 @@ fn push_run_windows(
     if run.is_empty() {
         return;
     }
+    let run_start = run[0].start_byte;
+    let run_end = run[run.len() - 1].end_byte;
+    let text = source.get(run_start..run_end).unwrap_or("");
+    let spans = run_label_spans(anchors, run_start, run_end);
+    let laid_lines = annotate_snippets::renderer::lay_out_run(
+        text,
+        &spans,
+        columns,
+        margin_mark,
+        crate::styled::expanded_terminal_control,
+    );
     let mut layouts = Vec::new();
     let mut any_cut = false;
     for line in run {
-        let text = source.get(line.start_byte..line.end_byte).unwrap_or("");
-        let spans = line_label_spans(anchors, line.start_byte, line.end_byte, text.len());
-        let laid = annotate_snippets::renderer::lay_out_line(
-            text,
-            &spans,
-            columns,
-            margin_mark,
-            crate::styled::expanded_terminal_control,
-        );
+        let relative = line
+            .line_index
+            .saturating_sub(run[0].line_index)
+            .saturating_add(1);
+        let laid = laid_lines
+            .iter()
+            .find(|item| item.line_index == relative)
+            .map(|item| item.laid.clone())
+            .unwrap_or_else(|| annotate_snippets::renderer::LaidOutLine {
+                text: String::new(),
+                origin: Vec::new(),
+                marks: Vec::new(),
+                gaps: Vec::new(),
+                clipped: false,
+            });
         if laid.clipped {
             any_cut = true;
         }
         layouts.push(laid);
     }
+    let labels = labels_on_run(anchors, run);
+    if labels.is_empty() {
+        return;
+    }
+    mark_covered(covered, &labels);
     if !any_cut {
-        let labels = labels_on_run(anchors, run);
-        if labels.is_empty() {
-            return;
-        }
-        mark_covered(covered, &labels);
         pieces.push(new!(RawPiece {
             text: String::new(),
             origin: Vec::new(),
+            marks: Vec::new(),
+            gaps: Vec::new(),
             source_start: run[0].start_byte,
             source_end: run[run.len() - 1].end_byte,
             line_number: run[0].line_index,
@@ -626,51 +666,63 @@ fn push_run_windows(
         }));
         return;
     }
-    for (line, laid) in run.iter().zip(layouts) {
-        let labels = labels_on_run(anchors, std::slice::from_ref(line));
-        if labels.is_empty() {
-            continue;
-        }
-        mark_covered(covered, &labels);
-        if laid.clipped {
-            pieces.push(clipped_piece(line, laid, labels));
-        } else {
-            pieces.push(new!(RawPiece {
-                text: String::new(),
-                origin: Vec::new(),
-                source_start: line.start_byte,
-                source_end: line.end_byte,
-                line_number: line.line_index,
-                labels,
-            }));
-        }
-    }
+    // One snippet for the run. Each cut line keeps the planned window.
+    // A later render does not trim that window again.
+    pieces.push(joined_run_piece(source, run, layouts, labels));
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn clipped_piece(
-    line: &annotate_snippets::renderer::KeptSourceLine,
-    laid: annotate_snippets::renderer::LaidOutLine,
+#[requires(run.len() == layouts.len())]
+#[ensures(ret.origin.len() == ret.text.len() && ret.source_start <= ret.source_end && ret.line_number >= 1)]
+fn joined_run_piece(
+    source: &str,
+    run: &[annotate_snippets::renderer::KeptSourceLine],
+    layouts: Vec<annotate_snippets::renderer::LaidOutLine>,
     labels: Vec<usize>,
 ) -> RawPiece {
-    let origin = laid
-        .origin
-        .into_iter()
-        .map(|byte| {
-            if byte == usize::MAX {
-                usize::MAX
-            } else {
-                byte.saturating_add(line.start_byte)
+    let mut text = String::new();
+    let mut origin = Vec::new();
+    let mut marks = Vec::new();
+    let mut gaps = Vec::new();
+    for (index, (line, laid)) in run.iter().zip(layouts).enumerate() {
+        if index > 0 {
+            text.push('\n');
+            origin.push(line.start_byte.saturating_sub(1));
+        }
+        let base = text.len();
+        if laid.clipped {
+            text.push_str(&laid.text);
+            for byte in laid.origin {
+                origin.push(if byte == usize::MAX {
+                    usize::MAX
+                } else {
+                    byte.saturating_add(line.start_byte)
+                });
             }
-        })
-        .collect::<Vec<_>>();
+            for range in laid.marks {
+                marks.push(base + range.start..base + range.end);
+            }
+            for range in laid.gaps {
+                gaps.push(base + range.start..base + range.end);
+            }
+        } else {
+            let raw = source.get(line.start_byte..line.end_byte).unwrap_or("");
+            text.push_str(raw);
+            for byte in line.start_byte..line.end_byte {
+                origin.push(byte);
+            }
+        }
+    }
+    let line_number = run.first().map(|line| line.line_index).unwrap_or(1);
+    let source_start = run.first().map(|line| line.start_byte).unwrap_or(0);
+    let source_end = run.last().map(|line| line.end_byte).unwrap_or(source_start);
     new!(RawPiece {
-        text: laid.text,
+        text,
         origin,
-        source_start: line.start_byte,
-        source_end: line.end_byte,
-        line_number: line.line_index,
+        marks,
+        gaps,
+        source_start,
+        source_end,
+        line_number,
         labels,
     })
 }
@@ -691,23 +743,19 @@ fn labels_on_run(
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn line_label_spans(
+#[ensures(ret.iter().all(|(start, end, columns)| *start <= *end && *columns >= 1))]
+fn run_label_spans(
     anchors: &[DisplayAnchor],
-    line_start: usize,
-    line_end: usize,
-    line_len: usize,
+    run_start: usize,
+    run_end: usize,
 ) -> Vec<(usize, usize, usize)> {
+    let len = run_end.saturating_sub(run_start);
     anchors
         .iter()
-        .filter(|anchor| anchor_mark_inside(anchor, line_start, line_end))
+        .filter(|anchor| anchor_mark_inside(anchor, run_start, run_end))
         .map(|anchor| {
-            let start = anchor.start.saturating_sub(line_start).min(line_len);
-            let end = anchor
-                .end
-                .saturating_sub(line_start)
-                .min(line_len)
-                .max(start);
+            let start = anchor.start.saturating_sub(run_start).min(len);
+            let end = anchor.end.saturating_sub(run_start).min(len).max(start);
             (start, end, anchor.label_columns.max(1))
         })
         .collect()
@@ -788,15 +836,18 @@ fn window_shows_label_text(
 /// Map a source span through the displayed bytes of a cut window.
 ///
 /// [`usize::MAX`] is a cut mark. A mark between covered bytes stays in the span.
+/// A span that sits entirely in a cut-away part of a later line stays on that line.
 #[requires(true)]
 #[ensures(ret.start <= ret.end && ret.end <= origin.len())]
-fn map_through_origin(origin: &[usize], start: usize, end: usize) -> Range<usize> {
+fn map_through_origin(origin: &[usize], text: &str, start: usize, end: usize) -> Range<usize> {
     let point = start == end;
     let end = end.max(start);
     let mut display_start = None;
     let mut display_end = 0usize;
     for (index, byte) in origin.iter().copied().enumerate() {
-        if byte == usize::MAX {
+        // The join records the source byte of a line break. That byte is not
+        // text on either line. A span that includes it must not cross the break.
+        if byte == usize::MAX || text.as_bytes().get(index) == Some(&b'\n') {
             continue;
         }
         let inside = if point {
@@ -812,7 +863,8 @@ fn map_through_origin(origin: &[usize], start: usize, end: usize) -> Range<usize
         }
     }
     let Some(mut from) = display_start else {
-        return 0..0;
+        let at = line_anchor_in_window(text, origin, start);
+        return at..at;
     };
     let mut to = display_end.max(from);
     let first_real = origin.iter().copied().find(|byte| *byte != usize::MAX);
@@ -828,6 +880,42 @@ fn map_through_origin(origin: &[usize], start: usize, end: usize) -> Range<usize
         to = origin.len();
     }
     from.min(origin.len())..to.min(origin.len()).max(from.min(origin.len()))
+}
+
+/// Window byte where a source point belongs when the cut kept none of its bytes.
+///
+/// Newline origins are the source bytes of the breaks between joined lines.
+/// The point stays on the joined line that owns that source byte.
+#[requires(true)]
+#[ensures(ret <= origin.len())]
+fn line_anchor_in_window(text: &str, origin: &[usize], point: usize) -> usize {
+    let bytes = text.as_bytes();
+    let mut line_start = 0usize;
+    let mut previous_break = None;
+    let mut index = 0usize;
+    while index <= text.len() {
+        let newline = bytes[index..]
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map(|relative| index + relative);
+        let break_source = newline.and_then(|at| origin.get(at).copied());
+        let on_line = match (previous_break, break_source) {
+            (None, None) => true,
+            (None, Some(break_byte)) => point <= break_byte,
+            (Some(previous), None) => point > previous,
+            (Some(previous), Some(break_byte)) => point > previous && point <= break_byte,
+        };
+        if on_line {
+            return line_start.min(origin.len());
+        }
+        let Some(newline) = newline else {
+            break;
+        };
+        previous_break = break_source;
+        index = newline + 1;
+        line_start = index;
+    }
+    0
 }
 
 #[requires(!source_label.is_empty())]
@@ -892,13 +980,15 @@ fn diagnostic_group<'diagnostic>(
                     annotation
                 })
                 .collect::<Vec<_>>();
-            group = group.element(
-                Snippet::source(window.escaped.text.as_ref())
-                    .line_start(window.line_number)
-                    .origin_position(window.header_line, window.header_column)
-                    .path(source_label)
-                    .annotations(annotations),
-            );
+            let mut snippet = Snippet::source(window.escaped.text.as_ref())
+                .line_start(window.line_number)
+                .origin_position(window.header_line, window.header_column)
+                .path(source_label)
+                .annotations(annotations);
+            if !window.origin.is_empty() {
+                snippet = snippet.prepared_window(window.marks.clone(), window.gaps.clone());
+            }
+            group = group.element(snippet);
         }
     }
 
@@ -957,7 +1047,12 @@ fn mapped_label_span(
 fn window_label_span(label: &DiagnosticLabel, window: &RetainedWindow<'_>) -> Range<usize> {
     let span = label_span(label);
     if !window.origin.is_empty() {
-        return map_through_origin(&window.origin, span.start, span.end.max(span.start));
+        return map_through_origin(
+            &window.origin,
+            window.escaped.text.as_ref(),
+            span.start,
+            span.end.max(span.start),
+        );
     }
     apply_escape_map(
         span.start.saturating_sub(window.source_start),
@@ -1801,6 +1896,12 @@ mod tests {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn render_parser_diagnostics_with(source: &str, glyphs: GlyphStyle) -> String {
+        render_parser_diagnostics_colored(source, glyphs, false)
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn render_parser_diagnostics_colored(source: &str, glyphs: GlyphStyle, color: bool) -> String {
         let source_id = SourceId("<input>".to_owned());
         let morphology = jbotci_morphology::segment_words_with_modifiers_recovered(source);
         let mut diagnostics = Vec::new();
@@ -1843,7 +1944,7 @@ mod tests {
             source,
             &diagnostics,
             new!(DiagnosticRenderOptions {
-                color: false,
+                color,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs,
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
@@ -2266,6 +2367,147 @@ mod tests {
             "{rendered}"
         );
         assert_caret_on(&rendered, "ku");
+    }
+
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    fn numbered_line_width(rendered: &str, line_number: usize) -> usize {
+        unicode_width::UnicodeWidthStr::width(numbered_source_body(rendered, line_number))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_single_snippet(rendered: &str) {
+        assert!(!rendered.contains('⸬'), "{rendered}");
+        assert!(!rendered.contains(":::"), "{rendered}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_line_that_ends_with_the_margin_mark_stays_within_the_terminal() {
+        for total in 76usize..=80 {
+            let ascii_source = format!(
+                "kkk {}...",
+                &("mi klama ".repeat(20))[..total.saturating_sub(7)]
+            );
+            let ascii = render_parser_diagnostics_with(&ascii_source, GlyphStyle::Ascii);
+            assert!(
+                numbered_line_width(&ascii, 1) <= DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+                "{ascii}"
+            );
+            assert_single_snippet(&ascii);
+            let ascii_body = excerpt_body(&ascii);
+            if (77..=79).contains(&total) {
+                assert!(ascii_body.ends_with("kla..."), "{ascii_body}");
+            }
+
+            let unicode_source = format!("kkk zoi gy. {}…", "a".repeat(total.saturating_sub(13)));
+            let unicode = render_parser_diagnostics(&unicode_source);
+            assert!(
+                numbered_line_width(&unicode, 1) <= DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+                "{unicode}"
+            );
+            assert_single_snippet(&unicode);
+            assert!(excerpt_body(&unicode).ends_with('…'), "{unicode}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_wide_span_ascii_tail_keeps_three_letters_before_the_mark() {
+        let source = format!(
+            "zoi gy. {} .gy {} {}...",
+            "漢".repeat(10),
+            "k".repeat(100),
+            "a".repeat(5)
+        );
+        let rendered = render_parser_diagnostics_with(&source, GlyphStyle::Ascii);
+        let body = excerpt_body(&rendered);
+        // The shared margin keeps this span wider than the terminal, as main does.
+        assert!(body.ends_with("aaa..."), "{body}");
+        assert!(!body.contains("aaaaa"), "{body}");
+        assert_single_snippet(&rendered);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_cut_mark_uses_the_line_number_color() {
+        let source = format!("kkk zoi gy. {}…", "a".repeat(77usize.saturating_sub(13)));
+        let rendered = render_parser_diagnostics_colored(&source, GlyphStyle::Unicode, true);
+        assert!(
+            rendered.contains("\u{1b}[1m\u{1b}[94m…\u{1b}[0m"),
+            "{rendered:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_indented_second_line_keeps_the_first_line_in_one_snippet() {
+        let spaces = format!("{}mi nelci lo\nku ku", " ".repeat(27));
+        let spaced = render_parser_diagnostics(&spaces);
+        assert_single_snippet(&spaced);
+        assert!(
+            numbered_source_body(&spaced, 1).contains(&format!("{}mi nelci", " ".repeat(27))),
+            "{spaced}"
+        );
+        assert!(
+            numbered_source_body(&spaced, 2).contains("ku ku"),
+            "{spaced}"
+        );
+
+        let tabs = format!("{}mi nelci lo\nku ku", "\t".repeat(7));
+        let tabbed = render_parser_diagnostics(&tabs);
+        assert_single_snippet(&tabbed);
+        assert!(
+            numbered_source_body(&tabbed, 1).contains(&format!("{}mi nelci", " ".repeat(28))),
+            "{tabbed}"
+        );
+        assert!(
+            numbered_source_body(&tabbed, 2).contains("ku ku"),
+            "{tabbed}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_long_multiline_start_stays_in_one_snippet() {
+        let source = format!("mi cusku zoi gy. {}\ndef", "a".repeat(90));
+        let rendered = render_parser_diagnostics(&source);
+        assert_single_snippet(&rendered);
+        let body = excerpt_body(&rendered);
+        assert!(body.contains("mi cusku zoi"), "{body}");
+        assert!(body.ends_with('…'), "{body}");
+        assert!(
+            numbered_line_width(&rendered, 1) <= DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+            "{rendered}"
+        );
+        assert!(
+            numbered_source_body(&rendered, 2).contains("def"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_short_line_before_a_long_span_stays_left_cut() {
+        let source = format!("mi nelci lo\n{}ku ku", "barda ".repeat(25));
+        let rendered = render_parser_diagnostics(&source);
+        assert_single_snippet(&rendered);
+        let first = excerpt_body(&rendered);
+        assert!(first.contains("elci lo"), "{first}");
+        assert!(first.contains('…'), "{first}");
+        let second = numbered_source_body(&rendered, 2);
+        assert!(second.ends_with("ku ku"), "{second}");
+        assert_eq!(second.matches('…').count(), 1, "{second}");
+        let ellipsis = second.find('…').expect("left cut");
+        let word = second.find("barda").expect("barda");
+        assert!(ellipsis < word, "{second}");
     }
 
     #[test]

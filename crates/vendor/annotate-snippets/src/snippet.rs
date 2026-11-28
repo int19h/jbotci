@@ -232,6 +232,16 @@ pub struct Snippet<'a, T> {
     pub(crate) origin_line: Option<usize>,
     /// Original file column for the location header. `None` keeps the rendered column.
     pub(crate) origin_column: Option<usize>,
+    /// The source is already the window the first pass drew.
+    ///
+    /// The renderer then skips horizontal trimming and the long-span replacement.
+    pub(crate) prepared: bool,
+    /// Byte ranges of synthetic cut marks in `source`.
+    pub(crate) prepared_marks: Vec<Range<usize>>,
+    /// Byte ranges of alignment gaps in `source`.
+    ///
+    /// A gap is the unstyled space a narrow mark leaves after a wide character.
+    pub(crate) prepared_gaps: Vec<Range<usize>>,
 }
 
 impl<'a, T: Clone> Snippet<'a, T> {
@@ -253,7 +263,26 @@ impl<'a, T: Clone> Snippet<'a, T> {
             fold: true,
             origin_line: None,
             origin_column: None,
+            prepared: false,
+            prepared_marks: Vec::new(),
+            prepared_gaps: Vec::new(),
         }
+    }
+
+    /// Mark this snippet as a window that was already cut.
+    ///
+    /// `marks` and `gaps` are byte ranges in the snippet source.
+    /// The renderer paints marks like line numbers and leaves gaps unstyled.
+    /// It does not trim the source again.
+    pub fn prepared_window(
+        mut self,
+        marks: impl IntoIterator<Item = Range<usize>>,
+        gaps: impl IntoIterator<Item = Range<usize>>,
+    ) -> Self {
+        self.prepared = true;
+        self.prepared_marks = marks.into_iter().collect();
+        self.prepared_gaps = gaps.into_iter().collect();
+        self
     }
 
     /// When manually [`fold`][Self::fold]ing,

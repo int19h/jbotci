@@ -10,10 +10,11 @@ use core::ops::Range;
 
 use super::margin::Margin;
 use super::render::{
-    char_width, code_column_width, kept_source_room, long_span_pad, num_decimal_digits,
-    output_replacement, overflow_is_trailing_mark, str_width,
+    char_width, code_column_width, long_span_pad, margin_for_annotated_lines, num_decimal_digits,
+    output_replacement, str_width,
 };
 use super::source_map::SourceMap;
+use super::LineAnnotationType;
 use crate::{AnnotationKind, renderer::num_overlap};
 
 /// A replacement for one source character before the line is trimmed.
@@ -41,11 +42,22 @@ pub struct KeptSourceLine {
 pub struct LaidOutLine {
     pub text: String,
     pub origin: Vec<usize>,
+    /// Byte ranges of synthetic cut marks in `text`.
+    pub marks: Vec<Range<usize>>,
+    /// Byte ranges of unstyled alignment gaps in `text`.
+    pub gaps: Vec<Range<usize>>,
     /// The renderer drops or replaces some of this line.
     ///
     /// A line wider than the code column stays one window until a cut actually happens.
     /// The renderer leaves a single-line span uncut through twice the code column.
     pub clipped: bool,
+}
+
+/// One line from a run planned with the renderer's margin.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunLineLayout {
+    pub line_index: usize,
+    pub laid: LaidOutLine,
 }
 
 /// Display columns the renderer reserves after a span for its label.
@@ -133,6 +145,58 @@ pub fn lay_out_line(
         column_width,
         display_len,
     );
+    lay_out_with_margin(line, &display_spans, margin, margin_mark, expand)
+}
+
+/// Lay out every annotated line of `source` with one shared margin.
+///
+/// The margin is the one `Renderer` builds for the same spans.
+/// A multiline start or end is one column. Leading whitespace is the run minimum.
+/// `spans` are `(start, end, label_columns)` in bytes of `source`.
+pub fn lay_out_run(
+    source: &str,
+    spans: &[(usize, usize, usize)],
+    column_width: usize,
+    margin_mark: &str,
+    expand: fn(char) -> Option<ExpandedControl>,
+) -> Vec<RunLineLayout> {
+    let annotations = spans
+        .iter()
+        .map(|&(start, end, label_columns)| {
+            let end = end.min(source.len());
+            let start = start.min(end);
+            let label = " ".repeat(label_columns.saturating_sub(1));
+            AnnotationKind::Primary.span(start..end).label(label)
+        })
+        .collect();
+    let map = SourceMap::new(source, 1);
+    let (_depth, lines) = map.annotated_lines(annotations, true);
+    let margin = margin_for_annotated_lines(&lines, column_width);
+    let mut laid_lines = Vec::with_capacity(lines.len());
+    for info in &lines {
+        let display_spans = info
+            .annotations
+            .iter()
+            .filter(|ann| matches!(ann.annotation_type, LineAnnotationType::Singleline))
+            .map(|ann| (ann.start.display, ann.end.display))
+            .collect::<Vec<_>>();
+        let laid = lay_out_with_margin(info.line, &display_spans, margin, margin_mark, expand);
+        laid_lines.push(RunLineLayout {
+            line_index: info.line_index,
+            laid,
+        });
+    }
+    laid_lines
+}
+
+fn lay_out_with_margin(
+    line: &str,
+    display_spans: &[(usize, usize)],
+    margin: Margin,
+    margin_mark: &str,
+    expand: fn(char) -> Option<ExpandedControl>,
+) -> LaidOutLine {
+    let display_len = stream_width(line, expand);
     let mut left = margin.left(display_len);
     let right = margin.right(display_len);
     let window_left = left;
@@ -142,6 +206,7 @@ pub fn lay_out_line(
             ch,
             origin,
             width: char_width(ch),
+            insert: Insert::Source,
         });
         true
     });
@@ -153,12 +218,11 @@ pub fn lay_out_line(
         start_cell += 1;
     }
     // A wide character that crosses `left` moves the edge forward.
-    // Later cut math uses that edge. The room stays the original window.
+    // Later cut math uses that edge. The room is the width from the original edge.
     if skipped > left {
         left = skipped;
     }
-    let keep_trailing_mark = overflow_is_trailing_mark(line, display_len, right, margin_mark);
-    let room = kept_source_room(right, window_left, display_len, keep_trailing_mark);
+    let room = right.saturating_sub(window_left);
     let mut taken = 0usize;
     let mut end_cell = start_cell;
     while end_cell < cells.len() {
@@ -171,7 +235,7 @@ pub fn lay_out_line(
     }
     cells = cells[start_cell..end_cell].to_vec();
     let cut_left = margin.was_cut_left();
-    let cut_right = display_len > right && !keep_trailing_mark;
+    let cut_right = display_len > right;
     let padding = str_width(margin_mark);
     let mut left_drop = 0usize;
     let mut left_consumed = 0usize;
@@ -211,6 +275,7 @@ pub fn lay_out_line(
                     ch: ' ',
                     origin: usize::MAX,
                     width: 1,
+                    insert: Insert::Gap,
                 },
             );
         }
@@ -237,7 +302,7 @@ pub fn lay_out_line(
             continue;
         }
         let width = end_col.saturating_sub(start_col);
-        let Some(pad) = long_span_pad(width, column_width, margin_width) else {
+        let Some(pad) = long_span_pad(width, margin.term_width, margin_width) else {
             continue;
         };
         let Some(mark_start) = start_col.checked_add(pad) else {
@@ -277,22 +342,58 @@ pub fn lay_out_line(
     }
     let mut text = String::new();
     let mut origin = Vec::new();
+    let mut marks = Vec::new();
+    let mut gaps = Vec::new();
+    let mut open_mark = None;
+    let mut open_gap = None;
     for cell in &cells {
         for glyph in glyphs.iter().skip(cell.start).take(cell.len) {
+            let start = text.len();
+            match glyph.insert {
+                Insert::Mark => {
+                    close_range(&mut gaps, &mut open_gap, start);
+                    if open_mark.is_none() {
+                        open_mark = Some(start);
+                    }
+                }
+                Insert::Gap => {
+                    close_range(&mut marks, &mut open_mark, start);
+                    if open_gap.is_none() {
+                        open_gap = Some(start);
+                    }
+                }
+                Insert::Source => {
+                    close_range(&mut marks, &mut open_mark, start);
+                    close_range(&mut gaps, &mut open_gap, start);
+                }
+            }
             push_char(&mut text, &mut origin, glyph.origin, glyph.ch);
         }
     }
+    let end = text.len();
+    close_range(&mut marks, &mut open_mark, end);
+    close_range(&mut gaps, &mut open_gap, end);
     LaidOutLine {
         text,
         origin,
+        marks,
+        gaps,
         clipped: cut_left || cut_right || cut_middle,
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Insert {
+    Source,
+    Mark,
+    Gap,
 }
 
 struct Glyph {
     ch: char,
     origin: usize,
     width: usize,
+    insert: Insert,
 }
 
 #[derive(Clone, Copy)]
@@ -343,6 +444,7 @@ fn push_mark(glyphs: &mut Vec<Glyph>, cells: &mut Vec<Cell>, margin_mark: &str) 
                 ch,
                 origin: usize::MAX,
                 width: char_width(ch),
+                insert: Insert::Mark,
             },
         );
     }
@@ -470,6 +572,15 @@ fn for_each_char(
         if !visit(index, ch) {
             return;
         }
+    }
+}
+
+fn close_range(ranges: &mut Vec<Range<usize>>, open: &mut Option<usize>, end: usize) {
+    let Some(start) = open.take() else {
+        return;
+    };
+    if start < end {
+        ranges.push(start..end);
     }
 }
 
@@ -643,19 +754,34 @@ mod tests {
         ascii: bool,
         label: &str,
     ) -> String {
+        render_body_prepared(line, start, end, term_width, ascii, label, None, None)
+    }
+
+    fn render_body_prepared(
+        line: &str,
+        start: usize,
+        end: usize,
+        term_width: usize,
+        ascii: bool,
+        label: &str,
+        marks: Option<&[Range<usize>]>,
+        gaps: Option<&[Range<usize>]>,
+    ) -> String {
         let decor = if ascii {
             DecorStyle::Ascii
         } else {
             DecorStyle::Unicode
         };
+        let mut snippet = Snippet::source(line)
+            .line_start(1)
+            .annotation(AnnotationKind::Primary.span(start..end).label(label));
+        if let (Some(marks), Some(gaps)) = (marks, gaps) {
+            snippet = snippet.prepared_window(marks.iter().cloned(), gaps.iter().cloned());
+        }
         let rendered = Renderer::plain()
             .decor_style(decor)
             .term_width(term_width)
-            .render(&[crate::Group::with_title(Level::ERROR.primary_title("err")).element(
-                Snippet::source(line)
-                    .line_start(1)
-                    .annotation(AnnotationKind::Primary.span(start..end).label(label)),
-            )]);
+            .render(&[crate::Group::with_title(Level::ERROR.primary_title("err")).element(snippet)]);
         code_body(&rendered)
     }
 
@@ -741,15 +867,7 @@ mod tests {
             rest.push(ch);
         }
         let mark_width = str_width(mark);
-        let keep_mark = mark_width > 0
-            && display_len > right
-            && display_len - right <= mark_width
-            && line.ends_with(mark);
-        let room = if keep_mark {
-            display_len.saturating_sub(window_left)
-        } else {
-            right.saturating_sub(window_left)
-        };
+        let room = right.saturating_sub(window_left);
         let mut taken = 0usize;
         let mut prefix = String::new();
         for ch in rest.chars() {
@@ -780,7 +898,7 @@ mod tests {
             }
             prefix = prefix[bytes + extra..].to_owned();
         }
-        if display_len > right && !keep_mark {
+        if display_len > right {
             let mut width = 0usize;
             let mut drop = 0usize;
             for ch in prefix.chars().rev() {
@@ -837,7 +955,16 @@ mod tests {
                 panic!("span disappeared: {body}");
             });
         assert!(mapped_end > mapped_start, "{body}");
-        let again = render_body(&laid.text, mapped_start, mapped_end, term_width, ascii, label);
+        let again = render_body_prepared(
+            &laid.text,
+            mapped_start,
+            mapped_end,
+            term_width,
+            ascii,
+            label,
+            Some(&laid.marks),
+            Some(&laid.gaps),
+        );
         assert_eq!(again, laid.text, "second pass\n{again}");
         assert_marks_follow_bases(&again);
     }
@@ -957,12 +1084,96 @@ mod tests {
                     assert!(body.contains("ku ku"), "{body}");
                     let (mapped_start, mapped_end) = mapped_span(&laid.text, &laid.origin, start, end)
                         .unwrap_or_else(|| panic!("span disappeared: {}", laid.text));
-                    let again =
-                        render_body(&laid.text, mapped_start, mapped_end, term_width, ascii, "x");
+                    let again = render_body_prepared(
+                        &laid.text,
+                        mapped_start,
+                        mapped_end,
+                        term_width,
+                        ascii,
+                        "x",
+                        Some(&laid.marks),
+                        Some(&laid.gaps),
+                    );
                     assert_eq!(again, laid.text, "second pass\n{again}");
                     assert_marks_follow_bases(&again);
                 }
             }
         }
+    }
+
+    #[test]
+    fn a_line_that_ends_with_the_margin_mark_is_still_clipped() {
+        for (ascii, mark) in [(false, "…"), (true, "...")] {
+            for extra in 1..=4 {
+                let columns = code_columns(80, 1, 0);
+                let width = columns + extra;
+                let body_width = width - str_width(mark);
+                let line = format!("{}{mark}", "a".repeat(body_width));
+                assert_eq!(str_width(&line), width, "{line}");
+                let laid = lay_out_line(&line, &[(0, 1, 2)], columns, mark, none_expand);
+                assert!(laid.clipped, "{line} -> {}", laid.text);
+                assert!(
+                    str_width(&laid.text) <= columns,
+                    "{} is wider than {columns}",
+                    laid.text
+                );
+                let body = render_body(&line, 0, 1, 80, ascii, "x");
+                assert_eq!(laid.text, body, "{body}");
+                let (mapped_start, mapped_end) =
+                    mapped_span(&laid.text, &laid.origin, 0, 1).expect("span");
+                let again = render_body_prepared(
+                    &laid.text,
+                    mapped_start,
+                    mapped_end,
+                    80,
+                    ascii,
+                    "x",
+                    Some(&laid.marks),
+                    Some(&laid.gaps),
+                );
+                assert_eq!(again, laid.text, "second pass\n{again}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_prepared_cut_mark_uses_the_line_number_color() {
+        let columns = code_columns(80, 1, 0);
+        let line = format!("{}…", "a".repeat(columns));
+        let laid = lay_out_line(&line, &[(0, 1, 2)], columns, "…", none_expand);
+        assert!(laid.clipped, "{}", laid.text);
+        let (start, end) = mapped_span(&laid.text, &laid.origin, 0, 1).expect("span");
+        let snippet = Snippet::source(laid.text.as_str())
+            .line_start(1)
+            .annotation(AnnotationKind::Primary.span(start..end).label("x"))
+            .prepared_window(laid.marks.clone(), laid.gaps.clone());
+        let rendered = Renderer::styled()
+            .decor_style(DecorStyle::Unicode)
+            .term_width(80)
+            .render(&[crate::Group::with_title(Level::ERROR.primary_title("err")).element(snippet)]);
+        assert!(
+            rendered.contains("\u{1b}[1m\u{1b}[94m…\u{1b}[0m"),
+            "{rendered:?}"
+        );
+    }
+
+    #[test]
+    fn a_run_keeps_the_full_indent_of_an_unclipped_line() {
+        let source = format!("{}mi nelci lo\nku ku", " ".repeat(27));
+        let lines = lay_out_run(
+            &source,
+            &[(0, source.len(), 2)],
+            code_columns(80, 2, 1),
+            "…",
+            none_expand,
+        );
+        assert!(lines.len() >= 2, "{lines:?}");
+        assert!(lines.iter().all(|line| !line.laid.clipped), "{lines:?}");
+        assert!(
+            lines[0].laid.text.contains(&format!("{}mi nelci", " ".repeat(27))),
+            "{}",
+            lines[0].laid.text
+        );
+        assert!(lines.iter().any(|line| line.laid.text.contains("ku ku")));
     }
 }

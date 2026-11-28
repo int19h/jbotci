@@ -27,8 +27,8 @@ mod styled_buffer;
 mod window;
 
 pub use window::{
-    ExpandedControl, KeptSourceLine, LaidOutLine, annotation_label_columns, code_columns,
-    kept_source_lines, lay_out_line,
+    ExpandedControl, KeptSourceLine, LaidOutLine, RunLineLayout, annotation_label_columns,
+    code_columns, kept_source_lines, lay_out_line, lay_out_run,
 };
 
 use alloc::string::String;
