@@ -28,6 +28,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The fixture owns socket and thread resources. A missing worker is a valid stopped state, and cleanup accepts it.",
     ),
     (
+        "crates/jbotci-embeddings/src/setup_tests.rs:PackProgress",
+        "The fixture stores accept readiness, requests, response start, write stalls, and the worker result in one record. Any combination is a valid test observation.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:AlwaysInterrupt",
+        "The reader returns an interrupt on every read. The call count accepts any usize and has no second field.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:ResetOnce",
+        "The reader returns a connection reset on every read. The call count accepts any usize and has no second field.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:ScriptedPackWrite",
+        "The write script, the step cursor, and the captured bytes are test controls. The test checks the captured bytes after the write.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:StopThenInterrupt",
+        "The reader sets the stop flag and then returns an interrupt. The call count accepts any usize and has no relation to the flag.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:StopThenInterruptWrite",
+        "The writer sets the stop flag and then returns an interrupt. The call count accepts any usize and has no relation to the flag.",
+    ),
+    (
+        "crates/jbotci-embeddings/src/setup_tests.rs:LatePackBytes",
+        "The reader or writer pauses once and then returns one scripted result. The pause and the payload are test controls.",
+    ),
+    (
         "apps/jbotci-server/src/discord/components.rs:AttachmentText",
         "The serializer borrows any list of already validated attachments.",
     ),
@@ -62,6 +90,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/delivery.rs:DegradedRouteOnlyPage",
         "A route-only page served after a failed computation is a degraded answer and carries no extra state.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:ScriptedProbeRead",
+        "The read script, the part cursor, and the interrupt flag are test controls. The test checks the bytes that the probe kept.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:ScriptedProbeWrite",
+        "The write script, the step cursor, and the captured bytes are test controls. The test checks the captured bytes after the probe.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:PendingAfterByte",
+        "The probe writes one byte into the shared buffer and then stays pending. The test checks that buffer after the time limit.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:PendingAfterRead",
+        "The probe returns its bytes and then stays pending. The started flag and the sent flag are test controls.",
+    ),
+    (
+        "apps/jbotci-server/src/delivery.rs:LateBody",
+        "The body sleeps once and then returns one chunk. The pause is a test control.",
     ),
     (
         "apps/jbotci-server/src/execution.rs:AdmissionCancellation",
@@ -932,6 +980,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "test fake backend is constrained by test construction and used only for fixture packs",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:InterruptBeforeBytes",
+        "The model returns one interrupt, then the payload, then one interrupt, then the end. Any step order is a test control.",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:LoadedCorpusCacheKey",
         "loaded corpus cache keys are assembled from validated manifest and shard metadata before lookup",
     ),
@@ -1150,6 +1202,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-interrupt/src/lib.rs:CancellationToken",
         "Both states of the shared flag are valid. The owner decides when the flag becomes set.",
+    ),
+    (
+        "crates/jbotci-interrupt/src/lib.rs:StuckChild",
+        "The model stores a kill error, a kill count, a poll count, an optional status, a group id, a group-signal count, and an optional group argument. Any combination is a valid test control.",
     ),
     (
         "crates/jbotci-interrupt/src/lib.rs:CancellationSource",

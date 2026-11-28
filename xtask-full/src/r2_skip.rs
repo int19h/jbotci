@@ -293,6 +293,20 @@ fn local_proof(path: &Path) -> Result<LocalProof> {
     local_proof_with(path, |_| {})
 }
 
+/// Read one chunk.
+/// An interrupt retries the same buffer.
+#[requires(true)]
+#[ensures(true)]
+fn read_some(reader: &mut impl std::io::Read, buffer: &mut [u8]) -> std::io::Result<usize> {
+    loop {
+        match reader.read(buffer) {
+            Ok(count) => return Ok(count),
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn local_proof_with(path: &Path, mut observe: impl FnMut(&[u8])) -> Result<LocalProof> {
@@ -301,7 +315,7 @@ pub(super) fn local_proof_with(path: &Path, mut observe: impl FnMut(&[u8])) -> R
     let mut size = 0_u64;
     let mut buffer = [0_u8; 64 * 1024];
     loop {
-        let count = file.read(&mut buffer)?;
+        let count = read_some(&mut file, &mut buffer)?;
         if count == 0 {
             break;
         }
@@ -536,6 +550,57 @@ mod tests {
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
     static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
+
+    /// A reader that returns Interrupted before each byte and before the end.
+    #[invariant(true)]
+    struct InterruptBeforeEachByte {
+        bytes: &'static [u8],
+        offset: usize,
+        interrupt: bool,
+    }
+
+    impl std::io::Read for InterruptBeforeEachByte {
+        #[requires(true)]
+        #[ensures(true)]
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            if self.interrupt {
+                self.interrupt = false;
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ));
+            }
+            self.interrupt = true;
+            if self.offset >= self.bytes.len() || buffer.is_empty() {
+                return Ok(0);
+            }
+            buffer[0] = self.bytes[self.offset];
+            self.offset += 1;
+            Ok(1)
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn read_some_retries_an_interrupted_read() {
+        let mut reader = InterruptBeforeEachByte {
+            bytes: b"abc",
+            offset: 0,
+            interrupt: true,
+        };
+        let mut buffer = [0_u8; 8];
+        let mut collected = Vec::new();
+        loop {
+            let count = super::read_some(&mut reader, &mut buffer).expect("the read retries");
+            if count == 0 {
+                break;
+            }
+            collected.extend_from_slice(&buffer[..count]);
+        }
+        assert_eq!(collected, b"abc");
+        assert_eq!(reader.offset, 3);
+    }
 
     #[invariant(true)]
     struct Files {

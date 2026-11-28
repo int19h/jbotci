@@ -376,8 +376,15 @@ async fn limit_api_response(
         });
     }
     let (parts, body) = response.into_parts();
+    // The clock is read after the collection returns.
+    // A body at the deadline or later is a timeout.
+    // A length error keeps its own response.
+    // Any other body error keeps its own response.
     match tokio::time::timeout_at(deadline, Limited::new(body, limit.get()).collect()).await {
-        Ok(Ok(body)) => Response::from_parts(parts, Body::new(body)),
+        Ok(Ok(body)) if Instant::now() < deadline => Response::from_parts(parts, Body::new(body)),
+        Ok(Ok(_body)) => crate::execution::work_error_response(WorkError::TimedOut {
+            lane: WorkLane::Compute,
+        }),
         Ok(Err(error)) if error.is::<LengthLimitError>() => {
             crate::execution::work_error_response(WorkError::OutputLimit)
         }
@@ -523,27 +530,226 @@ mod tests {
             .await
             .unwrap();
         });
-        client
+        let write_result = client
             .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
-            .await
-            .unwrap();
-        buffered.notified().await;
-        assert_eq!(execution.governor.snapshot().compute_active, 1);
-        tokio::time::advance(execution.policy.deadline).await;
-        for _ in 0..100 {
-            if execution.governor.snapshot().compute_active == 0 {
-                break;
+            .await;
+        if write_result.is_ok() {
+            buffered.notified().await;
+            assert_eq!(execution.governor.snapshot().compute_active, 1);
+            tokio::time::advance(execution.policy.deadline).await;
+            for _ in 0..100 {
+                if execution.governor.snapshot().compute_active == 0 {
+                    break;
+                }
+                tokio::task::yield_now().await;
             }
-            tokio::task::yield_now().await;
+            assert_eq!(execution.governor.snapshot().compute_active, 0);
         }
-        assert_eq!(execution.governor.snapshot().compute_active, 0);
-        server.abort();
+        finish_probe_server(server).await;
+        write_result.expect("the probe client writes");
+    }
+
+    /// The text of a probe time limit.
+    /// The text is the sentence for that operation.
+    #[requires(!sentence.is_empty())]
+    #[ensures(ret.kind() == io::ErrorKind::TimedOut)]
+    fn probe_deadline_error(sentence: &'static str) -> io::Error {
+        io::Error::new(io::ErrorKind::TimedOut, sentence)
+    }
+
+    /// True after the absolute deadline.
+    /// The same deadline is used for every retry.
+    #[requires(true)]
+    #[ensures(true)]
+    fn past_probe_deadline(deadline: Instant) -> bool {
+        Instant::now() >= deadline
+    }
+
+    /// Write every byte.
+    /// Each attempt uses the same absolute deadline.
+    /// An interrupt leaves the byte offset unchanged.
+    /// A result at the deadline or later is a timeout.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn write_keeping_offset(
+        stream: &mut (impl AsyncWrite + Unpin),
+        bytes: &[u8],
+        deadline: Instant,
+    ) -> io::Result<()> {
+        use tokio::io::AsyncWriteExt;
+        let mut offset = 0;
+        while offset < bytes.len() {
+            if past_probe_deadline(deadline) {
+                return Err(probe_deadline_error(
+                    "the socket write reached its time limit",
+                ));
+            }
+            match tokio::time::timeout_at(deadline, stream.write(&bytes[offset..])).await {
+                Err(_) => {
+                    return Err(probe_deadline_error(
+                        "the socket write reached its time limit",
+                    ));
+                }
+                Ok(result) => {
+                    if past_probe_deadline(deadline) {
+                        return Err(probe_deadline_error(
+                            "the socket write reached its time limit",
+                        ));
+                    }
+                    match result {
+                        Ok(0) => {
+                            return Err(io::Error::new(
+                                io::ErrorKind::WriteZero,
+                                "the socket write returned no bytes",
+                            ));
+                        }
+                        Ok(count) => offset += count,
+                        Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Read until the socket closes.
+    /// Each attempt uses the same absolute deadline.
+    /// An interrupt keeps the bytes already read.
+    /// A result at the deadline or later is a timeout.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn read_keeping_bytes(
+        stream: &mut (impl AsyncRead + Unpin),
+        bytes: &mut Vec<u8>,
+        deadline: Instant,
+    ) -> io::Result<()> {
+        use tokio::io::AsyncReadExt;
+        let mut buf = [0_u8; 1024];
+        loop {
+            if past_probe_deadline(deadline) {
+                return Err(probe_deadline_error(
+                    "the socket read reached its time limit",
+                ));
+            }
+            match tokio::time::timeout_at(deadline, stream.read(&mut buf)).await {
+                Err(_) => {
+                    return Err(probe_deadline_error(
+                        "the socket read reached its time limit",
+                    ));
+                }
+                Ok(result) => {
+                    if past_probe_deadline(deadline) {
+                        return Err(probe_deadline_error(
+                            "the socket read reached its time limit",
+                        ));
+                    }
+                    match result {
+                        Ok(0) => return Ok(()),
+                        Ok(count) => bytes.extend_from_slice(&buf[..count]),
+                        Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+            }
+        }
+    }
+
+    /// Accept one connection.
+    /// Each attempt uses the same absolute deadline.
+    /// An interrupt returns to this loop.
+    /// A result at the deadline or later is a timeout.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn accept_within_limit<T, F, Fut>(mut accept: F, deadline: Instant) -> io::Result<T>
+    where
+        F: FnMut() -> Fut,
+        Fut: Future<Output = io::Result<T>>,
+    {
+        loop {
+            if past_probe_deadline(deadline) {
+                return Err(probe_deadline_error(
+                    "the direct accept reached its time limit",
+                ));
+            }
+            match tokio::time::timeout_at(deadline, accept()).await {
+                Err(_) => {
+                    return Err(probe_deadline_error(
+                        "the direct accept reached its time limit",
+                    ));
+                }
+                Ok(result) => {
+                    if past_probe_deadline(deadline) {
+                        return Err(probe_deadline_error(
+                            "the direct accept reached its time limit",
+                        ));
+                    }
+                    match result {
+                        Ok(value) => return Ok(value),
+                        Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+            }
+        }
+    }
+
+    /// The text of a task panic.
+    /// The text is not empty.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn task_panic_text(payload: &(dyn std::any::Any + Send)) -> String {
+        if let Some(message) = payload.downcast_ref::<String>() {
+            if !message.is_empty() {
+                return message.clone();
+            }
+        }
+        if let Some(message) = payload.downcast_ref::<&str>() {
+            if !message.is_empty() {
+                return (*message).to_owned();
+            }
+        }
+        "the server task panicked".to_owned()
+    }
+
+    /// Await a probe server task.
+    /// Cancellation is a normal stop.
+    /// A panic keeps its message.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn await_probe_server(task: tokio::task::JoinHandle<()>) {
+        match task.await {
+            Ok(()) => {}
+            Err(error) if error.is_cancelled() => {}
+            Err(error) if error.is_panic() => {
+                panic!("{}", task_panic_text(error.into_panic().as_ref()));
+            }
+            Err(error) => panic!("the delivery probe server failed: {error}"),
+        }
+    }
+
+    /// Abort a probe server task and await it.
+    /// The await stops after one second.
+    /// A panic keeps its message.
+    /// A task that stays after the limit is left stopped.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn finish_probe_server(task: tokio::task::JoinHandle<()>) {
+        task.abort();
+        match tokio::time::timeout(std::time::Duration::from_secs(1), task).await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) if error.is_cancelled() => {}
+            Ok(Err(error)) if error.is_panic() => {
+                panic!("{}", task_panic_text(error.into_panic().as_ref()));
+            }
+            Ok(Err(error)) => panic!("the delivery probe server failed: {error}"),
+            Err(_elapsed) => {}
+        }
     }
 
     #[requires(true)]
     #[ensures(true)]
     async fn local_client_response(late_normal: bool) -> String {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let policy = crate::ServerPolicy::default().with_data(bityzba::data! {
             deadline: std::time::Duration::from_millis(20),
             error_delivery: std::time::Duration::from_secs(1),
@@ -599,20 +805,23 @@ mod tests {
             .await
             .unwrap();
         });
-        let mut client = TcpStream::connect(address).await.unwrap();
-        client
-            .write_all(b"GET /api/probe HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
-            .await
-            .unwrap();
-        let mut bytes = Vec::new();
-        tokio::time::timeout(
-            std::time::Duration::from_secs(2),
-            client.read_to_end(&mut bytes),
-        )
-        .await
-        .unwrap()
-        .unwrap();
-        server.abort();
+        let client_result: io::Result<Vec<u8>> = async {
+            let mut client = TcpStream::connect(address).await?;
+            let write_deadline = Instant::now() + std::time::Duration::from_secs(2);
+            write_keeping_offset(
+                &mut client,
+                b"GET /api/probe HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+                write_deadline,
+            )
+            .await?;
+            let mut bytes = Vec::new();
+            let read_deadline = Instant::now() + std::time::Duration::from_secs(2);
+            read_keeping_bytes(&mut client, &mut bytes, read_deadline).await?;
+            Ok(bytes)
+        }
+        .await;
+        finish_probe_server(server).await;
+        let bytes = client_result.expect("the probe client finishes");
         String::from_utf8(bytes).unwrap()
     }
 
@@ -701,7 +910,8 @@ mod tests {
     async fn an_expired_response_stops_socket_writes() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let connect = TcpStream::connect(listener.local_addr().unwrap());
-        let accept = listener.accept();
+        let accept_deadline = Instant::now() + std::time::Duration::from_secs(2);
+        let accept = accept_within_limit(|| listener.accept(), accept_deadline);
         let (client, server) = tokio::join!(connect, accept);
         let _client = client.unwrap();
         let (stream, _) = server.unwrap();
@@ -710,11 +920,412 @@ mod tests {
             connection.register(Instant::now() + std::time::Duration::from_secs(20));
         let mut stream = DeadlineStream { stream, connection };
         tokio::time::advance(std::time::Duration::from_secs(20)).await;
-        let error = tokio::io::AsyncWriteExt::write_all(&mut stream, b"small local probe")
-            .await
-            .unwrap_err();
+        let error = write_keeping_offset(
+            &mut stream,
+            b"small local probe",
+            Instant::now() + std::time::Duration::from_secs(5),
+        )
+        .await
+        .unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
     }
+
+    /// One scripted socket step.
+    #[derive(Clone, Copy)]
+    #[invariant(true)]
+    enum ProbeStep {
+        Interrupt,
+        Byte,
+        End,
+    }
+
+    /// A socket that follows a write script.
+    #[invariant(true)]
+    struct ScriptedProbeWrite {
+        steps: Vec<ProbeStep>,
+        cursor: usize,
+        written: Vec<u8>,
+    }
+
+    impl AsyncWrite for ScriptedProbeWrite {
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            let step = self.steps[self.cursor];
+            self.cursor += 1;
+            match step {
+                ProbeStep::Interrupt => Poll::Ready(Err(io::Error::new(
+                    io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ))),
+                ProbeStep::Byte => {
+                    let count = 1.min(bytes.len());
+                    self.written.extend_from_slice(&bytes[..count]);
+                    Poll::Ready(Ok(count))
+                }
+                ProbeStep::End => Poll::Ready(Ok(0)),
+            }
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    /// A socket that follows a read script.
+    #[invariant(true)]
+    struct ScriptedProbeRead {
+        parts: Vec<&'static [u8]>,
+        cursor: usize,
+        interrupt_next: bool,
+    }
+
+    impl AsyncRead for ScriptedProbeRead {
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            buffer: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            if self.interrupt_next {
+                self.interrupt_next = false;
+                return Poll::Ready(Err(io::Error::new(
+                    io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                )));
+            }
+            if self.cursor >= self.parts.len() {
+                return Poll::Ready(Ok(()));
+            }
+            let part = self.parts[self.cursor];
+            self.cursor += 1;
+            buffer.put_slice(part);
+            self.interrupt_next = true;
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    /// A write that stores one byte and then stays pending.
+    /// The shared buffer keeps that byte.
+    #[invariant(true)]
+    struct PendingAfterByte {
+        written: Arc<Mutex<Vec<u8>>>,
+    }
+
+    impl AsyncWrite for PendingAfterByte {
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_write(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            let written = &mut *self.written.lock().expect("the probe write buffer is open");
+            if !written.is_empty() {
+                return Poll::Pending;
+            }
+            if bytes.is_empty() {
+                return Poll::Ready(Ok(0));
+            }
+            written.push(bytes[0]);
+            Poll::Ready(Ok(1))
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    /// A read that returns its bytes and then stays pending.
+    #[invariant(true)]
+    struct PendingAfterRead {
+        started: Arc<std::sync::atomic::AtomicBool>,
+        sent: bool,
+    }
+
+    impl AsyncRead for PendingAfterRead {
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            buffer: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            if self.sent {
+                return Poll::Pending;
+            }
+            self.sent = true;
+            self.started
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            buffer.put_slice(b"ab");
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn probe_write_keeps_the_offset_across_interrupts() {
+        let mut writer = ScriptedProbeWrite {
+            steps: vec![
+                ProbeStep::Interrupt,
+                ProbeStep::Byte,
+                ProbeStep::Interrupt,
+                ProbeStep::Byte,
+                ProbeStep::Byte,
+            ],
+            cursor: 0,
+            written: Vec::new(),
+        };
+        write_keeping_offset(
+            &mut writer,
+            b"abc",
+            Instant::now() + std::time::Duration::from_secs(1),
+        )
+        .await
+        .expect("the probe write finishes");
+        assert_eq!(writer.written, b"abc");
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn probe_read_keeps_bytes_across_interrupts() {
+        let mut reader = ScriptedProbeRead {
+            parts: vec![b"ab", b"cd"],
+            cursor: 0,
+            interrupt_next: true,
+        };
+        let mut bytes = Vec::new();
+        read_keeping_bytes(
+            &mut reader,
+            &mut bytes,
+            Instant::now() + std::time::Duration::from_secs(1),
+        )
+        .await
+        .expect("the probe read finishes");
+        assert_eq!(bytes, b"abcd");
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn direct_accept_retries_an_interrupt_within_its_time_limit() {
+        let mut calls = 0_u32;
+        let deadline = Instant::now() + std::time::Duration::from_millis(100);
+        let result = accept_within_limit(
+            || {
+                calls += 1;
+                let call = calls;
+                async move {
+                    if call == 1 {
+                        Err(io::Error::new(
+                            io::ErrorKind::Interrupted,
+                            "injected interrupt",
+                        ))
+                    } else {
+                        Ok(7_u8)
+                    }
+                }
+            },
+            deadline,
+        )
+        .await;
+        assert_eq!(result.expect("the accept retries"), 7);
+        assert_eq!(calls, 2);
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn direct_accept_stops_at_its_time_limit() {
+        let deadline = Instant::now() + std::time::Duration::from_millis(100);
+        let mut calls = 0_u32;
+        let result = accept_within_limit(
+            || {
+                calls += 1;
+                async {
+                    tokio::time::advance(std::time::Duration::from_millis(60)).await;
+                    Err::<(), _>(io::Error::new(
+                        io::ErrorKind::Interrupted,
+                        "injected interrupt",
+                    ))
+                }
+            },
+            deadline,
+        )
+        .await;
+        let error = result.expect_err("the accept reaches the time limit");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert!(calls < 5, "calls={calls}");
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn probe_write_times_out_while_the_write_is_pending() {
+        let written = Arc::new(Mutex::new(Vec::new()));
+        let record = Arc::clone(&written);
+        let deadline = Instant::now() + std::time::Duration::from_millis(100);
+        let task = tokio::spawn(async move {
+            let mut writer = PendingAfterByte { written: record };
+            write_keeping_offset(&mut writer, b"ab", deadline).await
+        });
+        for _ in 0..100 {
+            if !written
+                .lock()
+                .expect("the probe write buffer is open")
+                .is_empty()
+            {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(
+            written
+                .lock()
+                .expect("the probe write buffer is open")
+                .as_slice(),
+            b"a"
+        );
+        tokio::time::advance(std::time::Duration::from_millis(100)).await;
+        let error = task
+            .await
+            .expect("the probe write task finishes")
+            .expect_err("the pending write reaches the time limit");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert_eq!(
+            written
+                .lock()
+                .expect("the probe write buffer is open")
+                .as_slice(),
+            b"a"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn probe_read_times_out_while_the_read_is_pending() {
+        let started = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = Arc::clone(&started);
+        let deadline = Instant::now() + std::time::Duration::from_millis(100);
+        let task = tokio::spawn(async move {
+            let mut reader = PendingAfterRead {
+                started: flag,
+                sent: false,
+            };
+            let mut bytes = Vec::new();
+            let result = read_keeping_bytes(&mut reader, &mut bytes, deadline).await;
+            (result, bytes)
+        });
+        for _ in 0..100 {
+            if started.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            started.load(std::sync::atomic::Ordering::Relaxed),
+            "the probe read started"
+        );
+        tokio::time::advance(std::time::Duration::from_millis(100)).await;
+        let (result, bytes) = task.await.expect("the probe read task finishes");
+        let error = result.expect_err("the pending read reaches the time limit");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert_eq!(bytes, b"ab");
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn direct_accept_times_out_while_the_accept_is_pending() {
+        let started = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = Arc::clone(&started);
+        let deadline = Instant::now() + std::time::Duration::from_millis(100);
+        let task = tokio::spawn(async move {
+            accept_within_limit(
+                || {
+                    flag.store(true, std::sync::atomic::Ordering::Relaxed);
+                    std::future::pending::<io::Result<u8>>()
+                },
+                deadline,
+            )
+            .await
+        });
+        for _ in 0..100 {
+            if started.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            started.load(std::sync::atomic::Ordering::Relaxed),
+            "the accept started"
+        );
+        tokio::time::advance(std::time::Duration::from_millis(100)).await;
+        let error = task
+            .await
+            .expect("the accept task finishes")
+            .expect_err("the pending accept reaches the time limit");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn delivery_server_cancellation_is_normal() {
+        let task = tokio::spawn(std::future::pending::<()>());
+        finish_probe_server(task).await;
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "delivery server sentinel")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn delivery_server_panic_is_a_failure() {
+        let task = tokio::spawn(async { panic!("delivery server sentinel") });
+        while !task.is_finished() {
+            tokio::task::yield_now().await;
+        }
+        finish_probe_server(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[should_panic(expected = "delivery server sentinel")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn delivery_server_teardown_awaits_a_running_task() {
+        let task = tokio::spawn(async {
+            tokio::task::yield_now().await;
+            panic!("delivery server sentinel");
+        });
+        tokio::task::yield_now().await;
+        assert!(!task.is_finished(), "the server task is still running");
+        await_probe_server(task).await;
+    }
+
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
@@ -820,5 +1431,58 @@ mod tests {
             "work_deadline_exceeded"
         );
         assert!(sender.is_closed());
+    }
+
+    /// A body that sleeps once inside the read and then returns one chunk.
+    /// The pause is a test control.
+    #[invariant(true)]
+    struct LateBody {
+        delay: std::time::Duration,
+        slept: bool,
+    }
+
+    impl HttpBody for LateBody {
+        type Data = Bytes;
+        type Error = axum::Error;
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn poll_frame(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Option<Result<http_body::Frame<Bytes>, axum::Error>>> {
+            if self.slept {
+                return Poll::Ready(None);
+            }
+            self.slept = true;
+            std::thread::sleep(self.delay);
+            Poll::Ready(Some(Ok(http_body::Frame::data(Bytes::from_static(
+                b"late",
+            )))))
+        }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn api_collection_rejects_a_body_after_the_deadline() {
+        // The collection starts inside the limit.
+        // The body becomes ready after the limit.
+        // That body is a timeout.
+        let limit = std::time::Duration::from_millis(40);
+        let response = limit_api_response(
+            Response::new(Body::new(LateBody {
+                delay: limit + std::time::Duration::from_millis(80),
+                slept: false,
+            })),
+            jbotci_output::budget::ByteLimit::new(128).unwrap(),
+            Instant::now() + limit,
+        )
+        .await;
+        assert_eq!(response.status(), axum::http::StatusCode::GATEWAY_TIMEOUT);
+        assert_eq!(
+            response.headers()["x-jbotci-error"],
+            "work_deadline_exceeded"
+        );
     }
 }

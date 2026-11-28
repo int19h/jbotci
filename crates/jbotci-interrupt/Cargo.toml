@@ -19,6 +19,9 @@ cancellation_test_hook = []
 [dependencies]
 bityzba.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
 

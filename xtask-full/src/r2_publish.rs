@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -510,33 +510,190 @@ fn run_bounded(command: &mut Command, timeout: Duration) -> Result<()> {
     wait_bounded(&mut child, timeout)
 }
 
+/// One observation from `try_wait`.
+#[derive(Clone, Copy)]
+#[invariant(true)]
+enum ChildPollKind {
+    Exited,
+    Running,
+    Interrupted,
+    Failed,
+}
+
+/// The next step for a bounded child wait.
+#[derive(Clone, Copy)]
+#[invariant(true)]
+enum WaitStepKind {
+    Succeeded,
+    Continue,
+    TimedOut,
+    Failed,
+}
+
+/// The next step while the parent polls the child and the stderr worker.
+/// `ReportWorker` means the worker already failed.
+/// `Child` is the bounded wait step.
+#[derive(Clone, Copy)]
+#[invariant(true)]
+#[invariant(::Child(_) => true)]
+enum ReadbackStep {
+    ReportWorker,
+    Child(WaitStepKind),
+}
+
+/// Choose the next step for a bounded wait.
+/// The deadline is checked before a result is accepted.
+/// An exit first observed at the deadline or later is a timeout.
+/// A failed wait stays a failure.
+#[requires(!timeout.is_zero())]
+#[ensures(true)]
+fn bounded_wait_step(kind: ChildPollKind, elapsed: Duration, timeout: Duration) -> WaitStepKind {
+    if !timeout.is_zero() && elapsed >= timeout {
+        return match kind {
+            ChildPollKind::Failed => WaitStepKind::Failed,
+            ChildPollKind::Exited | ChildPollKind::Running | ChildPollKind::Interrupted => {
+                WaitStepKind::TimedOut
+            }
+        };
+    }
+    match kind {
+        ChildPollKind::Exited => WaitStepKind::Succeeded,
+        ChildPollKind::Failed => WaitStepKind::Failed,
+        ChildPollKind::Running | ChildPollKind::Interrupted => WaitStepKind::Continue,
+    }
+}
+
+/// The pause before the next child poll.
+/// The pause stops at the remaining time.
+#[requires(true)]
+#[ensures(ret <= Duration::from_millis(20))]
+#[ensures(ret <= timeout.saturating_sub(elapsed))]
+fn bounded_wait_pause(elapsed: Duration, timeout: Duration) -> Duration {
+    Duration::from_millis(20).min(timeout.saturating_sub(elapsed))
+}
+
+/// Choose the next read-back step.
+/// A failed stderr worker is reported on this pass.
+/// The child deadline still rejects a late exit.
+#[requires(!timeout.is_zero())]
+#[ensures(true)]
+fn readback_step(
+    worker_finished: bool,
+    worker_failed: bool,
+    kind: ChildPollKind,
+    elapsed: Duration,
+    timeout: Duration,
+) -> ReadbackStep {
+    if worker_finished && worker_failed {
+        return ReadbackStep::ReportWorker;
+    }
+    ReadbackStep::Child(bounded_wait_step(kind, elapsed, timeout))
+}
+
+/// Stop the child and its process group.
+/// The reap stops at `limit`.
+/// An unreaped child stays unreaped.
+/// A stop error is added to `result`.
+/// An earlier `result` error stays in the chain.
+#[requires(true)]
+#[ensures(true)]
+fn stop_publisher_child(
+    child: &mut std::process::Child,
+    limit: Duration,
+    result: Result<()>,
+) -> Result<()> {
+    let reap = jbotci_interrupt::reap_after_kill(child, limit, true);
+    match reap.error.as_ref() {
+        Some(error) => match result {
+            Ok(()) => Err(anyhow::anyhow!("the publisher stop failed: {error}")),
+            Err(cause) => Err(cause.context(format!("the publisher stop failed: {error}"))),
+        },
+        None => result,
+    }
+}
+
+/// Read one non-blocking child status.
+/// An interrupt is its own observation.
+#[requires(true)]
+#[ensures(true)]
+fn poll_child(
+    child: &mut std::process::Child,
+) -> (
+    ChildPollKind,
+    Option<std::process::ExitStatus>,
+    Option<std::io::Error>,
+) {
+    match child.try_wait() {
+        Ok(Some(status)) => (ChildPollKind::Exited, Some(status), None),
+        Ok(None) => (ChildPollKind::Running, None, None),
+        Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
+            (ChildPollKind::Interrupted, None, None)
+        }
+        Err(error) => (ChildPollKind::Failed, None, Some(error)),
+    }
+}
+
+/// Turn one child observation into the command result.
+/// A running child keeps that fact in the message.
+#[requires(true)]
+#[ensures(true)]
+fn child_status_result(
+    kind: ChildPollKind,
+    status: Option<std::process::ExitStatus>,
+    failure: Option<std::io::Error>,
+) -> Result<()> {
+    match kind {
+        ChildPollKind::Exited => {
+            let status = status.expect("an exited child has a status");
+            if !status.success() {
+                bail!("Publisher command failed with {status}");
+            }
+            Ok(())
+        }
+        ChildPollKind::Running | ChildPollKind::Interrupted => {
+            bail!("Publisher command is still running")
+        }
+        ChildPollKind::Failed => {
+            let error = failure.expect("a failed wait has an error");
+            Err(error.into())
+        }
+    }
+}
+
 #[requires(!timeout.is_zero())]
 #[ensures(true)]
 fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()> {
     let start = Instant::now();
     loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                if !status.success() {
-                    bail!("Publisher command failed with {status}");
+        // `try_wait` uses `waitpid`.
+        // A signal can interrupt that call.
+        // The clock is read after that call returns.
+        // The deadline is checked before the result is accepted.
+        let (kind, status, failure) = poll_child(child);
+        let elapsed = start.elapsed();
+        match bounded_wait_step(kind, elapsed, timeout) {
+            WaitStepKind::Succeeded => return child_status_result(kind, status, failure),
+            WaitStepKind::Continue => {
+                let pause = bounded_wait_pause(elapsed, timeout);
+                if !pause.is_zero() {
+                    std::thread::sleep(pause);
                 }
-                return Ok(());
             }
-            Ok(None) if start.elapsed() < timeout => std::thread::sleep(Duration::from_millis(20)),
-            result => {
-                #[cfg(unix)]
-                // Kill descendants too if the command starts another process.
-                unsafe {
-                    libc::kill(-(child.id() as i32), libc::SIGKILL);
-                }
-                let _ = child.kill();
-                let _ = child.wait();
-                if let Err(error) = result {
-                    return Err(error.into());
-                }
-                bail!(
-                    "Publisher command timed out after {} seconds",
-                    timeout.as_secs_f64()
+            WaitStepKind::TimedOut => {
+                return stop_publisher_child(
+                    child,
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
+                    Err(anyhow::anyhow!(
+                        "Publisher command timed out after {} seconds",
+                        timeout.as_secs_f64()
+                    )),
+                );
+            }
+            WaitStepKind::Failed => {
+                return stop_publisher_child(
+                    child,
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
+                    child_status_result(kind, status, failure),
                 );
             }
         }
@@ -594,6 +751,97 @@ fn redacted_readback_stderr(bytes: &[u8]) -> String {
     }
 }
 
+/// Bytes drained from the read-back stderr pipe.
+/// `error` is set when the pipe operation fails.
+#[invariant(true)]
+struct ReadbackDrain {
+    bytes: Vec<u8>,
+    error: Option<String>,
+}
+
+/// The text of a worker panic.
+/// The text is the panic message.
+/// An empty payload uses a fixed sentence.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn worker_panic_text(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<String>() {
+        if !message.is_empty() {
+            return message.clone();
+        }
+    }
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        if !message.is_empty() {
+            return (*message).to_owned();
+        }
+    }
+    "the worker panicked".to_owned()
+}
+
+/// The text of an I/O error.
+/// The text is not empty.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn io_error_text(error: &std::io::Error) -> String {
+    let message = error.to_string();
+    if !message.is_empty() {
+        return message;
+    }
+    format!("{:?}", error.kind())
+}
+
+/// Join the child status with the stderr worker.
+/// A worker error or panic fails the command.
+/// The child status stays in the message.
+/// Stderr bytes stay redacted.
+#[requires(match &worker {
+    Ok(drain) => drain.bytes.len() <= 4096,
+    Err(_) => true,
+})]
+#[ensures(true)]
+fn combine_readback(child: Result<()>, worker: std::thread::Result<ReadbackDrain>) -> Result<()> {
+    let (bytes, worker_error) = match worker {
+        Ok(drain) => (drain.bytes, drain.error),
+        Err(payload) => (Vec::new(), Some(worker_panic_text(payload.as_ref()))),
+    };
+    let redacted = redacted_readback_stderr(&bytes);
+    match (child, worker_error) {
+        (Ok(()), None) => Ok(()),
+        (Ok(()), Some(error)) => {
+            bail!("the read-back stderr worker failed: {error}")
+        }
+        (Err(error), None) => Err(error).context(format!("Read-back stderr: {redacted}")),
+        (Err(error), Some(worker_error)) => Err(error).context(format!(
+            "Read-back stderr: {redacted}; the read-back stderr worker failed: {worker_error}"
+        )),
+    }
+}
+
+/// Wait for the stderr reader.
+/// The wait stops at `limit`.
+/// `None` means the reader did not finish.
+#[requires(true)]
+#[ensures(true)]
+fn join_readback_reader(
+    reader: std::thread::JoinHandle<ReadbackDrain>,
+    limit: Duration,
+) -> Option<std::thread::Result<ReadbackDrain>> {
+    if reader.is_finished() {
+        return Some(reader.join());
+    }
+    if limit.is_zero() {
+        return None;
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = sender.send(reader.join());
+    });
+    match receiver.recv_timeout(limit) {
+        Ok(outcome) => Some(outcome),
+        Err(_) => None,
+    }
+}
+
 #[requires(!timeout.is_zero())]
 #[ensures(true)]
 fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
@@ -614,18 +862,122 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
     let reader = std::thread::spawn(move || {
         // Drain after the limit too, so verbose failures cannot block the child or grow memory use.
         let mut bytes = Vec::new();
-        stderr.by_ref().take(4096).read_to_end(&mut bytes)?;
-        std::io::copy(&mut stderr, &mut std::io::sink())?;
-        Ok::<_, std::io::Error>(bytes)
+        let error = match stderr.by_ref().take(4096).read_to_end(&mut bytes) {
+            Ok(_) => match std::io::copy(&mut stderr, &mut std::io::sink()) {
+                Ok(_) => None,
+                Err(error) => Some(io_error_text(&error)),
+            },
+            Err(error) => Some(io_error_text(&error)),
+        };
+        ReadbackDrain { bytes, error }
     });
-    let result = wait_bounded(&mut child, timeout);
-    #[cfg(unix)]
-    // Close inherited pipes if a command exits while one of its descendants survives.
-    unsafe {
-        libc::kill(-(child.id() as i32), libc::SIGKILL);
+    let mut reader = Some(reader);
+    let mut worker_outcome = None;
+    let start = Instant::now();
+    let mut command_timed_out = false;
+    let result = loop {
+        if worker_outcome.is_none() && reader.as_ref().is_some_and(|handle| handle.is_finished()) {
+            worker_outcome = Some(reader.take().expect("the reader handle is present").join());
+        }
+        let worker_failed = worker_outcome
+            .as_ref()
+            .is_some_and(|outcome| match outcome {
+                Ok(drain) => drain.error.is_some(),
+                Err(_) => true,
+            });
+        // The clock is read after the child poll returns.
+        // The deadline is checked before that result is accepted.
+        let (kind, status, failure) = poll_child(&mut child);
+        let elapsed = start.elapsed();
+        match readback_step(
+            worker_outcome.is_some(),
+            worker_failed,
+            kind,
+            elapsed,
+            timeout,
+        ) {
+            ReadbackStep::ReportWorker => {
+                let child_result = child_status_result(kind, status, failure);
+                break stop_publisher_child(
+                    &mut child,
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
+                    child_result,
+                );
+            }
+            ReadbackStep::Child(WaitStepKind::Succeeded) => {
+                break child_status_result(kind, status, failure);
+            }
+            ReadbackStep::Child(WaitStepKind::Continue) => {
+                let pause = bounded_wait_pause(elapsed, timeout);
+                if !pause.is_zero() {
+                    std::thread::sleep(pause);
+                }
+            }
+            ReadbackStep::Child(WaitStepKind::TimedOut) => {
+                command_timed_out = true;
+                break stop_publisher_child(
+                    &mut child,
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
+                    Err(anyhow::anyhow!(
+                        "Publisher command timed out after {} seconds",
+                        timeout.as_secs_f64()
+                    )),
+                );
+            }
+            ReadbackStep::Child(WaitStepKind::Failed) => {
+                break stop_publisher_child(
+                    &mut child,
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
+                    child_status_result(kind, status, failure),
+                );
+            }
+        }
+    };
+    // Kill the group before the reader wait.
+    // The kill is cleanup.
+    // The argument is less than -1.
+    // A missing group is normal.
+    // The reap and the reader share one drain deadline.
+    // An unreaped child stays unreaped.
+    // A grandchild in a new session keeps the pipe.
+    // A pipe that stays open hits the time that remains.
+    // An expired reader keeps an existing command timeout.
+    // A finished reader keeps the child result, the worker error, and the stderr text.
+    let _ = jbotci_interrupt::PollableChild::kill_group(&mut child);
+    let worker_outcome = if let Some(outcome) = worker_outcome {
+        outcome
+    } else {
+        let limit = jbotci_interrupt::drain_window(start, timeout, Instant::now());
+        let reader = reader.take().expect("the reader handle is present");
+        match join_readback_reader(reader, limit) {
+            Some(outcome) => outcome,
+            None => return finish_reader_timeout(result, timeout, command_timed_out),
+        }
+    };
+    combine_readback(result, worker_outcome)
+}
+
+/// Finish a reader that did not join.
+/// A command that already timed out keeps that result.
+/// The timeout sentence is not added a second time.
+#[requires(!timeout.is_zero())]
+#[ensures(true)]
+fn finish_reader_timeout(
+    result: Result<()>,
+    timeout: Duration,
+    command_timed_out: bool,
+) -> Result<()> {
+    if command_timed_out {
+        return result;
     }
-    let bytes = reader.join().ok().and_then(Result::ok).unwrap_or_default();
-    result.with_context(|| format!("Read-back stderr: {}", redacted_readback_stderr(&bytes)))
+    let timeout_error = anyhow::anyhow!(
+        "Publisher command timed out after {} seconds",
+        timeout.as_secs_f64()
+    );
+    match result {
+        Ok(()) => Err(timeout_error),
+        Err(error) => Err(error.context(timeout_error)),
+    }
 }
 
 #[invariant(true)]
@@ -677,51 +1029,141 @@ mod tests {
             "body_encoding": object.content_encoding})
     }
 
-    // A signal interrupts a blocking socket call. The call returns
-    // `ErrorKind::Interrupted`. Retry that call. Leave every other error.
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
-    fn io_retry_interrupted<T>(
-        mut operation: impl FnMut() -> std::io::Result<T>,
-    ) -> std::io::Result<T> {
-        loop {
-            match operation() {
-                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-                result => return result,
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| error.kind() != std::io::ErrorKind::Interrupted))]
-    fn read_retry(socket: &mut impl std::io::Read, buf: &mut [u8]) -> std::io::Result<usize> {
-        io_retry_interrupted(|| std::io::Read::read(socket, buf))
-    }
-
     const REQUEST_HEAD_LIMIT: usize = 16 * 1024;
+    const STUB_SOCKET_POLL: Duration = Duration::from_millis(100);
+
+    /// A socket poll that this loop can retry.
+    /// An interrupt, a timeout, and a would-block result are polls.
+    #[requires(true)]
+    #[ensures(true)]
+    fn stub_io_is_a_poll(error: &std::io::Error) -> bool {
+        matches!(
+            error.kind(),
+            std::io::ErrorKind::Interrupted
+                | std::io::ErrorKind::TimedOut
+                | std::io::ErrorKind::WouldBlock
+        )
+    }
 
     /// Read one HTTP request head.
-    /// Retry an interrupted read.
+    /// An interrupt returns to this loop.
+    /// The stop flag is checked on every pass.
+    /// A timeout or a would-block result is the same kind of pass.
+    /// `Ok(None)` means the stop flag is true.
     /// Stop at the blank line, at a closed socket, or past the size limit.
     #[requires(true)]
     #[ensures(match &ret {
-        Ok(request) => request.len() < REQUEST_HEAD_LIMIT,
+        Ok(Some(request)) => request.len() < REQUEST_HEAD_LIMIT,
+        Ok(None) => true,
         Err(error) => !error.is_empty(),
     })]
-    fn read_request_head(socket: &mut impl std::io::Read) -> Result<Vec<u8>, String> {
+    fn read_request_head(
+        socket: &mut impl std::io::Read,
+        stop: &std::sync::atomic::AtomicBool,
+    ) -> Result<Option<Vec<u8>>, String> {
         let mut request = Vec::new();
-        while !request.ends_with(b"\r\n\r\n") {
+        loop {
+            if stop.load(Ordering::Relaxed) {
+                return Ok(None);
+            }
+            if request.ends_with(b"\r\n\r\n") {
+                return Ok(Some(request));
+            }
             let mut byte = [0];
-            match read_retry(socket, &mut byte) {
-                Ok(0) => break,
-                Ok(_) => request.push(byte[0]),
+            match socket.read(&mut byte) {
+                Ok(0) => return Ok(Some(request)),
+                Ok(_) => {
+                    request.push(byte[0]);
+                    if request.len() >= REQUEST_HEAD_LIMIT {
+                        return Err("the stub server request is longer than 16 KiB".to_owned());
+                    }
+                }
+                Err(error) if stub_io_is_a_poll(&error) => continue,
                 Err(error) => return Err(format!("the stub server read failed: {error}")),
             }
-            if request.len() >= REQUEST_HEAD_LIMIT {
-                return Err("the stub server request is longer than 16 KiB".to_owned());
+        }
+    }
+
+    /// Write every byte.
+    /// An interrupt leaves the byte offset unchanged.
+    /// The stop flag is checked on every pass.
+    /// `Ok(false)` means the stop flag ended the write.
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_stub_bytes(
+        socket: &mut impl std::io::Write,
+        bytes: &[u8],
+        stop: &std::sync::atomic::AtomicBool,
+    ) -> Result<bool, String> {
+        let mut offset = 0;
+        while offset < bytes.len() {
+            if stop.load(Ordering::Relaxed) {
+                return Ok(false);
+            }
+            match socket.write(&bytes[offset..]) {
+                Ok(0) => {
+                    return Err("the stub server write returned no bytes".to_owned());
+                }
+                Ok(count) => offset += count,
+                Err(error) if stub_io_is_a_poll(&error) => continue,
+                Err(error) => return Err(format!("the stub server write failed: {error}")),
             }
         }
-        Ok(request)
+        Ok(true)
+    }
+
+    /// Bind one local port.
+    /// An interrupt retries the same port.
+    /// An address that is already in use advances to the next port.
+    /// Any other error names the address and the cause.
+    #[requires(start <= end)]
+    #[ensures(true)]
+    fn select_local_port<T>(
+        start: u16,
+        end: u16,
+        mut bind_port: impl FnMut(u16) -> std::io::Result<T>,
+    ) -> Result<T, String> {
+        let mut port = start;
+        loop {
+            if port > end {
+                return Err(format!("no free port in {start}..={end}"));
+            }
+            match bind_port(port) {
+                Ok(value) => return Ok(value),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+                    port = match port.checked_add(1) {
+                        Some(next) => next,
+                        None => return Err(format!("no free port in {start}..={end}")),
+                    };
+                }
+                Err(error) => {
+                    return Err(format!("cannot bind 127.0.0.1:{port}: {error}"));
+                }
+            }
+        }
+    }
+
+    /// Apply one socket option.
+    /// An interrupt returns to this loop.
+    /// The stop flag is checked on every pass.
+    /// `Ok(false)` means the stop flag is true.
+    #[requires(true)]
+    #[ensures(true)]
+    fn stub_option_until_stop(
+        stop: &std::sync::atomic::AtomicBool,
+        mut operation: impl FnMut() -> std::io::Result<()>,
+    ) -> Result<bool, String> {
+        loop {
+            if stop.load(Ordering::Relaxed) {
+                return Ok(false);
+            }
+            match operation() {
+                Ok(()) => return Ok(true),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => return Err(error.to_string()),
+            }
+        }
     }
 
     #[requires(true)]
@@ -739,41 +1181,162 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn io_retry_interrupted_retries_until_success() {
-        let mut calls = 0;
-        let result = io_retry_interrupted(|| {
-            calls += 1;
-            if calls < 3 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Interrupted,
-                    "injected interrupt",
-                ));
-            }
-            Ok(7)
-        });
-        assert_eq!(result.expect("the helper returns the value"), 7);
-        assert_eq!(calls, 3);
+    fn wait_bounded_rejects_success_after_the_deadline() {
+        // Interrupts land at 0, 20, 41, 62, and 84 ms.
+        // The limit is 100 ms.
+        // Each pause stops at the time that remains.
+        // Success is first observed at 105 ms.
+        // That exit is a timeout.
+        let timeout = Duration::from_millis(100);
+        for stamp in [0_u64, 20, 41, 62, 84] {
+            let elapsed = Duration::from_millis(stamp);
+            let step =
+                super::bounded_wait_step(super::ChildPollKind::Interrupted, elapsed, timeout);
+            assert!(
+                matches!(step, super::WaitStepKind::Continue),
+                "stamp={stamp}"
+            );
+            let pause = super::bounded_wait_pause(elapsed, timeout);
+            assert!(pause <= Duration::from_millis(20));
+            assert!(pause <= timeout.saturating_sub(elapsed));
+            assert!(elapsed + pause <= timeout);
+        }
+        assert_eq!(
+            super::bounded_wait_pause(Duration::from_millis(84), timeout),
+            Duration::from_millis(16)
+        );
+        let late = super::bounded_wait_step(
+            super::ChildPollKind::Exited,
+            Duration::from_millis(105),
+            timeout,
+        );
+        assert!(matches!(late, super::WaitStepKind::TimedOut));
+        let exact = super::bounded_wait_step(super::ChildPollKind::Exited, timeout, timeout);
+        assert!(matches!(exact, super::WaitStepKind::TimedOut));
+        let early = super::bounded_wait_step(
+            super::ChildPollKind::Exited,
+            Duration::from_millis(84),
+            timeout,
+        );
+        assert!(matches!(early, super::WaitStepKind::Succeeded));
+        let failed = super::bounded_wait_step(
+            super::ChildPollKind::Failed,
+            Duration::from_millis(105),
+            timeout,
+        );
+        assert!(matches!(failed, super::WaitStepKind::Failed));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn io_retry_interrupted_returns_other_errors_once() {
-        let mut calls = 0;
-        let result: std::io::Result<()> = io_retry_interrupted(|| {
-            calls += 1;
-            Err(std::io::Error::new(
-                std::io::ErrorKind::ConnectionReset,
-                "injected reset",
-            ))
-        });
-        let error = result.expect_err("the helper returns the reset");
-        assert_eq!(error.kind(), std::io::ErrorKind::ConnectionReset);
-        assert_eq!(calls, 1);
+    fn wait_bounded_times_out_on_persistent_interrupts() {
+        let timeout = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        let outcome = loop {
+            match super::bounded_wait_step(super::ChildPollKind::Interrupted, elapsed, timeout) {
+                super::WaitStepKind::Continue => {
+                    elapsed += Duration::from_millis(20);
+                    assert!(elapsed < Duration::from_secs(1));
+                }
+                outcome => break outcome,
+            }
+        };
+        assert!(matches!(outcome, super::WaitStepKind::TimedOut));
+        assert!(elapsed >= timeout);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_reports_a_pipe_error_after_a_clean_child() {
+        let error = super::combine_readback(
+            Ok(()),
+            Ok(super::ReadbackDrain {
+                bytes: Vec::new(),
+                error: Some("injected pipe".to_owned()),
+            }),
+        )
+        .expect_err("a pipe error fails the command");
+        let text = format!("{error:#}");
+        assert!(text.contains("injected pipe"), "{text}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_reports_the_worker_panic_after_a_clean_child() {
+        let error = super::combine_readback(Ok(()), Err(Box::new("readback sentinel")))
+            .expect_err("a worker panic fails the command");
+        let text = format!("{error:#}");
+        assert!(text.contains("readback sentinel"), "{text}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_keeps_the_child_status_and_the_worker_error() {
+        let bytes = br#"{"r2_readback_error":"io","body_etag":null,"stored_etag":null}"#;
+        let error = super::combine_readback(
+            Err(anyhow::anyhow!(
+                "Publisher command failed with exit status: 1"
+            )),
+            Ok(super::ReadbackDrain {
+                bytes: bytes.to_vec(),
+                error: Some("injected pipe".to_owned()),
+            }),
+        )
+        .expect_err("both failures stay in the command error");
+        let text = format!("{error:#}");
+        assert!(text.contains("exit status: 1"), "{text}");
+        assert!(text.contains("injected pipe"), "{text}");
+        assert!(
+            text.contains("R2 read-back failed (untrusted details redacted)"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_reports_a_worker_failure_while_the_child_runs() {
+        // The worker has already failed.
+        // The child is still running.
+        // One millisecond has passed on a 30 second limit.
+        // The parent reports the worker on this pass.
+        let step = super::readback_step(
+            true,
+            true,
+            super::ChildPollKind::Running,
+            Duration::from_millis(1),
+            Duration::from_secs(30),
+        );
+        assert!(matches!(step, super::ReadbackStep::ReportWorker));
+        let bytes = br#"{"r2_readback_error":"io","body_etag":null,"stored_etag":null}"#;
+        let error = super::combine_readback(
+            Err(anyhow::anyhow!("Publisher command is still running")),
+            Ok(super::ReadbackDrain {
+                bytes: bytes.to_vec(),
+                error: Some("injected pipe".to_owned()),
+            }),
+        )
+        .expect_err("the worker failure is reported");
+        let text = format!("{error:#}");
+        assert!(
+            text.contains("Publisher command is still running"),
+            "{text}"
+        );
+        assert!(text.contains("injected pipe"), "{text}");
+        assert!(
+            text.contains("R2 read-back failed (untrusted details redacted)"),
+            "{text}"
+        );
     }
 
     /// A reader that returns Interrupted before each byte.
-    #[invariant(true)]
+    /// The index is never past the end of the byte slice.
+    #[invariant(self.index <= self.bytes.len())]
+    #[derive(Clone)]
     struct InterruptBeforeEachByte {
         bytes: &'static [u8],
         index: usize,
@@ -792,7 +1355,7 @@ mod tests {
                 return Ok(0);
             }
             if self.interrupt {
-                self.interrupt = false;
+                *self = self.clone().with_data(data! { interrupt: false });
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Interrupted,
                     "injected interrupt",
@@ -801,9 +1364,13 @@ mod tests {
             if self.index >= self.bytes.len() {
                 return Ok(0);
             }
-            buf[0] = self.bytes[self.index];
-            self.index += 1;
-            self.interrupt = true;
+            let byte = self.bytes[self.index];
+            let index = self.index + 1;
+            *self = self.clone().with_data(data! {
+                index: index,
+                interrupt: true,
+            });
+            buf[0] = byte;
             Ok(1)
         }
     }
@@ -815,13 +1382,194 @@ mod tests {
         // One interrupt comes before each byte.
         // A read path that stops on Interrupted fails this test.
         let head = b"GET / HTTP/1.1\r\n\r\n";
-        let mut reader = InterruptBeforeEachByte {
+        let mut reader = new!(InterruptBeforeEachByte {
             bytes: head,
             index: 0,
             interrupt: true,
-        };
-        let request = read_request_head(&mut reader).expect("the head is complete");
+        });
+        let stop = std::sync::atomic::AtomicBool::new(false);
+        let request = read_request_head(&mut reader, &stop)
+            .expect("the head is complete")
+            .expect("the stop flag is false");
         assert_eq!(request, head);
+    }
+
+    /// A reader that sets the stop flag and then always returns Interrupted.
+    #[invariant(true)]
+    struct StopThenInterrupt {
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        calls: usize,
+    }
+
+    impl std::io::Read for StopThenInterrupt {
+        #[requires(true)]
+        #[ensures(ret.is_err())]
+        fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+            self.calls += 1;
+            self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "injected interrupt",
+            ))
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn read_request_head_returns_to_the_stop_flag_on_persistent_interrupts() {
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut reader = StopThenInterrupt {
+            stop: std::sync::Arc::clone(&stop),
+            calls: 0,
+        };
+        let head = read_request_head(&mut reader, &stop).expect("the read returns");
+        assert!(head.is_none());
+        assert!(reader.calls < 5, "calls={}", reader.calls);
+    }
+
+    /// One scripted write result.
+    /// `Bytes` carries a positive count.
+    #[invariant(true)]
+    #[invariant(::Bytes(count) => *count > 0)]
+    enum WriteStep {
+        Interrupt,
+        Bytes(usize),
+    }
+
+    /// A writer that follows a script.
+    #[invariant(true)]
+    struct ScriptedWrite {
+        steps: Vec<WriteStep>,
+        cursor: usize,
+        written: Vec<u8>,
+    }
+
+    impl std::io::Write for ScriptedWrite {
+        #[requires(true)]
+        #[ensures(true)]
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            let copied = match self.steps[self.cursor].as_data() {
+                data!(WriteStep::Interrupt) => None,
+                data!(WriteStep::Bytes(count)) => Some(*count),
+            };
+            self.cursor += 1;
+            let Some(count) = copied else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ));
+            };
+            let count = count.min(buf.len());
+            self.written.extend_from_slice(&buf[..count]);
+            Ok(count)
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_stub_bytes_keeps_the_offset_across_interrupts() {
+        let mut writer = ScriptedWrite {
+            steps: vec![
+                new!(WriteStep::Interrupt),
+                new!(WriteStep::Bytes(1)),
+                new!(WriteStep::Interrupt),
+                new!(WriteStep::Bytes(3)),
+            ],
+            cursor: 0,
+            written: Vec::new(),
+        };
+        let stop = std::sync::atomic::AtomicBool::new(false);
+        let finished = write_stub_bytes(&mut writer, b"abcd", &stop).expect("the write finishes");
+        assert!(finished);
+        assert_eq!(writer.written, b"abcd");
+    }
+
+    /// A writer that sets the stop flag and then always returns Interrupted.
+    #[invariant(true)]
+    struct StopThenInterruptWrite {
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        calls: usize,
+    }
+
+    impl std::io::Write for StopThenInterruptWrite {
+        #[requires(true)]
+        #[ensures(ret.is_err())]
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            self.calls += 1;
+            self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "injected interrupt",
+            ))
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn write_stub_bytes_returns_to_the_stop_flag_on_persistent_interrupts() {
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut writer = StopThenInterruptWrite {
+            stop: std::sync::Arc::clone(&stop),
+            calls: 0,
+        };
+        let finished = write_stub_bytes(&mut writer, b"abcd", &stop).expect("the write returns");
+        assert!(!finished);
+        assert!(writer.calls < 5, "calls={}", writer.calls);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn port_scan_reports_permission_denied_with_the_address() {
+        let mut calls = 0_u32;
+        let error = select_local_port(18800, 18899, |port| {
+            calls += 1;
+            assert_eq!(port, 18800);
+            Err::<(), _>(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "injected permission",
+            ))
+        })
+        .expect_err("permission denied is not a missing port");
+        assert_eq!(calls, 1);
+        assert!(error.contains("127.0.0.1:18800"), "{error}");
+        assert!(error.contains("injected permission"), "{error}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn port_scan_retries_the_same_port_after_an_interrupt() {
+        let mut calls = 0_u32;
+        let listener = select_local_port(18800, 18899, |port| {
+            calls += 1;
+            assert_eq!(port, 18800);
+            if calls == 1 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ));
+            }
+            Ok(port)
+        })
+        .expect("an interrupt retries the same port");
+        assert_eq!(listener, 18800);
+        assert_eq!(calls, 2);
     }
 
     #[invariant(true)]
@@ -836,31 +1584,39 @@ mod tests {
         #[requires(true)]
         #[ensures(ret.worker.is_some())]
         fn start(stored: serde_json::Value, body: Vec<u8>, encoding: Option<&'static str>) -> Self {
-            let listener = (18800..=18899)
-                .find_map(|port| {
-                    io_retry_interrupted(|| std::net::TcpListener::bind(("127.0.0.1", port))).ok()
-                })
-                .expect("the stub server binds a local port");
-            io_retry_interrupted(|| listener.set_nonblocking(true))
-                .expect("the stub server socket accepts nonblocking mode");
+            let listener = select_local_port(18800, 18899, |port| {
+                std::net::TcpListener::bind(("127.0.0.1", port))
+            })
+            .unwrap_or_else(|error| panic!("{error}"));
+            loop {
+                match listener.set_nonblocking(true) {
+                    Ok(()) => break,
+                    Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(error) => {
+                        panic!("the stub server socket accepts nonblocking mode: {error}")
+                    }
+                }
+            }
             let url = format!("http://{}", listener.local_addr().unwrap());
             let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
             let requests = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
             let worker_stop = stop.clone();
             let worker_requests = requests.clone();
             let worker = std::thread::spawn(move || -> Result<(), String> {
-                let send = |socket: &mut std::net::TcpStream, bytes: &[u8]| -> Result<(), String> {
-                    socket
-                        .write_all(bytes)
-                        .map_err(|error| format!("the stub server write failed: {error}"))
+                let send = |socket: &mut std::net::TcpStream,
+                            bytes: &[u8],
+                            stop: &std::sync::atomic::AtomicBool|
+                 -> Result<bool, String> {
+                    write_stub_bytes(socket, bytes, stop)
                 };
                 while !worker_stop.load(Ordering::Relaxed) {
-                    let (mut socket, _) = match io_retry_interrupted(|| listener.accept()) {
+                    let (mut socket, _) = match listener.accept() {
                         Ok(connection) => connection,
                         Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                             std::thread::sleep(Duration::from_millis(2));
                             continue;
                         }
+                        Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
                         Err(error) => {
                             return Err(format!("the stub server accept failed: {error}"));
                         }
@@ -868,13 +1624,36 @@ mod tests {
                     // On macOS and BSD, an accepted socket keeps the nonblocking mode of the listener.
                     // A nonblocking read returns WouldBlock.
                     // Set this socket to blocking mode.
-                    io_retry_interrupted(|| socket.set_nonblocking(false)).map_err(|error| {
-                        format!("the stub server accepted socket did not become blocking: {error}")
-                    })?;
-                    // The read has no time limit.
-                    // run_readback kills the process group.
-                    // That close ends this read.
-                    let request = read_request_head(&mut socket)?;
+                    // The read and write polls are 100 milliseconds.
+                    // Each poll returns to the stop flag.
+                    if !stub_option_until_stop(&worker_stop, || socket.set_nonblocking(false))
+                        .map_err(|error| {
+                            format!(
+                                "the stub server accepted socket did not become blocking: {error}"
+                            )
+                        })?
+                    {
+                        break;
+                    }
+                    if !stub_option_until_stop(&worker_stop, || {
+                        socket.set_read_timeout(Some(STUB_SOCKET_POLL))
+                    })
+                    .map_err(|error| {
+                        format!("the stub server accepted socket has no read timeout: {error}")
+                    })? {
+                        break;
+                    }
+                    if !stub_option_until_stop(&worker_stop, || {
+                        socket.set_write_timeout(Some(STUB_SOCKET_POLL))
+                    })
+                    .map_err(|error| {
+                        format!("the stub server accepted socket has no write timeout: {error}")
+                    })? {
+                        break;
+                    }
+                    let Some(request) = read_request_head(&mut socket, &worker_stop)? else {
+                        break;
+                    };
                     let request = String::from_utf8(request).map_err(|error| {
                         format!("the stub server request is not utf-8: {error}")
                     })?;
@@ -896,8 +1675,12 @@ mod tests {
                             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                             json.len()
                         );
-                        send(&mut socket, header.as_bytes())?;
-                        send(&mut socket, &json)?;
+                        if !send(&mut socket, header.as_bytes(), &worker_stop)? {
+                            break;
+                        }
+                        if !send(&mut socket, &json, &worker_stop)? {
+                            break;
+                        }
                     } else {
                         let etag = stored["etag"]
                             .as_str()
@@ -907,16 +1690,26 @@ mod tests {
                                 "HTTP/1.1 200 OK\r\nETag: \"{etag}\"\r\nContent-Encoding: br\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                                 body.len()
                             );
-                            send(&mut socket, header.as_bytes())?;
-                            send(&mut socket, &body)?;
+                            if !send(&mut socket, header.as_bytes(), &worker_stop)? {
+                                break;
+                            }
+                            if !send(&mut socket, &body, &worker_stop)? {
+                                break;
+                            }
                         } else {
                             let header = format!(
                                 "HTTP/1.1 200 OK\r\nETag: W/\"{etag}\"\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:x}\r\n",
                                 body.len()
                             );
-                            send(&mut socket, header.as_bytes())?;
-                            send(&mut socket, &body)?;
-                            send(&mut socket, b"\r\n0\r\n\r\n")?;
+                            if !send(&mut socket, header.as_bytes(), &worker_stop)? {
+                                break;
+                            }
+                            if !send(&mut socket, &body, &worker_stop)? {
+                                break;
+                            }
+                            if !send(&mut socket, b"\r\n0\r\n\r\n", &worker_stop)? {
+                                break;
+                            }
                         }
                     }
                 }
@@ -975,6 +1768,30 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r6_shutdown_returns_while_a_peer_holds_a_partial_request() {
+        // The peer sends only the start of the request.
+        // The socket stays open.
+        // Shutdown must see the stop flag on the next poll.
+        let stored = serde_json::json!({ "etag": "abc" });
+        let mut server = R6Server::start(stored, b"body".to_vec(), None);
+        let address = server.url.trim_start_matches("http://");
+        let mut client = std::net::TcpStream::connect(address).expect("the peer connects");
+        client
+            .write_all(b"GET /")
+            .expect("the peer writes a partial request");
+        let started = Instant::now();
+        let result = server.shutdown();
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "shutdown took {elapsed:?}"
+        );
+        result.expect("the stub server stops during a partial request");
     }
 
     #[test]
@@ -1655,6 +2472,25 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             .starts_with('Z')
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_reader_timeout_does_not_repeat_the_command_timeout() {
+        let timeout = Duration::from_secs(1);
+        let sentence = format!(
+            "Publisher command timed out after {} seconds",
+            timeout.as_secs_f64()
+        );
+        let already = Err(anyhow::anyhow!(sentence.clone()));
+        let kept =
+            super::finish_reader_timeout(already, timeout, true).expect_err("the timeout stays");
+        let text = format!("{kept:#}");
+        assert_eq!(text.matches(sentence.as_str()).count(), 1, "{text}");
+        let fresh = super::finish_reader_timeout(Ok(()), timeout, false)
+            .expect_err("a late reader times out");
+        assert_eq!(fresh.to_string().matches(sentence.as_str()).count(), 1);
+    }
+
     #[cfg(unix)]
     #[test]
     #[requires(true)]
@@ -1686,24 +2522,121 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         let [child, grandchild] = pids.as_slice() else {
             panic!("The stub did not record both process IDs")
         };
-        let deadline = Instant::now() + Duration::from_secs(2);
-        while !(process_has_exited(*child) && process_has_exited(*grandchild))
-            && Instant::now() < deadline
-        {
-            std::thread::sleep(Duration::from_millis(20));
+        let start = Instant::now();
+        let timeout = Duration::from_secs(2);
+        let mut seen_in_time = false;
+        loop {
+            // The clock is read after both process checks.
+            // An exit first seen at the deadline or later is a timeout.
+            let exited = process_has_exited(*child) && process_has_exited(*grandchild);
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                break;
+            }
+            if exited {
+                seen_in_time = true;
+                break;
+            }
+            let pause = super::bounded_wait_pause(elapsed, timeout);
+            if pause.is_zero() {
+                break;
+            }
+            std::thread::sleep(pause);
         }
         let child_exited = process_has_exited(*child);
         let grandchild_exited = process_has_exited(*grandchild);
         if !grandchild_exited {
             // Clean up only the process group that this test starts.
-            unsafe {
-                if libc::getpgid(*grandchild as i32) == *child as i32 {
-                    libc::kill(-(*child as i32), libc::SIGKILL);
-                }
+            // The signal argument is less than -1.
+            let same_group = match (i32::try_from(*child), i32::try_from(*grandchild)) {
+                (Ok(child_id), Ok(grandchild_id)) if child_id > 1 && grandchild_id > 0 => unsafe {
+                    libc::getpgid(grandchild_id) == child_id
+                },
+                _ => false,
+            };
+            if same_group {
+                let _ = jbotci_interrupt::kill_process_group(*child);
             }
         }
+        assert!(
+            seen_in_time,
+            "Both processes were first seen after the deadline"
+        );
         assert!(child_exited, "The child survived the timeout");
         assert!(grandchild_exited, "The grandchild survived the timeout");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_stops_a_grandchild_that_inherits_stderr() {
+        // The shell exits 0.
+        // The grandchild inherits stderr and sleeps.
+        // The group kill runs before the reader joins.
+        // The one second limit bounds the command.
+        let started = Instant::now();
+        let result = run_readback(
+            Command::new("sh").args(["-c", "sleep 60 & exit 0"]),
+            Duration::from_secs(1),
+        );
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "the reader join ran for {elapsed:?}"
+        );
+        result.expect("the child exit is success");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn readback_times_out_when_a_grandchild_leaves_the_group() {
+        // The shell exits 0.
+        // setsid moves the grandchild to a new session.
+        // The shell exits only after that process is its own session.
+        // The group kill does not reach that grandchild.
+        // The reader wait uses the time that remains.
+        // The one second limit bounds that wait.
+        let root = std::env::var_os("CARGO_TARGET_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target"));
+        fs::create_dir_all(&root).unwrap();
+        let temporary = Readback::new(&root).unwrap();
+        let pid_file = temporary.path.join("grandchild");
+        let started = Instant::now();
+        let result = run_readback(
+            Command::new("sh")
+                .args([
+                    "-c",
+                    "setsid sleep 60 & pid=$!; i=0; while [ \"$i\" -lt 50 ]; do sid=$(ps -o sid= -p \"$pid\" | tr -d '[:space:]'); if [ \"$sid\" = \"$pid\" ]; then printf '%s' \"$pid\" > \"$1\"; exit 0; fi; i=$((i + 1)); sleep 0.02; done; exit 1",
+                    "readback-detached",
+                ])
+                .arg(&pid_file),
+            Duration::from_secs(1),
+        );
+        let elapsed = started.elapsed();
+        let pid = fs::read_to_string(&pid_file)
+            .expect("the shell records the grandchild")
+            .trim()
+            .parse::<u32>()
+            .expect("the grandchild id is a number");
+        let grandchild_alive = !process_has_exited(pid);
+        if let Ok(argument) = i32::try_from(pid)
+            && argument > 1
+        {
+            unsafe {
+                libc::kill(argument, libc::SIGKILL);
+            }
+        }
+        assert!(grandchild_alive, "the detached grandchild already exited");
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "the reader wait ran for {elapsed:?}"
+        );
+        let error = result.expect_err("a detached grandchild holds stderr");
+        assert!(error.to_string().contains("timed out"), "{error:#}");
     }
 
     #[cfg(unix)]
