@@ -1012,7 +1012,10 @@ fn is_unknown_fuhivla_form(
         || word_kind_of_form(form, cancellation)? == Some(WordKind::Fuhivla);
     Ok(is_fuhivla_form
         && fuivla_rafsi_source_set(dictionary, form).is_empty()
-        && dictionary.lookup_rafsi(form).next().is_none())
+        && dictionary
+            .lookup_rafsi(&LookupKey::from_stored(form))
+            .next()
+            .is_none())
 }
 
 /// The morphology kind of one word form, or `None` when it is not one word.
@@ -3554,7 +3557,9 @@ mod tests {
         let token = CancellationToken::never();
         // A dictionary fu'ivla built through its full form decomposes
         // back into that fu'ivla itself: `esku'ykukte` names `esku`.
-        let esku = dictionary.lookup_word_index("esku").expect("esku entry");
+        let esku = dictionary
+            .lookup_word_index(&LookupKey::from_stored("esku"))
+            .expect("esku entry");
         let built = build_best_jvozba_detailed(
             JvozbaMode::Lujvo,
             dictionary,
