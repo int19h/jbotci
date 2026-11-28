@@ -183,11 +183,19 @@ pub struct ShortRafsiForm {
 // check runs the recognizer, so it is expensive. bityzba allows one invariant
 // for each variant, so the cheap non-empty check is part of this one.
 #[expensive_invariant(::FuhivlaStem(text) => !text.is_empty() && crate::is_fuhivla_rafsi_form(text))]
+#[invariant(::RafsiWithHyphen { text, hyphen } => !text.is_empty() && is_bonding_hyphen(hyphen), "a prescribed hyphen is a bonding hyphen after a non-empty rafsi")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LujvoBuildPart {
     Rafsi(String),
     FuhivlaStem(String),
     BrivlaCore(String),
+    /// A rafsi whose following hyphen is prescribed, not chosen by the
+    /// bonding rules. It copies a joint that an existing lujvo already
+    /// wrote, so the built word keeps that joint exactly.
+    RafsiWithHyphen {
+        text: String,
+        hyphen: String,
+    },
 }
 
 impl LujvoBuildPart {
@@ -198,6 +206,17 @@ impl LujvoBuildPart {
             data!(LujvoBuildPart::Rafsi(text))
             | data!(LujvoBuildPart::FuhivlaStem(text))
             | data!(LujvoBuildPart::BrivlaCore(text)) => text,
+            data!(LujvoBuildPart::RafsiWithHyphen { text, .. }) => text,
+        }
+    }
+
+    /// The hyphen this part prescribes after itself, when it carries one.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|hyphen| is_bonding_hyphen(hyphen)))]
+    fn prescribed_hyphen(&self) -> Option<&str> {
+        match self.as_data() {
+            data!(LujvoBuildPart::RafsiWithHyphen { hyphen, .. }) => Some(hyphen),
+            _ => None,
         }
     }
 
@@ -244,7 +263,8 @@ pub fn choose_best_lujvo_candidate_from_parts(
 }
 
 /// Filter parsed lujvo after their parts match the joined candidate.
-/// Cmevla candidates keep their separate rules and skip this filter.
+/// In cmevla mode the filter does not apply: each candidate is checked
+/// against the segmenter as one cmevla instead.
 #[requires(true)]
 #[ensures(true)]
 pub fn choose_best_lujvo_candidate_from_parts_with_filter(
@@ -283,9 +303,11 @@ fn choose_best_candidate_from_parts<'a>(
             parts: bonded,
             word,
         });
-        if mode == LujvoBuildMode::Lujvo
-            && !is_valid_lujvo_candidate(&candidate, cancellation, accept)?
-        {
+        let is_valid = match mode {
+            LujvoBuildMode::Lujvo => is_valid_lujvo_candidate(&candidate, cancellation, accept)?,
+            LujvoBuildMode::Cmevla => is_valid_cmevla_candidate(&candidate, cancellation)?,
+        };
+        if !is_valid {
             return Ok(best);
         }
         return Ok(Some(select_better_candidate(best, candidate)));
@@ -352,12 +374,25 @@ fn bond_lujvo_build_part_refs(parts: &[&LujvoBuildPart]) -> Option<Vec<String>> 
     if parts.len() < 2 {
         return None;
     }
+    // A prescribed hyphen belongs to a following part. In the last
+    // position there is none, so the prescription cannot be honored.
+    if parts
+        .last()
+        .is_some_and(|part| part.prescribed_hyphen().is_some())
+    {
+        return None;
+    }
     let first_part = *parts.first()?;
     let first = first_part.as_text();
     let second = parts.get(1)?.as_text();
     let mut bonded = Vec::with_capacity(parts.len() * 2);
     bonded.push(first.to_owned());
-    if !first_part.is_brivla_core() && should_insert_cvv_hyphen(first, second, parts.len()) {
+    // A prescribed hyphen is the joint the parts already carry, so the
+    // first-pair CVV rule does not also fire for that joint.
+    if first_part.prescribed_hyphen().is_none()
+        && !first_part.is_brivla_core()
+        && should_insert_cvv_hyphen(first, second, parts.len())
+    {
         bonded.push(if second.starts_with('r') {
             "n".to_owned()
         } else {
@@ -367,12 +402,18 @@ fn bond_lujvo_build_part_refs(parts: &[&LujvoBuildPart]) -> Option<Vec<String>> 
     for pair in parts.windows(2) {
         let previous = pair[0];
         let next = pair[1];
-        if let Some(hyphen) = hyphen_for_build_part_pair(previous, next) {
-            bonded.push(hyphen.to_owned());
+        // A prescribed hyphen wins over the pair rules for its joint.
+        let hyphen = previous
+            .prescribed_hyphen()
+            .map(str::to_owned)
+            .or_else(|| hyphen_for_build_part_pair(previous, next).map(str::to_owned));
+        if let Some(hyphen) = hyphen {
+            bonded.push(hyphen);
         }
         bonded.push(next.as_text().to_owned());
     }
-    if tosmabru(&bonded) {
+    // A joint that already carries a hyphen is not a tosmabru joint.
+    if tosmabru(&bonded) && !bonded.get(1).is_some_and(|part| is_bonding_hyphen(part)) {
         bonded.insert(1, "y".to_owned());
     }
     Some(bonded)
@@ -423,6 +464,32 @@ fn is_valid_lujvo_candidate(
     Ok(word.lujvo_parts().is_some_and(|parts| {
         lujvo_parts_match(parts.as_slice(), &candidate.parts) && accept(parts.as_slice())
     }))
+}
+
+/// Whether a candidate is exactly one bare cmevla, as the segmenter
+/// decides. The checked spelling is the word the builder returns, so it
+/// includes the `s` that `ensure_cmevla_word` adds to a vowel-final base.
+#[requires(true)]
+#[ensures(true)]
+fn is_valid_cmevla_candidate(
+    candidate: &LujvoCandidate,
+    cancellation: &CancellationToken,
+) -> Result<bool, crate::MorphologyError> {
+    let word_text = ensure_cmevla_word(&candidate.word);
+    let options = crate::MorphologyOptions::default().with_cancellation(cancellation);
+    let words = match crate::segment_words_with_modifiers_with_options_and_source_id(
+        &word_text, &options, None,
+    ) {
+        Ok(words) => words,
+        Err(error) if error.is_interrupted() => return Err(error),
+        Err(_) => return Ok(false),
+    };
+    let [word_like] = words.as_slice() else {
+        return Ok(false);
+    };
+    Ok(word_like
+        .bare_word()
+        .is_some_and(|word| word.kind() == crate::WordKind::Cmevla))
 }
 
 #[requires(true)]
@@ -785,7 +852,12 @@ fn tosmabru(parts: &[String]) -> bool {
     if is_cmevla(last_part) {
         return false;
     }
-    if let Some(y_index) = parts.iter().position(|part| part == "y") {
+    // The first y-hyphen ends the leading joints. Before a vowel nucleus
+    // the same hyphen is spelled "y'", so both spellings end the scan.
+    if let Some(y_index) = parts
+        .iter()
+        .position(|part| matches!(part.as_str(), "y" | "y'"))
+    {
         let heads = &parts[..y_index];
         return heads.len() > 1
             && heads
@@ -870,6 +942,39 @@ mod tests {
         assert_eq!(
             bond_rafsis(&["bau".to_owned(), "rok".to_owned()]),
             Some(vec!["bau".to_owned(), "n".to_owned(), "rok".to_owned()])
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_prescribed_hyphen_in_the_last_position_bonds_nothing() {
+        // A prescribed hyphen belongs to a following part. In the last
+        // position there is none, so bonding refuses instead of dropping
+        // the hyphen silently.
+        let parts = vec![
+            new!(LujvoBuildPart::Rafsi("kla".to_owned())),
+            new!(LujvoBuildPart::RafsiWithHyphen {
+                text: "dut".to_owned(),
+                hyphen: "y".to_owned(),
+            }),
+        ];
+        assert_eq!(bond_lujvo_build_parts(&parts), None);
+        let candidate = choose_best_lujvo_candidate_from_parts(
+            LujvoBuildMode::Lujvo,
+            &[vec![parts[0].clone()], vec![parts[1].clone()]],
+            &crate::CancellationToken::never(),
+        )
+        .expect("bonding is not interrupted");
+        assert_eq!(candidate, None);
+        // In a non-last position the prescribed hyphen is copied.
+        let parts = vec![
+            parts[1].clone(),
+            new!(LujvoBuildPart::Rafsi("kla".to_owned())),
+        ];
+        assert_eq!(
+            bond_lujvo_build_parts(&parts),
+            Some(vec!["dut".to_owned(), "y".to_owned(), "kla".to_owned()])
         );
     }
 

@@ -48,12 +48,44 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "The builder accepts raw rafsi text so it can report invalid input.",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::KeptFinalPart",
+        "The payload is a validated kept final part.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::KeptFuhivlaStem",
+        "The payload is a validated kept fu'ivla stem.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::KeptRafsi",
+        "The payload is a validated kept rafsi.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::PinnedLongRafsi",
+        "The payload is a validated pinned long rafsi.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::SelfSourcedFinalPart",
+        "The payload is a validated self-sourced final part.",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:ExpandedInput::UnlistedWord",
         "The builder accepts raw dictionary misses and tests their morphology.",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:ExpansionPlan::Plain",
         "The plan carries one expanded input.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:FinalPartKind::FullBrivla",
+        "The kind is a closed selector for a kept final part.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:FinalPartKind::Gismu",
+        "The kind is a closed selector for a kept final part.",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:FinalPartKind::Rafsi",
+        "The kind is a closed selector for a kept final part.",
     ),
     (
         "crates/jbotci-output/src/lib.rs:OutputError::Limit",

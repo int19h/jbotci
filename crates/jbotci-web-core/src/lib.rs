@@ -12049,6 +12049,16 @@ mod tests {
         let golfyjvi = dictionary
             .lookup_word_index(&jbotci_dictionary::LookupKey::from_stored("golfyjvi"))
             .expect("golfyjvi entry");
+        // Under #1161 `golfyjvi` builds in the pane as it does on the
+        // command line: `golf` is a pinned long rafsi.
+        let built = build_vlacku_jvozba_output(
+            VlackuJvozbaMode::Lujvo,
+            &[item(Some(golfyjvi), "golfyjvi"), item(None, "klama")],
+        );
+        assert!(
+            matches!(&built, VlackuJvozbaOutput::Success { word, .. } if word == "golfyjvikla"),
+            "{built:?}"
+        );
         for (items, word, part) in [
             (
                 vec![item(None, "bajra"), item(None, "lefkroli")],
@@ -12059,11 +12069,6 @@ mod tests {
                 vec![item(None, "lefkroli"), item(None, "bajra")],
                 "lefkroli",
                 "lef",
-            ),
-            (
-                vec![item(Some(golfyjvi), "golfyjvi"), item(None, "klama")],
-                "golfyjvi",
-                "",
             ),
         ] {
             let output = build_vlacku_jvozba_output(VlackuJvozbaMode::Lujvo, &items);
@@ -12081,6 +12086,35 @@ mod tests {
                     &format!("The rafsi `{part}` in `{word}` names no dictionary word.")
                 );
             }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_jvozba_pane_builds_the_issue_1161_rows_like_the_cli() {
+        // The web pane and the CLI share `build_best_jvozba_detailed`, so
+        // the #1161 rows give the same words in the pane.
+        let item = |value: &str| VlackuJvozbaItem {
+            entry_index: None,
+            kind: VlackuJvozbaItemKind::Word,
+            value: value.to_owned(),
+            source: None,
+            indent_level: 0,
+        };
+        for (values, expected) in [
+            (vec!["bajra", "aktyiismu"], "bajy'aktyiismu"),
+            (vec!["bajra", "klalefmo"], "bajyklalefmo"),
+            (vec!["lojbangu", "klama"], "lojbangykla"),
+            (vec!["klama", "lojbangu"], "klalojbangu"),
+            (vec!["lefmo", "bajra"], "lefmybajra"),
+        ] {
+            let items = values.iter().map(|value| item(value)).collect::<Vec<_>>();
+            let output = build_vlacku_jvozba_output(VlackuJvozbaMode::Lujvo, &items);
+            assert!(
+                matches!(&output, VlackuJvozbaOutput::Success { word, .. } if word == expected),
+                "{values:?}: {output:?}"
+            );
         }
     }
 
