@@ -201,12 +201,14 @@ fn diagnostic_source_excerpt<'source>(
         whole_unclipped_excerpt(source, &anchors, &kept, columns, margin_mark)
     {
         let slice = source.get(origin..end).unwrap_or("");
-        // The renderer draws this text. A second escape would change an uncut line.
-        if slice.len() > max_copy {
-            return Err(OutputError::Limit { limit });
-        }
+        // An uncut excerpt equals main after this escape. The renderer leaves a
+        // C1 control unchanged. This copy writes `\u{hex}` so the byte cannot
+        // start a terminal sequence. Tab, CR, and LF stay as they are.
+        // The bound is the escaped length.
+        let escaped = crate::styled::escape_terminal_source_within(slice, max_copy)
+            .ok_or(OutputError::Limit { limit })?;
         return Ok(new!(DiagnosticSourceExcerpt {
-            escaped: raw_terminal_excerpt(slice),
+            escaped,
             origin,
             line_start,
             primary_line,
@@ -243,16 +245,6 @@ fn diagnostic_source_excerpt<'source>(
         primary_column,
         retained,
     }))
-}
-
-#[requires(true)]
-#[ensures(ret <= source.len())]
-fn line_start_at(source: &str, index: usize) -> usize {
-    let index = char_boundary_at(source, index);
-    match source[..index].rfind('\n') {
-        Some(newline) => newline + 1,
-        None => 0,
-    }
 }
 
 #[cfg(test)]
@@ -325,14 +317,41 @@ fn anchor_mark_inside(anchor: &DisplayAnchor, source_start: usize, source_end: u
 #[requires(true)]
 #[ensures(ret.0 >= 1 && ret.1 >= 1)]
 fn source_line_column(source: &str, index: usize) -> (usize, usize) {
-    let index = char_boundary_at(source, index.min(source.len()));
-    let start = line_start_at(source, index);
-    let line = 1 + source[..start]
-        .bytes()
-        .filter(|byte| *byte == b'\n')
-        .count();
-    let column = 1 + source[start..index].chars().count();
-    (line.max(1), column.max(1))
+    // The same last-real-line rule as the renderer. A byte after a trailing
+    // break stays on that line. It does not open a further empty line.
+    annotate_snippets::renderer::source_point(source, index)
+}
+
+/// True when this diagnostic's excerpt keeps a prepared line boundary.
+///
+/// The answer is the renderer's own cut flag. It is not a search of the
+/// rendered text.
+#[requires(terminal_width > 0)]
+#[ensures(!ret || !diagnostic.labels.is_empty())]
+pub fn diagnostic_excerpt_is_cut(
+    source: &str,
+    diagnostic: &Diagnostic,
+    terminal_width: usize,
+    ascii: bool,
+) -> bool {
+    let options = new!(DiagnosticRenderOptions {
+        color: false,
+        detail: DiagnosticDetailMode::Summary,
+        glyphs: if ascii {
+            GlyphStyle::Ascii
+        } else {
+            GlyphStyle::Unicode
+        },
+        terminal_width,
+    });
+    let limit = ByteLimit::new(usize::MAX).expect("usize::MAX is a byte limit");
+    match diagnostic_source_excerpt(source, diagnostic, options, usize::MAX, limit, "<stdin>") {
+        Ok(excerpt) => excerpt
+            .retained
+            .iter()
+            .any(|window| !window.bounds.is_empty()),
+        Err(_) => true,
+    }
 }
 
 /// Map every label to its original line and column.
@@ -424,16 +443,6 @@ fn anchor_window_header(
     best.map(|(line, _, column, _)| (line, column))
         .unwrap_or_else(|| source_line_column(source, source_start))
 }
-/// Original excerpt text. The renderer applies its own replacements.
-#[requires(true)]
-#[ensures(ret.map.is_empty() && ret.text.len() == text.len())]
-fn raw_terminal_excerpt(text: &str) -> crate::styled::TerminalExcerpt<'_> {
-    new!(crate::styled::TerminalExcerpt {
-        text: std::borrow::Cow::Borrowed(text),
-        map: Vec::new(),
-    })
-}
-
 /// The labelled lines are one shown-line set, and the shared margin cuts none of them.
 ///
 /// The margin is the one the renderer uses for the whole set.
@@ -451,7 +460,9 @@ fn whole_unclipped_excerpt(
     let first = kept.first()?;
     let last = kept.last()?;
     let origin = first.start_byte;
-    let end = last.end_byte;
+    // The kept range stops before a non-empty line's break. Include that break
+    // when a label reaches it, so the renderer applies columns_at there.
+    let end = copy_end_including_break(source, anchors, last.start_byte, last.end_byte);
     let line_start = first.line_index;
     if origin > end || end > source.len() {
         return None;
@@ -546,10 +557,11 @@ fn retained_display_windows<'source>(
         let room = max_copy.saturating_sub(accounted.saturating_add(separator));
         let escaped = if data.bounds.is_empty() {
             let slice = source.get(data.source_start..data.source_end).unwrap_or("");
-            if slice.len() > room {
+            // Same escape as the whole uncut path. The bound is the escaped length.
+            let Some(escaped) = crate::styled::escape_terminal_source_within(slice, room) else {
                 return Err(OutputError::Limit { limit });
-            }
-            raw_terminal_excerpt(slice)
+            };
+            escaped
         } else if data.text.len() > room {
             return Err(OutputError::Limit { limit });
         } else {
@@ -620,7 +632,9 @@ fn push_run_windows(
         return;
     }
     let run_start = run[0].start_byte;
-    let run_end = run[run.len() - 1].end_byte;
+    let content_end = run[run.len() - 1].end_byte;
+    let run_end =
+        copy_end_including_break(source, anchors, run[run.len() - 1].start_byte, content_end);
     let text = source.get(run_start..run_end).unwrap_or("");
     let spans = run_label_spans(anchors, run_start, run_end, run.len() == 1);
     let laid_lines = annotate_snippets::renderer::lay_out_run(
@@ -665,7 +679,7 @@ fn push_run_windows(
             marks: Vec::new(),
             gaps: Vec::new(),
             source_start: run[0].start_byte,
-            source_end: run[run.len() - 1].end_byte,
+            source_end: run_end,
             line_number: run[0].line_index,
             line_count: run.len().max(1),
             labels,
@@ -788,6 +802,62 @@ fn span_covers_trailing_break(
     })
 }
 
+/// The display columns a multiline end gains on the trailing break.
+///
+/// This is [`columns_at`](annotate_snippets::renderer::columns_at) for a span
+/// that began on an earlier line. The prepared map stores that many extra
+/// bytes, one per display column, which is the break itself.
+#[requires(true)]
+#[ensures(ret == 0 || ret == 1)]
+fn trailing_break_columns(content: &str) -> usize {
+    let (_, at_text) = annotate_snippets::renderer::columns_at(content, content.len(), true, true);
+    let (_, past_break) = annotate_snippets::renderer::columns_at(
+        content,
+        content.len().saturating_add(1),
+        true,
+        true,
+    );
+    past_break.saturating_sub(at_text)
+}
+
+/// Extend a kept line through its break when a label reaches that break.
+///
+/// A non-empty kept line stops before the break. An empty line already
+/// includes it. The point after the break stays on this line.
+#[requires(line_start <= content_end && content_end <= source.len())]
+#[ensures(ret >= content_end && ret <= source.len())]
+fn copy_end_including_break(
+    source: &str,
+    anchors: &[DisplayAnchor],
+    line_start: usize,
+    content_end: usize,
+) -> usize {
+    let bytes = source.as_bytes();
+    let slice = source.get(line_start..content_end).unwrap_or("");
+    if slice.ends_with('\n') || content_end >= bytes.len() {
+        return content_end;
+    }
+    let break_len = if bytes[content_end] == b'\n' {
+        1
+    } else if bytes[content_end] == b'\r' && bytes.get(content_end + 1) == Some(&b'\n') {
+        2
+    } else {
+        0
+    };
+    if break_len == 0 {
+        return content_end;
+    }
+    let break_end = content_end + break_len;
+    let reaches = anchors.iter().any(|anchor| {
+        if anchor.start == anchor.end {
+            anchor.start > content_end && anchor.start <= break_end
+        } else {
+            anchor.end > content_end && anchor.start < break_end
+        }
+    });
+    if reaches { break_end } else { content_end }
+}
+
 /// Map one laid-out line the way an escape table maps raw text.
 ///
 /// The table has `content.len() + 1` entries, plus one when `trailing_newline`
@@ -882,8 +952,11 @@ fn source_boundary(
             map[newline_at] = at;
             map[newline_at + 1] = at;
         } else {
+            // The same end-of-line correction as columns_at on a span that
+            // began on an earlier line. One display column, one break byte.
+            let extra = trailing_break_columns(content);
             map[newline_at] = display_end;
-            map[newline_at + 1] = display_end + 1;
+            map[newline_at + 1] = display_end + extra;
         }
     } else if let Some(at) = right_mark {
         map[content_len] = at;
@@ -961,27 +1034,56 @@ fn run_label_spans(
         if !anchor_mark_inside(anchor, run_start, run_end) {
             continue;
         }
-        let crosses = anchor.start < run_start || anchor.end > run_end;
-        if single_line && crosses && anchor.start != anchor.end {
-            if anchor.start < run_start && anchor.end > run_end {
-                continue;
-            }
-            if anchor.start >= run_start && anchor.end > run_end {
-                let start = anchor.start.saturating_sub(run_start).min(len);
-                spans.push((start, start, 0));
-                continue;
-            }
-            if anchor.start < run_start && anchor.end <= run_end {
-                let end = anchor.end.saturating_sub(run_start).min(len);
-                spans.push((end, end, anchor.label_columns.max(1)));
-                continue;
-            }
-        }
-        let start = anchor.start.saturating_sub(run_start).min(len);
-        let end = anchor.end.saturating_sub(run_start).min(len).max(start);
-        spans.push((start, end, anchor.label_columns.max(1)));
+        let Some((abs_start, abs_end, show_label)) =
+            clamp_span_on_shown_line(anchor.start, anchor.end, run_start, run_end, single_line)
+        else {
+            continue;
+        };
+        let start = abs_start.saturating_sub(run_start).min(len);
+        let end = abs_end.saturating_sub(run_start).min(len).max(start);
+        let columns = if show_label {
+            anchor.label_columns.max(1)
+        } else {
+            0
+        };
+        spans.push((start, end, columns));
     }
     spans
+}
+
+/// A span drawn on one shown line.
+///
+/// `None` drops a span that covers every column of that line.
+/// The bool is false when the span only starts here, so the label stays on
+/// the line where the span ends. A window of more than one line keeps the
+/// original range and shows the label.
+#[requires(line_start <= line_end)]
+#[ensures(ret.as_ref().is_none_or(|(start, end, _show_label)| *start <= *end))]
+fn clamp_span_on_shown_line(
+    start: usize,
+    end: usize,
+    line_start: usize,
+    line_end: usize,
+    single_line: bool,
+) -> Option<(usize, usize, bool)> {
+    let end = end.max(start);
+    if !single_line {
+        return Some((start, end, true));
+    }
+    let crosses = start < line_start || end > line_end;
+    if !(crosses && start != end) {
+        return Some((start, end, true));
+    }
+    if start < line_start && end > line_end {
+        return None;
+    }
+    if start >= line_start && end > line_end {
+        return Some((start, start, false));
+    }
+    if start < line_start && end <= line_end {
+        return Some((end, end, true));
+    }
+    Some((start, end, true))
 }
 
 #[requires(true)]
@@ -1250,19 +1352,15 @@ fn mapped_window_span(
     window: &RetainedWindow<'_>,
 ) -> Option<Range<usize>> {
     let span = label_span(label);
-    let mut start = span.start;
-    let mut end = span.end.max(start);
-    let crosses = start < window.source_start || end > window.source_end;
-    if window.line_count == 1 && crosses && start != end {
-        if start < window.source_start && end > window.source_end {
-            return None;
-        }
-        if start >= window.source_start && end > window.source_end {
-            end = start;
-        } else if start < window.source_start && end <= window.source_end {
-            start = end;
-        }
-    }
+    let Some((start, end, _)) = clamp_span_on_shown_line(
+        span.start,
+        span.end,
+        window.source_start,
+        window.source_end,
+        window.line_count == 1,
+    ) else {
+        return None;
+    };
     let text_len = window.escaped.text.len();
     if window.bounds.is_empty() {
         return Some(apply_escape_map(
@@ -1703,14 +1801,15 @@ mod tests {
             }),
         )
         .expect("render excerpt");
-        assert!(rendered.contains('\u{85}'), "{rendered}");
-        assert!(rendered.contains('␡'), "{rendered}");
-        assert!(!rendered.contains("\\u{85}"), "{rendered}");
+        assert!(rendered.contains("\\u{85}"), "{rendered}");
+        assert!(rendered.contains("\\u{7f}"), "{rendered}");
+        assert!(!rendered.contains('\u{85}'), "{rendered}");
         assert!(!rendered.contains('\u{7f}'), "{rendered}");
+        assert!(!rendered.contains('␡'), "{rendered}");
         let lines = rendered.lines().collect::<Vec<_>>();
         let source_line = lines
             .iter()
-            .find(|line| line.contains('\u{85}') && line.contains("cd"))
+            .find(|line| line.contains("\\u{85}") && line.contains("cd"))
             .expect("excerpt line");
         let marked = UnicodeWidthStr::width(&source_line[..source_line.find("cd").expect("cd")]);
         let caret_line = lines
@@ -1882,6 +1981,88 @@ mod tests {
         source.push('\n');
         source.push_str(&raw_control_line());
         assert_prepared_control_charge(&source, source.len(), 1);
+    }
+
+    /// A whole excerpt that is not cut still escapes C0 and C1, including U+009B.
+    ///
+    /// Plain and colored output both write `\u{hex}`. Colored output may also
+    /// contain ANSI SGR. It must not contain the raw control.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_uncut_excerpt_escapes_c0_and_c1_in_plain_and_color() {
+        let source = raw_control_line();
+        let diagnostic = span_diagnostic(&source, source.len());
+        for color in [false, true] {
+            let rendered = render_diagnostics(
+                "<input>",
+                &source,
+                &[diagnostic.clone()],
+                new!(DiagnosticRenderOptions {
+                    color,
+                    detail: DiagnosticDetailMode::Summary,
+                    glyphs: GlyphStyle::Unicode,
+                    terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+                }),
+            )
+            .unwrap_or_else(|error| panic!("color {color}: {error:?}"));
+            let plain = strip_sgr(&rendered);
+            assert_eq!(
+                rendered_source_text(&plain, 1),
+                ESCAPED_CONTROL_LINE,
+                "color {color}\n{plain}"
+            );
+            for escape in [
+                "\\u{7}", "\\u{1b}", "\\u{7f}", "\\u{85}", "\\u{9b}", "\\u{9f}",
+            ] {
+                assert!(
+                    rendered.contains(escape),
+                    "color {color} missing {escape}\n{rendered}"
+                );
+            }
+            assert_no_raw_terminal_control(&rendered, color);
+        }
+    }
+
+    /// Remove SGR sequences. A literal `\u{hex}` in the source stays.
+    #[requires(true)]
+    #[ensures(ret.len() <= text.len())]
+    fn strip_sgr(text: &str) -> String {
+        let mut out = String::new();
+        let mut rest = text;
+        while let Some(start) = rest.find('\u{1b}') {
+            out.push_str(&rest[..start]);
+            rest = &rest[start + '\u{1b}'.len_utf8()..];
+            if let Some(stripped) = rest.strip_prefix('[') {
+                if let Some(end) = stripped.find('m') {
+                    rest = &stripped[end + 1..];
+                    continue;
+                }
+            }
+        }
+        out.push_str(rest);
+        out
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_no_raw_terminal_control(rendered: &str, allow_ansi: bool) {
+        let mut chars = rendered.chars().peekable();
+        while let Some(character) = chars.next() {
+            if character == '\u{1b}' && allow_ansi && chars.peek() == Some(&'[') {
+                chars.next();
+                for next in chars.by_ref() {
+                    if next == 'm' {
+                        break;
+                    }
+                }
+                continue;
+            }
+            assert!(
+                !crate::styled::is_raw_terminal_control(character),
+                "raw {character:?} in {rendered:?}"
+            );
+        }
     }
 
     #[test]
@@ -2057,8 +2238,11 @@ mod tests {
             rendered.len(),
             source.len()
         );
-        assert!(rendered.contains('\u{85}'), "missing control");
-        assert!(!rendered.contains("\\u{85}"), "uncut line was pre-escaped");
+        assert!(rendered.contains("\\u{85}"), "missing control escape");
+        assert!(
+            !rendered.contains('\u{85}'),
+            "uncut line leaked a raw control"
+        );
         assert!(rendered.contains("near"), "missing near label");
         assert!(rendered.contains("far"), "missing far label");
         assert!(rendered.contains("do"), "missing far word");
@@ -3196,10 +3380,12 @@ mod tests {
             usize::MAX,
         )
         .expect("one trailing newline");
-        assert!(location_shows(&rendered, "--> ", 2, 1), "{rendered}");
+        // Main keeps the point on the last real line, one column past the break.
+        assert!(location_shows(&rendered, "--> ", 1, 8), "{rendered}");
+        assert!(!location_shows(&rendered, "--> ", 2, 1), "{rendered}");
         assert_eq!(
             caret_row(&rendered, "expected closing delimiter `gy`"),
-            Some(2),
+            Some(1),
             "{rendered}"
         );
         assert_eq!(caret_row(&rendered, "opening gy"), Some(1), "{rendered}");
@@ -3217,7 +3403,9 @@ mod tests {
     fn ten_thousand_blank_lines_keep_the_eof_label() {
         let mut source = String::from("zoi gy");
         source.push_str(&"\n".repeat(10_000));
-        let line = 10_001;
+        // Ten thousand real lines. The point after the last break stays on the
+        // last of them, at column 2. Main does not open line 10001.
+        let line = 10_000;
         let end = source.len();
         let rendered = render_label_set(
             &source,
@@ -3229,7 +3417,7 @@ mod tests {
             usize::MAX,
         )
         .expect("many trailing newlines");
-        assert!(location_shows(&rendered, "--> ", line, 1), "{rendered}");
+        assert!(location_shows(&rendered, "--> ", line, 2), "{rendered}");
         assert_eq!(
             caret_row(&rendered, "expected closing delimiter `gy`"),
             Some(line),
@@ -3242,6 +3430,60 @@ mod tests {
             "{rendered}"
         );
         assert!(rendered.contains("zoi gy"), "{rendered}");
+        assert!(
+            !location_shows(&rendered, "--> ", line + 1, 1),
+            "{rendered}"
+        );
+    }
+
+    /// A span that ends on a trailing break stays on the last real line.
+    ///
+    /// The close mark is one column past that line. Main draws the same mark.
+    /// A further empty line is not a source line.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_uncut_close_on_a_trailing_break_matches_the_last_real_line() {
+        let source = "zoi gy\n\n";
+        let rendered = render_carbon(
+            source,
+            &[
+                (0, 6, "opening gy", false),
+                (
+                    source.len(),
+                    source.len(),
+                    "expected closing delimiter `gy`",
+                    true,
+                ),
+            ],
+            false,
+        );
+        assert!(rendered.contains("<input>:2:2"), "{rendered}");
+        assert!(!rendered.contains("<input>:3:"), "{rendered}");
+        assert!(
+            rendered
+                .lines()
+                .any(|line| line.contains("2") && line.contains("│")),
+            "{rendered}"
+        );
+
+        for (source, close) in [
+            ("mi cusku zoi gy. abc\n//x\n", "┗━━━━┛"),
+            ("mi cusku zoi gy. abc\n(\n", "┗━━┛"),
+            ("mi cusku zoi gy. abc\n{\n", "┗━━┛"),
+            ("mi cusku zoi gy. abc\n   \n", "┗━━━━┛"),
+            ("mi cusku zoi gy. abc\n\n", "┗━┛"),
+        ] {
+            let rendered = render_carbon(source, &[(0, source.len(), "close", true)], false);
+            let close_line = rendered
+                .lines()
+                .find(|line| line.contains('┛'))
+                .unwrap_or("");
+            assert!(
+                close_line.contains(close),
+                "missing {close} on {close_line:?}\n{rendered}"
+            );
+        }
     }
 
     #[test]
@@ -3884,8 +4126,8 @@ mod tests {
         let rendered =
             render_diagnostics("<input>", &source, &[diagnostic], options).expect("two lines");
         assert!(rendered.len() < 5_000, "{}", rendered.len());
-        assert!(rendered.contains('\u{85}'), "{rendered}");
-        assert!(!rendered.contains("\\u{85}"), "{rendered}");
+        assert!(rendered.contains("\\u{85}"), "{rendered}");
+        assert!(!rendered.contains('\u{85}'), "{rendered}");
         assert!(rendered.contains("do"), "{rendered}");
         assert!(!rendered.contains("pad"), "{rendered}");
     }
@@ -3920,13 +4162,14 @@ mod tests {
         )
         .expect("later line excerpt");
         assert!(!rendered.contains("zz"), "{rendered}");
-        assert!(rendered.contains('\u{85}'), "{rendered}");
-        assert!(rendered.contains('␡'), "{rendered}");
-        assert!(!rendered.contains("\\u{85}"), "{rendered}");
+        assert!(rendered.contains("\\u{85}"), "{rendered}");
+        assert!(rendered.contains("\\u{7f}"), "{rendered}");
+        assert!(!rendered.contains('\u{85}'), "{rendered}");
+        assert!(!rendered.contains('␡'), "{rendered}");
         let lines = rendered.lines().collect::<Vec<_>>();
         let source_line = lines
             .iter()
-            .find(|line| line.contains('\u{85}') && line.contains("cd"))
+            .find(|line| line.contains("\\u{85}") && line.contains("cd"))
             .expect("excerpt line");
         let marked = UnicodeWidthStr::width(&source_line[..source_line.find("cd").expect("cd")]);
         let caret_line = lines
@@ -4675,15 +4918,16 @@ mod tests {
 
         let control = "mi\u{7}lo";
         let control_render = render_carbon(control, &[(2, 2, "AT", true)], false);
-        assert!(control_render.contains('␇'), "{control_render}");
-        assert!(!control_render.contains("\\u{7}"), "{control_render}");
+        assert!(control_render.contains("\\u{7}"), "{control_render}");
+        assert!(!control_render.contains('\u{7}'), "{control_render}");
+        assert!(!control_render.contains('␇'), "{control_render}");
         let control_lines: Vec<_> = control_render.lines().collect();
         let control_line = control_lines
             .iter()
             .copied()
-            .find(|line| line.contains('␇'))
+            .find(|line| line.contains("\\u{7}"))
             .expect("source");
-        let picture_at = control_line.find('␇').expect("picture");
+        let picture_at = control_line.find("\\u{7}").expect("escape");
         let control_caret = control_lines
             .iter()
             .copied()

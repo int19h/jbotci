@@ -8,7 +8,7 @@ mod vlasei;
 mod vlatai;
 
 pub(super) use cukta::run_cukta;
-pub(super) use gentufa::run_gentufa;
+pub(super) use gentufa::{gentufa_excerpt_is_cut, run_gentufa};
 pub(super) use gimfihi::run_gimfihi;
 pub(super) use jvozba::run_jvozba;
 pub(super) use setup::run_setup;

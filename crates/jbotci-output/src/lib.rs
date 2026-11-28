@@ -33,8 +33,8 @@ mod unicode_math;
 use bityzba::expensive_ensures;
 use bityzba::{invariant, requires};
 pub use diagnostics::{
-    DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticRenderOptions, render_diagnostics,
-    render_diagnostics_with_limit,
+    DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticRenderOptions, diagnostic_excerpt_is_cut,
+    render_diagnostics, render_diagnostics_with_limit,
 };
 pub use indentation::{Indentation, InvalidIndentation};
 pub use jbotci_diagnostics::DiagnosticDetailMode;

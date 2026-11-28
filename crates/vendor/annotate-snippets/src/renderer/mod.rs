@@ -26,6 +26,7 @@ mod margin;
 mod styled_buffer;
 mod window;
 
+pub use source_map::{columns_at, source_point};
 pub use window::{
     ExpandedControl, KeptSourceLine, LaidOutLine, RunLineLayout, annotation_label_columns,
     code_columns, kept_source_lines, lay_out_line, lay_out_run,

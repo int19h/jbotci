@@ -153,6 +153,32 @@ fn run_cli_with_color_policy_and_terminal_widths_and_progress<WOut: Write, WErr:
     )
 }
 
+/// Run one parsed command with `stdin_text` instead of the process stdin.
+///
+/// The caller passes no positional text, so the source label is `<stdin>`.
+#[requires(diagnostic_terminal_width > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub(super) fn run_cli_with_stdin_text<WOut: Write, WErr: Write>(
+    cli: Cli,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_terminal_width: usize,
+    stdin_text: &str,
+) -> Result<CliStatus> {
+    let color_policy = color_policy.with_choice(cli.color);
+    run_cli_command(
+        cli.command,
+        stdout,
+        stderr,
+        color_policy,
+        diagnostic_terminal_width,
+        None,
+        CliProgressPolicy::disabled(),
+        Some(stdin_text),
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 #[requires(diagnostic_terminal_width > 0)]
 #[requires(output_terminal_width.is_none_or(|width| width > 0))]

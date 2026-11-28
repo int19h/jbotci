@@ -184,6 +184,65 @@ fn analyze_gentufa_input(
     }))
 }
 
+/// True when any gentufa diagnostic for `text` keeps a prepared line boundary.
+///
+/// The flag comes from the renderer's cut decision, not from the rendered text.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub(crate) fn gentufa_excerpt_is_cut(text: &str, ascii: bool) -> Result<bool> {
+    let cli = Cli::try_parse_from(["jbotci", "gentufa"])
+        .map_err(|error| anyhow::Error::msg(error.to_string()))?;
+    let Command::Gentufa(input) = cli.command else {
+        return Err(anyhow::Error::msg("gentufa command"));
+    };
+    let trace = CliTraceConfig {
+        phase: TracePhase::Syntax,
+        limit: jbotci_diagnostics::DEFAULT_TRACE_LIMIT,
+    };
+    let analysis = analyze_gentufa_input(
+        &input,
+        false,
+        trace,
+        Some(text),
+        &jbotci_interrupt::CancellationToken::never(),
+    )?;
+    let data!(GentufaAnalysis {
+        text,
+        source_label,
+        morphology_trace_stderr,
+        diagnostics,
+        syntax,
+    }) = analysis.into_data();
+    let _ = morphology_trace_stderr;
+    let mut diagnostics = diagnostics;
+    match syntax {
+        GentufaSyntaxStage::MorphologyFailed => {}
+        GentufaSyntaxStage::Parsed { parse, .. } => {
+            match parse.into_data() {
+                data!(SyntaxRecoveryParse::Valid { parse }) => {
+                    let parsed = parse.into_data();
+                    diagnostics.extend(parsed.warnings.iter().map(|warning| {
+                        warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                    }));
+                }
+                data!(SyntaxRecoveryParse::Recovered { parse }) => {
+                    let parsed = parse.into_data();
+                    diagnostics.extend(parsed.errors.iter().map(|error| {
+                        error.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                    }));
+                    diagnostics.extend(parsed.warnings.iter().map(|warning| {
+                        warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                    }));
+                }
+                data!(SyntaxRecoveryParse::Interrupted) => {}
+            }
+        }
+    }
+    Ok(diagnostics
+        .iter()
+        .any(|diagnostic| jbotci_output::diagnostic_excerpt_is_cut(&text, diagnostic, 80, ascii)))
+}
+
 #[requires(diagnostic_terminal_width > 0)]
 #[requires(trace.limit > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]

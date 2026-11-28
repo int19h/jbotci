@@ -127,6 +127,35 @@ pub mod test_harness {
         )
     }
 
+    #[requires(diagnostic_terminal_width > 0)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub fn run_cli_with_stdin_and_width<WOut: std::io::Write, WErr: std::io::Write>(
+        cli: Cli,
+        stdout: &mut WOut,
+        stderr: &mut WErr,
+        color_policy: CliColorPolicy,
+        diagnostic_terminal_width: usize,
+        stdin_text: &str,
+    ) -> anyhow::Result<CliStatus> {
+        super::cli::run_cli_with_stdin_text(
+            cli,
+            stdout,
+            stderr,
+            color_policy,
+            diagnostic_terminal_width,
+            stdin_text,
+        )
+    }
+
+    /// True when the renderer cuts a shown line of this gentufa input.
+    ///
+    /// The flag is the renderer's prepared-boundary decision.
+    #[requires(true)]
+    #[ensures(ret || !ret)]
+    pub fn gentufa_excerpt_is_cut(text: &str, ascii: bool) -> bool {
+        super::commands::gentufa_excerpt_is_cut(text, ascii).expect("gentufa excerpt cut check")
+    }
+
     #[requires(limit > 0)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub fn trace_options(
