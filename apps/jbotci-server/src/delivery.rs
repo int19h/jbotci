@@ -729,12 +729,22 @@ mod tests {
     }
 
     /// Abort a probe server task and await it.
-    /// The await runs before the caller reports another error.
+    /// The await stops after one second.
+    /// A panic keeps its message.
+    /// A task that stays after the limit is left stopped.
     #[requires(true)]
     #[ensures(true)]
     async fn finish_probe_server(task: tokio::task::JoinHandle<()>) {
         task.abort();
-        await_probe_server(task).await;
+        match tokio::time::timeout(std::time::Duration::from_secs(1), task).await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) if error.is_cancelled() => {}
+            Ok(Err(error)) if error.is_panic() => {
+                panic!("{}", task_panic_text(error.into_panic().as_ref()));
+            }
+            Ok(Err(error)) => panic!("the delivery probe server failed: {error}"),
+            Err(_elapsed) => {}
+        }
     }
 
     #[requires(true)]

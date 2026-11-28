@@ -603,7 +603,7 @@ fn stop_publisher_child(
     result: Result<()>,
 ) -> Result<()> {
     let reap = jbotci_interrupt::reap_after_kill(child, limit, true);
-    match reap.error {
+    match reap.error.as_ref() {
         Some(error) => match result {
             Ok(()) => Err(anyhow::anyhow!("the publisher stop failed: {error}")),
             Err(cause) => Err(cause.context(format!("the publisher stop failed: {error}"))),
@@ -682,7 +682,7 @@ fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()
             WaitStepKind::TimedOut => {
                 return stop_publisher_child(
                     child,
-                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
                     Err(anyhow::anyhow!(
                         "Publisher command timed out after {} seconds",
                         timeout.as_secs_f64()
@@ -692,7 +692,7 @@ fn wait_bounded(child: &mut std::process::Child, timeout: Duration) -> Result<()
             WaitStepKind::Failed => {
                 return stop_publisher_child(
                     child,
-                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
                     child_status_result(kind, status, failure),
                 );
             }
@@ -874,6 +874,7 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
     let mut reader = Some(reader);
     let mut worker_outcome = None;
     let start = Instant::now();
+    let mut command_timed_out = false;
     let result = loop {
         if worker_outcome.is_none() && reader.as_ref().is_some_and(|handle| handle.is_finished()) {
             worker_outcome = Some(reader.take().expect("the reader handle is present").join());
@@ -899,7 +900,7 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
                 let child_result = child_status_result(kind, status, failure);
                 break stop_publisher_child(
                     &mut child,
-                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
                     child_result,
                 );
             }
@@ -913,9 +914,10 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
                 }
             }
             ReadbackStep::Child(WaitStepKind::TimedOut) => {
+                command_timed_out = true;
                 break stop_publisher_child(
                     &mut child,
-                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
                     Err(anyhow::anyhow!(
                         "Publisher command timed out after {} seconds",
                         timeout.as_secs_f64()
@@ -925,7 +927,7 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
             ReadbackStep::Child(WaitStepKind::Failed) => {
                 break stop_publisher_child(
                     &mut child,
-                    jbotci_interrupt::bound_after_deadline(timeout.saturating_sub(elapsed)),
+                    jbotci_interrupt::drain_window(start, timeout, Instant::now()),
                     child_status_result(kind, status, failure),
                 );
             }
@@ -933,44 +935,49 @@ fn run_readback(command: &mut Command, timeout: Duration) -> Result<()> {
     };
     // Kill the group before the reader wait.
     // The kill is cleanup.
-    // The reap before this kill is bounded.
+    // The argument is less than -1.
+    // A missing group is normal.
+    // The reap and the reader share one drain deadline.
     // An unreaped child stays unreaped.
     // A grandchild in a new session keeps the pipe.
-    // The reader wait stops at the time that remains.
-    // A due deadline uses the drain bound so a killed pipe can deliver stderr.
-    // A pipe that stays open hits that bound.
-    // An expired wait is a timeout.
+    // A pipe that stays open hits the time that remains.
+    // An expired reader keeps an existing command timeout.
     // A finished reader keeps the child result, the worker error, and the stderr text.
-    // A second kill does not wait.
-    #[cfg(unix)]
-    unsafe {
-        libc::kill(-(child.id() as i32), libc::SIGKILL);
-    }
+    let _ = jbotci_interrupt::PollableChild::kill_group(&mut child);
     let worker_outcome = if let Some(outcome) = worker_outcome {
         outcome
     } else {
-        let remaining = timeout.saturating_sub(start.elapsed());
-        // A due deadline leaves no remaining time.
-        // The kill can still close a pipe in the group.
-        // The reader then delivers the bytes already written.
-        // A pipe that stays open hits the drain bound.
-        let limit = jbotci_interrupt::bound_after_deadline(remaining);
+        let limit = jbotci_interrupt::drain_window(start, timeout, Instant::now());
         let reader = reader.take().expect("the reader handle is present");
         match join_readback_reader(reader, limit) {
             Some(outcome) => outcome,
-            None => {
-                let timeout_error = anyhow::anyhow!(
-                    "Publisher command timed out after {} seconds",
-                    timeout.as_secs_f64()
-                );
-                return match result {
-                    Ok(()) => Err(timeout_error),
-                    Err(error) => Err(error.context(timeout_error)),
-                };
-            }
+            None => return finish_reader_timeout(result, timeout, command_timed_out),
         }
     };
     combine_readback(result, worker_outcome)
+}
+
+/// Finish a reader that did not join.
+/// A command that already timed out keeps that result.
+/// The timeout sentence is not added a second time.
+#[requires(!timeout.is_zero())]
+#[ensures(true)]
+fn finish_reader_timeout(
+    result: Result<()>,
+    timeout: Duration,
+    command_timed_out: bool,
+) -> Result<()> {
+    if command_timed_out {
+        return result;
+    }
+    let timeout_error = anyhow::anyhow!(
+        "Publisher command timed out after {} seconds",
+        timeout.as_secs_f64()
+    );
+    match result {
+        Ok(()) => Err(timeout_error),
+        Err(error) => Err(error.context(timeout_error)),
+    }
 }
 
 #[invariant(true)]
@@ -2465,6 +2472,25 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             .starts_with('Z')
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_reader_timeout_does_not_repeat_the_command_timeout() {
+        let timeout = Duration::from_secs(1);
+        let sentence = format!(
+            "Publisher command timed out after {} seconds",
+            timeout.as_secs_f64()
+        );
+        let already = Err(anyhow::anyhow!(sentence.clone()));
+        let kept =
+            super::finish_reader_timeout(already, timeout, true).expect_err("the timeout stays");
+        let text = format!("{kept:#}");
+        assert_eq!(text.matches(sentence.as_str()).count(), 1, "{text}");
+        let fresh = super::finish_reader_timeout(Ok(()), timeout, false)
+            .expect_err("a late reader times out");
+        assert_eq!(fresh.to_string().matches(sentence.as_str()).count(), 1);
+    }
+
     #[cfg(unix)]
     #[test]
     #[requires(true)]
@@ -2521,10 +2547,15 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
         let grandchild_exited = process_has_exited(*grandchild);
         if !grandchild_exited {
             // Clean up only the process group that this test starts.
-            unsafe {
-                if libc::getpgid(*grandchild as i32) == *child as i32 {
-                    libc::kill(-(*child as i32), libc::SIGKILL);
-                }
+            // The signal argument is less than -1.
+            let same_group = match (i32::try_from(*child), i32::try_from(*grandchild)) {
+                (Ok(child_id), Ok(grandchild_id)) if child_id > 1 && grandchild_id > 0 => unsafe {
+                    libc::getpgid(grandchild_id) == child_id
+                },
+                _ => false,
+            };
+            if same_group {
+                let _ = jbotci_interrupt::kill_process_group(*child);
             }
         }
         assert!(
@@ -2592,8 +2623,12 @@ fs.appendFileSync(path.join(__dirname, 'calls'), 'put\n');
             .parse::<u32>()
             .expect("the grandchild id is a number");
         let grandchild_alive = !process_has_exited(pid);
-        unsafe {
-            libc::kill(pid as i32, libc::SIGKILL);
+        if let Ok(argument) = i32::try_from(pid)
+            && argument > 1
+        {
+            unsafe {
+                libc::kill(argument, libc::SIGKILL);
+            }
         }
         assert!(grandchild_alive, "the detached grandchild already exited");
         assert!(

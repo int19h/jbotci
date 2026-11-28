@@ -2065,6 +2065,20 @@ pub fn download_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(),
     download_model_file_with_progress(spec, path, &mut progress)
 }
 
+/// Read one chunk.
+/// An interrupt retries the same buffer.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|count| *count <= buffer.len()) || ret.is_err())]
+fn read_retrying_interrupt<R: Read>(reader: &mut R, buffer: &mut [u8]) -> std::io::Result<usize> {
+    loop {
+        match reader.read(buffer) {
+            Ok(count) => return Ok(count),
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[requires(!source.is_empty())]
 #[requires(!partial_path.as_os_str().is_empty())]
@@ -2100,12 +2114,15 @@ fn stream_reader_to_file_with_progress<R: Read>(
         ));
     }
     loop {
-        let read = reader
-            .read(buffer)
-            .map_err(|source_error| EmbeddingError::Io {
-                context: format!("failed to read `{source}`"),
-                source: source_error,
-            })?;
+        let read = match read_retrying_interrupt(reader, buffer) {
+            Ok(count) => count,
+            Err(error) => {
+                return Err(EmbeddingError::Io {
+                    context: format!("failed to read `{source}`"),
+                    source: error,
+                });
+            }
+        };
         if read == 0 {
             break;
         }
@@ -3401,11 +3418,24 @@ fn fetch_json_url<T: DeserializeOwned>(url: &str) -> Result<T, EmbeddingError> {
         .map_err(|source| EmbeddingError::Http {
             message: format!("failed to fetch `{url}`: {source}"),
         })?;
-    serde_json::from_reader(response.into_body().into_reader()).map_err(|source| {
-        EmbeddingError::Json {
-            context: format!("failed to parse `{url}`"),
-            source,
+    let mut reader = response.into_body().into_reader();
+    let mut bytes = Vec::new();
+    let mut buffer = [0_u8; 8192];
+    loop {
+        match read_retrying_interrupt(&mut reader, &mut buffer) {
+            Ok(0) => break,
+            Ok(count) => bytes.extend_from_slice(&buffer[..count]),
+            Err(source) => {
+                return Err(EmbeddingError::Io {
+                    context: format!("failed to read `{url}`"),
+                    source,
+                });
+            }
         }
+    }
+    serde_json::from_slice(&bytes).map_err(|source| EmbeddingError::Json {
+        context: format!("failed to parse `{url}`"),
+        source,
     })
 }
 
@@ -5181,6 +5211,77 @@ mod tests {
             b"new"
         );
         assert!(!source.exists());
+    }
+
+    /// A reader that returns Interrupted before the payload and before the end.
+    #[invariant(true)]
+    struct InterruptBeforeBytes {
+        pending_interrupt: bool,
+        bytes: &'static [u8],
+        offset: usize,
+        saw_end: bool,
+    }
+
+    impl std::io::Read for InterruptBeforeBytes {
+        #[requires(true)]
+        #[ensures(true)]
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            if self.pending_interrupt {
+                self.pending_interrupt = false;
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "injected interrupt",
+                ));
+            }
+            if self.offset >= self.bytes.len() {
+                self.saw_end = true;
+                return Ok(0);
+            }
+            let count = self
+                .bytes
+                .len()
+                .saturating_sub(self.offset)
+                .min(buffer.len());
+            buffer[..count].copy_from_slice(&self.bytes[self.offset..self.offset + count]);
+            self.offset += count;
+            self.pending_interrupt = true;
+            Ok(count)
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stream_reader_retries_an_interrupted_read() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let destination = dir.path().join("model.bin");
+        let partial = dir.path().join("model.bin.downloadInProgress");
+        let mut reader = InterruptBeforeBytes {
+            pending_interrupt: true,
+            bytes: b"Z",
+            offset: 0,
+            saw_end: false,
+        };
+        let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
+        let mut progress = |_event: SetupProgress| {};
+        let loaded = stream_reader_to_file_with_progress(
+            &mut reader,
+            "http://example.test/model",
+            &partial,
+            &destination,
+            Some(1),
+            SetupProgressPhase::DownloadingModel,
+            "Downloading model",
+            "Downloading embedding model.",
+            &mut buffer,
+            &mut progress,
+        )
+        .expect("an interrupt is retried");
+        assert_eq!(loaded, 1);
+        assert_eq!(std::fs::read(&destination).expect("the file"), b"Z");
+        assert!(!partial.exists());
+        assert!(reader.saw_end);
+        assert_eq!(reader.offset, 1);
     }
 
     #[test]

@@ -2212,13 +2212,34 @@ mod tests {
         }
     }
 
+    const DISCORD_STOP_LIMIT: Duration = Duration::from_secs(1);
+
+    /// Await an aborted Discord stub task.
+    /// The wait stops at [`DISCORD_STOP_LIMIT`].
+    /// Cancellation is a normal stop.
+    /// A panic keeps its message.
+    /// A task that stays after the limit is left stopped.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn await_aborted_discord_server(task: tokio::task::JoinHandle<()>) {
+        match tokio::time::timeout(DISCORD_STOP_LIMIT, task).await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) if error.is_cancelled() => {}
+            Ok(Err(error)) if error.is_panic() => {
+                panic!("{}", discord_panic_text(error.into_panic().as_ref()));
+            }
+            Ok(Err(error)) => panic!("the discord stub server failed: {error}"),
+            Err(_elapsed) => {}
+        }
+    }
+
     /// Abort a Discord stub task and await it.
-    /// The await finishes before the caller reports another error.
+    /// The await stops at [`DISCORD_STOP_LIMIT`].
     #[requires(true)]
     #[ensures(true)]
     async fn shutdown_discord_server(task: tokio::task::JoinHandle<()>) {
         task.abort();
-        await_discord_server(task).await;
+        await_aborted_discord_server(task).await;
     }
 
     /// A Discord that answers on localhost and remembers what it was asked.
@@ -2237,12 +2258,18 @@ mod tests {
             let Some(server) = self.server.take() else {
                 return;
             };
+            server.abort();
+            if std::thread::panicking() {
+                return;
+            }
             let Ok(handle) = tokio::runtime::Handle::try_current() else {
-                server.abort();
                 return;
             };
+            if handle.runtime_flavor() != tokio::runtime::RuntimeFlavor::MultiThread {
+                return;
+            }
             tokio::task::block_in_place(|| {
-                handle.block_on(shutdown_discord_server(server));
+                handle.block_on(await_aborted_discord_server(server));
             });
         }
     }
@@ -2302,6 +2329,55 @@ mod tests {
     }
 
     #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_shutdown_stops_the_stub() {
+        let mut discord = FakeDiscord::start().await;
+        discord.shutdown().await;
+        assert!(discord.server.is_none());
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "discord stub sentinel")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_shutdown_reports_a_server_panic() {
+        let task = tokio::spawn(async { panic!("discord stub sentinel") });
+        while !task.is_finished() {
+            tokio::task::yield_now().await;
+        }
+        shutdown_discord_server(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_drop_on_a_current_thread_runtime_does_not_panic() {
+        let discord = FakeDiscord::start().await;
+        drop(discord);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn discord_drop_during_unwind_does_not_abort() {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("a runtime");
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            runtime.block_on(async {
+                let _discord = FakeDiscord::start().await;
+                panic!("discord drop unwind sentinel");
+            });
+        }));
+        let message = result.expect_err("the sentinel panic is caught");
+        let text = discord_panic_text(message.as_ref());
+        assert!(text.contains("discord drop unwind sentinel"), "{text}");
+    }
+
+    #[tokio::test]
     #[should_panic(expected = "discord stub sentinel")]
     #[requires(true)]
     #[ensures(true)]
@@ -2328,6 +2404,16 @@ mod tests {
     }
 
     impl FakeDiscord {
+        /// Stop the stub server.
+        /// Tests call this before the value is dropped.
+        #[requires(true)]
+        #[ensures(self.server.is_none())]
+        async fn shutdown(&mut self) {
+            if let Some(server) = self.server.take() {
+                shutdown_discord_server(server).await;
+            }
+        }
+
         #[requires(true)]
         #[ensures(true)]
         async fn start() -> Self {

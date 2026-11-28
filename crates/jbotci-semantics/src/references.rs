@@ -8569,9 +8569,9 @@ mod tests {
                     let reap = jbotci_interrupt::reap_after_kill(
                         &mut child,
                         jbotci_interrupt::bound_after_deadline(std::time::Duration::ZERO),
-                        false,
+                        true,
                     );
-                    match reap.error {
+                    match reap.error.as_ref() {
                         Some(error) => panic!(
                             "The place-boundary probe did not finish within 30 seconds. The stop failed: {error}"
                         ),
@@ -8581,8 +8581,18 @@ mod tests {
                     }
                 }
                 PlaceProbeStep::Failed => {
-                    let error = failed.expect("the probe status failed");
-                    panic!("the place-boundary probe status failed: {error}");
+                    let poll_error = failed.expect("the probe status failed");
+                    let reap = jbotci_interrupt::reap_after_kill(
+                        &mut child,
+                        jbotci_interrupt::bound_after_deadline(std::time::Duration::ZERO),
+                        true,
+                    );
+                    match reap.error.as_ref() {
+                        Some(error) => panic!(
+                            "the place-boundary probe status failed: {poll_error}. The stop failed: {error}"
+                        ),
+                        None => panic!("the place-boundary probe status failed: {poll_error}"),
+                    }
                 }
             }
         };

@@ -38,7 +38,7 @@ fn lsp_child_timeout(child: &mut Child, timeout: Duration) -> String {
         jbotci_interrupt::bound_after_deadline(Duration::ZERO),
         false,
     );
-    match reap.error {
+    match reap.error.as_ref() {
         Some(error) => format!(
             "shutdown timed out after {} seconds. The stop failed: {error}",
             timeout.as_secs_f64()
@@ -1886,7 +1886,7 @@ fn server_survives_socketpair_stdio() {
         jbotci_interrupt::bound_after_deadline(Duration::ZERO),
         false,
     );
-    if let Some(error) = reap.error {
+    if let Some(error) = reap.error.as_ref() {
         panic!("kill server: {error}");
     }
 }
