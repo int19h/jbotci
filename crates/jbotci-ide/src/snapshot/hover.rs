@@ -1,12 +1,13 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_dictionary::{LookupKey, normalize_lookup_query};
+use jbotci_dictionary::{EntryIndex, LookupKey, normalize_lookup_query};
 use jbotci_morphology::{LujvoPart, Word, WordKind, WordLike, WordLikeData, canonicalize_text};
 use jbotci_output::{render_vlacku_cards_markdown, render_vlacku_headword_markdown};
 use jbotci_search::compounds::{cmavo_sequence_containing, compound_cards};
 use jbotci_search::vlacku::{
-    VlackuCard, VlackuCompositionKind, VlackuCompositionPiece, VlackuRequest, VlackuSearchOptions,
-    dictionary_entry_card, run_vlacku_requests, word_like_lookup_text,
+    VlackuCard, VlackuCompositionKind, VlackuCompositionPiece, VlackuCompositionSource,
+    VlackuRequest, VlackuSearchOptions, dictionary_entry_card, run_vlacku_requests,
+    word_like_lookup_text,
 };
 use jbotci_source::SourceSpan;
 
@@ -454,8 +455,14 @@ fn lujvo_hover_markdown(word: &Word) -> String {
 }
 
 #[requires(true)]
-#[ensures(ret.decomposition.len() == old(decomposition.len()))]
+#[ensures(ret.invalid_lojban_word -> ret.decomposition.is_empty())]
+#[ensures(!ret.invalid_lojban_word -> ret.decomposition.len() == old(decomposition.len()))]
 fn with_decomposition(card: VlackuCard, decomposition: Vec<VlackuCompositionPiece>) -> VlackuCard {
+    let decomposition = if card.invalid_lojban_word {
+        Vec::new()
+    } else {
+        decomposition
+    };
     card.with_data(data! {
         decomposition: decomposition,
     })
@@ -616,6 +623,52 @@ mod tests {
             .clone();
         assert!(markdown.contains("`ierx` (fu'ivla rafsi)"), "{markdown}");
         assert!(markdown.contains("hierarchy"), "{markdown}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn magic_word_hover_does_not_show_a_false_morphology_warning() {
+        let markdown = DocumentSnapshot::new("zo klama".to_owned(), 1)
+            .hover(0)
+            .expect("magic word hover")
+            .markdown
+            .clone();
+        assert!(markdown.contains("zo"), "{markdown}");
+        assert!(
+            !markdown.contains(jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE),
+            "{markdown}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_cards_do_not_gain_hover_decomposition() {
+        let output = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("fa'onai".to_owned())],
+            &hover_vlacku_options(true),
+        )
+        .expect("clear cancellation");
+        let card = output
+            .cards
+            .into_iter()
+            .find(|card| card.word == "fa'onai")
+            .expect("invalid dictionary card");
+        let card = with_decomposition(
+            card,
+            vec![VlackuCompositionPiece {
+                kind: VlackuCompositionKind::Rafsi,
+                surface: "fa".to_owned(),
+                sources: vec![new!(VlackuCompositionSource {
+                    entry_index: EntryIndex(0),
+                    word: "facki".to_owned(),
+                })],
+            }],
+        );
+        assert!(card.invalid_lojban_word);
+        assert!(card.decomposition.is_empty());
     }
 
     #[test]

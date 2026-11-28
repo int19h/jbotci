@@ -1196,13 +1196,14 @@ fn page_find_collects_vlacku_card_text_without_controls() {
     let result = new!(VlackuWebResult {
         hidden_by_vote_filter: false,
         state: VlackuWebState::default(),
-        cards: vec![VlackuWebCard {
+        cards: vec![new!(VlackuWebCard {
             entry_index: None,
             rank: 1,
             word: "broda".to_owned(),
             display_word: "broda".to_owned(),
             word_type: "gismu".to_owned(),
             word_type_key: "gismu".to_owned(),
+            invalid_lojban_word: false,
             selmaho: Some("BRIVLA".to_owned()),
             author: Some(new!(VlackuWebAuthor {
                 username: "alice".to_owned(),
@@ -1236,13 +1237,24 @@ fn page_find_collects_vlacku_card_text_without_controls() {
                 })],
             }],
             can_add_to_jvozba: true,
-        }],
+        })],
         word_type_options: Vec::new(),
         dictionary_info: None,
         has_more: true,
         message: Some("semantic message".to_owned()),
         errors: vec!["visible error".to_owned()],
     });
+    let fallback_card = result.cards[0].clone().with_data(data! {
+        rank: 2,
+        word: "fa'onai".to_owned(),
+        display_word: "fa'onai".to_owned(),
+        invalid_lojban_word: true,
+        ipa: None,
+        decomposition: Vec::new(),
+        can_add_to_jvozba: false,
+    });
+    let cards = vec![result.cards[0].clone(), fallback_card];
+    let result = result.with_data(data! { cards: cards });
     let mut entries = Vec::new();
 
     collect_vlacku_page_find_entries(&mut entries, &result, GentufaScript::Latin);
@@ -1265,12 +1277,36 @@ fn page_find_collects_vlacku_card_text_without_controls() {
         "note body",
         "etymology: ",
         "etymology body",
+        jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE,
         "Load more",
     ] {
         assert!(texts.contains(&expected.to_owned()), "missing {expected}");
     }
+    let vote_index = texts
+        .iter()
+        .rposition(|text| text == "+7")
+        .expect("vote index");
+    let warning_index = texts
+        .iter()
+        .position(|text| text == jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE)
+        .expect("warning index");
+    let definition_index = texts
+        .iter()
+        .rposition(|text| text == "definition body ")
+        .expect("definition index");
+    assert!(vote_index < warning_index && warning_index < definition_index);
     assert!(!texts.contains(&"Dictionary query".to_owned()));
     assert!(!texts.contains(&"jvozba".to_owned()));
+
+    for script in [GentufaScript::Cyrillic, GentufaScript::Zbalermorna] {
+        let converted = display_lojban_text(script, "fa'onai");
+        assert_ne!(converted, "fa'onai", "{script:?}");
+        let mut entries = Vec::new();
+        collect_vlacku_page_find_entries(&mut entries, &result, script);
+        let texts = page_find_entry_texts(&entries);
+        assert!(texts.contains(&"fa'onai".to_owned()), "{script:?}");
+        assert!(!texts.contains(&converted), "{script:?}");
+    }
 }
 
 /// A vlacku card for the page-find tests, with no text outside the headword
@@ -1278,13 +1314,14 @@ fn page_find_collects_vlacku_card_text_without_controls() {
 #[requires(!word.is_empty())]
 #[ensures(ret.word == word)]
 fn page_find_vlacku_card(word: &str, decomposition: Vec<VlackuCompositionPiece>) -> VlackuWebCard {
-    VlackuWebCard {
+    new!(VlackuWebCard {
         entry_index: None,
         rank: 1,
         word: word.to_owned(),
         display_word: word.to_owned(),
         word_type: "lujvo".to_owned(),
         word_type_key: "lujvo".to_owned(),
+        invalid_lojban_word: false,
         selmaho: None,
         author: None,
         ipa: None,
@@ -1298,7 +1335,7 @@ fn page_find_vlacku_card(word: &str, decomposition: Vec<VlackuCompositionPiece>)
         etymology: Vec::new(),
         decomposition,
         can_add_to_jvozba: false,
-    }
+    })
 }
 
 /// A decomposition piece with one source for the page-find tests.
@@ -1484,6 +1521,69 @@ fn page_find_marks_every_composition_and_message_label_in_index_order() {
                 "{script:?} {query}: {html}"
             );
         }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_tooltip_renders_the_missing_morphology_notice() {
+    let card = dictionary_tooltip_for_word("", "fa'onai").expect("fallback tooltip");
+    for script in [
+        GentufaScript::Latin,
+        GentufaScript::Cyrillic,
+        GentufaScript::Zbalermorna,
+    ] {
+        let converted = display_lojban_text(script, "fa'onai");
+        let mut dom = VirtualDom::new(|| {
+            let card = consume_context::<DictionaryTooltipCard>();
+            let script = consume_context::<GentufaScript>();
+            render_dictionary_tooltip_card(&card, false, "", script, "rich-dictionary-tooltip")
+        })
+        .with_root_context(card.clone())
+        .with_root_context(script);
+        dom.rebuild_in_place();
+        let html = dioxus::ssr::render(&dom);
+        assert!(html.contains(jbotci_search::vlacku::INVALID_LOJBAN_WORD_CARD_MESSAGE));
+        assert!(html.contains("fa&#39;onai"), "{script:?}: {html}");
+        if script != GentufaScript::Latin {
+            assert_ne!(converted, "fa'onai", "{script:?}");
+            assert!(!html.contains(&converted), "{script:?}: {html}");
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn rafsi_pills_respect_the_jvozba_guard() {
+    for can_add_to_jvozba in [false, true] {
+        let mut dom = VirtualDom::new(|| {
+            let can_add_to_jvozba = consume_context::<bool>();
+            let index = build_page_find_index("", &[]);
+            let page_find = PageFindContext::new(&index, &PageFindRouteState::default());
+            render_rafsi_pill(
+                Signal::new(VlackuJvozbaPaneState {
+                    open: true,
+                    ..VlackuJvozbaPaneState::default()
+                }),
+                true,
+                can_add_to_jvozba,
+                "fa'onai",
+                "fa",
+                GentufaScript::Latin,
+                &page_find,
+            )
+        })
+        .with_root_context(can_add_to_jvozba);
+        dom.rebuild_in_place();
+        let html = dioxus::ssr::render(&dom);
+        assert_eq!(
+            html.contains("dictionary-jvozba-add-pill"),
+            can_add_to_jvozba,
+            "{html}"
+        );
+        assert!(html.contains("rafsi-chip"), "{html}");
     }
 }
 

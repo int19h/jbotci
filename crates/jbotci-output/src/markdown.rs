@@ -3,7 +3,9 @@ use std::fmt::Write;
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use jbotci_diagnostics::{DiagnosticTextLink, DiagnosticTextRole, DiagnosticTextSegment};
-use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, VlackuCompositionPiece};
+use jbotci_search::vlacku::{
+    INVALID_LOJBAN_WORD_CARD_MESSAGE, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
+};
 
 use crate::unicode_math;
 use crate::{DefinitionPlaceMap, GlyphStyle, indexed_place_spans_for_definition_line};
@@ -63,6 +65,10 @@ pub fn render_vlacku_card_markdown_with_link_base(card: &VlackuCard, link_base: 
             .filter(|selmaho| !selmaho.trim().is_empty()),
     );
 
+    if card.invalid_lojban_word {
+        output.push_str("\n\n**Morphology:** ");
+        output.push_str(INVALID_LOJBAN_WORD_CARD_MESSAGE);
+    }
     if !card.decomposition.is_empty() {
         output.push_str("\n\n**Decomposition:** ");
         output.push_str(&render_vlacku_decomposition_markdown(&card.decomposition));

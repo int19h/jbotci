@@ -455,6 +455,13 @@ fn render_vlacku_card(
         lines.push('\n');
     };
 
+    if card.invalid_lojban_word {
+        lines.push_str(&scope.format(format_args!(
+            "  {}{}\n",
+            dark_in_scope("morphology: ", options.color, &scope),
+            INVALID_LOJBAN_WORD_CARD_MESSAGE
+        )));
+    }
     if !card.rafsi.is_empty() {
         {
             lines.push_str(

@@ -9,8 +9,10 @@ use jbotci_dictionary::{
 use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
-    LujvoPart, MorphologyOptions, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData,
-    canonicalize_text, lex_single_word, segment_words_with_modifiers_with_options_and_source_id,
+    LujvoPart, ModifierSegmentation, MorphologyOptions, Verbatim, Word, WordKey, WordKind,
+    WordLike, WordLikeData, canonicalize_text, is_period_character, is_separator_character,
+    lex_single_word, segment_words_with_modifiers_and_coverage_with_options_and_source_id,
+    segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{
     AlineSimilarityScratch, PreparedAlineQuery, compare_similarity_then_index, prepare_sound_query,
@@ -21,6 +23,8 @@ use regex::Regex;
 pub const DEFAULT_VLACKU_RESULT_COUNT: usize = 20;
 pub const OFFICIAL_AUTHOR_USERNAME: &str = "officialdata";
 pub const INVALID_LOJBAN_WORD_MESSAGE_PREFIX: &str = "Invalid Lojban word: ";
+pub const INVALID_LOJBAN_WORD_CARD_MESSAGE: &str =
+    "Not a valid Lojban word. Morphology analysis is unavailable.";
 
 #[invariant(::Valsi(query) => !query.is_empty())]
 #[invariant(::Rafsi(query) => !query.is_empty())]
@@ -340,6 +344,8 @@ pub struct VlackuSearchOutput {
 }
 
 #[invariant(!word.is_empty())]
+#[invariant(*invalid_lojban_word -> *known)]
+#[invariant(*invalid_lojban_word -> decomposition.is_empty())]
 #[invariant(
     !known -> definition.is_empty(),
     "a dictionary-absent word has no dictionary entry carrying a definition"
@@ -353,6 +359,9 @@ pub struct VlackuCard {
     /// carrying a definition; renderers must flag such cards explicitly so
     /// they do not read as definition-less known entries.
     pub known: bool,
+    /// True when morphology rejects this card's headword. Renderers must
+    /// explain the missing morphology.
+    pub invalid_lojban_word: bool,
     pub selmaho: Option<String>,
     pub author: Option<VlackuAuthor>,
     pub is_official: bool,
@@ -1006,6 +1015,7 @@ fn cards_for_valsi(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
+    let raw_query = query;
     if vlacku_exact_query_is_pattern(query) {
         return Ok(cards_for_valsi_pattern(dictionary, query.trim(), options));
     }
@@ -1021,16 +1031,56 @@ fn cards_for_valsi(
     };
     let key = match LookupKey::from_typed(query) {
         Ok(key) => key,
-        Err(error) => return Ok(rejected_lookup_output(query, &error)),
+        Err(error) => {
+            let Some(key) = stored_key_for_rejected_exact_query(
+                dictionary,
+                raw_query,
+                ExactStoredLookup::Headword,
+            ) else {
+                return Ok(rejected_lookup_output(query, &error));
+            };
+            return Ok(invalid_lojban_word_lookup_output(
+                dictionary,
+                &key,
+                raw_query,
+                options,
+                lexical_word.as_ref(),
+                false,
+                Some(&error),
+            ));
+        }
     };
     let query = key.as_str();
+    let Some(words) = exact_query_words(raw_query, &options.cancellation)? else {
+        return Ok(invalid_lojban_word_lookup_output(
+            dictionary,
+            &key,
+            raw_query,
+            options,
+            lexical_word.as_ref(),
+            false,
+            None,
+        ));
+    };
+    if words.words.is_empty() {
+        return Ok(invalid_lojban_word_lookup_output(
+            dictionary,
+            &key,
+            raw_query,
+            options,
+            lexical_word.as_ref(),
+            false,
+            None,
+        ));
+    }
+    let classification = classify_exact_words(&words.words, query);
     let entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     if !entries.is_empty() {
         // Owner ruling for #1130 (2026-11-27): a query with a space shows the
         // exact phrase match first, then the result for each word on its own
         // (`ma u` shows the headword `ma;u`, then `ma` and `u`).
         let words = if key.as_str().contains(' ') {
-            resolve_segmented_lookup(dictionary, query, &options.cancellation)?.unwrap_or_default()
+            resolve_segmented_lookup(dictionary, &words.words).unwrap_or_default()
         } else {
             Vec::new()
         };
@@ -1058,7 +1108,7 @@ fn cards_for_valsi(
         )?));
     }
 
-    if let Some(entries) = resolve_segmented_lookup(dictionary, query, &options.cancellation)? {
+    if let Some(entries) = resolve_segmented_lookup(dictionary, &words.words) {
         let candidates = entries
             .into_iter()
             .map(VlackuCandidate::entry)
@@ -1068,7 +1118,13 @@ fn cards_for_valsi(
         )));
     }
 
-    missing_exact_output(dictionary, query, options, lexical_word.as_ref())
+    missing_exact_output(
+        dictionary,
+        query,
+        options,
+        lexical_word.as_ref(),
+        classification,
+    )
 }
 
 #[requires(true)]
@@ -1082,17 +1138,42 @@ fn cards_for_rafsi(
         return cards_for_rafsi_pattern(dictionary, query.trim(), options);
     }
 
-    let key = match LookupKey::from_typed(query) {
-        Ok(key) => key,
-        Err(error) => return rejected_lookup_output(query, &error),
+    let raw_query = query;
+    let (key, rejection) = match LookupKey::from_typed(query) {
+        Ok(key) => (key, None),
+        Err(error) => {
+            let Some(key) = stored_key_for_rejected_exact_query(
+                dictionary,
+                raw_query,
+                ExactStoredLookup::Rafsi,
+            ) else {
+                return rejected_lookup_output(query, &error);
+            };
+            (key, Some(error))
+        }
     };
     let mut seen = HashSet::new();
     let candidates = dictionary
         .lookup_rafsi(&key)
+        .filter(|matched| {
+            rejection.is_none()
+                || matched
+                    .entry
+                    .rafsi
+                    .iter()
+                    .any(|rafsi| rafsi.form == raw_query)
+        })
         .filter(|matched| seen.insert(matched.entry_index))
         .map(|matched| VlackuCandidate::entry(matched.entry))
         .collect::<Vec<_>>();
-    found_or_missing(cards_for_candidates(dictionary, candidates, options, false))
+    if key.is_empty() && candidates.is_empty() {
+        return invalid_output(format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{raw_query}"));
+    }
+    let mut output = found_or_missing(cards_for_candidates(dictionary, candidates, options, false));
+    if let Some(error) = rejection {
+        output.diagnostics = vec![invalid_lojban_word_message(raw_query, Some(&error))];
+    }
+    output
 }
 
 #[requires(true)]
@@ -1102,23 +1183,53 @@ fn cards_for_lujvo(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
+    let raw_query = query;
     let key = match LookupKey::from_typed(query) {
         Ok(key) => key,
-        Err(error) => return Ok(rejected_lookup_output(query, &error)),
+        Err(error) => {
+            let Some(key) = stored_key_for_rejected_exact_query(
+                dictionary,
+                raw_query,
+                ExactStoredLookup::Headword,
+            ) else {
+                return Ok(rejected_lookup_output(query, &error));
+            };
+            return Ok(invalid_lojban_word_lookup_output(
+                dictionary,
+                &key,
+                raw_query,
+                options,
+                None,
+                true,
+                Some(&error),
+            ));
+        }
     };
     // The key is already the lookup key of the query, so it is not keyed again.
     let query = key.as_str();
+    let normalized = normalize_lookup_query(query);
+    let Some(words) = exact_query_words(raw_query, &options.cancellation)? else {
+        return Ok(invalid_lojban_word_lookup_output(
+            dictionary, &key, raw_query, options, None, true, None,
+        ));
+    };
+    if words.words.is_empty() {
+        return Ok(invalid_lojban_word_lookup_output(
+            dictionary, &key, raw_query, options, None, true, None,
+        ));
+    }
+    let classification = classify_exact_words(&words.words, &normalized);
     let exact_entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     let exact_found = !exact_entries.is_empty();
     let mut runtime_decomposition = None;
     let mut candidates = if exact_entries.is_empty() {
         let decomposition = decompose_query(dictionary, query, &options.cancellation)?;
-        let candidates = match classify_exact_word(query, query, &options.cancellation)? {
+        let candidates = match classification {
             Some(classification) => vec![new!(VlackuCandidate::Missing {
                 card: unknown_card(classification, decomposition.as_ref()),
             })],
             None => {
-                return Ok(invalid_lojban_word_output(query));
+                return Ok(found_or_missing(Vec::new()));
             }
         };
         runtime_decomposition = decomposition;
@@ -1624,12 +1735,6 @@ fn invalid_output(message: String) -> VlackuSearchOutput {
     }
 }
 
-#[requires(true)]
-#[ensures(ret.outcome == VlackuOutcome::Invalid)]
-fn invalid_lojban_word_output(query: &str) -> VlackuSearchOutput {
-    invalid_output(format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}"))
-}
-
 /// The output for an exact query that the key rule rejects.
 ///
 /// A rejected character is named. A query with no searchable character keeps
@@ -1637,12 +1742,94 @@ fn invalid_lojban_word_output(query: &str) -> VlackuSearchOutput {
 #[requires(true)]
 #[ensures(ret.outcome == VlackuOutcome::Invalid)]
 fn rejected_lookup_output(query: &str, error: &LookupPatternError) -> VlackuSearchOutput {
-    if error.invalid_character().is_some() {
-        invalid_output(format!(
-            "{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query} ({error})"
-        ))
+    invalid_output(invalid_lojban_word_message(query, Some(error)))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn invalid_lojban_word_message(query: &str, error: Option<&LookupPatternError>) -> String {
+    match error.filter(|error| error.invalid_character().is_some()) {
+        Some(error) => format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query} ({error})"),
+        None => format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}"),
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExactStoredLookup {
+    Headword,
+    Rafsi,
+}
+
+/// Find the stored key for an exact raw spelling after the typed rule rejects it.
+/// The caller must retain the typed error as a diagnostic. No other lookup kind
+/// uses this fallback, and a normalized collision without the raw spelling misses.
+#[requires(true)]
+#[ensures(true)]
+fn stored_key_for_rejected_exact_query(
+    dictionary: &Dictionary<'_>,
+    query: &str,
+    kind: ExactStoredLookup,
+) -> Option<LookupKey> {
+    let key = LookupKey::from_stored(query);
+    let found = match kind {
+        ExactStoredLookup::Headword => dictionary
+            .lookup_words(&key)
+            .any(|entry| entry.word == query),
+        ExactStoredLookup::Rafsi => dictionary
+            .lookup_rafsi(&key)
+            .any(|matched| matched.entry.rafsi.iter().any(|rafsi| rafsi.form == query)),
+    };
+    found.then_some(key)
+}
+
+#[requires(true)]
+#[ensures(ret.diagnostics.len() == 1)]
+#[ensures((ret.outcome == VlackuOutcome::Found) == !ret.cards.is_empty())]
+#[expensive_ensures(ret.cards.iter().all(|card| !card.invalid_lojban_word || card.decomposition.is_empty()))]
+fn invalid_lojban_word_lookup_output(
+    dictionary: &Dictionary<'_>,
+    lookup_key: &LookupKey,
+    display_query: &str,
+    options: &VlackuSearchOptions,
+    lexical_word: Option<&Word>,
+    lujvo_mode: bool,
+    rejection: Option<&LookupPatternError>,
+) -> VlackuSearchOutput {
+    let mut candidates = dictionary
+        .lookup_words(lookup_key)
+        .filter(|entry| rejection.is_none() || entry.word == display_query)
+        .map(|entry| {
+            if lujvo_mode {
+                new!(VlackuCandidate::Entry {
+                    entry,
+                    similarity: Some(1.0),
+                    decomposition: EntryDecomposition::Always,
+                    ignore_votes: false,
+                })
+            } else {
+                VlackuCandidate::entry(entry)
+            }
+        })
+        .collect::<Vec<_>>();
+    let entries_found = !candidates.is_empty();
+    if options.min_votes.and(lexical_word).is_some() {
+        for candidate in &mut candidates {
+            candidate.exempt_votes();
+        }
+    }
+    let cards = cards_for_candidates(dictionary, candidates, options, false);
+    let outcome = if !cards.is_empty() {
+        VlackuOutcome::Found
+    } else if entries_found {
+        VlackuOutcome::ValidMissing
     } else {
-        invalid_lojban_word_output(query)
+        VlackuOutcome::Invalid
+    };
+    VlackuSearchOutput {
+        cards,
+        outcome,
+        diagnostics: vec![invalid_lojban_word_message(display_query, rejection)],
     }
 }
 
@@ -1653,10 +1840,9 @@ fn missing_exact_output(
     query: &str,
     options: &VlackuSearchOptions,
     lexical_word: Option<&Word>,
+    classification: Option<WordClassification>,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
-    // `query` is already the lookup key of the typed query (see
-    // `cards_for_valsi`), so it is not keyed again.
-    match classify_exact_word(query, query, &options.cancellation)? {
+    match classification {
         Some(classification) => {
             let decomposition = if options.decompose_lujvo {
                 decompose_query(dictionary, query, &options.cancellation)?
@@ -1680,7 +1866,7 @@ fn missing_exact_output(
                 diagnostics: Vec::new(),
             })
         }
-        None => Ok(invalid_lojban_word_output(query)),
+        None => Ok(found_or_missing(Vec::new())),
     }
 }
 
@@ -1885,28 +2071,24 @@ fn candidates_for_lujvo_final_segment<'dictionary>(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|entries| entries.as_ref().is_none_or(|entries| entries.len() > 1)) || ret.is_err())]
+#[ensures(ret.as_ref().is_none_or(|entries| entries.len() > 1))]
 fn resolve_segmented_lookup<'lookup, 'a>(
     dictionary: &'lookup Dictionary<'a>,
-    raw_query: &str,
-    cancellation: &CancellationToken,
-) -> Result<Option<Vec<&'lookup DictionaryEntry<'a>>>, jbotci_interrupt::Interrupted> {
-    let Some(words) = segment_query(raw_query, cancellation)? else {
-        return Ok(None);
-    };
+    words: &[WordLike],
+) -> Option<Vec<&'lookup DictionaryEntry<'a>>> {
     if words.len() <= 1 {
-        return Ok(None);
+        return None;
     }
 
     let mut entries = Vec::with_capacity(words.len());
-    for word in &words {
+    for word in words {
         let surface = flattened_word_like_phonemes(word);
         let Some(entry) = dictionary.lookup_word(&LookupKey::from_stored(&surface)) else {
-            return Ok(None);
+            return None;
         };
         entries.push(entry);
     }
-    Ok(Some(entries))
+    Some(entries)
 }
 
 #[requires(true)]
@@ -2038,9 +2220,106 @@ fn is_visible_pause_dot(value: char) -> bool {
     value == '.'
 }
 
+/// Return modifier-applied words and source coverage when a query is valid Lojban text.
+///
+/// A single word is valid when lexical morphology accepts it. Longer text is
+/// valid when full modifier-aware segmentation succeeds and returns at least
+/// one word. A `fa'o` that morphology consumes as a compound operand is not an
+/// end marker. After a real end marker, only separators and syllable commas may
+/// remain. The returned words include every modifier operation.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|words| words.as_ref().is_none_or(|words| !words.words.is_empty())) || ret.is_err())]
+fn exact_query_words(
+    raw_query: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<ModifierSegmentation>, jbotci_interrupt::Interrupted> {
+    let morphology = MorphologyOptions::default().with_cancellation(cancellation);
+    match lex_single_word(raw_query, &morphology) {
+        Ok(Some(word)) => {
+            let source_spans = vec![word.span().clone()];
+            return Ok(Some(new!(ModifierSegmentation {
+                words: vec![WordLike::bare(word)],
+                source_spans,
+                faho_terminator: None,
+            })));
+        }
+        Ok(None) => {}
+        Err(error) if error.is_interrupted() => return Err(jbotci_interrupt::Interrupted),
+        Err(_) => {}
+    }
+    match segment_words_with_modifiers_and_coverage_with_options_and_source_id(
+        raw_query,
+        &morphology,
+        None,
+    ) {
+        Ok(segmentation)
+            if !segmentation.words.is_empty()
+                && faho_tail_is_orthography(raw_query, segmentation.faho_terminator.as_ref()) =>
+        {
+            Ok(Some(segmentation))
+        }
+        Ok(_) => Ok(None),
+        Err(error) if error.is_interrupted() => Err(jbotci_interrupt::Interrupted),
+        Err(_) => Ok(None),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn faho_tail_is_orthography(text: &str, terminator: Option<&jbotci_source::SourceSpan>) -> bool {
+    let Some(terminator) = terminator else {
+        return true;
+    };
+    text[terminator.byte_end..]
+        .chars()
+        .all(|value| is_separator_character(value) || value == ',')
+}
+
+/// Decide whether a dictionary headword has usable morphology.
+///
+/// Queries keep the round-5 rule and accept separator punctuation as user noise.
+/// A stored headword also requires its source gaps to contain only Lojban
+/// orthography. This keeps silent query punctuation out of dictionary analysis.
+#[requires(true)]
+#[ensures(true)]
+fn headword_has_morphology(text: &str) -> bool {
+    let Ok(Some(segmentation)) =
+        exact_query_words(text, &jbotci_interrupt::CancellationToken::never())
+    else {
+        return false;
+    };
+    headword_gaps_are_lojban_orthography(text, &segmentation.source_spans)
+}
+
+/// Check source gaps against every span recognized by the modifier pass.
+/// Outside those spans, only whitespace, pause periods, and syllable commas are
+/// valid orthography. Other silent separators make the headword invalid.
+#[requires(true)]
+#[ensures(true)]
+fn headword_gaps_are_lojban_orthography(text: &str, spans: &[jbotci_source::SourceSpan]) -> bool {
+    let mut byte_cursor = 0;
+    for span in spans {
+        if byte_cursor < span.byte_start
+            && !headword_gap_is_orthography(&text[byte_cursor..span.byte_start])
+        {
+            return false;
+        }
+        byte_cursor = byte_cursor.max(span.byte_end);
+    }
+    byte_cursor == text.len() || headword_gap_is_orthography(&text[byte_cursor..])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn headword_gap_is_orthography(gap: &str) -> bool {
+    gap.chars()
+        .all(|value| value.is_whitespace() || value == ',' || is_period_character(value))
+}
+
 /// Segment the query with the caller's flag. A morphology error that is not
 /// the flag is "this text is not words", which is the old `.ok()` answer.
 /// The flag is not that answer.
+
 #[requires(true)]
 #[ensures(true)]
 fn segment_query(
@@ -2103,17 +2382,26 @@ fn classify_exact_word(
     let Some(words) = segment_query(raw_query, cancellation)? else {
         return Ok(None);
     };
-    let [word_like] = words.as_slice() else {
-        return Ok(None);
+    Ok(classify_exact_words(&words, normalized_query))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|classification| !classification.word.is_empty()))]
+fn classify_exact_words(words: &[WordLike], normalized_query: &str) -> Option<WordClassification> {
+    if normalized_query.is_empty() {
+        return None;
+    }
+    let [word_like] = words else {
+        return None;
     };
     let Some(word) = word_like.bare_word() else {
-        return Ok(None);
+        return None;
     };
-    Ok(Some(WordClassification {
+    Some(WordClassification {
         word: normalized_query.to_owned(),
         word_type: word_kind_type_key(word.kind()),
         selmaho: word.selmaho().map(str::to_owned),
-    }))
+    })
 }
 
 #[requires(true)]
@@ -2165,11 +2453,14 @@ fn entry_card_with_dictionary_decomposition(
     similarity: Option<f32>,
     decomposition: Option<&DictionaryLujvoEntry<'_>>,
 ) -> VlackuCard {
+    let invalid_lojban_word = !headword_has_morphology(entry.word);
+    let decomposition = decomposition.filter(|_| !invalid_lojban_word);
     new!(VlackuCard {
         entry_index: dictionary.entry_index_for_entry(entry),
         word: entry.word.to_owned(),
         word_type: entry.word_type.as_str().to_owned(),
         known: true,
+        invalid_lojban_word,
         selmaho: entry.selmaho.map(|selmaho| selmaho.0.to_owned()),
         author: Some(new!(VlackuAuthor {
             username: entry.user.username.to_owned(),
@@ -2211,6 +2502,7 @@ fn unknown_card(
         word: classification.word,
         word_type: classification.word_type.as_str().to_owned(),
         known: false,
+        invalid_lojban_word: false,
         selmaho: classification.selmaho,
         author: None,
         is_official: false,
@@ -2542,6 +2834,10 @@ mod tests {
 
     use super::*;
     use bityzba::requires;
+    use jbotci_dictionary::{
+        CmavoSequenceIndexEntry, DefinitionId, DictionaryPatternEntry, DictionaryUser, Rafsi,
+        RafsiClaimKind, RafsiIndexEntry, Score, WordIndexEntry, build_owned_indexes,
+    };
     use jbotci_interrupt::assert_exit_check;
     use jbotci_morphology::segment_words_with_modifiers;
 
@@ -2693,6 +2989,121 @@ mod tests {
     ) -> VlackuSearchOutput {
         super::run_vlacku_requests(dictionary, requests, options)
             .expect("the test token stays clear")
+    }
+
+    #[requires(!value.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn leak_string(value: String) -> &'static str {
+        Box::leak(value.into_boxed_str())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn leak_index_key(value: String) -> &'static str {
+        Box::leak(value.into_boxed_str())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn leak_slice<T>(value: Vec<T>) -> &'static [T] {
+        Box::leak(value.into_boxed_slice())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.word == word)]
+    fn synthetic_entry(word: &'static str, word_type: WordType) -> DictionaryEntry<'static> {
+        DictionaryEntry {
+            word,
+            word_type,
+            definition: "synthetic definition",
+            definition_id: DefinitionId(1),
+            notes: "",
+            score: Score(1.0),
+            gloss_keywords: &[],
+            place_keywords: &[],
+            rafsi: &[],
+            selmaho: None,
+            etymology: None,
+            jargon: None,
+            user: DictionaryUser {
+                username: "synthetic",
+                realname: None,
+            },
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.entries().len() == entries.len())]
+    fn synthetic_dictionary(
+        entries: &'static [DictionaryEntry<'static>],
+    ) -> &'static Dictionary<'static> {
+        let indexes = build_owned_indexes(entries).into_data();
+        let word_index = leak_slice(
+            indexes
+                .word_index
+                .into_iter()
+                .map(|entry| WordIndexEntry {
+                    key: leak_index_key(entry.key),
+                    targets: leak_slice(entry.targets),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let rafsi_index = leak_slice(
+            indexes
+                .rafsi_index
+                .into_iter()
+                .map(|entry| RafsiIndexEntry {
+                    key: leak_index_key(entry.key),
+                    targets: leak_slice(entry.targets),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let pattern_index = leak_slice(
+            indexes
+                .pattern_index
+                .into_iter()
+                .map(|entry| DictionaryPatternEntry {
+                    entry_index: entry.entry_index,
+                    word_key: leak_index_key(entry.word_key),
+                    rafsi_keys: leak_slice(
+                        entry
+                            .rafsi_keys
+                            .into_iter()
+                            .map(leak_index_key)
+                            .collect::<Vec<_>>(),
+                    ),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let cmavo_sequence_index = leak_slice(
+            indexes
+                .cmavo_sequence_index
+                .into_iter()
+                .map(|entry| {
+                    let entry = entry.into_data();
+                    CmavoSequenceIndexEntry::from_static_parts(
+                        leak_slice(
+                            entry
+                                .components
+                                .into_iter()
+                                .map(leak_string)
+                                .collect::<Vec<_>>(),
+                        ),
+                        leak_slice(entry.targets),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
+        Box::leak(Box::new(Dictionary::from_static_slices(
+            entries,
+            word_index,
+            rafsi_index,
+            pattern_index,
+            &[],
+            &[],
+            cmavo_sequence_index,
+            indexes.max_cmavo_sequence_len,
+        )))
     }
 
     #[test]
@@ -3225,6 +3636,999 @@ mod tests {
         );
         assert_eq!(word_break.outcome, without_mark.outcome);
         assert_eq!(word_break.cards, without_mark.cards);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_indexed_dictionary_headword_is_findable_by_exact_search() {
+        let options = VlackuSearchOptions::default().with_data(data! { count: usize::MAX });
+        for dictionary in [jbotci_dictionary_data::english()] {
+            let mut failures = Vec::new();
+            for entry in dictionary.entries() {
+                let result = search(
+                    dictionary,
+                    &[VlackuRequest::valsi(entry.word.to_owned())],
+                    &options,
+                );
+                if !result.cards.iter().any(|card| card.word == entry.word) {
+                    failures.push(format!(
+                        "{:?}: {:?}, returned {:?}, diagnostics {:?}",
+                        entry.word,
+                        result.outcome,
+                        words(&result.cards),
+                        result.diagnostics
+                    ));
+                }
+            }
+            assert!(failures.is_empty(), "{}", failures.join("\n"));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_search_finds_synthetic_headwords_with_any_text_shape() {
+        let entries = leak_slice(vec![
+            synthetic_entry("fa'onai", WordType::Nalvla),
+            synthetic_entry("mi klama", WordType::Phrase),
+            synthetic_entry("mi not!word", WordType::Phrase),
+            synthetic_entry("klama fa'o not!word", WordType::Phrase),
+            synthetic_entry("klama fa'o fa'onai", WordType::Phrase),
+            synthetic_entry("not!word", WordType::Nalvla),
+        ]);
+        let dictionary = synthetic_dictionary(entries);
+        dictionary
+            .validate()
+            .expect("synthetic dictionary is valid");
+
+        for (query, invalid_lojban_word) in [
+            ("fa'onai", true),
+            ("mi klama", false),
+            ("mi not!word", true),
+            ("klama fa'o not!word", true),
+            ("klama fa'o fa'onai", true),
+            ("not!word", true),
+        ] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default().with_data(data! {
+                    count: usize::MAX,
+                    decompose_lujvo: true,
+                }),
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Found, "{query}");
+            let card = result
+                .cards
+                .iter()
+                .find(|card| card.word == query)
+                .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
+            assert!(card.known, "{query}");
+            assert_eq!(card.invalid_lojban_word, invalid_lojban_word, "{query}");
+            assert!(card.decomposition.is_empty(), "{query}");
+            if invalid_lojban_word {
+                let diagnostic = if query.contains('w') {
+                    format!(
+                        "{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query} (unsupported character `w`)"
+                    )
+                } else {
+                    format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")
+                };
+                assert_eq!(result.diagnostics, [diagnostic]);
+            } else {
+                assert!(result.diagnostics.is_empty(), "{query}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_cards_use_span_based_headword_gap_orthography() {
+        let entries = leak_slice(vec![
+            synthetic_entry("xa?", WordType::Nalvla),
+            synthetic_entry("ma:u", WordType::Nalvla),
+            synthetic_entry("klama-zarci", WordType::Phrase),
+            synthetic_entry("(klama)", WordType::Nalvla),
+            synthetic_entry("lo'u ma:u le'u", WordType::Phrase),
+            synthetic_entry("zoi gy. hello!world .gy.", WordType::Phrase),
+            synthetic_entry("la'o gy. a;b .gy.", WordType::Phrase),
+        ]);
+        let dictionary = synthetic_dictionary(entries);
+        for (headword, invalid) in [
+            ("xa?", true),
+            ("ma:u", true),
+            ("klama-zarci", true),
+            ("(klama)", true),
+            ("lo'u ma:u le'u", true),
+            ("zoi gy. hello!world .gy.", false),
+            ("la'o gy. a;b .gy.", false),
+        ] {
+            let entry = dictionary
+                .entries()
+                .iter()
+                .find(|entry| entry.word == headword)
+                .expect("synthetic entry");
+            let card = dictionary_entry_card(dictionary, entry, Some(1.0), true);
+            assert_eq!(card.invalid_lojban_word, invalid, "{headword:?}");
+            assert!(card.decomposition.is_empty(), "{headword:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_exact_query_returns_dictionary_card_without_morphology_features() {
+        let result = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("fa'onai".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
+                count: usize::MAX,
+                decompose_lujvo: true,
+            }),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Found);
+        assert_eq!(
+            result.diagnostics,
+            [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}fa'onai")]
+        );
+        let card = result
+            .cards
+            .iter()
+            .find(|card| card.word == "fa'onai")
+            .expect("dictionary card for fa'onai");
+        assert!(card.known);
+        assert!(card.invalid_lojban_word);
+        assert!(card.decomposition.is_empty());
+        assert!(!card.definition.is_empty());
+        assert!(!result.cards.iter().any(|card| card.word == "fa'o"));
+        assert!(!result.cards.iter().any(|card| card.word == "nai"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_lujvo_query_uses_the_same_dictionary_fallback() {
+        let result = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::lujvo("fa'onai".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
+                count: usize::MAX,
+                decompose_lujvo: true,
+            }),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Found);
+        assert_eq!(
+            result.diagnostics,
+            [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}fa'onai")]
+        );
+        assert_eq!(words(&result.cards), ["fa'onai"]);
+        assert!(result.cards[0].invalid_lojban_word);
+        assert!(result.cards[0].decomposition.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_headwords_keep_morphology_when_the_query_is_invalid() {
+        for (query, word, decomposition) in [
+            ("prulamdeÍ", "prulamdei", true),
+            ("klamÁ", "klama", false),
+            ("кламÁ", "klama", false),
+        ] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default().with_data(data! {
+                    count: usize::MAX,
+                    decompose_lujvo: true,
+                }),
+            );
+            let card = result
+                .cards
+                .iter()
+                .find(|card| card.word == word)
+                .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
+            assert!(!card.invalid_lojban_word, "{query}");
+            assert_eq!(!card.decomposition.is_empty(), decomposition, "{query}");
+            assert_eq!(
+                result.diagnostics,
+                [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")]
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_headwords_get_their_own_morphology_flag() {
+        for (query, valid_word, invalid_word) in [("xa", "xa", "xa!"), ("xa!", "xa", "xa!")] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
+            );
+            let valid = result
+                .cards
+                .iter()
+                .find(|card| card.word == valid_word)
+                .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
+            let invalid = result
+                .cards
+                .iter()
+                .find(|card| card.word == invalid_word)
+                .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
+            assert!(!valid.invalid_lojban_word, "{query}");
+            assert!(invalid.invalid_lojban_word, "{query}");
+            assert!(invalid.decomposition.is_empty(), "{query}");
+            assert!(result.diagnostics.is_empty(), "{query}");
+        }
+        let separated = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("ma;u".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
+        );
+        assert!(words(&separated.cards).contains(&"ma;u"));
+        assert!(!words(&separated.cards).contains(&"mau"));
+        assert!(separated.diagnostics.is_empty());
+        let invalid_text = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("zo si si zei fa'o".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert!(invalid_text.cards[0].invalid_lojban_word);
+        assert_eq!(
+            invalid_text.diagnostics,
+            ["Invalid Lojban word: zo si si zei fa'o"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn headword_gaps_reject_every_silent_separator_but_accept_quote_payloads() {
+        for separator in (0..=0x10ffff).filter_map(char::from_u32).filter(|value| {
+            is_separator_character(*value) && !value.is_whitespace() && !is_period_character(*value)
+        }) {
+            let query = format!("xa{separator}");
+            assert!(!headword_has_morphology(&query), "{query:?}");
+        }
+        for headword in [
+            "xa?",
+            "ma:u",
+            "klama-zarci",
+            "(klama)",
+            "lo'u ma:u le'u",
+            "zo'oi a?b",
+            "me'oi a:b",
+        ] {
+            let words = exact_query_words(headword, &jbotci_interrupt::CancellationToken::never())
+                .expect("clear cancellation")
+                .unwrap_or_else(|| panic!("query rejected {headword:?}"));
+            assert!(!words.words.is_empty(), "{headword:?}");
+            assert!(!headword_has_morphology(headword), "{headword:?}");
+        }
+        for headword in [
+            "zoi gy. hello!world .gy.",
+            "la'o gy. a;b .gy.",
+            "mi . klama",
+            "mi , klama",
+            "mi .y. klama",
+            ".y. klama",
+            "klama .y.",
+            "mi y klama",
+            "mi si klama",
+            "mi klama si",
+            "mi sa klama",
+            "mi su klama",
+            "klama fa'o",
+            "klama .y. zei zarci",
+            "zo .y. klama",
+            "ma'oi .y. klama",
+            "lo'ai .y. klama le'ai",
+        ] {
+            let words = exact_query_words(headword, &jbotci_interrupt::CancellationToken::never())
+                .expect("clear cancellation")
+                .unwrap_or_else(|| panic!("query rejected {headword:?}"));
+            assert!(!words.words.is_empty(), "{headword:?}");
+            assert!(headword_has_morphology(headword), "{headword:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lexical_stream_control_words_stay_on_the_parsed_path() {
+        for query in [
+            "me'oi", "ma'oi", "zo'oi", "lo'ai", "le'ai", "zo", "zoi", "lo'u", "la'o", "le'u", "si",
+            "sa", "su", "zei", "bu", "fa'o", "y", ".y.",
+        ] {
+            for request in [
+                VlackuRequest::valsi(query.to_owned()),
+                VlackuRequest::lujvo(query.to_owned()),
+            ] {
+                let result = search(
+                    jbotci_dictionary_data::english(),
+                    &[request],
+                    &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
+                );
+                assert_ne!(result.outcome, VlackuOutcome::Invalid, "{query}");
+                assert!(
+                    result.diagnostics.is_empty(),
+                    "{query}: {:?}",
+                    result.diagnostics
+                );
+                assert!(
+                    result.cards.iter().all(|card| !card.invalid_lojban_word),
+                    "{query}: {:?}",
+                    result.cards
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn query_validity_covers_stream_positions_modifiers_and_faho_boundaries() {
+        for (query, valid) in [
+            ("me'oi klama", true),
+            ("klama me'oi", false),
+            ("mi me'oi blable", true),
+            ("klama fa'o me'oi", false),
+            ("ma'oi klama", true),
+            ("klama ma'oi", false),
+            ("mi ma'oi blable", true),
+            ("zo'oi klama", true),
+            ("klama zo'oi", false),
+            ("mi zo'oi blable", true),
+            ("lo'ai klama", false),
+            ("lo'ai klama le'ai", true),
+            ("le'ai klama", true),
+            ("klama le'ai", true),
+            ("zo klama", true),
+            ("klama zo", false),
+            ("mi zo blable", true),
+            ("zoi klama", false),
+            ("zoi gy. hello   world .gy.", true),
+            ("zoi gy. hello!world .gy.", true),
+            ("zoi gy. hello;world .gy.", true),
+            ("lo'u ma;u le'u", true),
+            ("xa!", true),
+            ("ma;u", true),
+            ("lo'u klama", true),
+            ("klama lo'u", true),
+            ("lo'u klama le'u", true),
+            ("la'o klama", false),
+            ("la'o gy. hello .gy.", true),
+            ("klama le'u", false),
+            ("si klama", true),
+            ("klama si", false),
+            ("mi si blable", true),
+            ("sa klama", true),
+            ("klama sa", false),
+            ("mi sa blable", true),
+            ("su klama", true),
+            ("klama su", false),
+            ("mi su blable", true),
+            ("zei klama", false),
+            ("klama zei", false),
+            ("mi zei blable", true),
+            ("bu klama", false),
+            ("klama bu", true),
+            ("mi bu blable", true),
+            ("fa'o klama", false),
+            ("klama fa'o", true),
+            ("mi fa'o blable", false),
+            ("klama fa'o fa'o", false),
+            ("y klama", true),
+            ("klama y", true),
+            ("mi y blable", true),
+            (".y. klama", true),
+            ("klama .y.", true),
+            ("mi .y. blable", true),
+            ("zo si si zei fa'o", false),
+            ("klama fa'o not!word", false),
+            ("klama fa'o fa'onai", false),
+            ("blable .y.", true),
+            (".y. blable", true),
+        ] {
+            let words = exact_query_words(query, &jbotci_interrupt::CancellationToken::never())
+                .expect("clear cancellation");
+            assert_eq!(words.is_some(), valid, "{query}");
+            if valid && query == "mi si blable" {
+                assert_eq!(
+                    word_like_lookup_text(&words.expect("valid words").words[0]).as_deref(),
+                    Some("blable")
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_modifier_queries_return_the_modified_words() {
+        for (query, expected) in [
+            ("mi klama si", "mi"),
+            ("mi si blable", "blable"),
+            ("blable .y.", "blable"),
+            (".y. blable", "blable"),
+        ] {
+            let words = exact_query_words(query, &jbotci_interrupt::CancellationToken::never())
+                .expect("clear cancellation")
+                .expect("valid modifier query");
+            assert_eq!(words.words.len(), 1, "{query}");
+            assert_eq!(
+                word_like_lookup_text(&words.words[0]).as_deref(),
+                Some(expected),
+                "{query}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn segmented_lookup_uses_the_words_from_query_validity() {
+        for (query, expected) in [
+            ("klama;zarci", ["klama", "zarci"]),
+            ("klama-zarci", ["klama", "zarci"]),
+            ("mi;do", ["mi", "do"]),
+        ] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Found, "{query}");
+            assert_eq!(words(&result.cards), expected, "{query}");
+            assert!(result.diagnostics.is_empty(), "{query}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fallback_lookup_transliterates_cyrillic_and_zbalermorna_queries() {
+        for query in [
+            "фа'онай",
+            "\u{ed83}\u{eda0}\u{ed8a}\u{eda3}\u{ed97}\u{eda0}\u{eda2}",
+        ] {
+            for request in [
+                VlackuRequest::valsi(query.to_owned()),
+                VlackuRequest::lujvo(query.to_owned()),
+            ] {
+                let result = search(
+                    jbotci_dictionary_data::english(),
+                    &[request],
+                    &VlackuSearchOptions::default(),
+                );
+                assert_eq!(result.outcome, VlackuOutcome::Found, "{query}");
+                assert_eq!(words(&result.cards), ["fa'onai"], "{query}");
+                assert!(result.cards[0].invalid_lojban_word, "{query}");
+                assert_eq!(
+                    result.diagnostics,
+                    [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")]
+                );
+            }
+        }
+        let zo = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("зо".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert_eq!(zo.outcome, VlackuOutcome::Found);
+        assert!(zo.diagnostics.is_empty());
+        assert!(zo.cards.iter().any(|card| card.word == "zo"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cyrillic_vowel_pairs_keep_their_implicit_apostrophe() {
+        for query in ["шои"] {
+            for request in [
+                VlackuRequest::valsi(query.to_owned()),
+                VlackuRequest::lujvo(query.to_owned()),
+                VlackuRequest::rafsi(query.to_owned()),
+            ] {
+                let is_rafsi = matches!(request.as_data(), data!(VlackuRequest::Rafsi(_)));
+                let result = search(
+                    jbotci_dictionary_data::english(),
+                    &[request],
+                    &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
+                );
+                assert!(
+                    !result.cards.iter().any(|card| card.word == "coi"),
+                    "{query}"
+                );
+                if !is_rafsi {
+                    assert_eq!(words(&result.cards), ["co'i"], "{query}");
+                }
+            }
+        }
+        let control = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("шой".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert!(control.cards.iter().any(|card| card.word == "coi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_keys_preserve_unconverted_letters_and_pattern_matching() {
+        for request in [
+            VlackuRequest::valsi("Klama".to_owned()),
+            VlackuRequest::lujvo("Klama".to_owned()),
+        ] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[request],
+                &VlackuSearchOptions::default(),
+            );
+            assert!(result.cards.iter().any(|card| card.word == "klama"));
+        }
+        let dotted = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("İ".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert_eq!(dotted.outcome, VlackuOutcome::Invalid);
+        assert!(dotted.cards.is_empty());
+        assert_eq!(
+            dotted.diagnostics,
+            ["Invalid Lojban word: İ (unsupported character `İ`)"]
+        );
+        let rafsi = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::rafsi("Kla".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
+        );
+        assert!(rafsi.cards.iter().any(|card| card.word == "klama"));
+        for query in ["klqama", "wklama"] {
+            for request in [
+                VlackuRequest::valsi(query.to_owned()),
+                VlackuRequest::lujvo(query.to_owned()),
+                VlackuRequest::rafsi(query.to_owned()),
+            ] {
+                let result = search(
+                    jbotci_dictionary_data::english(),
+                    &[request],
+                    &VlackuSearchOptions::default(),
+                );
+                assert!(
+                    !result.cards.iter().any(|card| card.word == "klama"),
+                    "{query}"
+                );
+            }
+        }
+        let kelvin_pattern = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("Klam*".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert!(kelvin_pattern.cards.iter().any(|card| card.word == "klama"));
+        for pattern in ["klqam*", "wklam*"] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::valsi(pattern.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+            assert!(
+                !result.cards.iter().any(|card| card.word == "klama"),
+                "{pattern}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn comma_chunks_do_not_reach_empty_canonicalization() {
+        for (query, expected) in [("fa'onai! ,", "fa'onai"), ("klama! ,", "klama")] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Found, "{query}: {result:?}");
+            assert_eq!(words(&result.cards), [expected], "{query}");
+            if expected == "fa'onai" {
+                assert_eq!(
+                    result.diagnostics,
+                    [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")]
+                );
+            } else {
+                assert!(result.diagnostics.is_empty(), "{query}");
+            }
+        }
+        for query in [",", "#"] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Invalid, "{query}");
+            assert!(result.cards.is_empty(), "{query}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_and_mixed_script_keys_find_only_their_stored_spelling() {
+        let mut comma = synthetic_entry(",", WordType::Gismu);
+        comma.rafsi = leak_slice(vec![
+            Rafsi {
+                form: ",",
+                standing: RafsiClaimKind::Experimental,
+            },
+            Rafsi {
+                form: "#",
+                standing: RafsiClaimKind::Official,
+            },
+        ]);
+        let entries = leak_slice(vec![
+            synthetic_entry("#", WordType::Nalvla),
+            comma,
+            synthetic_entry("aклама", WordType::Nalvla),
+        ]);
+        let dictionary = synthetic_dictionary(entries);
+        dictionary
+            .validate()
+            .expect("synthetic dictionary is valid");
+        for headword in ["#", ",", "aклама"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(headword.to_owned())],
+                &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Found, "{headword:?}");
+            assert_eq!(words(&result.cards), [headword], "{headword:?}");
+            let diagnostic = if headword == "#" {
+                "Invalid Lojban word: # (unsupported character `#`)"
+            } else {
+                &format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{headword}")
+            };
+            if headword == "aклама" {
+                assert!(result.diagnostics.is_empty());
+            } else {
+                assert_eq!(result.diagnostics, [diagnostic]);
+            }
+        }
+        let definitions = dictionary.exact_definition_indices(&LookupKey::from_stored("#"));
+        assert_eq!(definitions.len(), 1);
+        assert_eq!(dictionary.entries()[definitions[0].0].word, "#");
+        let comma = dictionary
+            .lookup_rafsi(&LookupKey::from_stored(","))
+            .collect::<Vec<_>>();
+        assert_eq!(comma.len(), 1);
+        assert_eq!(
+            comma[0].source.listed_standing(),
+            Some(RafsiClaimKind::Experimental)
+        );
+        let official = dictionary
+            .lookup_rafsi(&LookupKey::from_stored("#"))
+            .collect::<Vec<_>>();
+        assert_eq!(official.len(), 1);
+        assert_eq!(
+            official[0].source.listed_standing(),
+            Some(RafsiClaimKind::Official)
+        );
+        for query in [",", "#"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::rafsi(query.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Found, "{query:?}");
+            assert_eq!(result.cards.len(), 1, "{query:?}");
+            assert_eq!(result.cards[0].word, ",");
+            let diagnostic = if query == "#" {
+                "Invalid Lojban word: # (unsupported character `#`)"
+            } else {
+                &format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")
+            };
+            assert_eq!(result.diagnostics, [diagnostic]);
+        }
+        for query in ["!", ".", "\u{301}"] {
+            assert_eq!(
+                dictionary
+                    .lookup_rafsi(&LookupKey::from_stored(query))
+                    .count(),
+                0,
+                "{query:?}"
+            );
+            let result = search(
+                dictionary,
+                &[VlackuRequest::rafsi(query.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Invalid, "{query:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejected_text_matches_only_the_same_stored_headword() {
+        let dictionary = synthetic_dictionary(leak_slice(vec![
+            synthetic_entry("klama", WordType::Gismu),
+            synthetic_entry("klâma", WordType::Nalvla),
+        ]));
+        let exact = search(
+            dictionary,
+            &[VlackuRequest::valsi("klâma".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert_eq!(exact.outcome, VlackuOutcome::Found);
+        assert_eq!(words(&exact.cards), ["klâma"]);
+        assert!(exact.cards[0].invalid_lojban_word);
+        assert_eq!(
+            exact.diagnostics,
+            ["Invalid Lojban word: klâma (unsupported character `â`)"]
+        );
+
+        let collision = search(
+            dictionary,
+            &[VlackuRequest::valsi("klâmá".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert_eq!(collision.outcome, VlackuOutcome::Invalid);
+        assert!(collision.cards.is_empty());
+        assert_eq!(
+            collision.diagnostics,
+            ["Invalid Lojban word: klâmá (unsupported character `â`)"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn raw_query_stress_is_folded_only_for_lookup() {
+        assert!(
+            exact_query_words("klamÁ", &jbotci_interrupt::CancellationToken::never())
+                .expect("clear cancellation")
+                .is_none()
+        );
+        let result = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("klamÁ".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert_eq!(result.outcome, VlackuOutcome::Found);
+        assert_eq!(words(&result.cards), ["klama"]);
+        assert!(!result.cards[0].invalid_lojban_word);
+        assert_eq!(result.diagnostics, ["Invalid Lojban word: klamÁ"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_queries_with_no_exact_entry_are_valid_missing() {
+        for query in ["zo klama", "klama blable"] {
+            for request in [
+                VlackuRequest::valsi(query.to_owned()),
+                VlackuRequest::lujvo(query.to_owned()),
+            ] {
+                let result = search(
+                    jbotci_dictionary_data::english(),
+                    &[request],
+                    &VlackuSearchOptions::default(),
+                );
+                assert_eq!(result.outcome, VlackuOutcome::ValidMissing, "{query}");
+                assert!(result.cards.is_empty(), "{query}");
+                assert!(result.diagnostics.is_empty(), "{query}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn faho_tail_rules_use_the_modifier_terminator() {
+        let compound = exact_query_words(
+            "klama zei fa'o si mi",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("clear cancellation")
+        .expect("zei compound is not a terminator");
+        assert!(compound.faho_terminator.is_none());
+        assert_eq!(compound.words.len(), 1);
+        assert_eq!(
+            word_like_lookup_text(&compound.words[0]).as_deref(),
+            Some("mi")
+        );
+        assert!(
+            exact_query_words(
+                "klama fa'o mi",
+                &jbotci_interrupt::CancellationToken::never()
+            )
+            .expect("clear cancellation")
+            .is_none()
+        );
+        let quoted = exact_query_words("zo fa'o", &jbotci_interrupt::CancellationToken::never())
+            .expect("clear cancellation")
+            .expect("quoted faho");
+        assert!(quoted.faho_terminator.is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn long_skipped_hesitations_keep_their_source_spans() {
+        for headword in [
+            "zo .yyy. klama",
+            "ma'oi .yyy. klama",
+            "lo'ai .yyy. klama le'ai",
+        ] {
+            let segmentation =
+                exact_query_words(headword, &jbotci_interrupt::CancellationToken::never())
+                    .expect("clear cancellation")
+                    .expect("long hesitation");
+            assert!(
+                segmentation
+                    .source_spans
+                    .iter()
+                    .any(|span| { &headword[span.byte_start..span.byte_end] == "yyy" }),
+                "{headword:?}"
+            );
+            assert!(headword_has_morphology(headword), "{headword:?}");
+        }
+        assert!(!headword_has_morphology("zo .yyy! klama"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn erasure_replacements_record_every_consumed_span() {
+        for headword in ["klama sa sa mi", "klama sa sa 12", "klama sa sa zo klama"] {
+            let segmentation =
+                exact_query_words(headword, &jbotci_interrupt::CancellationToken::never())
+                    .expect("clear cancellation")
+                    .expect("erasure replacement");
+            assert!(
+                segmentation
+                    .source_spans
+                    .iter()
+                    .any(|span| { &headword[span.byte_start..span.byte_end] == "sa" }),
+                "{headword:?}"
+            );
+            assert!(headword_has_morphology(headword), "{headword:?}");
+        }
+        let repeated = exact_query_words(
+            "klama sa sa mi",
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("clear cancellation")
+        .expect("repeated sa");
+        assert_eq!(
+            repeated
+                .source_spans
+                .iter()
+                .filter(|span| span.char_start == 6 || span.char_start == 9)
+                .count(),
+            2
+        );
+        assert!(!headword_has_morphology("klama sa! mi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abandoned_probes_restore_source_coverage() {
+        let segmentation = segment_words_with_modifiers_and_coverage_with_options_and_source_id(
+            "mi lo'ai si fa'o .yyy.",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("failed replacement is erased");
+        assert!(segmentation.faho_terminator.is_some());
+        assert!(
+            segmentation
+                .source_spans
+                .iter()
+                .all(|span| span.byte_end <= 16)
+        );
+        assert!(
+            exact_query_words(
+                "mi lo'ai si fa'o .yyy.",
+                &jbotci_interrupt::CancellationToken::never()
+            )
+            .expect("clear cancellation")
+            .is_none()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_fallback_keeps_indexed_decomposition_policy() {
+        for decompose_lujvo in [false, true] {
+            let valid = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::lujvo("prulamdeÍ".to_owned())],
+                &VlackuSearchOptions::default().with_data(data! {
+                    decompose_lujvo: decompose_lujvo
+                }),
+            );
+            let card = valid
+                .cards
+                .iter()
+                .find(|card| card.word == "prulamdei")
+                .expect("valid prulamdei card");
+            assert!(!card.invalid_lojban_word);
+            assert!(!card.decomposition.is_empty(), "{decompose_lujvo}");
+            let invalid = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::lujvo("fa'onaÍ".to_owned())],
+                &VlackuSearchOptions::default().with_data(data! {
+                    decompose_lujvo: decompose_lujvo
+                }),
+            );
+            let card = invalid
+                .cards
+                .iter()
+                .find(|card| card.word == "fa'onai")
+                .expect("invalid fa'onai card");
+            assert!(card.invalid_lojban_word);
+            assert!(card.decomposition.is_empty(), "{decompose_lujvo}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn noisy_tokens_still_transliterate_before_fallback_lookup() {
+        for (query, word, invalid) in [
+            ("кламÁ", "klama", false),
+            ("фа'онаÍ", "fa'onai", true),
+            (
+                "\u{ed83}\u{eda0}\u{ed8a}\u{eda3}\u{ed97}\u{eda0}Í",
+                "fa'onai",
+                true,
+            ),
+        ] {
+            let result = search(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::valsi(query.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+            let card = result
+                .cards
+                .iter()
+                .find(|card| card.word == word)
+                .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
+            assert_eq!(card.invalid_lojban_word, invalid, "{query}");
+            assert_eq!(
+                result.diagnostics,
+                [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")]
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_exact_query_without_a_matching_entry_reports_invalid() {
+        let result = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("not a word".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Invalid);
+        assert!(result.cards.is_empty());
+        assert_eq!(
+            result.diagnostics,
+            ["Invalid Lojban word: not a word (unsupported character `w`)"]
+        );
     }
 
     #[test]
@@ -4552,7 +5956,6 @@ mod tests {
     fn punctuation_only_exact_queries_are_invalid() {
         for request in [
             VlackuRequest::valsi("!!!".to_owned()),
-            VlackuRequest::rafsi("!!!".to_owned()),
             VlackuRequest::lujvo("!!!".to_owned()),
         ] {
             let result = search(
@@ -4569,6 +5972,17 @@ mod tests {
                 Some(expected.as_str())
             );
         }
+        let rafsi = search(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::rafsi("!!!".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert_eq!(rafsi.outcome, VlackuOutcome::Invalid);
+        assert!(rafsi.cards.is_empty());
+        assert_eq!(
+            rafsi.diagnostics,
+            [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!!!")]
+        );
     }
 
     #[test]

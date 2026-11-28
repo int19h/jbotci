@@ -84,11 +84,10 @@ use jbotci_search::compounds::{
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuRequest,
-    VlackuSearchOptions, WordTypeFilter, dictionary_cards_for_word_likes_with_limit,
-    dictionary_entry_card, dictionary_entry_passes_vlacku_entry_filters,
-    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
-    grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
-    vlacku_exact_query_is_pattern,
+    VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
+    dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
+    dictionary_matches_for_word_likes, format_vote_display, grouped_word_type_filter_key,
+    is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::{
     GeneratedReferenceAnalysis, PlaceSlot, RawSyntaxNodeId, SelbriPlaceFrameId,
@@ -313,6 +312,7 @@ pub enum GentufaBracketFragment {
 #[invariant(components.is_empty()
     || (!*known && word_type_key == "lujvo")
     || decomposition.iter().any(|piece| piece.kind == VlackuCompositionPieceKind::FuivlaRafsi))]
+#[invariant(*invalid_lojban_word -> (*known && ipa.is_none() && decomposition.is_empty() && components.is_empty() && !*can_add_to_jvozba))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DictionaryTooltipCard {
@@ -321,6 +321,8 @@ pub struct DictionaryTooltipCard {
     pub word: String,
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub known: bool,
+    #[serde(default)]
+    pub invalid_lojban_word: bool,
     pub display_word: String,
     pub href: String,
     pub word_type: String,
@@ -2666,7 +2668,7 @@ impl fmt::Display for WebComputeError {
 
 impl std::error::Error for WebComputeError {}
 
-#[invariant(true)]
+#[invariant(*invalid_lojban_word -> (ipa.is_none() && decomposition.is_empty() && !matches!(votes, VlackuVoteDisplay::Unknown) && !*can_add_to_jvozba))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuWebCard {
@@ -2677,6 +2679,8 @@ pub struct VlackuWebCard {
     pub display_word: String,
     pub word_type: String,
     pub word_type_key: String,
+    #[serde(default)]
+    pub invalid_lojban_word: bool,
     pub selmaho: Option<String>,
     pub author: Option<VlackuWebAuthor>,
     pub ipa: Option<String>,
@@ -2923,9 +2927,18 @@ pub enum VlackuJvozbaSegmentTone {
 #[requires(true)]
 #[ensures(true)]
 pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
+    build_vlacku_web_result_with_dictionary(state, jbotci_dictionary_data::english())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_vlacku_web_result_with_dictionary(
+    state: &VlackuWebState,
+    dictionary: &jbotci_dictionary::Dictionary<'_>,
+) -> VlackuWebResult {
     let normalized_state = normalize_vlacku_state(state);
     let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
-    if normalized_state.query.trim().is_empty() {
+    if normalized_state.query.is_empty() {
         return new!(VlackuWebResult {
             hidden_by_vote_filter: false,
             state: normalized_state,
@@ -2961,7 +2974,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         .saturating_add(1)
         .min(VLACKU_WEB_MAX_COUNT);
     let output = run_vlacku_requests(
-        jbotci_dictionary_data::english(),
+        dictionary,
         std::slice::from_ref(&request),
         &VlackuSearchOptions::default().with_data(data! {
             count: fetch_count,
@@ -2972,10 +2985,10 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
     )
     .expect("a caller with no deadline holds a token that stays clear");
     let hidden_by_vote_filter = output.cards.is_empty()
-        && output.diagnostics.is_empty()
+        && output.outcome != jbotci_search::vlacku::VlackuOutcome::Invalid
         && normalized_state.min_votes.as_search_min_votes().is_some()
         && !run_vlacku_requests(
-            jbotci_dictionary_data::english(),
+            dictionary,
             std::slice::from_ref(&request),
             &VlackuSearchOptions::default().with_data(data! {
                 count: 1,
@@ -2994,7 +3007,10 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         .enumerate()
         .map(|(index, card)| web_card_from_search_card(index + 1, card))
         .collect::<Vec<_>>();
-    let message = if cards.is_empty() && output.diagnostics.is_empty() {
+    let message = if cards.is_empty()
+        && !hidden_by_vote_filter
+        && output.outcome != jbotci_search::vlacku::VlackuOutcome::Invalid
+    {
         Some("No matches found.".to_owned())
     } else {
         None
@@ -3133,7 +3149,7 @@ pub fn build_vlacku_semantic_web_result_with_loading(
 ) -> VlackuWebResult {
     let normalized_state = normalize_vlacku_state(state);
     let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
-    if normalized_state.query.trim().is_empty() {
+    if normalized_state.query.is_empty() {
         return new!(VlackuWebResult {
             hidden_by_vote_filter: false,
             state: normalized_state,
@@ -3604,7 +3620,7 @@ pub mod blocking {
     #[requires(true)]
     #[ensures(true)]
     fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
-        let query = state.query.trim();
+        let query = state.query.as_str();
         if query.is_empty() {
             return None;
         }
@@ -4615,7 +4631,7 @@ fn build_vlacku_page_meta_with_description(
     exact_description: Option<String>,
 ) -> PageMeta {
     let state = normalize_vlacku_state(state);
-    let query = state.query.trim();
+    let query = state.query.as_str();
     page_meta(
         if query.is_empty() {
             "jbotci vlacku".to_owned()
@@ -5361,18 +5377,11 @@ fn normalize_cukta_search_query(mode: CuktaWebMode, query: &str) -> String {
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn normalize_vlacku_search_query(mode: VlackuWebMode, query: &str) -> String {
-    match mode {
-        VlackuWebMode::Word | VlackuWebMode::Rafsi if vlacku_exact_query_is_pattern(query) => {
-            query.trim().to_owned()
-        }
-        // Word identity depends on the written boundaries and stress. The
-        // search retains lexical evidence before it creates a lookup key.
-        VlackuWebMode::Word => query.trim().to_owned(),
-        VlackuWebMode::Rafsi => normalize_lojban_exact_query(query),
-        VlackuWebMode::Sound | VlackuWebMode::Meaning => query.trim().to_owned(),
-    }
+#[ensures(ret == query.trim())]
+fn normalize_vlacku_search_query(_mode: VlackuWebMode, query: &str) -> String {
+    // Word identity depends on the written boundaries and stress. The search
+    // retains lexical evidence before it creates a lookup key.
+    query.trim().to_owned()
 }
 
 #[requires(true)]
@@ -5385,6 +5394,7 @@ fn normalize_lojban_exact_query(query: &str) -> String {
 #[requires(true)]
 #[ensures(ret.count >= 1)]
 #[ensures(ret.min_votes == state.min_votes)]
+#[ensures(ret.query == state.query.trim())]
 pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
     let mut word_types = Vec::new();
     for raw in &state.word_types {
@@ -6368,12 +6378,15 @@ fn dictionary_tooltip_card_without_components(
         entry_index: card.entry_index,
         word: card.word.clone(),
         known: card.known,
+        invalid_lojban_word: card.invalid_lojban_word,
         display_word: card.word.clone(),
         href: word_href,
         word_type: card.word_type.clone(),
         word_type_key: normalize_word_type_filter(&card.word_type),
         selmaho: card.selmaho,
-        ipa: dictionary_word_ipa(&card.word),
+        ipa: (!card.invalid_lojban_word)
+            .then(|| dictionary_word_ipa(&card.word))
+            .flatten(),
         similarity: card
             .similarity
             .map(|similarity| format!("{:.0}%", similarity * 100.0)),
@@ -6390,11 +6403,12 @@ fn dictionary_tooltip_card_without_components(
             .into_iter()
             .map(|piece| web_composition_piece(base_path, piece))
             .collect(),
-        can_add_to_jvozba: dictionary_card_allows_jvozba(
-            jbotci_dictionary_data::english(),
-            card.entry_index,
-            &card.word,
-        ),
+        can_add_to_jvozba: !card.invalid_lojban_word
+            && dictionary_card_allows_jvozba(
+                jbotci_dictionary_data::english(),
+                card.entry_index,
+                &card.word,
+            ),
         components: Vec::new(),
     })
 }
@@ -6738,14 +6752,17 @@ fn web_card_from_search_card(
         .as_deref()
         .map(|text| parse_vlacku_inline_text(jbotci_dictionary_data::english(), text))
         .unwrap_or_default();
-    VlackuWebCard {
+    new!(VlackuWebCard {
         entry_index: card.entry_index,
         rank,
-        ipa: dictionary_word_ipa(&card.word),
+        ipa: (!card.invalid_lojban_word)
+            .then(|| dictionary_word_ipa(&card.word))
+            .flatten(),
         word: card.word.clone(),
         display_word: card.word.clone(),
         word_type: card.word_type.clone(),
         word_type_key: normalize_word_type_filter(&card.word_type),
+        invalid_lojban_word: card.invalid_lojban_word,
         selmaho: card.selmaho,
         author,
         similarity: card.similarity,
@@ -6764,12 +6781,13 @@ fn web_card_from_search_card(
             .into_iter()
             .map(|piece| web_composition_piece("", piece))
             .collect(),
-        can_add_to_jvozba: dictionary_card_allows_jvozba(
-            jbotci_dictionary_data::english(),
-            card.entry_index,
-            &card.word,
-        ),
-    }
+        can_add_to_jvozba: !card.invalid_lojban_word
+            && dictionary_card_allows_jvozba(
+                jbotci_dictionary_data::english(),
+                card.entry_index,
+                &card.word,
+            ),
+    })
 }
 
 #[requires(true)]
@@ -7489,9 +7507,116 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+    use jbotci_dictionary::{
+        CmavoSequenceIndexEntry, DefinitionId, Dictionary, DictionaryEntry, DictionaryPatternEntry,
+        DictionaryUser, Rafsi, RafsiClaimKind, RafsiIndexEntry, Score, WordIndexEntry, WordType,
+        build_owned_indexes,
+    };
     use jbotci_morphology::{GlideMark, StressMark};
     use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
     use std::collections::BTreeSet;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn leak<T>(value: Vec<T>) -> &'static [T] {
+        Box::leak(value.into_boxed_slice())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn leak_text(value: String) -> &'static str {
+        Box::leak(value.into_boxed_str())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.entries().len() == 1)]
+    fn dictionary_with_forms(forms: &'static [Rafsi<'static>]) -> &'static Dictionary<'static> {
+        let entries = leak(vec![DictionaryEntry {
+            word: "klama",
+            word_type: WordType::Gismu,
+            definition: "test definition",
+            definition_id: DefinitionId(1),
+            notes: "",
+            score: Score(1.0),
+            gloss_keywords: &[],
+            place_keywords: &[],
+            rafsi: forms,
+            selmaho: None,
+            etymology: None,
+            jargon: None,
+            user: DictionaryUser {
+                username: "synthetic",
+                realname: None,
+            },
+        }]);
+        let indexes = build_owned_indexes(entries).into_data();
+        let word_index = leak(
+            indexes
+                .word_index
+                .into_iter()
+                .map(|entry| WordIndexEntry {
+                    key: leak_text(entry.key),
+                    targets: leak(entry.targets),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let rafsi_index = leak(
+            indexes
+                .rafsi_index
+                .into_iter()
+                .map(|entry| RafsiIndexEntry {
+                    key: leak_text(entry.key),
+                    targets: leak(entry.targets),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let pattern_index = leak(
+            indexes
+                .pattern_index
+                .into_iter()
+                .map(|entry| DictionaryPatternEntry {
+                    entry_index: entry.entry_index,
+                    word_key: leak_text(entry.word_key),
+                    rafsi_keys: leak(
+                        entry
+                            .rafsi_keys
+                            .into_iter()
+                            .map(leak_text)
+                            .collect::<Vec<_>>(),
+                    ),
+                })
+                .collect::<Vec<_>>(),
+        );
+        let cmavo_sequence_index = leak(
+            indexes
+                .cmavo_sequence_index
+                .into_iter()
+                .map(|entry| {
+                    let entry = entry.into_data();
+                    CmavoSequenceIndexEntry::from_static_parts(
+                        leak(
+                            entry
+                                .components
+                                .into_iter()
+                                .map(leak_text)
+                                .collect::<Vec<_>>(),
+                        ),
+                        leak(entry.targets),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
+        Box::leak(Box::new(Dictionary::from_static_slices(
+            entries,
+            word_index,
+            rafsi_index,
+            pattern_index,
+            &[],
+            &[],
+            cmavo_sequence_index,
+            indexes.max_cmavo_sequence_len,
+        )))
+    }
 
     #[test]
     #[requires(true)]
@@ -9270,7 +9395,7 @@ mod tests {
             assert!(!leaf.components.is_empty(), "{word}");
 
             let words = jbotci_morphology::segment_words_with_modifiers(&text).expect("morphology");
-            let cards = dictionary_cards_for_word_likes_with_limit(
+            let cards = jbotci_search::vlacku::dictionary_cards_for_word_likes_with_limit(
                 jbotci_dictionary_data::english(),
                 &words,
                 std::num::NonZeroUsize::MAX,
@@ -11081,6 +11206,254 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_invalid_word_search_returns_card_with_morphology_warning() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: new!(VlackuVoteFilter::Any),
+            mode: VlackuWebMode::Word,
+            query: "fa'onai".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        let card = result
+            .cards
+            .iter()
+            .find(|card| card.word == "fa'onai")
+            .unwrap_or_else(|| {
+                panic!(
+                    "web card for fa'onai: state {:?}, errors {:?}, cards {:?}",
+                    result.state, result.errors, result.cards
+                )
+            });
+        assert!(card.invalid_lojban_word);
+        assert!(card.decomposition.is_empty());
+        assert_eq!(result.errors, ["Invalid Lojban word: fa'onai"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rafsi_web_adapter_preserves_original_spelling() {
+        let dictionary = dictionary_with_forms(leak(vec![
+            Rafsi {
+                form: ",",
+                standing: RafsiClaimKind::Experimental,
+            },
+            Rafsi {
+                form: "\u{ed89}",
+                standing: RafsiClaimKind::Experimental,
+            },
+        ]));
+        for query in [",", "\u{ed89}"] {
+            assert_eq!(
+                normalize_vlacku_search_query(VlackuWebMode::Rafsi, query),
+                query
+            );
+            let result = build_vlacku_web_result_with_dictionary(
+                &VlackuWebState {
+                    min_votes: Default::default(),
+                    mode: VlackuWebMode::Rafsi,
+                    query: query.to_owned(),
+                    count: 20,
+                    word_types: Vec::new(),
+                },
+                dictionary,
+            );
+            assert_eq!(result.cards.len(), 1, "{query:?}");
+            assert_eq!(result.cards[0].word, "klama");
+            assert_eq!(
+                result.errors,
+                [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}")]
+            );
+        }
+        let missing = build_vlacku_web_result_with_dictionary(
+            &VlackuWebState {
+                min_votes: Default::default(),
+                mode: VlackuWebMode::Rafsi,
+                query: "!".to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            },
+            dictionary,
+        );
+        assert!(missing.cards.is_empty());
+        assert!(missing.message.is_none());
+        assert_eq!(
+            missing.errors,
+            [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!")]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rafsi_state_normalization_trims_once_for_every_consumer() {
+        for mode in [
+            VlackuWebMode::Word,
+            VlackuWebMode::Rafsi,
+            VlackuWebMode::Sound,
+            VlackuWebMode::Meaning,
+        ] {
+            assert_eq!(normalize_vlacku_search_query(mode, " kla "), "kla");
+        }
+
+        let blank = VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: "   ".to_owned(),
+            ..VlackuWebState::default()
+        };
+        let normalized_blank = normalize_vlacku_state(&blank);
+        assert_eq!(normalized_blank.query, "");
+        assert_eq!(vlacku_web_url("", &normalized_blank), "/vlacku?mode=rafsi");
+        let blank_result = build_vlacku_web_result(&blank);
+        assert!(blank_result.dictionary_info.is_some());
+        let blank_meta = blocking::build_computed_page_meta("", &WebRoute::Vlacku(blank));
+        assert_eq!(blank_meta.title, "jbotci vlacku");
+        assert_eq!(blank_meta.canonical_url, "/vlacku?mode=rafsi");
+
+        let kla = VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: " kla ".to_owned(),
+            ..VlackuWebState::default()
+        };
+        let kla_result = build_vlacku_web_result(&kla);
+        assert_eq!(kla_result.state.query, "kla");
+        assert_eq!(
+            vlacku_web_url("", &kla_result.state),
+            "/vlacku?mode=rafsi&q=kla"
+        );
+        let kla_meta = blocking::build_computed_page_meta("", &WebRoute::Vlacku(kla));
+        assert_eq!(kla_meta.canonical_url, "/vlacku?mode=rafsi&q=kla");
+
+        let comma = VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: " , ".to_owned(),
+            ..VlackuWebState::default()
+        };
+        let dictionary = dictionary_with_forms(leak(vec![Rafsi {
+            form: ",",
+            standing: RafsiClaimKind::Experimental,
+        }]));
+        let comma_result = build_vlacku_web_result_with_dictionary(&comma, dictionary);
+        assert_eq!(comma_result.state.query, ",");
+        assert_eq!(comma_result.cards.len(), 1);
+        assert_eq!(comma_result.cards[0].word, "klama");
+        let comma_meta = build_vlacku_page_meta_from_result("", &comma_result);
+        assert_eq!(comma_meta.description, "test definition");
+        assert_eq!(comma_meta.canonical_url, "/vlacku?mode=rafsi&q=%2C");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_filtered_fallback_keeps_typed_missing_behavior() {
+        let low_votes = build_vlacku_web_result(&VlackuWebState {
+            query: "fa'onai".to_owned(),
+            ..VlackuWebState::default()
+        });
+        assert!(low_votes.cards.is_empty());
+        assert!(low_votes.hidden_by_vote_filter);
+        assert!(low_votes.message.is_none());
+        assert_eq!(low_votes.errors, ["Invalid Lojban word: fa'onai"]);
+
+        let wrong_type = build_vlacku_web_result(&VlackuWebState {
+            min_votes: new!(VlackuVoteFilter::Any),
+            mode: VlackuWebMode::Word,
+            query: "fa'onai".to_owned(),
+            count: 20,
+            word_types: vec!["gismu".to_owned()],
+        });
+        assert!(wrong_type.cards.is_empty());
+        assert!(!wrong_type.hidden_by_vote_filter);
+        assert_eq!(wrong_type.message.as_deref(), Some("No matches found."));
+        assert_eq!(wrong_type.errors, ["Invalid Lojban word: fa'onai"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_tooltip_keeps_the_missing_morphology_flag() {
+        for word in ["fa'onai", "ciztolnei"] {
+            let card = dictionary_tooltip_for_word("", word).expect("fallback tooltip");
+            assert!(card.known, "{word}");
+            assert!(card.invalid_lojban_word, "{word}");
+            assert!(card.ipa.is_none(), "{word}");
+            assert!(card.decomposition.is_empty(), "{word}");
+            assert!(card.components.is_empty(), "{word}");
+            assert!(!card.can_add_to_jvozba, "{word}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_key_cards_keep_entry_specific_morphology() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            min_votes: new!(VlackuVoteFilter::Any),
+            mode: VlackuWebMode::Word,
+            query: "prulamdeÍ".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+        let card = result
+            .cards
+            .iter()
+            .find(|card| card.word == "prulamdei")
+            .expect("valid prulamdei card");
+        assert!(!card.invalid_lojban_word);
+        assert!(!card.decomposition.is_empty());
+        assert!(card.can_add_to_jvozba);
+        let tooltip = dictionary_tooltip_for_word("", "prulamdeÍ").expect("valid tooltip");
+        assert!(!tooltip.invalid_lojban_word);
+        assert!(!tooltip.decomposition.is_empty());
+        assert!(tooltip.can_add_to_jvozba);
+
+        let klama = build_vlacku_web_result(&VlackuWebState {
+            min_votes: new!(VlackuVoteFilter::Any),
+            mode: VlackuWebMode::Word,
+            query: "klamÁ".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+        let klama_card = klama
+            .cards
+            .iter()
+            .find(|card| card.word == "klama")
+            .expect("valid klama card");
+        assert!(!klama_card.invalid_lojban_word);
+        assert!(klama_card.can_add_to_jvozba);
+        let klama_tooltip = dictionary_tooltip_for_word("", "klamÁ").expect("klama tooltip");
+        assert!(!klama_tooltip.invalid_lojban_word);
+        assert!(klama_tooltip.can_add_to_jvozba);
+
+        for (query, invalid_word) in [("xa", "xa!"), ("ma;u", "ma;u")] {
+            let result = build_vlacku_web_result(&VlackuWebState {
+                min_votes: new!(VlackuVoteFilter::Any),
+                mode: VlackuWebMode::Word,
+                query: query.to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            });
+            let invalid = result
+                .cards
+                .iter()
+                .find(|card| card.word == invalid_word)
+                .unwrap_or_else(|| panic!("{query}: {:?}", result.cards));
+            assert!(invalid.invalid_lojban_word, "{query}");
+            assert!(invalid.ipa.is_none(), "{query}");
+            assert!(!invalid.can_add_to_jvozba, "{query}");
+        }
+        let invalid_text =
+            dictionary_tooltip_for_word("", "zo si si zei fa'o").expect("invalid text tooltip");
+        assert!(invalid_text.invalid_lojban_word);
+        assert!(invalid_text.ipa.is_none());
+        assert!(invalid_text.components.is_empty());
+        assert!(!invalid_text.can_add_to_jvozba);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_word_search_source_backs_fuhivla_lujvo_component() {
         let result = build_vlacku_web_result(&VlackuWebState {
             min_votes: Default::default(),
@@ -11244,14 +11617,14 @@ mod tests {
         });
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
-        assert_eq!(result.state.query, "kla");
+        assert_eq!(result.state.query, "кла");
         assert_eq!(
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
         assert_eq!(
             vlacku_web_url("", &result.state),
-            "/vlacku?mode=rafsi&q=kla"
+            "/vlacku?mode=rafsi&q=%D0%BA%D0%BB%D0%B0"
         );
     }
 
@@ -11268,14 +11641,14 @@ mod tests {
         });
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
-        assert_eq!(result.state.query, "kla");
+        assert_eq!(result.state.query, "\u{ed82}\u{ed84}\u{eda0}");
         assert_eq!(
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
         assert_eq!(
             vlacku_web_url("", &result.state),
-            "/vlacku?mode=rafsi&q=kla"
+            "/vlacku?mode=rafsi&q=%EE%B6%82%EE%B6%84%EE%B6%A0"
         );
     }
 
@@ -11411,12 +11784,8 @@ mod tests {
         });
 
         assert!(result.cards.is_empty(), "{:?}", result.cards);
-        assert!(
-            result
-                .errors
-                .iter()
-                .any(|error| error.contains(INVALID_LOJBAN_WORD_MESSAGE_PREFIX))
-        );
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.message.as_deref(), Some("No matches found."));
     }
 
     #[test]
@@ -12271,8 +12640,8 @@ mod tests {
     #[ensures(true)]
     fn vlacku_vote_filter_keeps_literal_magic_words() {
         for word in [
-            "me'oi", "ma'oi", "zo'oi", "zo", "zoi", "lo'u", "la'o", "si", "sa", "su", "zei", "bu",
-            "fa'o",
+            "me'oi", "ma'oi", "zo'oi", "lo'ai", "zo", "zoi", "lo'u", "la'o", "le'u", "si", "sa",
+            "su", "zei", "bu", "fa'o", "y",
         ] {
             let state = VlackuWebState {
                 query: word.to_owned(),
@@ -12280,8 +12649,13 @@ mod tests {
                 ..VlackuWebState::default()
             };
             let result = build_vlacku_web_result(&state);
+            let card = result
+                .cards
+                .iter()
+                .find(|card| card.word == word)
+                .unwrap_or_else(|| panic!("{word}: {:?}", result.cards));
+            assert!(!card.invalid_lojban_word, "{word}");
             assert!(result.errors.is_empty(), "{word}: {:?}", result.errors);
-            assert!(result.cards.iter().any(|card| card.word == word), "{word}");
             assert!(!result.hidden_by_vote_filter, "{word}");
         }
     }

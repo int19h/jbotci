@@ -15,12 +15,13 @@ use crate::segment::{
     syllable_has_explicit_stress, text_chars,
 };
 use crate::{
-    Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
-    MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
-    MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes,
-    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, ReplacementQuoteRun,
-    ReplacementQuoteWord, Selmaho, Verbatim, Word, WordKind, WordLike, WordLikeData,
-    ZoiDelimiterDetailKind, canonical_text_eq, canonicalize_text, morphology_error_recovery_start,
+    Cmavo, ExpectedWordDetailKind, ModifierSegmentation, MorphologyContext, MorphologyContextKind,
+    MorphologyError, MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind,
+    MorphologyOptions, MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind,
+    Phonemes, RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation,
+    ReplacementQuoteRun, ReplacementQuoteWord, Selmaho, Verbatim, Word, WordKind, WordLike,
+    WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq, canonicalize_text,
+    morphology_error_recovery_start,
 };
 
 /// One plain word, or `Ok(None)` when the text is not one plain word.
@@ -68,6 +69,16 @@ pub(crate) fn segment_words_with_modifiers_attempt(
     // single non-display segmentation entry point.
     let segmenter = Segmenter::new(input, options, source_id);
     segmenter.segment_attempt()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn segment_words_with_modifiers_and_coverage(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> Result<ModifierSegmentation, MorphologyError> {
+    Segmenter::new(input, options, source_id).segment_coverage()
 }
 
 #[requires(true)]
@@ -248,6 +259,8 @@ struct Segmenter<'a> {
     /// opening delimiter word.
     permissive_boundaries_enabled: bool,
     trace: TraceRecorder,
+    source_spans: Option<Vec<SourceSpan>>,
+    faho_terminator: Option<SourceSpan>,
     /// One recognition region for the current unspaced span.
     ///
     /// `lojban_word_starts_at` calls back into this search on the suffix.
@@ -266,6 +279,7 @@ struct RecoveryCheckpoint {
     index: usize,
     word_count: usize,
     warning_count: usize,
+    source_span_count: usize,
     word_snapshot: Option<Vec<StreamUnit>>,
     expensive_snapshot: Option<RecoveryDeepSnapshot>,
 }
@@ -462,6 +476,8 @@ impl<'a> Segmenter<'a> {
             ignored_probe: None,
             permissive_boundaries_enabled: options.permissive_lexer,
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Morphology),
+            source_spans: None,
+            faho_terminator: None,
             word_regions: RefCell::new(Vec::new()),
         }
     }
@@ -487,6 +503,31 @@ impl<'a> Segmenter<'a> {
         let result = self.segment_words_recovered();
         let trace = self.trace.finish();
         new!(RecoveredMorphologySegmentAttempt { result, trace })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_coverage(mut self) -> Result<ModifierSegmentation, MorphologyError> {
+        self.source_spans = Some(Vec::new());
+        let result = self.segment_words();
+        self.push_ignored_characters_advice();
+        let _ = self.trace.finish();
+        let words = result?;
+        let source_spans = self.source_spans.get_or_insert_with(Vec::new);
+        source_spans.sort_by_key(|span| {
+            (
+                span.char_start,
+                span.char_end,
+                span.byte_start,
+                span.byte_end,
+            )
+        });
+        source_spans.dedup();
+        Ok(new!(ModifierSegmentation {
+            words,
+            source_spans: self.source_spans.take().expect("coverage was enabled"),
+            faho_terminator: self.faho_terminator,
+        }))
     }
 
     #[requires(true)]
@@ -741,6 +782,7 @@ impl<'a> Segmenter<'a> {
             index: self.index,
             word_count: words.len(),
             warning_count: self.warnings.len(),
+            source_span_count: self.source_span_count(),
             word_snapshot: None,
             expensive_snapshot: recovery_deep_snapshot(words, &self.warnings),
         })
@@ -767,6 +809,9 @@ impl<'a> Segmenter<'a> {
             words.truncate(checkpoint.word_count);
         }
         self.warnings.truncate(checkpoint.warning_count);
+        if let Some(spans) = self.source_spans.as_mut() {
+            spans.truncate(checkpoint.source_span_count);
+        }
         #[cfg(feature = "expensive_contracts")]
         if let Some(snapshot) = checkpoint.expensive_snapshot {
             assert_eq!(
@@ -889,7 +934,44 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn record_word_like_spans(&mut self, word: &WordLike) {
+        if let Some(spans) = self.source_spans.as_mut() {
+            spans.extend(word.source_spans().into_iter().cloned());
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn record_word_span(&mut self, word: &Word) {
+        if let Some(spans) = self.source_spans.as_mut() {
+            spans.push(word.span().clone());
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_span_count(&self) -> usize {
+        self.source_spans.as_ref().map_or(0, Vec::len)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn next_segment(&mut self, mode: SegmentMode) -> Result<Vec<WordLike>, MorphologyError> {
+        let words = self.next_segment_untracked(mode)?;
+        if self.source_spans.is_some() {
+            for word in &words {
+                self.record_word_like_spans(word);
+            }
+        }
+        Ok(words)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn next_segment_untracked(
+        &mut self,
+        mode: SegmentMode,
+    ) -> Result<Vec<WordLike>, MorphologyError> {
         if let Some(pending) = self.pending.take() {
             let pending = pending.into_data();
             self.trace_step(
@@ -1005,6 +1087,9 @@ impl<'a> Segmenter<'a> {
         }
         if mode.consumes_faho() && word_cmavo == Some(Cmavo::Faho) {
             self.trace_step(TraceLevel::Detailed, "FAhO", start, self.index, || None);
+            if self.source_spans.is_some() {
+                self.faho_terminator = word.source_spans().into_iter().next().cloned();
+            }
             self.index = self.chars.len();
             return Ok(vec![word]);
         }
@@ -2116,6 +2201,7 @@ impl<'a> Segmenter<'a> {
         }
         let saved_index = self.index;
         let saved_warnings = self.warnings.len();
+        let saved_span_count = self.source_span_count();
         self.ignored_probe = Some(Vec::new());
         let quote = self.read_replacement_quote(&marker);
         let ignored = self.ignored_probe.take().expect("replacement read journal");
@@ -2124,6 +2210,9 @@ impl<'a> Segmenter<'a> {
         }
         self.index = saved_index;
         self.warnings.truncate(saved_warnings);
+        if let Some(spans) = self.source_spans.as_mut() {
+            spans.truncate(saved_span_count);
+        }
         for index in ignored {
             self.ignored_character_flags[index] = false;
         }
@@ -2193,6 +2282,7 @@ impl<'a> Segmenter<'a> {
     fn next_word_is_constructor(&mut self) -> bool {
         let index = self.index;
         let warnings = self.warnings.len();
+        let source_span_count = self.source_span_count();
         self.ignored_probe = Some(Vec::new());
         let result = self.skip_magic_noise(true).is_ok()
             && self
@@ -2201,6 +2291,9 @@ impl<'a> Segmenter<'a> {
                 .is_some_and(|word| word.is_one_of_cmavo(&[Cmavo::Bu, Cmavo::Zei]));
         self.index = index;
         self.warnings.truncate(warnings);
+        if let Some(spans) = self.source_spans.as_mut() {
+            spans.truncate(source_span_count);
+        }
         for position in self.ignored_probe.take().expect("constructor read journal") {
             self.ignored_character_flags[position] = false;
         }
@@ -2331,6 +2424,9 @@ impl<'a> Segmenter<'a> {
             let candidate_end = self.candidate_end(self.index);
             if self.is_digit_sequence_candidate(self.index, candidate_end) {
                 let words = self.digit_sequence()?;
+                for word in &words {
+                    self.record_word_like_spans(word);
+                }
                 let key = sa_match_tag(words.first().expect("a digit sequence contains a word"));
                 let end = self.index;
                 return Ok(new!(SaReplacement {
@@ -2342,6 +2438,7 @@ impl<'a> Segmenter<'a> {
             }
         }
         let word = self.next_plain_word()?;
+        self.record_word_like_spans(&word);
         // skip_magic_noise keeps Y here only when BU follows it. The shared
         // Y+BU exception supplies BY before SA chooses the erased span.
         let key = if is_y_word(&word) {
@@ -2389,6 +2486,9 @@ impl<'a> Segmenter<'a> {
             acc.pop().expect("the previous unit exists")
         });
         let right = next.ok().and_then(into_bare_word);
+        if let Some(word) = &right {
+            self.record_word_span(word);
+        }
         let end = right
             .as_ref()
             .map_or(marker_end, |word| word.span().char_end);
@@ -2561,6 +2661,7 @@ impl<'a> Segmenter<'a> {
             if !is_y_word(&word) {
                 return Ok(word);
             }
+            self.record_word_like_spans(&word);
         }
     }
 
@@ -2572,7 +2673,9 @@ impl<'a> Segmenter<'a> {
             let saved = self.index;
             let warning_count = self.warnings.len();
             match self.next_plain_word() {
-                Ok(word) if is_y_word(&word) => {}
+                Ok(word) if is_y_word(&word) => {
+                    self.record_word_like_spans(&word);
+                }
                 _ => {
                     self.index = saved;
                     self.warnings.truncate(warning_count);
@@ -2595,6 +2698,7 @@ impl<'a> Segmenter<'a> {
             let word_warning_count = self.warnings.len();
             match self.next_plain_word() {
                 Ok(word) if is_y_word(&word) => {
+                    self.record_word_like_spans(&word);
                     let after_y = self.index;
                     self.skip_separators();
                     let bu_warning_count = self.warnings.len();

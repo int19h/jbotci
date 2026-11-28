@@ -2608,10 +2608,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web semantic hit DTOs are parsed from browser worker vector-search output before rendering",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuWebCard",
-        "vlacku cards are renderer transport data derived from dictionary/search result cards",
-    ),
-    (
         "crates/jbotci-web-core/src/lib.rs:VlackuWebState",
         "vlacku web state is a direct URL/local UI state envelope normalized by the result builder",
     ),

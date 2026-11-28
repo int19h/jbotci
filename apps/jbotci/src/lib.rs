@@ -228,11 +228,11 @@ use jbotci_output::{
 };
 use jbotci_phonetic::{AlineFeature, AlineNormalizer, AlineParameters, AlineSaliences};
 use jbotci_search::vlacku::{
-    DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
-    VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
-    WordTypeFilter, dictionary_entry_card, dictionary_entry_passes_vlacku_entry_filters,
-    dictionary_entry_passes_vlacku_filters, format_vote_display, normalize_word_type_filter,
-    parse_word_type_filter, run_vlacku_requests,
+    DEFAULT_VLACKU_RESULT_COUNT, INVALID_LOJBAN_WORD_CARD_MESSAGE, VlackuCard,
+    VlackuCompositionKind, VlackuCompositionPiece, VlackuOutcome, VlackuRequest, VlackuRequestData,
+    VlackuSearchOptions, VlackuSearchOutput, WordTypeFilter, dictionary_entry_card,
+    dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
+    format_vote_display, normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
