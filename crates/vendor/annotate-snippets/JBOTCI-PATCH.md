@@ -10,3 +10,8 @@ The original `Renderer::render` keeps its output and its unrestricted limit.
 
 The shared server policy uses this entry point for diagnostics in issue #945.
 A bound on the final capture buffer cannot control an earlier allocation inside the diagnostic renderer.
+
+A final newline adds one empty line to the source map.
+That line is the point at the end of the file.
+A span that ends on the point stays on the line before it.
+Lines with no annotation stay folded.

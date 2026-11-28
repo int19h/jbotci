@@ -3592,7 +3592,7 @@ mod tests {
         assert_string_enum_property(
             gentufa_schema,
             "format",
-            &["tree", "brackets", "raw", "json", "svg", "png"],
+            &["tree", "brackets", "plain", "raw", "json", "svg", "png"],
         );
         assert_boolean_default_property(gentufa_schema, "show-refs", true);
         assert_boolean_default_property(gentufa_schema, "show-elided", false);

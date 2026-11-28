@@ -19,10 +19,12 @@ use crate::{
     OutputError, sexpr, surface,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[invariant(true)]
 pub(crate) struct BracketContext {
     pub(crate) options: BracketRenderOptions,
+    /// Shared byte budget for every quote in this rendering.
+    pub(crate) max_leaf_bytes: crate::budget::OutputBudget,
 }
 
 #[requires(true)]
@@ -51,12 +53,16 @@ pub fn pretty_morphology_brackets_with_limit(
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
     let _ = source;
-    let context = BracketContext { options };
+    let leaves = crate::budget::OutputBudget::new(limit);
+    let context = BracketContext {
+        options,
+        max_leaf_bytes: leaves,
+    };
     let mut children = Vec::with_capacity(words.len());
     for word_like in words {
         // One load per word. A cancelled segmentation render is not a bracket string.
         cancellation.check().map_err(|_| OutputError::Interrupted)?;
-        children.push(word_like_brackets(word_like, &context));
+        children.push(word_like_brackets(word_like, &context)?);
     }
     let sexpr = sexpr::node(children);
     sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
@@ -88,7 +94,8 @@ pub fn pretty_generated_model_brackets_with_limit(
     limit: ByteLimit,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<String, OutputError> {
-    let sexpr = generated_model_bracket_sexpr(tree, source, options, cancellation)?;
+    let leaves = crate::budget::OutputBudget::new(limit);
+    let sexpr = generated_model_bracket_sexpr(tree, source, options, &leaves, cancellation)?;
     sexpr::render_bracketed_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
 }
 
@@ -100,15 +107,73 @@ pub(crate) fn pretty_generated_model_bracket_source_fragments_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<Vec<BracketSourceFragment>, OutputError> {
+    let flat = generated_model_flat_bracket_sexpr(tree, source, options)?;
+    Ok(sexpr::render_bracketed_source_fragments_with_options(
+        &flat, options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|(brackets, plain)| {
+    brackets.is_empty() == plain.is_empty() && brackets.is_empty() == generated_text_is_empty(tree)
+}) || ret.is_err())]
+pub fn pretty_generated_model_source_fragment_pair_with_options(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<(Vec<BracketSourceFragment>, Vec<BracketSourceFragment>), OutputError> {
+    let flat = generated_model_flat_bracket_sexpr(tree, source, options)?;
+    Ok((
+        sexpr::render_bracketed_source_fragments_with_options(&flat, options),
+        sexpr::render_plain_source_fragments_with_options(&flat, options),
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_model_flat_bracket_sexpr(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<sexpr::SExpr, OutputError> {
+    let leaves = crate::budget::OutputBudget::unlimited();
     let sexpr = generated_model_bracket_sexpr(
         tree,
         source,
         options,
+        &leaves,
         &jbotci_interrupt::CancellationToken::never(),
     )?;
-    Ok(sexpr::render_bracketed_source_fragments_with_options(
-        &sexpr::flatten(sexpr),
-        options,
+    Ok(sexpr::flatten(sexpr))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|text| text.is_empty() == generated_text_is_empty(tree)) || ret.is_err())]
+pub fn pretty_generated_model_plain_with_limit(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, OutputError> {
+    let leaves = crate::budget::OutputBudget::new(limit);
+    let sexpr = generated_model_bracket_sexpr(tree, source, options, &leaves, cancellation)?;
+    sexpr::render_plain_with_limit(&sexpr::flatten(sexpr), options, limit, cancellation)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|fragments| fragments.is_empty() == generated_text_is_empty(tree)) || ret.is_err())]
+pub fn pretty_generated_model_plain_source_fragments_with_options(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<Vec<BracketSourceFragment>, OutputError> {
+    let flat = generated_model_flat_bracket_sexpr(tree, source, options)?;
+    Ok(sexpr::render_plain_source_fragments_with_options(
+        &flat, options,
     ))
 }
 
@@ -133,14 +198,18 @@ pub(crate) fn generated_text_is_empty(tree: &GeneratedTextSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_model_bracket_sexpr(
+pub(crate) fn generated_model_bracket_sexpr(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: BracketRenderOptions,
+    max_leaf_bytes: &crate::budget::OutputBudget,
     cancellation: &jbotci_interrupt::CancellationToken,
 ) -> Result<sexpr::SExpr, OutputError> {
     let _ = source;
-    let context = BracketContext { options };
+    let context = BracketContext {
+        options,
+        max_leaf_bytes: max_leaf_bytes.clone(),
+    };
     let mut visitor = GeneratedBracketVisitor::with_cancellation(&context, cancellation);
     tree.visit_in_order(&mut visitor);
     // The visitor keeps walking so the frame stack stays balanced, but a
@@ -148,7 +217,7 @@ fn generated_model_bracket_sexpr(
     if visitor.cancelled {
         return Err(OutputError::Interrupted);
     }
-    Ok(visitor.finish())
+    visitor.finish()
 }
 
 #[invariant(true)]
@@ -168,6 +237,7 @@ struct GeneratedBracketVisitor<'source> {
     cancelled: bool,
     /// Frames skipped after the flag was set. Exits only unwind this count.
     skipped: usize,
+    limit_error: Option<OutputError>,
 }
 
 impl<'source> GeneratedBracketVisitor<'source> {
@@ -184,6 +254,7 @@ impl<'source> GeneratedBracketVisitor<'source> {
             cancellation: cancellation.clone(),
             cancelled: false,
             skipped: 0,
+            limit_error: None,
         }
     }
 
@@ -202,9 +273,13 @@ impl<'source> GeneratedBracketVisitor<'source> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn finish(self) -> sexpr::SExpr {
-        self.root
-            .expect("generated syntax bracket walk produced a root")
+    fn finish(self) -> Result<sexpr::SExpr, OutputError> {
+        if let Some(error) = self.limit_error {
+            return Err(error);
+        }
+        Ok(self
+            .root
+            .expect("generated syntax bracket walk produced a root"))
     }
 
     #[requires(true)]
@@ -335,7 +410,10 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
             return;
         }
         match atom {
-            GeneratedSyntaxAtomRef::Token(token) => self.push_expr(word(token, self.source)),
+            GeneratedSyntaxAtomRef::Token(token) => match word(token, self.source) {
+                Ok(expr) => self.push_expr(expr),
+                Err(error) => self.limit_error = Some(error),
+            },
         }
     }
 }
@@ -356,7 +434,7 @@ pub(crate) fn bracket_source_construct(constructor: &str) -> Option<BracketSourc
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn word(word: &Token, source: &BracketContext) -> sexpr::SExpr {
+pub(crate) fn word(word: &Token, source: &BracketContext) -> Result<sexpr::SExpr, OutputError> {
     with_indicators_brackets(word.as_indicators(), source)
 }
 
@@ -365,7 +443,7 @@ pub(crate) fn word(word: &Token, source: &BracketContext) -> sexpr::SExpr {
 fn with_indicators_brackets(
     word: &WithIndicators<WordLike>,
     source: &BracketContext,
-) -> sexpr::SExpr {
+) -> Result<sexpr::SExpr, OutputError> {
     match word.as_data() {
         data!(WithIndicators::Plain(word_like)) => word_like_brackets(word_like, source),
         data!(WithIndicators::Emphasized {
@@ -375,8 +453,8 @@ fn with_indicators_brackets(
         }) => {
             let mut children = vec![word_leaf(bahe, source)];
             children.extend(extra_bahe.iter().map(|bahe| word_leaf(bahe, source)));
-            children.push(word_like_brackets(word_like, source));
-            sexpr::node(children)
+            children.push(word_like_brackets(word_like, source)?);
+            Ok(sexpr::node(children))
         }
         data!(WithIndicators::WithIndicator {
             base,
@@ -385,21 +463,24 @@ fn with_indicators_brackets(
             nai_bahe,
             nai,
         }) => {
-            let mut children = vec![with_indicators_brackets(base, source)];
+            let mut children = vec![with_indicators_brackets(base, source)?];
             children.extend(indicator_bahe.iter().map(|bahe| word_leaf(bahe, source)));
             children.push(word_leaf(indicator, source));
             if let Some(nai) = nai {
                 children.extend(nai_bahe.iter().map(|bahe| word_leaf(bahe, source)));
                 children.push(word_leaf(nai, source));
             }
-            sexpr::node(children)
+            Ok(sexpr::node(children))
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn word_like_brackets(word_like: &WordLike, source: &BracketContext) -> sexpr::SExpr {
+pub(crate) fn word_like_brackets(
+    word_like: &WordLike,
+    source: &BracketContext,
+) -> Result<sexpr::SExpr, OutputError> {
     word_like_brackets_in_context(word_like, source, LeadingPauseContext::IndependentWord)
 }
 
@@ -409,26 +490,28 @@ fn word_like_brackets_in_context(
     word_like: &WordLike,
     source: &BracketContext,
     context: LeadingPauseContext,
-) -> sexpr::SExpr {
+) -> Result<sexpr::SExpr, OutputError> {
     match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => word_leaf_in_context(word, source, context),
-        data!(WordLike::QuotedWord { zo, word }) => {
-            sexpr::node(vec![word_leaf(zo, source), word_leaf(word, source)])
-        }
-        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
-            sexpr::node(vec![word_leaf(mahoi, source), word_leaf(word, source)])
-        }
+        data!(WordLike::PlainWord(word)) => Ok(word_leaf_in_context(word, source, context)),
+        data!(WordLike::QuotedWord { zo, word }) => Ok(sexpr::node(vec![
+            word_leaf(zo, source),
+            word_leaf(word, source),
+        ])),
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => Ok(sexpr::node(vec![
+            word_leaf(mahoi, source),
+            word_leaf(word, source),
+        ])),
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             quoted_text,
             closing_delimiter,
-        }) => sexpr::node(vec![
+        }) => Ok(sexpr::node(vec![
             word_leaf(zoi, source),
             word_leaf(opening_delimiter, source),
-            quoted_text_leaf(quoted_text),
+            quoted_text_leaf(quoted_text, &source.max_leaf_bytes)?,
             word_leaf(closing_delimiter, source),
-        ]),
+        ])),
         data!(WordLike::QuotedWords {
             lohu,
             quoted_words,
@@ -437,37 +520,35 @@ fn word_like_brackets_in_context(
             let mut children = vec![word_leaf(lohu, source)];
             children.extend(quoted_words.iter().map(|word| word_leaf(word, source)));
             children.push(word_leaf(lehu, source));
-            sexpr::node(children)
+            Ok(sexpr::node(children))
         }
         data!(WordLike::DelimitedWordQuote {
             marker,
             quoted_text,
-        }) => sexpr::node(vec![
+        }) => Ok(sexpr::node(vec![
             word_leaf(marker, source),
-            quoted_text_leaf(quoted_text),
-        ]),
+            quoted_text_leaf(quoted_text, &source.max_leaf_bytes)?,
+        ])),
         data!(WordLike::ReplacementQuote { runs, lehai }) => {
             let mut children = Vec::new();
             for run in runs {
                 children.push(word_leaf(&run.marker, source));
-                children.extend(
-                    run.words
-                        .iter()
-                        .map(|word| word_like_brackets(&word.word, source)),
-                );
+                for word in &run.words {
+                    children.push(word_like_brackets(&word.word, source)?);
+                }
             }
             children.push(word_leaf(lehai, source));
-            sexpr::node(children)
+            Ok(sexpr::node(children))
         }
-        data!(WordLike::LerfuWord { base, bu }) => sexpr::node(vec![
-            word_like_brackets_in_context(base, source, LeadingPauseContext::BuLetterBase),
+        data!(WordLike::LerfuWord { base, bu }) => Ok(sexpr::node(vec![
+            word_like_brackets_in_context(base, source, LeadingPauseContext::BuLetterBase)?,
             word_leaf(bu, source),
-        ]),
-        data!(WordLike::ZeiCompound { left, zei, right }) => sexpr::node(vec![
-            word_like_brackets(left, source),
+        ])),
+        data!(WordLike::ZeiCompound { left, zei, right }) => Ok(sexpr::node(vec![
+            word_like_brackets(left, source)?,
             word_leaf(zei, source),
             word_leaf(right, source),
-        ]),
+        ])),
     }
 }
 
@@ -503,14 +584,28 @@ fn word_leaf_in_context(
 
 #[requires(true)]
 #[ensures(true)]
-fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim) -> sexpr::SExpr {
-    sexpr::leaf_with_range(
-        verbatim.text.trim().to_owned(),
+fn quoted_text_leaf(
+    verbatim: &jbotci_morphology::Verbatim,
+    max_leaf_bytes: &crate::budget::OutputBudget,
+) -> Result<sexpr::SExpr, OutputError> {
+    // A tab stays a tab. The charge is the terminal escaped length.
+    let trimmed = verbatim.text.trim();
+    let Some(bytes) = crate::styled::escaped_byte_len_within(trimmed, max_leaf_bytes.remaining())
+    else {
+        return Err(OutputError::Limit {
+            limit: max_leaf_bytes.limit(),
+        });
+    };
+    let text = max_leaf_bytes
+        .copy_accounted(trimmed, bytes)
+        .map_err(|error| OutputError::Limit { limit: error.limit })?;
+    Ok(sexpr::leaf_with_range(
+        text,
         Some(new!(BracketSourceRange {
             byte_start: verbatim.span.byte_start,
             byte_end: verbatim.span.byte_end,
         })),
-    )
+    ))
 }
 
 #[requires(word.span().byte_start <= word.span().byte_end)]

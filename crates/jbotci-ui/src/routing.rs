@@ -291,6 +291,7 @@ pub(super) fn gentufa_state_from_parts(
     text: &str,
     dialect: &str,
     view_mode: GentufaWebViewMode,
+    output: GentufaTextOutput,
     display: GentufaDisplayState,
     text_explicit: bool,
 ) -> GentufaWebState {
@@ -306,6 +307,7 @@ pub(super) fn gentufa_state_from_parts(
             Some(dialect.to_owned())
         },
         view_mode,
+        output,
         show_elided: display.show_elided,
         show_glosses: display.show_glosses,
         show_compounds: display.show_compounds,
@@ -466,6 +468,7 @@ pub(super) fn apply_web_route_to_client_state(
     mut dialect: Signal<String>,
     mut parsed_dialect: Signal<String>,
     mut view_mode: Signal<GentufaWebViewMode>,
+    mut gentufa_output: Signal<GentufaTextOutput>,
     mut gentufa_display: Signal<GentufaDisplayState>,
 ) {
     let web_route = &location.web_route;
@@ -490,6 +493,7 @@ pub(super) fn apply_web_route_to_client_state(
             dialect.set(dialect_text.clone());
             parsed_dialect.set(dialect_text);
             view_mode.set(state.view_mode);
+            gentufa_output.set(state.output);
             gentufa_display.set(GentufaDisplayState {
                 show_elided: state.show_elided,
                 show_glosses: state.show_glosses,

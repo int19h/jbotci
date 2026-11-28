@@ -31,6 +31,16 @@ pub(crate) struct RecoveryRenderItem {
     pub(crate) text: String,
 }
 
+/// The escaping a recovery leaf is charged for.
+///
+/// Terminal text and a JSON string escape the same source to different lengths.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LeafEncoding {
+    Terminal,
+    JsonString,
+}
+
 #[invariant(::Valid { .. } => true)]
 #[invariant(::Error { item } => item.error_index < item.diagnostic_count)]
 #[derive(Debug)]
@@ -52,16 +62,24 @@ fn recovery_item_from_span(
     expected: Vec<String>,
     span: SourceSpan,
     source: &str,
+    max_bytes: &crate::budget::OutputBudget,
+    encoding: LeafEncoding,
 ) -> Result<RecoveryRenderItem, OutputError> {
-    let text = source
-        .get(span.byte_start..span.byte_end)
-        .ok_or_else(|| {
-            OutputError::Recovery(format!(
-                "recovery span {}..{} is outside the source text",
-                span.byte_start, span.byte_end
-            ))
-        })?
-        .to_owned();
+    // The original span is still a borrow here. An oversized span copies nothing.
+    let Some(borrowed) = source.get(span.byte_start..span.byte_end) else {
+        return Err(OutputError::Recovery(format!(
+            "recovery span {}..{} is outside the source text",
+            span.byte_start, span.byte_end
+        )));
+    };
+    let Some(bytes) = escaped_leaf_len(borrowed, max_bytes.remaining(), encoding) else {
+        return Err(OutputError::Limit {
+            limit: max_bytes.limit(),
+        });
+    };
+    let text = max_bytes
+        .copy_accounted(borrowed, bytes)
+        .map_err(|error| OutputError::Limit { limit: error.limit })?;
     if error_index >= diagnostic_count {
         return Err(OutputError::Recovery(format!(
             "recovery error index {error_index} is outside {diagnostic_count} diagnostics"
@@ -82,6 +100,15 @@ fn recovery_item_from_span(
     }))
 }
 
+#[requires(true)]
+#[ensures(ret.is_some_and(|len| len <= room) || ret.is_none())]
+fn escaped_leaf_len(text: &str, room: usize, encoding: LeafEncoding) -> Option<usize> {
+    match encoding {
+        LeafEncoding::Terminal => crate::styled::escaped_byte_len_within(text, room),
+        LeafEncoding::JsonString => crate::json_writer::json_string_body_len_within(text, room),
+    }
+}
+
 #[requires(error_index < errors.len())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn morphology_recovery_item(
@@ -89,6 +116,8 @@ fn morphology_recovery_item(
     errors: &[MorphologyError],
     span: &SourceSpan,
     source: &str,
+    max_bytes: &crate::budget::OutputBudget,
+    encoding: LeafEncoding,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let (diagnostic_code, expected) = match &errors[error_index] {
         MorphologyError::Invalid { kind, .. } => (
@@ -116,6 +145,8 @@ fn morphology_recovery_item(
         expected,
         span.clone(),
         source,
+        max_bytes,
+        encoding,
     )
 }
 
@@ -125,6 +156,8 @@ pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
     item: &E,
     errors: &[SyntaxError],
     source: &str,
+    max_bytes: &crate::budget::OutputBudget,
+    encoding: LeafEncoding,
 ) -> Result<RecoveryRenderItem, OutputError> {
     let error_index = item.recovery_error_index().ok_or_else(|| {
         OutputError::Recovery("syntax recovery item has no diagnostic index".to_owned())
@@ -160,6 +193,8 @@ pub(crate) fn syntax_recovery_item<E: RecoveryItemState + Serialize>(
         expected,
         span,
         source,
+        max_bytes,
+        encoding,
     )
 }
 
@@ -191,6 +226,8 @@ fn recovery_item_span(item: &impl RecoveryItemState) -> Option<SourceSpan> {
 fn recovered_morphology_sequence<'tree>(
     recovered: &'tree RecoveredMorphologySegmentation,
     source: &str,
+    max_bytes: &crate::budget::OutputBudget,
+    encoding: LeafEncoding,
 ) -> Result<Vec<RecoveredMorphologySequenceItem<'tree>>, OutputError> {
     let mut words = recovered.words.iter().peekable();
     let mut errors = recovered.error_regions.iter().enumerate().peekable();
@@ -206,7 +243,14 @@ fn recovered_morphology_sequence<'tree>(
         if error_start.is_some() && (word_start.is_none() || error_start < word_start) {
             let (error_index, span) = errors.next().expect("peeked error exists");
             sequence.push(new!(RecoveredMorphologySequenceItem::Error {
-                item: morphology_recovery_item(error_index, &recovered.errors, span, source)?,
+                item: morphology_recovery_item(
+                    error_index,
+                    &recovered.errors,
+                    span,
+                    source,
+                    max_bytes,
+                    encoding,
+                )?,
             }));
         } else {
             sequence.push(new!(RecoveredMorphologySequenceItem::Valid {
@@ -251,16 +295,23 @@ pub fn pretty_recovered_morphology_brackets_with_limit(
             cancellation,
         );
     }
-    let context = brackets::BracketContext { options };
-    let children = recovered_morphology_sequence(recovered, source)?
-        .into_iter()
-        .map(|item| match item.into_data() {
-            data!(RecoveredMorphologySequenceItem::Valid { word }) => {
-                brackets::word_like_brackets(word, &context)
-            }
-            data!(RecoveredMorphologySequenceItem::Error { item }) => recovery_error_sexpr(&item),
-        })
-        .collect();
+    let leaves = crate::budget::OutputBudget::new(limit);
+    let context = brackets::BracketContext {
+        options,
+        max_leaf_bytes: leaves.clone(),
+    };
+    let children =
+        recovered_morphology_sequence(recovered, source, &leaves, LeafEncoding::Terminal)?
+            .into_iter()
+            .map(|item| match item.into_data() {
+                data!(RecoveredMorphologySequenceItem::Valid { word }) => {
+                    brackets::word_like_brackets(word, &context)
+                }
+                data!(RecoveredMorphologySequenceItem::Error { item }) => {
+                    Ok(recovery_error_sexpr(&item))
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
     let value = sexpr::flatten(sexpr::node(children));
     sexpr::render_bracketed_with_limit(&value, options, limit, cancellation)
 }
@@ -299,17 +350,19 @@ pub fn pretty_recovered_morphology_tree_with_limit(
             cancellation,
         );
     }
-    let values = recovered_morphology_sequence(recovered, source)?
-        .into_iter()
-        .map(|item| match item.into_data() {
+    let leaves = crate::budget::OutputBudget::new(limit);
+    let mut values = Vec::new();
+    for item in recovered_morphology_sequence(recovered, source, &leaves, LeafEncoding::JsonString)?
+    {
+        values.push(match item.into_data() {
             data!(RecoveredMorphologySequenceItem::Valid { word }) => {
-                tree::morphology_tree_value(word, source, options)
+                tree::morphology_tree_value(word, source, options, &leaves)?
             }
             data!(RecoveredMorphologySequenceItem::Error { item }) => {
                 recovery_error_tree_value(&item)
             }
-        })
-        .collect();
+        });
+    }
     tree::render_tree_value_with_limit(
         &tree::collapse_value(TreeValue::Collection(values)),
         options,
@@ -507,7 +560,12 @@ pub fn pretty_recovered_morphology_raw(
         return Ok(debug_output(&recovered.words, indent));
     }
     Ok(debug_output(
-        &recovered_morphology_sequence(recovered, source)?,
+        &recovered_morphology_sequence(
+            recovered,
+            source,
+            &crate::budget::OutputBudget::unlimited(),
+            LeafEncoding::JsonString,
+        )?,
         indent,
     ))
 }
@@ -599,9 +657,13 @@ impl<'source, 'errors> RecoveredBracketBuilder<'source, 'errors> {
         source: &'source str,
         errors: &'errors [SyntaxError],
         options: BracketRenderOptions,
+        max_leaf_bytes: &crate::budget::OutputBudget,
     ) -> Self {
         Self {
-            context: brackets::BracketContext { options },
+            context: brackets::BracketContext {
+                options,
+                max_leaf_bytes: max_leaf_bytes.clone(),
+            },
             source,
             errors,
             stack: Vec::new(),
@@ -704,7 +766,10 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
     fn visit_atom(&mut self, atom: Self::Atom) {
         let jbotci_syntax::generated_model::recovered::AtomRef::Token(token) = atom;
         self.recovery_projection.separate();
-        self.push(brackets::word(token, &self.context));
+        match brackets::word(token, &self.context) {
+            Ok(value) => self.push(value),
+            Err(error) => self.render_error = Some(error),
+        }
     }
 
     #[requires(true)]
@@ -713,7 +778,13 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
         if !self.recovery_projection.include(item) {
             return;
         }
-        match syntax_recovery_item(item, self.errors, self.source) {
+        match syntax_recovery_item(
+            item,
+            self.errors,
+            self.source,
+            &self.context.max_leaf_bytes,
+            LeafEncoding::Terminal,
+        ) {
             Ok(item) => self.push(recovery_error_sexpr(&item)),
             Err(error) => self.render_error = Some(error),
         }
@@ -754,6 +825,8 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
     if cancellation.is_cancelled() {
         return Err(OutputError::Interrupted);
     }
+    // The conversion takes the tree by value. Each token is a shared pointer.
+    // The quote text stays in that pointer. The leaf copy uses the byte limit.
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
         return crate::pretty_generated_model_brackets_with_limit(
             &valid,
@@ -763,7 +836,8 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
             cancellation,
         );
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    let leaves = crate::budget::OutputBudget::new(limit);
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, &leaves);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
@@ -775,259 +849,6 @@ pub fn pretty_recovered_syntax_brackets_with_limit(
     sexpr::render_bracketed_with_limit(&value, options, limit, cancellation)
 }
 
-/// Elision marker used wherever the bounded error-region rendering drops
-/// structure inside a region, whole regions, or trailing output.
-const ERROR_REGION_ELISION: &str = "…";
-
-/// Cut a rendering at a character budget, ending it with the elision marker.
-/// This is the last-resort backstop of the error-region renderer; the
-/// structural selection and pruning it backstops keep brackets balanced, a
-/// cut string may not.
-#[requires(max_chars > 0)]
-#[ensures(ret.chars().count() <= max_chars)]
-#[ensures(text.chars().count() <= max_chars -> ret == text)]
-fn truncate_to_char_budget(text: &str, max_chars: usize) -> String {
-    if text.chars().count() <= max_chars {
-        return text.to_owned();
-    }
-    let cut = text
-        .char_indices()
-        .nth(max_chars - 1)
-        .map_or(text.len(), |(index, _)| index);
-    let mut truncated = text[..cut].to_owned();
-    truncated.push('…');
-    truncated
-}
-
-/// Prune a bracket expression to the paths leading to recovery error leaves.
-///
-/// Kept nodes render their brackets around the error-containing children, the
-/// leaves immediately adjacent to those children (the local context, such as
-/// the {cu} following a rejected {kei}), and one `…` elision leaf per maximal
-/// run of dropped children, in the dropped run's original position. Every
-/// error leaf of the input is retained.
-#[requires(sexpr::contains_error_leaf(expr))]
-#[ensures(sexpr::contains_error_leaf(&ret))]
-fn prune_to_error_path(expr: &sexpr::SExpr) -> sexpr::SExpr {
-    let sexpr::SExpr::Node { children, .. } = expr else {
-        return expr.clone();
-    };
-    let mut pruned = Vec::new();
-    let mut dropped_run = false;
-    for (index, child) in children.iter().enumerate() {
-        let has_error = sexpr::contains_error_leaf(child);
-        let adjacent_context_leaf = matches!(child, sexpr::SExpr::Leaf { .. })
-            && (index > 0 && sexpr::contains_error_leaf(&children[index - 1])
-                || index + 1 < children.len() && sexpr::contains_error_leaf(&children[index + 1]));
-        if has_error || adjacent_context_leaf {
-            if dropped_run {
-                pruned.push(sexpr::leaf(ERROR_REGION_ELISION.to_owned()));
-                dropped_run = false;
-            }
-            pruned.push(if has_error {
-                prune_to_error_path(child)
-            } else {
-                child.clone()
-            });
-        } else {
-            dropped_run = true;
-        }
-    }
-    sexpr::node(pruned)
-}
-
-/// Brackets rendering of the error-adjacent regions of a recovered parse,
-/// capped at an explicit character budget.
-///
-/// This is the bounded feedback form for consumers that cannot afford a full
-/// rendering of a long recovered text (issue #731). Starting from the same
-/// flattened brackets form the full rendering uses:
-///
-/// - Selection keeps every top-level construct (statement or paragraph group)
-///   containing a recovery error marker, plus its immediate neighbors, so the
-///   structure an error attached to — for example the abstraction a first
-///   {kei} closed before a second one was rejected — stays visible. Dropped
-///   leading or trailing regions are marked with a `…` line. When this
-///   selection is everything, the result is the full brackets rendering.
-/// - If the selection exceeds `max_chars`, neighbor regions are dropped and
-///   each error region is pruned to the paths leading to its error markers
-///   (see [`prune_to_error_path`]): dropped structure appears as `…`, keeping
-///   brackets balanced. Context dropped on either side of the shown regions
-///   (including the discarded neighbor regions) is marked by a leading or
-///   trailing `…` line, and whole regions that no longer fit are reported by
-///   a trailing `… (N more error regions not shown)` line.
-/// - The output never exceeds `max_chars` characters; the only way it can
-///   contain an unbalanced bracket is the documented last-resort string cut
-///   of a single pruned region that alone exceeds the budget.
-///
-/// A valid parse has no error regions; its full brackets rendering is
-/// returned, cut at the budget with a trailing `…` when needed.
-#[requires(max_chars > 0)]
-#[ensures(!recovered.errors.is_empty() || ret.is_ok())]
-#[ensures(ret.as_ref().is_ok_and(|text| text.chars().count() <= max_chars) || ret.is_err())]
-#[expensive_ensures(ret.as_ref().is_ok_and(|text| !text.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
-pub fn pretty_recovered_syntax_error_region_brackets_with_options(
-    recovered: &RecoveredSyntaxParse,
-    source: &str,
-    max_chars: usize,
-    options: BracketRenderOptions,
-) -> Result<String, OutputError> {
-    if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        let full = crate::pretty_generated_model_brackets_with_options(&valid, source, options)?;
-        return Ok(truncate_to_char_budget(&full, max_chars));
-    }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
-    jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
-        recovered.parse_tree.as_ref(),
-        &mut visitor,
-    );
-    let value = sexpr::flatten(visitor.finish()?);
-    let sexpr::SExpr::Node { children, .. } = &value else {
-        let full = sexpr::render_bracketed_with_options(&value, options);
-        return Ok(truncate_to_char_budget(&full, max_chars));
-    };
-    let has_error = children
-        .iter()
-        .map(sexpr::contains_error_leaf)
-        .collect::<Vec<_>>();
-    if !has_error.iter().any(|flag| *flag) {
-        let full = sexpr::render_bracketed_with_options(&value, options);
-        return Ok(truncate_to_char_budget(&full, max_chars));
-    }
-    // Selection with immediate-neighbor context: the region an error attached
-    // to is often the previous sibling of the error region, and dropping it
-    // would hide exactly the attachment structure the feedback exists to show.
-    let selected = (0..children.len())
-        .map(|index| {
-            has_error[index]
-                || index > 0 && has_error[index - 1]
-                || index + 1 < children.len() && has_error[index + 1]
-        })
-        .collect::<Vec<_>>();
-    let candidate = if selected.iter().all(|flag| *flag) {
-        sexpr::render_bracketed_with_options(&value, options)
-    } else {
-        let mut lines = Vec::new();
-        let first = selected
-            .iter()
-            .position(|flag| *flag)
-            .expect("errors exist");
-        let last = selected
-            .iter()
-            .rposition(|flag| *flag)
-            .expect("errors exist");
-        if first > 0 {
-            lines.push(ERROR_REGION_ELISION.to_owned());
-        }
-        for (index, child) in children.iter().enumerate() {
-            if selected[index] {
-                lines.push(sexpr::render_bracketed_at_depth(1, child, options));
-            }
-        }
-        if last + 1 < children.len() {
-            lines.push(ERROR_REGION_ELISION.to_owned());
-        }
-        lines.join("\n")
-    };
-    if candidate.chars().count() <= max_chars {
-        return Ok(candidate);
-    }
-    // Over budget: drop the neighbor context and prune every error region to
-    // its error paths. Dropped leading/trailing context is still marked by a
-    // directional `…` line, so the composer can always tell that structure
-    // was elided on that side of the shown regions.
-    let error_indices = (0..children.len())
-        .filter(|index| has_error[*index])
-        .collect::<Vec<_>>();
-    let leading_marker = error_indices[0] > 0;
-    let trailing_marker = error_indices[error_indices.len() - 1] + 1 < children.len();
-    let mut items: Vec<(String, bool)> = Vec::new();
-    let mut previous_error_index = None;
-    for index in error_indices.iter().copied() {
-        if previous_error_index.is_some_and(|previous| index > previous + 1) {
-            items.push((ERROR_REGION_ELISION.to_owned(), false));
-        }
-        previous_error_index = Some(index);
-        let pruned = prune_to_error_path(&children[index]);
-        items.push((sexpr::render_bracketed_at_depth(1, &pruned, options), true));
-    }
-    let total_regions = items.iter().filter(|(_, is_region)| *is_region).count();
-    let omission_note = |omitted: usize| match omitted {
-        1 => format!("{ERROR_REGION_ELISION} (1 more error region not shown)"),
-        n => format!("{ERROR_REGION_ELISION} ({n} more error regions not shown)"),
-    };
-    // Total line length of an assembly: the kept items, the directional
-    // markers, and (when regions were omitted) the note, plus one separator
-    // per line boundary.
-    let assembly_len = |content_chars: usize, kept_count: usize, omitted: usize| {
-        let fixed_chars = usize::from(leading_marker)
-            + usize::from(trailing_marker)
-            + if omitted > 0 {
-                omission_note(omitted).chars().count()
-            } else {
-                0
-            };
-        let fixed_lines =
-            usize::from(leading_marker) + usize::from(trailing_marker) + usize::from(omitted > 0);
-        content_chars + fixed_chars + (kept_count + fixed_lines).saturating_sub(1)
-    };
-    // Keep as many regions as fit alongside the markers and the note. The
-    // note's presence (and width) depends on the omission count, which the
-    // accumulation itself determines, so iterate until stable; the count is
-    // non-decreasing and bounded, so this terminates.
-    let mut kept: Vec<(String, bool)> = Vec::new();
-    let mut omitted_regions = 0usize;
-    loop {
-        kept.clear();
-        let mut content_chars = 0usize;
-        for (text, is_region) in &items {
-            let grown = content_chars + text.chars().count();
-            if assembly_len(grown, kept.len() + 1, omitted_regions) <= max_chars {
-                kept.push((text.clone(), *is_region));
-                content_chars = grown;
-            }
-        }
-        let new_omitted = total_regions - kept.iter().filter(|(_, is_region)| *is_region).count();
-        if new_omitted == omitted_regions {
-            break;
-        }
-        omitted_regions = new_omitted;
-    }
-    if kept.is_empty() {
-        // A single pruned region can still exceed the budget for deeply
-        // nested constructs (or the budget can be too small for even the
-        // markers and the note); cut the leading marker, the first region,
-        // and a trailing marker composed together at the budget as a last
-        // resort, so both sides of the omission stay marked.
-        let first = &items
-            .iter()
-            .find(|(_, is_region)| *is_region)
-            .expect("errors exist")
-            .0;
-        let mut text = String::new();
-        if leading_marker {
-            text.push_str(ERROR_REGION_ELISION);
-            text.push('\n');
-        }
-        text.push_str(first);
-        text.push('\n');
-        text.push_str(ERROR_REGION_ELISION);
-        return Ok(truncate_to_char_budget(&text, max_chars));
-    }
-    let mut lines: Vec<String> = Vec::new();
-    if leading_marker {
-        lines.push(ERROR_REGION_ELISION.to_owned());
-    }
-    lines.extend(kept.into_iter().map(|(text, _)| text));
-    if trailing_marker {
-        lines.push(ERROR_REGION_ELISION.to_owned());
-    }
-    if omitted_regions > 0 {
-        lines.push(omission_note(omitted_regions));
-    }
-    Ok(lines.join("\n"))
-}
-
 #[requires(true)]
 #[ensures(!recovered.errors.is_empty() || ret.is_ok())]
 #[expensive_ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
@@ -1036,18 +857,103 @@ pub fn pretty_recovered_syntax_bracket_source_fragments_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<Vec<crate::BracketSourceFragment>, OutputError> {
+    let (brackets, _) =
+        pretty_recovered_syntax_source_fragment_pair_with_options(recovered, source, options)?;
+    Ok(brackets)
+}
+
+#[requires(true)]
+#[ensures(!recovered.errors.is_empty() || ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|(brackets, plain)| {
+    (!brackets.is_empty() || recovered.errors.is_empty())
+        && (!plain.is_empty() || recovered.errors.is_empty())
+}) || ret.is_err())]
+pub fn pretty_recovered_syntax_source_fragment_pair_with_options(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<
+    (
+        Vec<crate::BracketSourceFragment>,
+        Vec<crate::BracketSourceFragment>,
+    ),
+    OutputError,
+> {
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return crate::pretty_bracket_source_fragments_with_options(&valid, source, options);
+        return crate::brackets::pretty_generated_model_source_fragment_pair_with_options(
+            &valid, source, options,
+        );
     }
-    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    let value = recovered_flat_bracket_sexpr(recovered, source, options)?;
+    Ok((
+        sexpr::render_bracketed_source_fragments_with_options(&value, options),
+        sexpr::render_plain_source_fragments_with_options(&value, options),
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_flat_bracket_sexpr(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<sexpr::SExpr, OutputError> {
+    let leaves = crate::budget::OutputBudget::unlimited();
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, &leaves);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
         recovered.parse_tree.as_ref(),
         &mut visitor,
     );
+    Ok(sexpr::flatten(visitor.finish()?))
+}
+
+#[requires(true)]
+#[ensures(!recovered.errors.is_empty() || ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
+pub fn pretty_recovered_syntax_plain_source_fragments_with_options(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<Vec<crate::BracketSourceFragment>, OutputError> {
+    let (_, plain) =
+        pretty_recovered_syntax_source_fragment_pair_with_options(recovered, source, options)?;
+    Ok(plain)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.len() <= limit.get()) || ret.is_err())]
+pub fn pretty_recovered_syntax_plain_with_limit(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+    limit: ByteLimit,
+    cancellation: &jbotci_interrupt::CancellationToken,
+) -> Result<String, OutputError> {
+    if cancellation.is_cancelled() {
+        return Err(OutputError::Interrupted);
+    }
+    // The conversion takes the tree by value. Each token is a shared pointer.
+    // The quote text stays in that pointer. The leaf copy uses the byte limit.
+    if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
+        return crate::pretty_generated_model_plain_with_limit(
+            &valid,
+            source,
+            options,
+            limit,
+            cancellation,
+        );
+    }
+    let leaves = crate::budget::OutputBudget::new(limit);
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options, &leaves);
+    jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
+        recovered.parse_tree.as_ref(),
+        &mut visitor,
+    );
+    if cancellation.is_cancelled() {
+        return Err(OutputError::Interrupted);
+    }
     let value = sexpr::flatten(visitor.finish()?);
-    Ok(sexpr::render_bracketed_source_fragments_with_options(
-        &value, options,
-    ))
+    sexpr::render_plain_with_limit(&value, options, limit, cancellation)
 }
 
 #[requires(true)]
@@ -1119,8 +1025,19 @@ pub fn compact_recovered_syntax_json_string_with_limits(
         decompose_lujvo: false,
         show_elided: options.show_elided,
     };
-    let tree = tree::recovered_generated_model_tree_value(recovered, source, tree_options)?;
+    let tree = tree::recovered_generated_model_tree_value(
+        recovered,
+        source,
+        tree_options,
+        &crate::budget::OutputBudget::new(projection_limit),
+    )?;
     let value = recovered_tree_json_value(&tree);
+    // One charge for the whole document. A leaf that fits can still overflow it.
+    // The text limit stays on the writer below.
+    if projection_limit.get() != usize::MAX {
+        crate::budget::bounded_json_size(&value, projection_limit)
+            .map_err(|error| OutputError::from_json(error, projection_limit))?;
+    }
     crate::render_compact_json_value_with_limit(&value, options, limit)
 }
 
@@ -1183,7 +1100,7 @@ fn recovered_tree_json_value(value: &TreeValue) -> Value {
             }
             json::constructor_value(constructor, Value::Object(fields))
         }
-        TreeValue::Verbatim { text, span } => {
+        TreeValue::Verbatim { text, span, .. } => {
             let mut fields = Map::new();
             fields.insert("text".to_owned(), Value::String(text.clone()));
             if let Some((start, end)) = span {
@@ -1252,7 +1169,7 @@ pub fn pretty_recovered_syntax_raw(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jbotci_syntax::{ParseOptions, SyntaxErrorKind};
+    use jbotci_syntax::ParseOptions;
 
     #[requires(true)]
     #[ensures(true)]
@@ -1267,696 +1184,877 @@ mod tests {
         .expect("an uninterrupted recovered parse returns a tree")
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn parse_generated_syntax(source: &str) -> Box<jbotci_syntax::generated_model::TextSyntax> {
+        let words = jbotci_morphology::segment_words_with_modifiers(source)
+            .expect("generated syntax probes use valid morphology");
+        jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        )
+        .expect("an uninterrupted generated parse returns a tree")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_with_options(source: &str, options: BracketRenderOptions) -> String {
+        crate::pretty_generated_model_plain_with_limit(
+            &parse_generated_syntax(source),
+            source,
+            options,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("plain output")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn fragment_contains_role(
+        fragment: &crate::BracketSourceFragment,
+        role: crate::BracketSourceFragmentRole,
+    ) -> bool {
+        match fragment {
+            crate::BracketSourceFragment::Text { role: actual, .. } => *actual == role,
+            crate::BracketSourceFragment::Span { children, .. } => children
+                .iter()
+                .any(|child| fragment_contains_role(child, role)),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn fragment_text(fragment: &crate::BracketSourceFragment) -> String {
+        match fragment {
+            crate::BracketSourceFragment::Text { text, .. } => text.clone(),
+            crate::BracketSourceFragment::Span { children, .. } => children
+                .iter()
+                .map(fragment_text)
+                .collect::<Vec<_>>()
+                .join(""),
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_valid_empty_text_has_empty_bracket_renderings() {
-        let source = "le broda sa le si";
-        let recovered = parse_recovered_syntax(source);
-        assert!(recovered.errors.is_empty());
+    fn plain_uses_the_same_normalized_words_and_elided_terminators_as_brackets() {
+        let options = BracketRenderOptions {
+            show_elided: true,
+            ..BracketRenderOptions::default()
+        };
+        let source = "mi klama lo zarci";
+        let tree = parse_generated_syntax(source);
+        let brackets = crate::pretty_generated_model_brackets_with_limit(
+            &tree,
+            source,
+            options,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("brackets");
+        assert_eq!(brackets, "(mi [kláma {lo zárci ku} vau])");
         assert_eq!(
-            pretty_recovered_syntax_brackets_with_options(
-                &recovered,
-                source,
-                BracketRenderOptions::default(),
-            )
-            .expect("recovered syntax brackets"),
-            ""
+            plain_with_options(source, options),
+            "mi kláma lo zárci ku vau"
         );
         assert_eq!(
-            pretty_recovered_syntax_bracket_source_fragments_with_options(
-                &recovered,
-                source,
-                BracketRenderOptions::default(),
-            )
-            .expect("recovered syntax bracket source fragments"),
-            Vec::new()
+            plain_with_options("mi klama lo nu do klama", options),
+            "mi kláma lo nu do kláma vau kei ku vau"
+        );
+
+        let fragments = crate::pretty_generated_model_plain_source_fragments_with_options(
+            &tree, source, options,
+        )
+        .expect("plain fragments");
+        assert_eq!(
+            fragments
+                .iter()
+                .map(fragment_text)
+                .collect::<Vec<_>>()
+                .join(""),
+            "mi kláma lo zárci ku vau"
+        );
+        assert!(fragments.iter().any(|fragment| matches!(
+            fragment,
+            crate::BracketSourceFragment::Span { range: Some(_), .. }
+        )));
+        assert!(fragments.iter().any(|fragment| {
+            fragment_contains_role(fragment, crate::BracketSourceFragmentRole::Elided)
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_honors_stress_glide_script_quotes_and_paragraphs() {
+        assert_eq!(
+            plain_with_options(
+                "mi klama lo zarci",
+                BracketRenderOptions {
+                    phonemes: jbotci_morphology::PhonemeRenderOptions {
+                        mark_stress: crate::StressMark::None,
+                        mark_glides: crate::GlideMark::None,
+                    },
+                    ..BracketRenderOptions::default()
+                }
+            ),
+            "mi klama lo zarci"
+        );
+        assert_eq!(
+            plain_with_options("coi", BracketRenderOptions::default()),
+            "coĭ"
+        );
+        assert_eq!(
+            plain_with_options(
+                "coi",
+                BracketRenderOptions {
+                    phonemes: jbotci_morphology::PhonemeRenderOptions {
+                        mark_glides: crate::GlideMark::None,
+                        ..jbotci_morphology::PhonemeRenderOptions::default()
+                    },
+                    ..BracketRenderOptions::default()
+                }
+            ),
+            "coi"
+        );
+        assert_eq!(
+            plain_with_options(
+                "coi",
+                BracketRenderOptions {
+                    script: crate::LojbanScript::Zbalermorna,
+                    ..BracketRenderOptions::default()
+                }
+            ),
+            "\u{ed86}\u{eda8}"
+        );
+        assert_eq!(
+            plain_with_options("zo. mi klama", BracketRenderOptions::default()),
+            "zo mi kláma"
+        );
+        assert_eq!(
+            plain_with_options(
+                "mi klama lo zarci .i do djica lo nu pinxe lo djacu",
+                BracketRenderOptions::default()
+            ),
+            "mi kláma lo zárci .i do djíca lo nu pínxe lo djácu"
         );
     }
 
-    // The streamed recovery projection and the tree projection both name every
-    // morphology error variant; a dialect expansion failure must render with the
-    // same code and message on both paths.
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_morphology_json_renders_dialect_expansion_failures() {
-        let formula = format!("({})", "(mi -> mi mi) ".repeat(12).trim_end());
-        let options = jbotci_morphology::MorphologyOptions::default()
-            .try_with_dialect_definition(
-                &jbotci_dialect::parse_dialect_definition(&formula).expect("formula parses"),
-            )
-            .expect("formula compiles");
-        let source = "mi do mi";
-        let recovered =
-            jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id(
-                source, &options, None,
-            );
-        assert_eq!(recovered.errors.len(), 2);
-        assert!(
-            recovered
-                .errors
-                .iter()
-                .all(|error| matches!(error, MorphologyError::DialectExpansion(_))),
-            "{:?}",
-            recovered.errors
-        );
-        let json: Value = serde_json::from_str(
-            &compact_recovered_morphology_json_string_with_options(
-                &recovered,
-                source,
-                JsonRenderOptions::default(),
-            )
-            .expect("morphology JSON"),
+    fn plain_color_resets_every_styled_leaf_and_every_line() {
+        let color = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let elided = BracketRenderOptions {
+            show_elided: true,
+            ..color
+        };
+        for (source, options) in [
+            ("coi", color),
+            ("mi klama lo zarci", color),
+            ("mi klama lo zarci", elided),
+        ] {
+            let rendered = plain_with_options(source, options);
+            assert!(rendered.ends_with("\x1b[0m"), "{rendered:?}");
+            for (index, _) in rendered.match_indices(' ') {
+                assert!(rendered[..index].ends_with("\x1b[0m"), "{rendered:?}");
+            }
+        }
+        assert_eq!(plain_with_options("coi", color), "\x1b[35mcoĭ\x1b[0m");
+
+        let source = "mi ku .i do";
+        let recovered = parse_recovered_syntax(source);
+        let rendered = pretty_recovered_syntax_plain_with_limit(
+            &recovered,
+            source,
+            color,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
         )
-        .expect("valid morphology JSON");
-        let items = json.as_array().expect("morphology sequence");
-        assert_eq!(items.len(), 3);
-        for (item, error_index, span) in [(&items[0], 0, [0, 2]), (&items[2], 1, [6, 8])] {
-            assert_eq!(item["Error"]["span"], serde_json::json!(span));
-            assert_eq!(item["Error"]["error_index"], error_index);
-            assert_eq!(
-                item["Error"]["diagnostic_code"],
-                "morphology.dialect-expansion-limit"
+        .expect("colored recovered plain");
+        assert!(rendered.ends_with("\x1b[0m"), "{rendered:?}");
+        for (index, _) in rendered.match_indices(' ') {
+            assert!(rendered[..index].ends_with("\x1b[0m"), "{rendered:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colored_multiline_quotes_reset_bracket_and_plain_lines() {
+        let options = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        for source in [
+            "zoi gy hello\nworld gy",
+            "zoi gy hello\n\nworld gy",
+            "zoi gy hello\r\nworld gy",
+            "la'o gy hello\nworld gy",
+        ] {
+            let tree = parse_generated_syntax(source);
+            let bracketed = crate::pretty_generated_model_brackets_with_limit(
+                &tree,
+                source,
+                options,
+                crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("colored multiline quote brackets");
+            let plain = plain_with_options(source, options);
+            for rendered in [&bracketed, &plain] {
+                assert!(
+                    rendered
+                        .lines()
+                        .all(|line| line.is_empty() || line.ends_with("\x1b[0m")),
+                    "{source:?}: {rendered:?}"
+                );
+                assert!(rendered.contains("hello\x1b[0m"), "{source:?}");
+                assert!(rendered.contains("world"), "{source:?}");
+            }
+            if source == "zoi gy hello\n\nworld gy" {
+                assert_eq!(plain.lines().nth(1), Some(""), "{plain:?}");
+                assert_eq!(bracketed.lines().nth(1), Some(""), "{bracketed:?}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_multiline_error_restores_strikethrough_in_brackets_and_plain() {
+        let source = "mi ku\nku .i do";
+        let recovered = parse_recovered_syntax(source);
+        assert!(!recovered.errors.is_empty());
+        let options = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let bracketed = pretty_recovered_syntax_brackets_with_options(&recovered, source, options)
+            .expect("multiline error brackets");
+        let plain = pretty_recovered_syntax_plain_with_limit(
+            &recovered,
+            source,
+            options,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("multiline error plain");
+        for rendered in [&bracketed, &plain] {
+            assert!(
+                rendered.contains("\n\x1b[91m\x1b[9mku\x1b[29m"),
+                "{rendered:?}"
             );
-            assert_eq!(
-                item["Error"]["expected"],
-                serde_json::json!([recovered.errors[error_index].to_string()])
+            assert_eq!(rendered.matches('‼').count(), 2, "{rendered:?}");
+            assert!(
+                rendered
+                    .lines()
+                    .all(|line| line.is_empty() || line.ends_with("\x1b[0m")),
+                "{rendered:?}"
             );
         }
-        assert_eq!(items[1]["PlainWord"]["Cmavo"]["phonemes"], "do");
     }
 
+    #[test]
     #[requires(true)]
-    #[ensures(ret.as_object().is_some())]
-    fn recovered_syntax_json(source: &str, recovered: &RecoveredSyntaxParse) -> Value {
-        serde_json::from_str(
-            &compact_recovered_syntax_json_string_with_options(
-                recovered,
+    #[ensures(true)]
+    fn colored_quotes_keep_whitespace_and_cr_lines_unstyled() {
+        let color = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let cases = [
+            ("zoi gy hello\n   \nworld gy", "hello\n   \nworld"),
+            ("zoi gy hello\n\r\r\nworld gy", "hello\n\r\r\nworld"),
+            ("zoi gy hello\rworld gy", "hello\rworld"),
+            ("la'o gy hello\n\t\nworld gy", "hello\n\t\nworld"),
+        ];
+        for (source, payload) in cases {
+            let tree = parse_generated_syntax(source);
+            let bracketed = crate::pretty_generated_model_brackets_with_limit(
+                &tree,
                 source,
-                JsonRenderOptions::default(),
+                color,
+                crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+                &jbotci_interrupt::CancellationToken::never(),
             )
-            .expect("recovered syntax JSON"),
+            .expect("colored quote brackets");
+            let plain = plain_with_options(source, color);
+            let plain_brackets = crate::pretty_generated_model_brackets_with_limit(
+                &tree,
+                source,
+                BracketRenderOptions::default(),
+                crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect("plain quote brackets");
+            let plain_text = plain_with_options(source, BracketRenderOptions::default());
+            for rendered in [&bracketed, &plain] {
+                assert_colored_break_lines(rendered);
+                assert!(rendered.contains("hello"), "{source:?}: {rendered:?}");
+                assert!(rendered.contains("world"), "{source:?}: {rendered:?}");
+            }
+            for rendered in [&plain_brackets, &plain_text] {
+                assert!(rendered.contains(payload), "{source:?}: {rendered:?}");
+                assert!(!rendered.contains('\u{1b}'), "{source:?}: {rendered:?}");
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_control_in_a_quote_is_a_visible_escape() {
+        let source = "mi nelci zoi gy.a\u{1b}b\u{80}.gy";
+        let tree = parse_generated_syntax(source);
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let limit = crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit");
+        for color in [false, true] {
+            let options = BracketRenderOptions {
+                color,
+                ..BracketRenderOptions::default()
+            };
+            let bracketed = crate::pretty_generated_model_brackets_with_limit(
+                &tree, source, options, limit, &cancel,
+            )
+            .expect("control quote brackets");
+            let plain = crate::pretty_generated_model_plain_with_limit(
+                &tree, source, options, limit, &cancel,
+            )
+            .expect("control quote plain");
+            for rendered in [&bracketed, &plain] {
+                assert!(rendered.contains("a\\u{1b}b\\u{80}"), "{rendered:?}");
+                assert!(!rendered.contains('\u{80}'), "{rendered:?}");
+                if !color {
+                    assert!(!rendered.contains('\u{1b}'), "{rendered:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_megabyte_quote_stops_at_32_bytes() {
+        // A long run of letters makes the vowel parser recurse until the
+        // stack overflows. `#` is one byte, it is not a letter, and it is
+        // not a word separator, so this quote stays one megabyte of text.
+        let source = format!("zoi gy.{}.gy", "#".repeat(1_000_000));
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(&source).expect("a quote segments");
+        let generated = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            &source,
+            &ParseOptions::default(),
         )
-        .expect("valid recovered syntax JSON")
+        .expect("a quote parses");
+        let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            &source,
+            &ParseOptions::default(),
+        )
+        .expect("a recovered quote parses");
+        let limit = crate::budget::ByteLimit::new(32).expect("positive limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let options = BracketRenderOptions::default();
+        let tree_options = crate::TreeRenderOptions::default();
+        let leaves = crate::budget::OutputBudget::new(limit);
+        let projections = [
+            crate::brackets::generated_model_bracket_sexpr(
+                &generated, &source, options, &leaves, &cancel,
+            )
+            .map(|_| ()),
+            crate::tree::projected_generated_syntax_tree_value_with_index(
+                &generated,
+                &source,
+                tree_options,
+                &leaves,
+                None,
+            )
+            .map(|_| ()),
+            crate::tree::morphology_tree_value(&words[0], &source, tree_options, &leaves)
+                .map(|_| ()),
+        ];
+        for projection in projections {
+            assert!(
+                matches!(projection, Err(crate::OutputError::Limit { .. })),
+                "{projection:?}"
+            );
+        }
+        for color in [false, true] {
+            let options = BracketRenderOptions {
+                color,
+                ..BracketRenderOptions::default()
+            };
+            let results = [
+                crate::pretty_generated_model_brackets_with_limit(
+                    &generated, &source, options, limit, &cancel,
+                ),
+                crate::pretty_generated_model_plain_with_limit(
+                    &generated, &source, options, limit, &cancel,
+                ),
+                pretty_recovered_syntax_brackets_with_limit(
+                    &recovered, &source, options, limit, &cancel,
+                ),
+                pretty_recovered_syntax_plain_with_limit(
+                    &recovered, &source, options, limit, &cancel,
+                ),
+                crate::pretty_morphology_brackets_with_limit(
+                    &words, &source, options, limit, &cancel,
+                ),
+            ];
+            for result in results {
+                assert!(
+                    matches!(result, Err(crate::OutputError::Limit { .. })),
+                    "{color}: {result:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_projection_limit_does_not_shorten_a_quote() {
+        let source = "mi ku .i mi nelci zoi gy.abcdefghijklmnop.gy";
+        let recovered = parse_recovered_syntax(source);
+        let options = JsonRenderOptions::default();
+        let text_limit = ByteLimit::new(8_192).expect("positive text limit");
+        let projection_limit = ByteLimit::new(8_192).expect("positive projection limit");
+        let json = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            source,
+            options,
+            text_limit,
+            projection_limit,
+        )
+        .expect("both limits hold the quote");
+        let value: Value = serde_json::from_str(&json).expect("json");
+        let verbatim = verbatim_fields(&value).expect("verbatim");
+        assert_eq!(verbatim["text"], "abcdefghijklmnop");
+        assert_eq!(verbatim["span"], serde_json::json!([25, 41]));
+        let small_projection = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            source,
+            options,
+            text_limit,
+            ByteLimit::new(4).expect("positive projection limit"),
+        );
+        assert!(
+            matches!(small_projection, Err(OutputError::Limit { .. })),
+            "{small_projection:?}"
+        );
+        let small_text = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            source,
+            options,
+            ByteLimit::new(8).expect("positive text limit"),
+            projection_limit,
+        );
+        assert!(
+            matches!(small_text, Err(OutputError::Limit { .. })),
+            "{small_text:?}"
+        );
+
+        let trimmed = "mi ku .i mi nelci zoi gy.abcd efgh.gy";
+        let trimmed_recovered = parse_recovered_syntax(trimmed);
+        let trimmed_small = compact_recovered_syntax_json_string_with_limits(
+            &trimmed_recovered,
+            trimmed,
+            options,
+            text_limit,
+            ByteLimit::new(4).expect("positive projection limit"),
+        );
+        assert!(
+            matches!(trimmed_small, Err(OutputError::Limit { .. })),
+            "{trimmed_small:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_short_limit_rejects_a_long_recovery_span() {
+        let mut source = String::from("mi ku");
+        source.push_str(&" ".repeat(1_000_000));
+        source.push_str("ku .i do");
+        let recovered = parse_recovered_syntax(&source);
+        assert!(!recovered.errors.is_empty());
+        let limit = ByteLimit::new(32).expect("positive limit");
+        let text_limit = ByteLimit::new(8_192).expect("positive text limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let options = BracketRenderOptions::default();
+        let plain =
+            pretty_recovered_syntax_plain_with_limit(&recovered, &source, options, limit, &cancel);
+        assert!(matches!(plain, Err(OutputError::Limit { .. })), "{plain:?}");
+        let brackets = pretty_recovered_syntax_brackets_with_limit(
+            &recovered, &source, options, limit, &cancel,
+        );
+        assert!(
+            matches!(brackets, Err(OutputError::Limit { .. })),
+            "{brackets:?}"
+        );
+        let tree = pretty_recovered_syntax_tree_with_limit(
+            &recovered,
+            &source,
+            TreeRenderOptions::default(),
+            limit,
+        );
+        assert!(matches!(tree, Err(OutputError::Limit { .. })), "{tree:?}");
+        let json = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            &source,
+            JsonRenderOptions::default(),
+            text_limit,
+            limit,
+        );
+        assert!(matches!(json, Err(OutputError::Limit { .. })), "{json:?}");
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn collect_error_objects<'value>(
-        value: &'value Value,
-        errors: &mut Vec<&'value Map<String, Value>>,
-    ) {
+    fn verbatim_fields(value: &Value) -> Option<&Map<String, Value>> {
         match value {
             Value::Object(object) => {
-                if let Some(Value::Object(error)) = object.get("Error") {
-                    errors.push(error);
-                    return;
+                if let Some(Value::Object(verbatim)) = object.get("Verbatim") {
+                    return Some(verbatim);
                 }
-                for child in object.values() {
-                    collect_error_objects(child, errors);
-                }
+                object.values().find_map(verbatim_fields)
             }
-            Value::Array(items) => {
-                for item in items {
-                    collect_error_objects(item, errors);
-                }
-            }
-            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn count_error_source_fragments(fragments: &[crate::BracketSourceFragment]) -> usize {
-        fragments
-            .iter()
-            .map(|fragment| match fragment {
-                crate::BracketSourceFragment::Text { role, .. } => {
-                    usize::from(*role == crate::BracketSourceFragmentRole::Error)
-                }
-                crate::BracketSourceFragment::Span { children, .. } => {
-                    count_error_source_fragments(children)
-                }
-            })
-            .sum()
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn count_construct_source_fragments(
-        fragments: &[crate::BracketSourceFragment],
-        expected: crate::BracketSourceConstruct,
-    ) -> usize {
-        fragments
-            .iter()
-            .map(|fragment| match fragment {
-                crate::BracketSourceFragment::Text { .. } => 0,
-                crate::BracketSourceFragment::Span {
-                    constructs,
-                    children,
-                    ..
-                } => {
-                    usize::from(constructs.contains(&expected))
-                        + count_construct_source_fragments(children, expected)
-                }
-            })
-            .sum()
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn bracket_source_fragments_retain_filterable_grammar_constructs() {
-        for source in ["mi viska le mlatu", "mi ku i do viska le mlatu"] {
-            let recovered = parse_recovered_syntax(source);
-            let fragments = pretty_recovered_syntax_bracket_source_fragments_with_options(
-                &recovered,
-                source,
-                BracketRenderOptions::default(),
-            )
-            .expect("bracket source fragments");
-
-            assert!(
-                count_construct_source_fragments(&fragments, crate::BracketSourceConstruct::Sumti,)
-                    > 0,
-                "sumti boundaries must survive flattening for {source:?}",
-            );
-            assert!(
-                count_construct_source_fragments(
-                    &fragments,
-                    crate::BracketSourceConstruct::BridiTail,
-                ) > 0,
-                "bridi-tail boundaries must survive flattening for {source:?}",
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.0.is_empty() && ret.1.0 <= ret.1.1)]
-    fn syntax_error_code_and_span(error: &SyntaxError) -> (&'static str, (usize, usize)) {
-        match error {
-            SyntaxError::NotImplemented => ("syntax.not-implemented", (0, 0)),
-            SyntaxError::Interrupted => ("syntax.interrupted", (0, 0)),
-            SyntaxError::Parse {
-                kind,
-                byte_start,
-                byte_end,
-                ..
-            } => (kind.code(), (*byte_start, *byte_end)),
+            Value::Array(items) => items.iter().find_map(verbatim_fields),
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => None,
         }
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_mi_ku_i_do_preserves_both_statements_and_the_error_position() {
-        let source = "mi ku i do";
-        let recovered = parse_recovered_syntax(source);
-
-        let brackets = pretty_recovered_syntax_brackets_with_options(
-            &recovered,
-            source,
-            BracketRenderOptions::default(),
-        )
-        .expect("brackets");
-        assert_eq!(brackets, "([mi ‼ku‼] [.i do])");
-
-        let mut bracket_builder = RecoveredBracketBuilder::new(
-            source,
-            &recovered.errors,
-            BracketRenderOptions::default(),
-        );
-        jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
-            recovered.parse_tree.as_ref(),
-            &mut bracket_builder,
-        );
-        let bracket_tree = bracket_builder.finish().expect("bracket tree");
-        let mut error_leaves = Vec::new();
-        collect_error_sexprs(&bracket_tree, &mut error_leaves);
-        assert_eq!(error_leaves.len(), 1);
-        let (text, range) = error_leaves[0];
-        assert_eq!(text, "ku");
-        assert_eq!(
-            range.map(|range| (range.byte_start, range.byte_end)),
-            Some((3, 5))
-        );
-
-        let tree = pretty_recovered_syntax_tree_with_options(
-            &recovered,
-            source,
-            TreeRenderOptions {
-                show_refs: false,
-                show_spans: true,
-                ..TreeRenderOptions::default()
-            },
-        )
-        .expect("tree");
-        let mi = tree.find("Cmavo @[0‥2) \"mi\"").expect("initial mi");
-        let error = tree.find("Error @[3‥5) \"ku\"").expect("ku error");
-        let following = tree
-            .find("ParagraphStatement @[6‥10)")
-            .expect("following statement");
-        let do_word = tree.find("Cmavo @[8‥10) \"do\"").expect("following do");
-        assert!(tree.starts_with("ParagraphStatementSequence"));
-        assert!(
-            mi < error && error < following && following < do_word,
-            "{tree}"
-        );
-
-        let json = recovered_syntax_json(source, &recovered);
-        let root = json
-            .get("ParagraphStatementSequence")
-            .and_then(Value::as_object)
-            .expect("paragraph statement sequence");
-        let initial = root
-            .get("value")
-            .and_then(Value::as_array)
-            .expect("initial statement values");
-        assert_eq!(initial[0]["Cmavo"]["phonemes"], "mi");
-        assert_eq!(initial[1]["Error"]["span"], serde_json::json!([3, 5]));
-        assert_eq!(initial[1]["Error"]["text"], "ku");
-        let following = root["following"].as_array().expect("following statements");
-        assert_eq!(following.len(), 1);
-        assert_eq!(
-            following[0]["ParagraphStatement"]["i"]["Cmavo"]["phonemes"],
-            "i"
-        );
-        assert_eq!(
-            following[0]["ParagraphStatement"]["value"]["Cmavo"]["phonemes"],
-            "do"
-        );
-
-        let raw = pretty_recovered_syntax_raw(&recovered, Some(Indentation::compact()));
-        assert!(raw.starts_with("TextSyntax {"), "{raw}");
-        assert!(raw.contains("Prefix(RecoveredPrefix { errors: [SkippedTokens { error_index: 0"));
-        assert!(raw.contains("byte_start: 3, byte_end: 5"));
-        assert!(raw.contains("FollowingParagraphStatementSyntax"));
-        assert!(raw.contains("text: \"mi\""));
-        assert!(raw.contains("text: \"do\""));
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_error_sexprs<'expr>(
-        expr: &'expr sexpr::SExpr,
-        errors: &mut Vec<(&'expr str, Option<BracketSourceRange>)>,
-    ) {
-        match expr {
-            sexpr::SExpr::Leaf {
-                text,
-                range,
-                role: sexpr::LeafRole::Error,
-            } => errors.push((text, *range)),
-            sexpr::SExpr::Leaf { .. } => {}
-            sexpr::SExpr::Node { children, .. } => {
-                for child in children {
-                    collect_error_sexprs(child, errors);
-                }
-            }
-        }
+    fn an_oversized_spaced_quote_is_not_shortened() {
+        let source = format!("mi nelci zoi gy.a{}b.gy", " ".repeat(8_192));
+        assert_quote_limit(&source, ByteLimit::new(4_096).expect("positive tree limit"));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_eof_error_keeps_prefix_and_zero_width_markers() {
-        let source = "mi viska lo";
+    fn a_cut_inside_spaces_does_not_hide_the_overflow() {
+        let source = format!("mi nelci zoi gy.a{}b.gy", " ".repeat(4_096));
+        assert_quote_limit(&source, ByteLimit::new(4_096).expect("positive tree limit"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_shared_leaf_budget_stops_when_later_text_no_longer_fits() {
+        let source = "mi ku .i mi nelci zoi gy.abcdefghijklmnop.gy";
         let recovered = parse_recovered_syntax(source);
-        assert!(matches!(
-            recovered.errors.as_slice(),
-            [SyntaxError::Parse {
-                kind: SyntaxErrorKind::IncompleteSumti,
-                byte_start: 11,
-                byte_end: 11,
-                ..
-            }]
-        ));
-
-        let brackets = pretty_recovered_syntax_brackets_with_options(
+        assert!(!recovered.errors.is_empty());
+        // The recovery text and the quote share one budget. Sixteen bytes
+        // hold either charge alone and do not hold both.
+        let tight = tree::recovered_generated_model_tree_value(
             &recovered,
             source,
-            BracketRenderOptions::default(),
-        )
-        .expect("brackets");
-        assert_eq!(brackets, "(mi [víska {lo ‼‼}])");
-
-        let source_fragments = pretty_recovered_syntax_bracket_source_fragments_with_options(
-            &recovered,
-            source,
-            BracketRenderOptions::default(),
-        )
-        .expect("bracket source fragments");
-        assert_eq!(count_error_source_fragments(&source_fragments), 1);
-
-        let tree = pretty_recovered_syntax_tree_with_options(
-            &recovered,
-            source,
-            TreeRenderOptions {
-                show_refs: false,
-                show_spans: true,
-                ..TreeRenderOptions::default()
-            },
-        )
-        .expect("tree");
-        assert!(tree.starts_with("BridiWithLeadingTerms @[0‥11)"), "{tree}");
-        let mi = tree.find("Cmavo @[0‥2) \"mi\"").expect("mi prefix");
-        let viska = tree.find("Gismu @[3‥8) \"víska\"").expect("viska prefix");
-        let lo = tree.find("Cmavo @[9‥11) \"lo\"").expect("lo prefix");
-        let marker = tree.find("Error @[11‥11) \"\"").expect("missing marker");
-        assert!(mi < viska && viska < lo && lo < marker, "{tree}");
-        assert_eq!(tree.matches("Error @[11‥11) \"\"").count(), 1, "{tree}");
-
-        let json = recovered_syntax_json(source, &recovered);
-        assert_eq!(
-            json["BridiWithLeadingTerms"]["leading_terms"][0]["Cmavo"]["phonemes"],
-            "mi"
+            TreeRenderOptions::default(),
+            &crate::budget::OutputBudget::new(ByteLimit::new(16).expect("positive leaf budget")),
         );
-        assert_eq!(
-            json["BridiWithLeadingTerms"]["bridi_tail"]["SelbriSimpleBridiTail"]["selbri"]["Gismu"]
-                ["phonemes"],
-            "víska"
+        assert!(matches!(tight, Err(OutputError::Limit { .. })), "{tight:?}");
+        let tree = tree::recovered_generated_model_tree_value(
+            &recovered,
+            source,
+            TreeRenderOptions::default(),
+            &crate::budget::OutputBudget::new(ByteLimit::new(64).expect("positive leaf budget")),
+        )
+        .expect("recovery text and quote fit");
+        let rendered = format!("{tree:?}");
+        assert!(rendered.contains("abcdefghijklmnop"), "{rendered}");
+        let json = compact_recovered_syntax_json_string_with_limits(
+            &recovered,
+            source,
+            JsonRenderOptions::default(),
+            ByteLimit::new(8_192).expect("positive text limit"),
+            ByteLimit::new(16).expect("positive projection limit"),
         );
-        let mut errors = Vec::new();
-        collect_error_objects(&json, &mut errors);
-        assert_eq!(errors.len(), 1);
-        assert!(
-            errors
-                .iter()
-                .all(|error| error["span"] == serde_json::json!([11, 11]))
-        );
-        assert!(errors.iter().all(|error| error["text"] == ""));
-        assert!(errors.iter().all(|error| error["error_index"] == 0));
+        assert!(matches!(json, Err(OutputError::Limit { .. })), "{json:?}");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_words(source: &str) -> jbotci_morphology::RecoveredMorphologySegmentation {
+        let recovered = jbotci_morphology::segment_words_with_modifiers_recovered(source);
+        assert!(!recovered.errors.is_empty(), "{source:?}");
+        recovered
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_two_errors_link_json_to_diagnostics_in_source_order() {
-        let source = "mi ku i do ku i mi klama";
-        let recovered = parse_recovered_syntax(source);
-        assert_eq!(recovered.errors.len(), 2);
-
-        let brackets = pretty_recovered_syntax_brackets_with_options(
-            &recovered,
-            source,
-            BracketRenderOptions::default(),
-        )
-        .expect("brackets");
-        assert_eq!(brackets, "([mi ‼ku‼] [{.i do} ‼ku‼ {.i (mi kláma)}])");
-
-        let tree = pretty_recovered_syntax_tree_with_options(
-            &recovered,
-            source,
-            TreeRenderOptions {
-                show_refs: false,
-                show_spans: true,
-                ..TreeRenderOptions::default()
-            },
-        )
-        .expect("tree");
-        let first = tree.find("Error @[3‥5) \"ku\"").expect("first error");
-        let do_word = tree.find("Cmavo @[8‥10) \"do\"").expect("middle statement");
-        let second = tree.find("Error @[11‥13) \"ku\"").expect("second error");
-        let klama = tree
-            .find("Gismu @[19‥24) \"kláma\"")
-            .expect("final statement");
-        assert!(
-            first < do_word && do_word < second && second < klama,
-            "{tree}"
-        );
-
-        let json = recovered_syntax_json(source, &recovered);
-        let mut errors = Vec::new();
-        collect_error_objects(&json, &mut errors);
-        assert_eq!(errors.len(), 2);
-        for (source_order, error) in errors.iter().enumerate() {
-            let error_index = error["error_index"].as_u64().expect("error index") as usize;
-            assert_eq!(error_index, source_order);
-            let (code, (start, end)) = syntax_error_code_and_span(&recovered.errors[error_index]);
-            assert_eq!(error["diagnostic_code"], code);
-            assert_eq!(error["span"], serde_json::json!([start, end]));
-            assert_eq!(error["text"], "ku");
-        }
-        assert_eq!(
-            json["ParagraphStatementSequence"]["following"][2]["ParagraphStatement"]["value"]["BridiWithLeadingTerms"]
-                ["bridi_tail"]["Gismu"]["phonemes"],
-            "kláma"
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn error_region_brackets_retain_neighbor_context_for_attachment() {
-        // The error-free leading statement is the immediate neighbor of the
-        // error region, so it is retained: dropping it would hide the
-        // structure the error attached to.
-        let source = "mi klama i do ku";
-        let recovered = parse_recovered_syntax(source);
-        assert_eq!(recovered.errors.len(), 1);
-
-        let full = pretty_recovered_syntax_brackets_with_options(
-            &recovered,
-            source,
-            BracketRenderOptions::default(),
-        )
-        .expect("full brackets");
-        assert_eq!(full, "([mi kláma] [.i {do ‼ku‼}])");
-
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            source,
-            10_000,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(regions, full);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn error_region_brackets_equal_full_rendering_when_every_region_has_errors() {
-        let source = "mi ku i do ku i mi klama";
-        let recovered = parse_recovered_syntax(source);
-        assert_eq!(recovered.errors.len(), 2);
-
-        let full = pretty_recovered_syntax_brackets_with_options(
-            &recovered,
-            source,
-            BracketRenderOptions::default(),
-        )
-        .expect("full brackets");
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            source,
-            10_000,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(regions, full);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn error_region_brackets_equal_full_rendering_for_valid_parse() {
-        let source = "mi klama";
-        let recovered = parse_recovered_syntax(source);
-        assert!(recovered.errors.is_empty());
-
-        let full = pretty_recovered_syntax_brackets_with_options(
-            &recovered,
-            source,
-            BracketRenderOptions::default(),
-        )
-        .expect("full brackets");
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            source,
-            10_000,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(full, "(mi kláma)");
-        assert_eq!(regions, full);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn error_region_brackets_truncate_valid_parse_at_budget() {
-        let source = "mi klama";
-        let recovered = parse_recovered_syntax(source);
-        assert!(recovered.errors.is_empty());
-
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            source,
-            5,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(regions, "(mi …");
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn error_region_brackets_keep_the_attached_kei_context() {
-        // The kei-imbalance witness class of issue #731: the first {kei}
-        // attached to close the abstraction, so the second one is unplaceable.
-        // The feedback must retain that attachment structure — the closed
-        // abstraction with its accepted {kei} next to the rejected one.
-        let source = "le nu mi klama kei kei cu broda";
-        let recovered = parse_recovered_syntax(source);
-        assert_eq!(recovered.errors.len(), 1);
-
-        let full = pretty_recovered_syntax_brackets_with_options(
-            &recovered,
-            source,
-            BracketRenderOptions::default(),
-        )
-        .expect("full brackets");
-        assert_eq!(full, "([le {nu (mi kláma) keĭ}] [‼kei‼ cu] bróda)");
-
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            source,
-            10_000,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(regions, full);
-        assert!(regions.contains("keĭ"), "{regions}");
-        assert!(regions.contains("‼kei‼"), "{regions}");
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn error_region_brackets_prune_long_regions_to_the_error_path() {
-        // A long sentence whose error sits at the very end: the full
-        // rendering is 1,815 characters, but the budgeted form prunes the
-        // region to the error path with balanced brackets and `…` elision,
-        // and marks the dropped leading context (the {mi} subject child).
-        let source = format!("mi {}ku", "broda ".repeat(300));
-        let recovered = parse_recovered_syntax(&source);
-        assert_eq!(recovered.errors.len(), 1);
-
-        let full = pretty_recovered_syntax_brackets_with_options(
+    fn terminal_brackets_accept_tabs_that_a_json_tree_rejects() {
+        let source = format!("zoi gy. {}", "\t".repeat(29));
+        let recovered = recovered_words(&source);
+        let limit = ByteLimit::new(64).expect("positive limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let brackets = pretty_recovered_morphology_brackets_with_limit(
             &recovered,
             &source,
             BracketRenderOptions::default(),
+            limit,
+            &cancel,
         )
-        .expect("full brackets");
-        assert_eq!(full.chars().count(), 1_815);
+        .expect("terminal tabs fit in 64 bytes");
+        assert!(brackets.contains('\t'), "{brackets:?}");
+        assert!(brackets.len() <= 64, "{}", brackets.len());
+        let tree = pretty_recovered_morphology_tree_with_limit(
+            &recovered,
+            &source,
+            TreeRenderOptions::default(),
+            limit,
+            &cancel,
+        );
+        assert!(matches!(tree, Err(OutputError::Limit { .. })), "{tree:?}");
+    }
 
-        for budget in [400, 40] {
-            let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn terminal_brackets_accept_quotes_that_a_json_tree_rejects() {
+        let source = format!("zoi gy. {}", "\"".repeat(29));
+        let recovered = recovered_words(&source);
+        let limit = ByteLimit::new(64).expect("positive limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let brackets = pretty_recovered_morphology_brackets_with_limit(
+            &recovered,
+            &source,
+            BracketRenderOptions::default(),
+            limit,
+            &cancel,
+        )
+        .expect("terminal quotes fit in 64 bytes");
+        assert!(brackets.contains('"'), "{brackets:?}");
+        assert!(brackets.len() <= 64, "{}", brackets.len());
+        let tree = pretty_recovered_morphology_tree_with_limit(
+            &recovered,
+            &source,
+            TreeRenderOptions::default(),
+            limit,
+            &cancel,
+        );
+        assert!(matches!(tree, Err(OutputError::Limit { .. })), "{tree:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn terminal_brackets_reject_controls_that_a_json_tree_accepts() {
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let tight = ByteLimit::new(40).expect("positive tight limit");
+        let wide = ByteLimit::new(256).expect("positive wide limit");
+        for (source, escape) in [
+            (format!("zoi gy. {}", "\u{8}".repeat(15)), "\\b"),
+            (format!("zoi gy. {}", "\u{c}".repeat(15)), "\\f"),
+        ] {
+            let recovered = recovered_words(&source);
+            let brackets = pretty_recovered_morphology_brackets_with_limit(
                 &recovered,
                 &source,
-                budget,
                 BracketRenderOptions::default(),
+                tight,
+                &cancel,
+            );
+            assert!(
+                matches!(brackets, Err(OutputError::Limit { .. })),
+                "{source:?} {brackets:?}"
+            );
+            let tree = pretty_recovered_morphology_tree_with_limit(
+                &recovered,
+                &source,
+                TreeRenderOptions::default(),
+                wide,
+                &cancel,
             )
-            .expect("error region brackets");
-            assert_eq!(regions, "…\n[… ‼ku‼]");
-            assert!(regions.chars().count() <= budget);
+            .expect("json control escape fits");
+            assert!(tree.contains(escape), "{tree}");
+            assert!(!tree.contains('\u{8}'), "{tree:?}");
+            assert!(!tree.contains('\u{c}'), "{tree:?}");
+            assert!(tree.len() <= 256, "{}", tree.len());
         }
-
-        // Below the pruned region's size the last-resort string cut applies:
-        // still within budget, still marked on both sides.
-        let cut = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            &source,
-            20,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(cut, "…\n[… ‼ku‼]");
-        assert!(cut.chars().count() <= 20);
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn error_region_brackets_mark_dropped_neighbor_context_on_both_sides() {
-        // A long immediate neighbor selected in the first pass is what pushes
-        // the rendering over budget; the fallback must not drop it silently.
-        // Leading neighbor (a long valid statement before the error region):
-        let source = format!("mi {} i do ku", "broda ".repeat(300));
+    fn syntax_terminal_text_accepts_tabs_that_a_json_tree_rejects() {
+        let source = format!("mi ku{}ku", "\t".repeat(39));
         let recovered = parse_recovered_syntax(&source);
-        assert_eq!(recovered.errors.len(), 1);
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+        assert!(!recovered.errors.is_empty());
+        let limit = ByteLimit::new(80).expect("positive limit");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let options = BracketRenderOptions::default();
+        let brackets = pretty_recovered_syntax_brackets_with_limit(
+            &recovered, &source, options, limit, &cancel,
+        )
+        .expect("syntax brackets fit");
+        let plain =
+            pretty_recovered_syntax_plain_with_limit(&recovered, &source, options, limit, &cancel)
+                .expect("syntax plain fits");
+        for rendered in [&brackets, &plain] {
+            assert!(rendered.contains('\t'), "{rendered:?}");
+            assert!(rendered.len() <= 80, "{}", rendered.len());
+        }
+        let tree = pretty_recovered_syntax_tree_with_limit(
             &recovered,
             &source,
-            1_000,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(regions, "…\n[.i {do ‼ku‼}]");
-        assert!(regions.chars().count() <= 1_000);
-
-        // Trailing neighbor (a long valid statement after the error region):
-        let source = format!("mi ku i do {}", "broda ".repeat(300));
-        let recovered = parse_recovered_syntax(&source);
-        assert_eq!(recovered.errors.len(), 1);
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            &source,
-            1_000,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(regions, "[mi ‼ku‼]\n…");
-        assert!(regions.chars().count() <= 1_000);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn error_region_brackets_report_omitted_regions_over_budget() {
-        // Two error regions whose compact pruned forms both fit the budget.
-        let source = format!(
-            "mi {}ku i do {}ku",
-            "broda ".repeat(40),
-            "broda ".repeat(40)
+            TreeRenderOptions::default(),
+            limit,
         );
-        let recovered = parse_recovered_syntax(&source);
-        assert_eq!(recovered.errors.len(), 2);
+        assert!(matches!(tree, Err(OutputError::Limit { .. })), "{tree:?}");
+    }
 
-        let full = pretty_recovered_syntax_brackets_with_options(
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_quote_limit(source: &str, limit: ByteLimit) {
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("quote segments");
+        let generated = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        )
+        .expect("quote parses");
+        let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        )
+        .expect("recovered quote parses");
+        let cancel = jbotci_interrupt::CancellationToken::never();
+        let options = BracketRenderOptions::default();
+        let tree_options = TreeRenderOptions::default();
+        let results = [
+            crate::pretty_generated_model_tree_with_limit(
+                &generated,
+                source,
+                tree_options,
+                limit,
+                &cancel,
+            ),
+            crate::pretty_generated_model_brackets_with_limit(
+                &generated, source, options, limit, &cancel,
+            ),
+            crate::pretty_generated_model_plain_with_limit(
+                &generated, source, options, limit, &cancel,
+            ),
+            pretty_recovered_syntax_tree_with_limit(&recovered, source, tree_options, limit),
+            pretty_recovered_syntax_brackets_with_limit(
+                &recovered, source, options, limit, &cancel,
+            ),
+            pretty_recovered_syntax_plain_with_limit(&recovered, source, options, limit, &cancel),
+            crate::pretty_morphology_tree_with_limit(&words, source, tree_options, limit, &cancel),
+            crate::pretty_morphology_brackets_with_limit(&words, source, options, limit, &cancel),
+        ];
+        for result in results {
+            assert!(
+                matches!(result, Err(OutputError::Limit { .. })),
+                "{result:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colored_recovered_error_keeps_the_whitespace_line_unstyled() {
+        let source = "mi ku\n   \nku .i do";
+        let recovered = parse_recovered_syntax(source);
+        assert!(!recovered.errors.is_empty());
+        let color = BracketRenderOptions {
+            color: true,
+            ..BracketRenderOptions::default()
+        };
+        let bracketed = pretty_recovered_syntax_brackets_with_options(&recovered, source, color)
+            .expect("colored error brackets");
+        let plain = pretty_recovered_syntax_plain_with_limit(
             &recovered,
-            &source,
+            source,
+            color,
+            crate::budget::ByteLimit::new(usize::MAX).expect("positive unlimited limit"),
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect("colored error plain");
+        let plain_brackets = pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            source,
             BracketRenderOptions::default(),
         )
-        .expect("full brackets");
-        assert_eq!(full.chars().count(), 518);
+        .expect("plain error brackets");
+        for rendered in [&bracketed, &plain] {
+            assert_colored_break_lines(rendered);
+            assert!(rendered.contains("\x1b[9m"), "{rendered:?}");
+            assert!(rendered.contains('‼'), "{rendered:?}");
+        }
+        assert!(plain_brackets.contains("\n   \n"), "{plain_brackets:?}");
+        assert!(!plain_brackets.contains('\u{1b}'), "{plain_brackets:?}");
+    }
 
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            &source,
-            50,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(regions, "[… ‼ku‼]\n[.i {do (… ‼ku‼)}]");
-        assert!(regions.chars().count() <= 50);
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_colored_break_lines(rendered: &str) {
+        for line in split_all_breaks(rendered) {
+            let visible = strip_ansi(line);
+            if visible.chars().all(char::is_whitespace) {
+                assert!(!line.contains('\u{1b}'), "{line:?} in {rendered:?}");
+            } else if line.contains('\u{1b}') {
+                assert!(line.ends_with("\x1b[0m"), "{line:?} in {rendered:?}");
+            }
+        }
+    }
 
-        // Both regions fit a budget that admits them together with their
-        // elision markers; every error marker is then shown.
-        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
-            &recovered,
-            &source,
-            60,
-            BracketRenderOptions::default(),
-        )
-        .expect("error region brackets");
-        assert_eq!(regions, "[… ‼ku‼]\n[.i {do (… ‼ku‼)}]");
-        // Both error tokens are shown.
-        assert_eq!(regions.matches("‼ku‼").count(), 2);
-        assert!(regions.chars().count() <= 60);
+    #[requires(true)]
+    #[ensures(true)]
+    fn split_all_breaks(text: &str) -> Vec<&str> {
+        let mut lines = Vec::new();
+        let bytes = text.as_bytes();
+        let mut start = 0;
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] == b'\n' || bytes[index] == b'\r' {
+                lines.push(&text[start..index]);
+                if bytes[index] == b'\r' && bytes.get(index + 1) == Some(&b'\n') {
+                    index += 2;
+                } else {
+                    index += 1;
+                }
+                start = index;
+            } else {
+                index += 1;
+            }
+        }
+        lines.push(&text[start..]);
+        lines
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn strip_ansi(text: &str) -> String {
+        let mut visible = String::new();
+        let mut chars = text.chars();
+        while let Some(character) = chars.next() {
+            if character == '\u{1b}' {
+                for next in chars.by_ref() {
+                    if next == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                visible.push(character);
+            }
+        }
+        visible
     }
 
     #[test]
@@ -2173,7 +2271,12 @@ pub fn pretty_recovered_morphology_raw_with_limit(
         raw_with_limit(&recovered.words, indent, limit)?
     } else {
         raw_with_limit(
-            &recovered_morphology_sequence(recovered, source)?,
+            &recovered_morphology_sequence(
+                recovered,
+                source,
+                &crate::budget::OutputBudget::new(limit),
+                LeafEncoding::JsonString,
+            )?,
             indent,
             limit,
         )?
@@ -2205,17 +2308,22 @@ pub(crate) fn recovered_morphology_sequence_for_json_test(
     source: &str,
 ) -> Value {
     Value::Array(
-        recovered_morphology_sequence(recovered, source)
-            .unwrap()
-            .into_iter()
-            .map(|item| match item.into_data() {
-                data!(RecoveredMorphologySequenceItem::Valid { word }) => {
-                    json::morphology_word_like_value(word, crate::PhonemeRenderOptions::default())
-                }
-                data!(RecoveredMorphologySequenceItem::Error { item }) => {
-                    recovery_error_json_value(&item)
-                }
-            })
-            .collect(),
+        recovered_morphology_sequence(
+            recovered,
+            source,
+            &crate::budget::OutputBudget::unlimited(),
+            LeafEncoding::JsonString,
+        )
+        .unwrap()
+        .into_iter()
+        .map(|item| match item.into_data() {
+            data!(RecoveredMorphologySequenceItem::Valid { word }) => {
+                json::morphology_word_like_value(word, crate::PhonemeRenderOptions::default())
+            }
+            data!(RecoveredMorphologySequenceItem::Error { item }) => {
+                recovery_error_json_value(&item)
+            }
+        })
+        .collect(),
     )
 }

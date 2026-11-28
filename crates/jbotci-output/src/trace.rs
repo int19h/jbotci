@@ -62,7 +62,7 @@ fn push_trace_event(output: &mut String, event: &TraceEvent, color: bool) {
     output.push_str(&style_span(event.byte_start, event.byte_end, color));
     if let Some(detail) = &event.detail {
         output.push_str(&style_punctuation(": ", color));
-        output.push_str(detail);
+        output.push_str(&crate::styled::escape_terminal_field(detail));
     }
     output.push('\n');
 }
@@ -110,7 +110,7 @@ fn push_failure_summary(output: &mut String, failure: &TraceFailureSummary, colo
     output.push_str(&style_punctuation(" @ ", color));
     output.push_str(&style_span(failure.byte_start, failure.byte_end, color));
     output.push_str(&style_punctuation(": ", color));
-    output.push_str(&failure.reason);
+    output.push_str(&crate::styled::escape_terminal_field(&failure.reason));
     output.push('\n');
     if let Some(context) = &failure.current_context {
         output.push_str("    ");
@@ -152,7 +152,9 @@ fn push_failure_branch(output: &mut String, branch: &TraceFailureBranch, color: 
         output.push_str(&style_punctuation("; ", color));
         output.push_str(&style_keyword("expected", color));
         output.push_str(&style_punctuation(": ", color));
-        output.push_str(&branch.expected.join(", "));
+        output.push_str(&crate::styled::escape_terminal_field(
+            &branch.expected.join(", "),
+        ));
     }
     output.push('\n');
 }
@@ -170,10 +172,11 @@ fn style_header(text: &str, color: bool) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn style_construct(text: &str, color: bool) -> String {
+    let text = crate::styled::escape_terminal_field(text);
     if color {
-        text.bright_white().to_string()
+        text.as_ref().bright_white().to_string()
     } else {
-        text.to_owned()
+        text.into_owned()
     }
 }
 
@@ -205,5 +208,61 @@ fn style_span(start: usize, end: usize, color: bool) -> String {
         span.bright_black().to_string()
     } else {
         span
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bityzba::new;
+    use jbotci_diagnostics::{
+        TraceContext, TraceEvent, TraceEventKind, TraceFailureBranch, TraceFailureSummary,
+        TraceLevel, TracePhase, TraceReport,
+    };
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn trace_text_escapes_controls_in_both_modes() {
+        let report = new!(TraceReport {
+            phase: TracePhase::Syntax,
+            events: vec![new!(TraceEvent {
+                phase: TracePhase::Syntax,
+                level: TraceLevel::Top,
+                depth: 0,
+                kind: TraceEventKind::Token,
+                label: "a\u{1b}b\r".to_owned(),
+                byte_start: 0,
+                byte_end: 1,
+                detail: Some("c\u{9f}\n".to_owned()),
+            })],
+            truncated: false,
+            failure: Some(new!(TraceFailureSummary {
+                byte_start: 0,
+                byte_end: 1,
+                reason: "d\t\r\n".to_owned(),
+                branches: vec![TraceFailureBranch {
+                    contexts: vec![TraceContext::new("e\u{1b}\r".to_owned(), 0, 1)],
+                    expected: vec!["f\u{80}\n".to_owned()],
+                }],
+                current_context: None,
+            })),
+        });
+        for color in [false, true] {
+            let rendered = render_trace_report(&report, TraceRenderOptions { color });
+            assert!(rendered.contains("a\\u{1b}b"), "{rendered:?}");
+            assert!(rendered.contains("c\\u{9f}"), "{rendered:?}");
+            assert!(rendered.contains("d\t"), "{rendered:?}");
+            assert!(rendered.contains("e\\u{1b}"), "{rendered:?}");
+            assert!(rendered.contains("f\\u{80}"), "{rendered:?}");
+            assert!(rendered.contains("\\u{d}"), "{rendered:?}");
+            assert!(rendered.contains("\\u{a}"), "{rendered:?}");
+            assert!(!rendered.contains('\r'), "{rendered:?}");
+            assert!(!rendered.contains('\u{9f}'), "{rendered:?}");
+            assert!(!rendered.contains('\u{80}'), "{rendered:?}");
+            if !color {
+                assert!(!rendered.contains('\u{1b}'), "{rendered:?}");
+            }
+        }
     }
 }

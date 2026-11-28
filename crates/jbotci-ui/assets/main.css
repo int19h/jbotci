@@ -411,7 +411,7 @@ body::-webkit-scrollbar-thumb:hover,
   margin: 0;
   padding: 0.08rem 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
   align-items: center;
   column-gap: 0.65rem;
   font-size: 0.92rem;
@@ -421,7 +421,7 @@ body::-webkit-scrollbar-thumb:hover,
 .app-topbar-left {
   grid-column: 1;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.16rem;
   padding-left: 0.2rem;
@@ -439,7 +439,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-topbar-brand-logo {
   display: block;
-  height: 1.9rem;
+  height: min(1.9rem, 11vw);
   width: auto;
 }
 
@@ -461,9 +461,9 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page .app-topbar .app-topbar-settings-toggle {
-  width: 1.55rem;
-  min-width: 1.55rem;
-  height: 1.55rem;
+  width: min(1.55rem, 9vw);
+  min-width: min(1.55rem, 9vw);
+  height: min(1.55rem, 9vw);
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -473,8 +473,9 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--theme-switch-bg);
   color: var(--dark-surface-link);
   cursor: pointer;
+  overflow: hidden;
   font-family: var(--ui-font);
-  font-size: 0.9rem;
+  font-size: min(0.9rem, 5vw);
   line-height: 1;
   text-decoration: none;
 }
@@ -544,18 +545,19 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .theme-btn {
-  width: 1.25rem;
-  min-width: 1.25rem;
-  height: 1.25rem;
+  width: min(1.25rem, 8vw);
+  min-width: min(1.25rem, 8vw);
+  height: min(1.25rem, 8vw);
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 0;
   border-radius: 999px;
+  overflow: hidden;
   background: transparent;
   color: var(--theme-btn-fg);
-  font-size: 0.72rem;
+  font-size: min(0.72rem, 4.5vw);
   line-height: 1;
 }
 
@@ -573,16 +575,16 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .orthography-btn {
-  width: 1.55rem;
-  min-width: 1.55rem;
+  width: min(1.55rem, 8vw);
+  min-width: min(1.55rem, 8vw);
   font-family: var(--ui-font);
-  font-size: 0.82rem;
+  font-size: min(0.82rem, 4.5vw);
   font-weight: 400;
 }
 
 .orthography-btn.is-zbalermorna {
   font-family: var(--lojban-font);
-  font-size: 0.94rem;
+  font-size: min(0.94rem, 5vw);
 }
 
 .orthography-btn.is-zbalermorna .orthography-btn-icon {
@@ -679,11 +681,12 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page .app-topbar .app-topbar-nav-carousel {
-  --topbar-carousel-item-width: 4.55rem;
+  --topbar-carousel-item-width: min(4.55rem, 100%);
   --topbar-carousel-gap: 0.12rem;
-  width: clamp(7.4rem, 24vw, 13.6rem);
-  min-width: 6.2rem;
-  flex: 0 1 clamp(7.4rem, 24vw, 13.6rem);
+  width: min(13.6rem, 24vw);
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
   display: block;
   position: relative;
   margin-left: 0.42rem;
@@ -719,10 +722,11 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-page .app-topbar .app-topbar-carousel-link {
   flex: 0 0 var(--topbar-carousel-item-width);
+  min-width: 0;
   margin-left: 0;
   padding: 0.16rem 0.08rem 0.22rem;
   scroll-snap-align: center;
-  overflow: visible;
+  overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.2;
 }
@@ -800,6 +804,8 @@ body::-webkit-scrollbar-thumb:hover,
   grid-column: 3;
   justify-self: end;
   align-self: center;
+  min-width: 0;
+  max-width: 100%;
   padding-right: 0.2rem;
   color: var(--topbar-text);
   text-align: right;
@@ -807,13 +813,17 @@ body::-webkit-scrollbar-thumb:hover,
   font-size: 0.7rem;
 }
 
+/* The input keeps a usable width. A full row puts the actions on the next row. */
 .page-find-control {
-  width: clamp(10rem, 26vw, 18rem);
-  min-width: 10rem;
-  height: 1.7rem;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: min(18rem, max(10rem, 26vw), 34vw);
+  min-width: 0;
+  max-width: 100%;
+  min-height: 1.7rem;
+  height: auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: center;
   gap: 0.18rem;
   padding: 0.08rem 0.16rem 0.08rem 0.42rem;
   border: 1px solid var(--theme-switch-border);
@@ -826,6 +836,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .page-find-icon {
   display: inline-flex;
+  flex: 0 0 auto;
   width: 0.82rem;
   height: 0.82rem;
   color: var(--topbar-commit);
@@ -842,8 +853,9 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .page-find-input {
-  width: 100%;
-  min-width: 0;
+  flex: 1 1 4ch;
+  width: auto;
+  min-width: 4ch;
   margin: 0;
   padding: 0;
   border: 0;
@@ -865,13 +877,16 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .page-find-actions {
-  height: 100%;
-  min-width: 0;
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 0 auto;
   align-items: center;
   justify-content: flex-end;
   gap: 0;
-  white-space: nowrap;
+  min-width: min(100%, max-content);
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
 }
 
 .page-find-input::placeholder {
@@ -1377,11 +1392,24 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .brackets-section {
-  margin-bottom: 0.85rem;
+  margin-bottom: 0;
   padding: 0;
   background: transparent;
   border: 0;
   border-radius: 0;
+}
+
+.gentufa-output-frame {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gentufa-output-frame > .brackets-section,
+.gentufa-output-frame > .view-toolbar {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .parse-page .brackets-output-stack {
@@ -1404,6 +1432,11 @@ body::-webkit-scrollbar-thumb:hover,
   white-space: pre-wrap;
   word-break: break-word;
   overflow: visible;
+}
+
+.parse-page .brackets-output:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 2px;
 }
 
 .app-page.orthography-zbalermorna .parse-page .brackets-output {
@@ -1446,9 +1479,12 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .gentufa-diagnostics-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .parse-page .gentufa-diagnostics-title {
@@ -1622,14 +1658,58 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .view-toolbar {
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.45rem 1rem;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  grid-template-areas: "views controls text";
+  align-items: end;
+  column-gap: 1rem;
   width: 100%;
-  margin: 0.75rem 0 0.45rem;
+  margin: 0 0 0.45rem;
+  padding-top: 0.55rem;
   border-bottom: 0;
+}
+
+.parse-page .view-toolbar.is-two-rows {
+  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-areas: "views text" "controls controls";
+  row-gap: 0.35rem;
+}
+
+.parse-page .view-toolbar.is-three-rows {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "text" "views" "controls";
+  row-gap: 0.35rem;
+}
+
+.parse-page .view-toolbar .view-tabs { grid-area: views; }
+.parse-page .view-toolbar .controls {
+  grid-area: controls;
+  justify-content: flex-start;
+  margin: 0 0 0.32rem;
+}
+.parse-page .view-toolbar .text-tabs { grid-area: text; }
+
+.gentufa-toolbar-fit-probe {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  width: max-content;
+  visibility: hidden;
+  pointer-events: none;
+  contain: layout style;
+}
+
+.gentufa-toolbar-fit-probe .view-toolbar {
+  width: max-content;
+  flex-wrap: nowrap;
+}
+
+.parse-page .gentufa-toolbar-first-row-fit-probe {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  width: max-content;
 }
 
 .parse-page .view-toolbar::after {
@@ -1648,9 +1728,13 @@ body::-webkit-scrollbar-thumb:hover,
   position: relative;
   z-index: 1;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
   gap: 0;
+  row-gap: 0.2rem;
   width: auto;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   border-bottom: 0;
 }
@@ -1690,6 +1774,30 @@ body::-webkit-scrollbar-thumb:hover,
   font-weight: 500;
 }
 
+.parse-page .view-tab,
+.parse-page .text-tab {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.parse-page .view-tab::after,
+.parse-page .text-tab::after {
+  content: attr(data-label);
+  display: block;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  height: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  visibility: hidden;
+  white-space: normal;
+  font-weight: 500;
+}
+
 .parse-page .controls {
   position: relative;
   z-index: 1;
@@ -1698,6 +1806,8 @@ body::-webkit-scrollbar-thumb:hover,
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 0.45rem 1.35rem;
+  min-width: 0;
+  max-width: 100%;
   margin: 0 0 0.32rem auto;
 }
 
@@ -1715,33 +1825,80 @@ body::-webkit-scrollbar-thumb:hover,
   opacity: 0.68;
 }
 
+.parse-page .text-tabs {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-self: start;
+  row-gap: 0.2rem;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: calc(-0.55rem - 1px);
+}
+
+.parse-page .gentufa-toolbar-fit-probe .view-tabs,
+.parse-page .gentufa-toolbar-fit-probe .text-tabs,
+.parse-page .gentufa-toolbar-first-row-fit-probe .view-tabs,
+.parse-page .gentufa-toolbar-first-row-fit-probe .text-tabs {
+  flex-wrap: nowrap;
+  max-width: none;
+  min-width: max-content;
+}
+
+.parse-page .gentufa-toolbar-fit-probe .view-tab,
+.parse-page .gentufa-toolbar-fit-probe .text-tab,
+.parse-page .gentufa-toolbar-first-row-fit-probe .view-tab,
+.parse-page .gentufa-toolbar-first-row-fit-probe .text-tab,
+.parse-page .gentufa-toolbar-fit-probe .view-tab::after,
+.parse-page .gentufa-toolbar-fit-probe .text-tab::after,
+.parse-page .gentufa-toolbar-first-row-fit-probe .view-tab::after,
+.parse-page .gentufa-toolbar-first-row-fit-probe .text-tab::after {
+  white-space: nowrap;
+  max-width: none;
+  min-width: max-content;
+  overflow-wrap: normal;
+}
+
+.parse-page .text-tab {
+  position: relative;
+  padding: 0 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0 0 10px 10px;
+  background: var(--page-bg);
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  font-variant: all-small-caps;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.parse-page .text-tab + .text-tab { margin-left: -1px; }
+.parse-page .text-tab:hover { color: var(--app-link-hover); }
+.parse-page .text-tab[aria-selected="true"] {
+  z-index: 1;
+  border-color: var(--app-border-strong);
+  border-top-color: var(--brackets-bg);
+  background: var(--brackets-bg);
+  color: var(--brackets-text);
+  font-weight: 500;
+}
+.parse-page .text-tab:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: -2px;
+}
+.parse-page .brackets-output[data-mode="ipa"] .brackets-output-markup {
+  color: var(--brackets-text);
+}
+
 .parse-page .table-controls {
   margin-bottom: 0.45rem;
   padding: 0;
   border-top: 0;
-}
-
-.parse-page .ipa-view {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin-top: 0.85rem;
-}
-
-.parse-page .ipa-tab-output {
-  width: 100%;
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--app-text);
-  font: inherit;
-  font-size: 1rem;
-  line-height: 1.5;
-  text-align: center;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .parse-page .blocks-view {
@@ -1757,12 +1914,19 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .blocks-svg-link {
-  position: absolute;
+  position: sticky;
+  grid-area: 1 / 1;
+  justify-self: end;
+  align-self: start;
   top: 0;
   right: 0;
   z-index: 5;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0;
+  width: max-content;
+  max-width: min(100%, 100vw);
   transform: none;
   font-size: 0.64rem;
   font-style: normal;
@@ -1808,7 +1972,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .blocks-container {
-  display: block;
+  display: grid;
   width: max-content;
   min-width: 0;
   margin-inline: auto;
@@ -1822,6 +1986,8 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .blocks-grid {
   display: inline-grid;
+  grid-area: 1 / 1;
+  justify-self: start;
   width: max-content;
   min-width: 0;
   gap: var(--blocks-gap);
@@ -5812,7 +5978,13 @@ body::-webkit-scrollbar-thumb:hover,
 @media (max-width: 760px) {
   .app-topbar-inner {
     grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 0.35rem;
+    column-gap: min(0.35rem, 1.75vw);
+  }
+
+  .app-topbar-left {
+    gap: min(0.16rem, 0.8vw);
+    padding-left: min(0.2rem, 1vw);
+    min-width: 0;
   }
 
   .app-topbar-left {
@@ -5826,11 +5998,28 @@ body::-webkit-scrollbar-thumb:hover,
   .app-topbar-right {
     grid-column: 2;
     display: block;
-    min-width: 10rem;
+    min-width: min(10rem, 50vw);
+    max-width: 100%;
+    padding-right: min(0.2rem, 1vw);
+  }
+
+  .app-topbar-settings {
+    margin-left: min(0.45rem, 2.25vw);
+  }
+
+  .app-topbar-brand-logo {
+    height: min(1.9rem, 11vw);
+    width: auto;
+  }
+
+  .app-page .app-topbar .app-topbar-settings-toggle {
+    width: min(1.55rem, 9vw);
+    min-width: min(1.55rem, 9vw);
+    height: min(1.55rem, 9vw);
   }
 
   .app-topbar-theme {
-    margin-left: 0.35rem;
+    margin-left: min(0.35rem, 1.75vw);
   }
 
   .app-page .app-topbar .spa-nav {
@@ -5839,12 +6028,18 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .app-page .app-topbar .app-topbar-nav-carousel {
-    --topbar-carousel-item-width: 3.65rem;
+    --topbar-carousel-item-width: min(3.65rem, 18vw);
     --topbar-carousel-gap: 0.08rem;
-    width: clamp(6.35rem, 38vw, 12.2rem);
-    min-width: 5.7rem;
-    flex-basis: clamp(6.35rem, 38vw, 12.2rem);
-    margin-left: 0.28rem;
+    width: min(12.2rem, 38vw);
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 auto;
+    flex-basis: min(12.2rem, 38vw);
+    margin-left: min(0.28rem, 1.4vw);
+  }
+
+  .app-page .app-topbar .app-topbar-nav-carousel-track {
+    min-width: 0;
   }
 
   .app-page .app-topbar .app-topbar-carousel-link {
@@ -5861,7 +6056,9 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .page-find-control {
-    width: 10rem;
+    width: max(min(10rem, 50vw), min(70vw, 6rem));
+    min-width: 0;
+    max-width: max(min(10rem, 50vw), min(70vw, 6rem));
   }
 
   .spa-page .page-container {
@@ -6027,9 +6224,9 @@ body::-webkit-scrollbar-thumb:hover,
 
 @media (min-width: 400px) and (max-width: 760px) {
   .app-page .app-topbar .app-topbar-nav-carousel {
-    width: 7.7rem;
-    min-width: 7.1rem;
-    flex-basis: 7.7rem;
+    width: min(7.7rem, 34vw);
+    min-width: 0;
+    flex-basis: min(7.7rem, 34vw);
   }
 }
 

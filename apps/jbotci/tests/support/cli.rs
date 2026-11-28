@@ -1337,6 +1337,47 @@ const EMPTY_ERASURE_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAIgAAABwCAYAAADF
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn gentufa_plain_matches_bracket_words_without_structural_brackets() {
+    let brackets = run_cli_capture(
+        &[
+            "jbotci",
+            "gentufa",
+            "--turtai",
+            "brackets",
+            "--show-elided",
+            "mi klama lo zarci",
+        ],
+        false,
+    );
+    let plain = run_cli_capture(
+        &[
+            "jbotci",
+            "gentufa",
+            "--turtai",
+            "plain",
+            "--show-elided",
+            "mi klama lo zarci",
+        ],
+        false,
+    );
+
+    assert_eq!(brackets.status, CliStatus::Success);
+    assert_eq!(brackets.stdout, "(mi [kláma {lo zárci ku} vau])\n");
+    assert_eq!(plain.status, CliStatus::Success);
+    assert_eq!(plain.stdout, "mi kláma lo zárci ku vau\n");
+    assert!(plain.stderr.is_empty(), "{}", plain.stderr);
+
+    let parsed = Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "plain", "coi"])
+        .expect("plain format");
+    let Command::Gentufa(input) = parsed.command else {
+        panic!("expected gentufa command");
+    };
+    assert_eq!(input.format, GentufaFormat::Plain);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn gentufa_empty_erasure_has_exact_output_in_every_format() {
     run_on_normal_stack(|| {
         let source = "le broda sa le si";
@@ -1793,7 +1834,7 @@ fn gentufa_display_flags_parse_with_expected_defaults() {
 #[requires(true)]
 #[ensures(true)]
 fn gentufa_image_only_flags_are_rejected_outside_blocks() {
-    for format in ["brackets", "tree", "json", "raw"] {
+    for format in ["brackets", "plain", "tree", "json", "raw"] {
         assert_gentufa_error_contains(
             &[
                 "jbotci",
@@ -1842,7 +1883,7 @@ fn gentufa_image_only_flags_are_rejected_outside_blocks() {
         ],
         "`--show-elided` is not supported with `--turtai raw`",
     );
-    for format in ["brackets", "tree", "json", "blocks"] {
+    for format in ["brackets", "plain", "tree", "json", "blocks"] {
         let output = run_success_bytes(&[
             "jbotci",
             "gentufa",

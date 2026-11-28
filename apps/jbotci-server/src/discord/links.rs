@@ -22,8 +22,9 @@ use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{cll_lookup_example, cll_resolve_example_reference, embedded_cll_site};
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CuktaSearchTarget, CuktaWebMode, CuktaWebSearchState, CuktaWebState,
-    CuktaWebView, GentufaWebState, GentufaWebViewMode, GimfihiWebState, VLACKU_WEB_DEFAULT_COUNT,
-    VlackuWebMode, VlackuWebState, WebRoute, gimfihi_web_source_from_record, web_route_url,
+    CuktaWebView, GentufaTextOutput, GentufaWebState, GentufaWebViewMode, GimfihiWebState,
+    VLACKU_WEB_DEFAULT_COUNT, VlackuWebMode, VlackuWebState, WebRoute,
+    gimfihi_web_source_from_record, web_route_url,
 };
 
 use super::operations::GIMFIHI_RECORD_SEPARATORS;
@@ -170,6 +171,7 @@ fn gentufa_state(request: &GentufaRequest) -> GentufaWebState {
             GentufaTextView::Brackets => GentufaWebViewMode::Blocks,
             GentufaTextView::Tree => GentufaWebViewMode::Tree,
         },
+        output: GentufaTextOutput::Groups,
         show_elided: options.show_elided,
         show_glosses: options.show_glosses,
         show_compounds: options.show_compounds,

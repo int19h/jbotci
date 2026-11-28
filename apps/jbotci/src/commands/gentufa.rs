@@ -184,6 +184,65 @@ fn analyze_gentufa_input(
     }))
 }
 
+/// True when any gentufa diagnostic for `text` keeps a prepared line boundary.
+///
+/// The flag comes from the renderer's cut decision, not from the rendered text.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub(crate) fn gentufa_excerpt_is_cut(text: &str, ascii: bool) -> Result<bool> {
+    let cli = Cli::try_parse_from(["jbotci", "gentufa"])
+        .map_err(|error| anyhow::Error::msg(error.to_string()))?;
+    let Command::Gentufa(input) = cli.command else {
+        return Err(anyhow::Error::msg("gentufa command"));
+    };
+    let trace = CliTraceConfig {
+        phase: TracePhase::Syntax,
+        limit: jbotci_diagnostics::DEFAULT_TRACE_LIMIT,
+    };
+    let analysis = analyze_gentufa_input(
+        &input,
+        false,
+        trace,
+        Some(text),
+        &jbotci_interrupt::CancellationToken::never(),
+    )?;
+    let data!(GentufaAnalysis {
+        text,
+        source_label,
+        morphology_trace_stderr,
+        diagnostics,
+        syntax,
+    }) = analysis.into_data();
+    let _ = morphology_trace_stderr;
+    let mut diagnostics = diagnostics;
+    match syntax {
+        GentufaSyntaxStage::MorphologyFailed => {}
+        GentufaSyntaxStage::Parsed { parse, .. } => {
+            match parse.into_data() {
+                data!(SyntaxRecoveryParse::Valid { parse }) => {
+                    let parsed = parse.into_data();
+                    diagnostics.extend(parsed.warnings.iter().map(|warning| {
+                        warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                    }));
+                }
+                data!(SyntaxRecoveryParse::Recovered { parse }) => {
+                    let parsed = parse.into_data();
+                    diagnostics.extend(parsed.errors.iter().map(|error| {
+                        error.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                    }));
+                    diagnostics.extend(parsed.warnings.iter().map(|warning| {
+                        warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                    }));
+                }
+                data!(SyntaxRecoveryParse::Interrupted) => {}
+            }
+        }
+    }
+    Ok(diagnostics
+        .iter()
+        .any(|diagnostic| jbotci_output::diagnostic_excerpt_is_cut(&text, diagnostic, 80, ascii)))
+}
+
 #[requires(diagnostic_terminal_width > 0)]
 #[requires(trace.limit > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -344,24 +403,37 @@ fn render_gentufa(
                 stderr,
             }));
         }
-        GentufaFormat::Brackets => {
-            let rendered = pretty_generated_model_brackets_with_limit(
-                &generated_model,
-                &text,
-                BracketRenderOptions {
-                    color: color_policy.stdout,
-                    phonemes: phoneme_options,
-                    script: LojbanScript::Latin,
-                    glyphs,
-                    decompose_lujvo: input.decompose_lujvo,
-                    insert_hair_space: false,
-                    show_elided: input.show_elided,
-                },
-                render_limits.text,
-                cancellation,
-            )
-            .map_err(interruptible_output_error)?;
-            writeln!(stdout, "{}", visible_bracket_rendering(&rendered))?;
+        GentufaFormat::Brackets | GentufaFormat::Plain => {
+            let options = BracketRenderOptions {
+                color: color_policy.stdout,
+                phonemes: phoneme_options,
+                script: LojbanScript::Latin,
+                glyphs,
+                decompose_lujvo: input.decompose_lujvo,
+                insert_hair_space: false,
+                show_elided: input.show_elided,
+            };
+            if input.format == GentufaFormat::Plain {
+                let rendered = pretty_generated_model_plain_with_limit(
+                    &generated_model,
+                    &text,
+                    options,
+                    render_limits.text,
+                    cancellation,
+                )
+                .map_err(interruptible_output_error)?;
+                writeln!(stdout, "{}", visible_bracket_rendering(&rendered))?;
+            } else {
+                let rendered = pretty_generated_model_brackets_with_limit(
+                    &generated_model,
+                    &text,
+                    options,
+                    render_limits.text,
+                    cancellation,
+                )
+                .map_err(interruptible_output_error)?;
+                writeln!(stdout, "{}", visible_bracket_rendering(&rendered))?;
+            }
         }
         GentufaFormat::Raw => {
             write_debug_output(&mut stdout, &generated_model, input.indent)?;
@@ -444,23 +516,35 @@ fn render_recovered_gentufa_output(
                 cancellation,
             );
         }
-        GentufaFormat::Brackets => {
-            let rendered = pretty_recovered_syntax_brackets_with_limit(
-                recovered,
-                source,
-                BracketRenderOptions {
-                    color,
-                    phonemes,
-                    script: LojbanScript::Latin,
-                    glyphs,
-                    decompose_lujvo: input.decompose_lujvo,
-                    insert_hair_space: false,
-                    show_elided: input.show_elided,
-                },
-                render_limits.text,
-                cancellation,
-            )
-            .map_err(interruptible_output_error)?;
+        GentufaFormat::Brackets | GentufaFormat::Plain => {
+            let options = BracketRenderOptions {
+                color,
+                phonemes,
+                script: LojbanScript::Latin,
+                glyphs,
+                decompose_lujvo: input.decompose_lujvo,
+                insert_hair_space: false,
+                show_elided: input.show_elided,
+            };
+            let rendered = if input.format == GentufaFormat::Plain {
+                pretty_recovered_syntax_plain_with_limit(
+                    recovered,
+                    source,
+                    options,
+                    render_limits.text,
+                    cancellation,
+                )
+                .map_err(interruptible_output_error)?
+            } else {
+                pretty_recovered_syntax_brackets_with_limit(
+                    recovered,
+                    source,
+                    options,
+                    render_limits.text,
+                    cancellation,
+                )
+                .map_err(interruptible_output_error)?
+            };
             bounded_format(
                 format_args!("{}\n", visible_bracket_rendering(&rendered)),
                 render_limits.text,

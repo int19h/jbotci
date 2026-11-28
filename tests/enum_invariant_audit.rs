@@ -788,6 +788,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Plain",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
         "apps/jbotci/src/tool.rs:ToolGentufaFormat::Png",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),

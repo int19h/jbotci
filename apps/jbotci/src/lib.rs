@@ -9,10 +9,11 @@ use jbotci_output::{
     compact_generated_model_json_string_with_limits, compact_morphology_json_string_with_limits,
     compact_recovered_morphology_json_string_with_limits,
     compact_recovered_syntax_json_string_with_limits, pretty_generated_model_brackets_with_limit,
-    pretty_generated_model_tree_with_limit, pretty_morphology_brackets_with_limit,
-    pretty_morphology_tree_with_limit, pretty_recovered_morphology_brackets_with_limit,
-    pretty_recovered_morphology_raw_with_limit, pretty_recovered_morphology_tree_with_limit,
-    pretty_recovered_syntax_brackets_with_limit, pretty_recovered_syntax_raw_with_limit,
+    pretty_generated_model_plain_with_limit, pretty_generated_model_tree_with_limit,
+    pretty_morphology_brackets_with_limit, pretty_morphology_tree_with_limit,
+    pretty_recovered_morphology_brackets_with_limit, pretty_recovered_morphology_raw_with_limit,
+    pretty_recovered_morphology_tree_with_limit, pretty_recovered_syntax_brackets_with_limit,
+    pretty_recovered_syntax_plain_with_limit, pretty_recovered_syntax_raw_with_limit,
     pretty_recovered_syntax_tree_with_limit, render_diagnostics_with_limit,
 };
 
@@ -124,6 +125,35 @@ pub mod test_harness {
             color_policy,
             diagnostic_terminal_width,
         )
+    }
+
+    #[requires(diagnostic_terminal_width > 0)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub fn run_cli_with_stdin_and_width<WOut: std::io::Write, WErr: std::io::Write>(
+        cli: Cli,
+        stdout: &mut WOut,
+        stderr: &mut WErr,
+        color_policy: CliColorPolicy,
+        diagnostic_terminal_width: usize,
+        stdin_text: &str,
+    ) -> anyhow::Result<CliStatus> {
+        super::cli::run_cli_with_stdin_text(
+            cli,
+            stdout,
+            stderr,
+            color_policy,
+            diagnostic_terminal_width,
+            stdin_text,
+        )
+    }
+
+    /// True when the renderer cuts a shown line of this gentufa input.
+    ///
+    /// The flag is the renderer's prepared-boundary decision.
+    #[requires(true)]
+    #[ensures(ret || !ret)]
+    pub fn gentufa_excerpt_is_cut(text: &str, ascii: bool) -> bool {
+        super::commands::gentufa_excerpt_is_cut(text, ascii).expect("gentufa excerpt cut check")
     }
 
     #[requires(limit > 0)]
@@ -383,6 +413,8 @@ impl CliProgressPolicy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum GentufaFormat {
     Brackets,
+    /// The same normalized words as brackets, without structural brackets.
+    Plain,
     Blocks,
     #[value(alias = "vipcihe", help = "alias: vipcihe")]
     Tree,
@@ -1781,7 +1813,7 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
         }
         GentufaFormat::Json => {
@@ -1795,7 +1827,7 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
         }
         GentufaFormat::Blocks => {
@@ -1817,12 +1849,12 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
             )?;
             validate_not_present(
                 input.decompose_lujvo,
-                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                "`--decompose-lujvo` is only supported with `--turtai tree`, `--turtai brackets`, or `--turtai plain`",
             )?;
             let _ = resolve_gentufa_blocks_output_type(input)?;
         }
         GentufaFormat::Tree => {}
-        GentufaFormat::Brackets => {
+        GentufaFormat::Brackets | GentufaFormat::Plain => {
             validate_no_indent(
                 input.indent,
                 "`--indent` is only supported with raw, JSON, and tree output",

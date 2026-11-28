@@ -35,12 +35,12 @@ use jbotci_web_core::{
     CuktaWebView, DictionaryTooltipCard, EntryIndex, FAVICON_ASSET_PATH, GIMFIHI_MAX_COUNT,
     GIMFIHI_MAX_WEIGHT, GIMFIHI_MIN_WEIGHT, GentufaBlock, GentufaBlocksLayout,
     GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript, GentufaSuccess,
-    GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
-    GentufaWebState, GentufaWebViewMode, GimfihiCandidate, GimfihiOutput, GimfihiPreset,
-    GimfihiPresetOption, GimfihiScorer, GimfihiWebResult, GimfihiWebSource, GimfihiWebState,
-    GismuShape, MANIFEST_ASSET_PATH, PageMeta, RafsiAvailabilityData, RafsiCandidate,
-    RafsiClaimKind, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole, ReferenceTooltip,
-    ReferenceTooltipInline, ReferenceTooltipInlineData, ReferenceTooltipRow,
+    GentufaTextOutput, GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest,
+    GentufaWebResult, GentufaWebState, GentufaWebViewMode, GimfihiCandidate, GimfihiOutput,
+    GimfihiPreset, GimfihiPresetOption, GimfihiScorer, GimfihiWebResult, GimfihiWebSource,
+    GimfihiWebState, GismuShape, MANIFEST_ASSET_PATH, PageMeta, RafsiAvailabilityData,
+    RafsiCandidate, RafsiClaimKind, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole,
+    ReferenceTooltip, ReferenceTooltipInline, ReferenceTooltipInlineData, ReferenceTooltipRow,
     VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
     VlackuCompositionPieceKind, VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline,
     VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
@@ -523,6 +523,7 @@ struct GentufaComputeInputs {
     text: String,
     dialect_text: String,
     text_explicit: bool,
+    output: GentufaTextOutput,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

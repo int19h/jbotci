@@ -535,6 +535,9 @@ const DESKTOP_EDITION_FIT_MESSAGE: &str = "edition-fit";
 const DESKTOP_VLACKU_CONTROLS_MESSAGE: &str = "vlacku-controls";
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+const DESKTOP_GENTUFA_TOOLBAR_MESSAGE: &str = "gentufa-toolbar";
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 pub(super) struct CuktaEditionFitMetrics {
@@ -4337,6 +4340,7 @@ pub(super) fn install_browser_dom_handlers(
     cukta_toc_forced_autohide: Signal<bool>,
     cukta_edition_release_fits: CuktaEditionReleaseFitState,
     vlacku_controls: VlackuControlsState,
+    gentufa_toolbar_layout: Signal<GentufaToolbarLayout>,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
         if installed.get() {
@@ -4436,6 +4440,7 @@ pub(super) fn install_browser_dom_handlers(
     let stylesheet_cukta_edition_release_fits = cukta_edition_release_fits;
     let stylesheet_load_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
         if event_target_is_stylesheet_link(&event) {
+            schedule_gentufa_toolbar_layout_measure(gentufa_toolbar_layout);
             schedule_gentufa_block_reference_layout();
             schedule_gentufa_tree_layout();
             schedule_topbar_settings_layout_measure(
@@ -4496,6 +4501,7 @@ pub(super) fn install_browser_dom_handlers(
     cukta_toc_forced_autohide: Signal<bool>,
     cukta_edition_release_fits: CuktaEditionReleaseFitState,
     vlacku_controls: VlackuControlsState,
+    gentufa_toolbar_layout: Signal<GentufaToolbarLayout>,
 ) {
     if DESKTOP_DOM_HANDLERS_INSTALLED.set(()).is_err() {
         return;
@@ -4542,6 +4548,12 @@ pub(super) fn install_browser_dom_handlers(
                 } catch (_error) {
                 }
             };
+            window.__jbotciGentufaToolbarNotify = () => {
+                try {
+                    dioxus.send("gentufa-toolbar");
+                } catch (_error) {
+                }
+            };
             const scheduleLayout = () => requestAnimationFrame(sendLayout);
             window.addEventListener("resize", scheduleLayout);
             window.addEventListener("load", sendLayout);
@@ -4566,6 +4578,11 @@ pub(super) fn install_browser_dom_handlers(
                 schedule_vlacku_controls_layout_measure(vlacku_controls);
                 continue;
             }
+            if message == DESKTOP_GENTUFA_TOOLBAR_MESSAGE {
+                schedule_gentufa_toolbar_layout_measure(gentufa_toolbar_layout);
+                continue;
+            }
+            schedule_gentufa_toolbar_layout_measure(gentufa_toolbar_layout);
             schedule_gentufa_block_reference_layout();
             schedule_gentufa_tree_layout();
             schedule_topbar_settings_layout_measure(
@@ -4595,6 +4612,7 @@ pub(super) fn install_browser_dom_handlers(
     cukta_toc_forced_autohide: Signal<bool>,
     cukta_edition_release_fits: CuktaEditionReleaseFitState,
     vlacku_controls: VlackuControlsState,
+    gentufa_toolbar_layout: Signal<GentufaToolbarLayout>,
 ) {
     let _ = (
         jvozba_available,
@@ -4604,6 +4622,7 @@ pub(super) fn install_browser_dom_handlers(
         cukta_toc_forced_autohide,
         cukta_edition_release_fits,
         vlacku_controls,
+        gentufa_toolbar_layout,
     );
 }
 

@@ -141,6 +141,58 @@ fn expected_morphology_stderr(error_count: usize) -> String {
     .expect("documented morphology diagnostics should render")
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn cli_location_shows(rendered: &str, marker: &str, line_number: usize, column: usize) -> bool {
+    let needle = format!("{marker}<input>:{line_number}:{column}");
+    rendered.lines().any(|line| {
+        line.match_indices(&needle).any(|(index, _)| {
+            line[index + needle.len()..]
+                .chars()
+                .next()
+                .is_none_or(|character| !character.is_ascii_digit())
+        })
+    })
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn error_context_keeps_the_primary_header_on_a_later_line() {
+    let mut source =
+        String::from("cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo");
+    source.push_str(&"\n".repeat(10_000));
+    source.push_str("ku ce'u xendo je cnikansa ro lo jmive ta'i lo racli");
+    let run = capture_cli(&[
+        "jbotci",
+        "gentufa",
+        "--ascii",
+        "--error-context",
+        "2",
+        &source,
+    ]);
+
+    assert_eq!(run.status, CliStatus::Failure);
+    assert!(
+        cli_location_shows(&run.stderr, "--> ", 10_001, 1),
+        "{}",
+        run.stderr
+    );
+    assert!(!run.stderr.contains("--> <input>:1:"), "{}", run.stderr);
+    assert_eq!(
+        run.stderr.matches("while parsing description").count(),
+        1,
+        "{}",
+        run.stderr
+    );
+    assert_eq!(
+        run.stderr.matches("while parsing descriptor").count(),
+        1,
+        "{}",
+        run.stderr
+    );
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -386,6 +438,9 @@ fn assert_recovered_tool_stdout(format: ToolGentufaFormat, stdout: &str) {
     match format {
         ToolGentufaFormat::Brackets => {
             assert_eq!(stdout, "([mi ‼ku‼] [{.i do} ‼ku‼ {.i (mi kláma)}])\n")
+        }
+        ToolGentufaFormat::Plain => {
+            assert_eq!(stdout, "mi ‼ku‼ .i do ‼ku‼ .i mi kláma\n")
         }
         ToolGentufaFormat::Tree => {
             assert!(stdout.starts_with("ParagraphStatementSequence"), "{stdout}");

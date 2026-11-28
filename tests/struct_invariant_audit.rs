@@ -1380,6 +1380,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private S-expression flatten traversal frame; stack sequencing controls pending and flattened child flow",
     ),
     (
+        "crates/jbotci-output/src/styled.rs:StyledBuilder",
+        "private accumulator for styled lines; StyledText checks the finished line and segment invariants",
+    ),
+    (
+        "crates/jbotci-output/src/styled.rs:TextStyle",
+        "color, italic, and strikethrough are independent attributes; every combination has a defined ANSI rendering",
+    ),
+    (
         "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
         "trace rendering now only carries a color flag, so all values are valid",
     ),
@@ -2786,6 +2794,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:ServeWebReleaseArgs",
         "xtask release web server args delegate validation to clap defaults and command code",
+    ),
+    (
+        "crates/jbotci-output/src/diagnostics.rs:LabelRng",
+        "The generator state is one integer. The shift updates that integer and has no other field.",
+    ),
+    (
+        "crates/jbotci-output/src/diagnostics.rs:LabelSet",
+        "The generator stores the source, the labels, the width, and the flags. The Rust types already bound those fields.",
     ),
 ];
 

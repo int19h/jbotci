@@ -15,7 +15,14 @@ fn compounds_display_state_round_trips_disabled_and_explicit_empty_routes() {
             show_compounds,
             ..GentufaDisplayState::default()
         };
-        let state = gentufa_state_from_parts("", "", GentufaWebViewMode::Blocks, display, true);
+        let state = gentufa_state_from_parts(
+            "",
+            "",
+            GentufaWebViewMode::Blocks,
+            GentufaTextOutput::Groups,
+            display,
+            true,
+        );
         let target = gentufa_route_for_committed_state(&state, true);
         assert!(target.gentufa_text_explicit);
         assert!(target.to_string().contains("text="));
@@ -64,6 +71,7 @@ fn compounds_page_find_and_client_export_use_the_same_wide_leaf() {
         &result,
         Some(&request),
         GentufaWebViewMode::Blocks,
+        GentufaTextOutput::Groups,
         GentufaDisplayState {
             show_glosses: true,
             ..GentufaDisplayState::default()
@@ -1506,6 +1514,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
             text: "bracket visible".to_owned(),
             role: GentufaBlockRole::Normal,
         }],
+        plain_fragments: Vec::new(),
         blocks_layout: new!(GentufaBlocksLayout {
             blocks: vec![new!(GentufaBlock {
                 compound_kind: None,
@@ -1567,6 +1576,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         &GentufaWebResult::Success(success.clone()),
         None,
         GentufaWebViewMode::Tree,
+        GentufaTextOutput::Groups,
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
@@ -1588,6 +1598,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         &GentufaWebResult::Success(success.clone()),
         None,
         GentufaWebViewMode::Blocks,
+        GentufaTextOutput::Groups,
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
@@ -1604,7 +1615,8 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         &mut ipa_entries,
         &GentufaWebResult::Success(success),
         None,
-        GentufaWebViewMode::Ipa,
+        GentufaWebViewMode::Blocks,
+        GentufaTextOutput::Ipa,
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
@@ -2973,6 +2985,7 @@ fn pending_local_gentufa_writes_survive_the_router_round_trip() {
             text: " coi ".to_owned(),
             dialect: Some(String::new()),
             view_mode: GentufaWebViewMode::Blocks,
+            output: GentufaTextOutput::Groups,
             show_elided: false,
             show_glosses: false,
             show_compounds: true,
@@ -3138,6 +3151,7 @@ fn gentufa_url_target_uses_committed_parse_state() {
         "coi",
         "",
         GentufaWebViewMode::Blocks,
+        GentufaTextOutput::Groups,
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
@@ -3175,6 +3189,7 @@ fn gentufa_parse_intent_pushes_changed_route() {
         "mi klama",
         "",
         GentufaWebViewMode::Blocks,
+        GentufaTextOutput::Groups,
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
@@ -3199,6 +3214,7 @@ fn gentufa_display_changes_replace_current_route() {
         "coi",
         "",
         GentufaWebViewMode::Tree,
+        GentufaTextOutput::Groups,
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
@@ -3223,6 +3239,7 @@ fn gentufa_matching_route_has_no_url_write() {
         "coi",
         "",
         GentufaWebViewMode::Tree,
+        GentufaTextOutput::Groups,
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
@@ -5419,5 +5436,98 @@ fn embedding_corpus_states_remain_independent_in_status() {
     assert_eq!(
         state.corpora["cukta-cll"],
         EmbeddingCorpusState::VerifiedCurrent
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_text_tabs_use_roving_tabindex_and_arrow_navigation() {
+    for (current, right, left) in [
+        (
+            GentufaTextOutput::Groups,
+            GentufaTextOutput::Plain,
+            GentufaTextOutput::Ipa,
+        ),
+        (
+            GentufaTextOutput::Plain,
+            GentufaTextOutput::Ipa,
+            GentufaTextOutput::Groups,
+        ),
+        (
+            GentufaTextOutput::Ipa,
+            GentufaTextOutput::Groups,
+            GentufaTextOutput::Plain,
+        ),
+    ] {
+        assert_eq!(
+            next_text_output_for_arrow(current, &Key::ArrowRight),
+            Some(right)
+        );
+        assert_eq!(
+            next_text_output_for_arrow(current, &Key::ArrowLeft),
+            Some(left)
+        );
+        assert_eq!(next_text_output_for_arrow(current, &Key::Enter), None);
+
+        let mut dom = VirtualDom::new(|| {
+            let current = consume_context::<GentufaTextOutput>();
+            let output = use_signal(|| current);
+            render_text_output_tabs(output, current)
+        })
+        .with_root_context(current);
+        dom.rebuild_in_place();
+        let html = dioxus::ssr::render(&dom);
+        for mode in [
+            GentufaTextOutput::Groups,
+            GentufaTextOutput::Plain,
+            GentufaTextOutput::Ipa,
+        ] {
+            let id = mode.tab_id();
+            let expected_tabindex = if mode == current { "0" } else { "-1" };
+            let tab = html
+                .split(&format!("id=\"{id}\""))
+                .nth(1)
+                .and_then(|tail| tail.split('>').next())
+                .expect("text tab");
+            assert!(
+                tab.contains(&format!("tabindex=\"{expected_tabindex}\"")),
+                "{tab}"
+            );
+            assert!(tab.contains("role=\"tab\""), "{tab}");
+            assert!(
+                tab.contains("aria-controls=\"gentufa-text-output\""),
+                "{tab}"
+            );
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_toolbar_fit_comparison_is_exact() {
+    let metrics = |available_width, one_row_required_width, two_rows_required_width| {
+        new!(GentufaToolbarMetrics {
+            available_width,
+            one_row_required_width,
+            two_rows_required_width,
+        })
+    };
+    assert_eq!(
+        gentufa_toolbar_layout_from_metrics(metrics(688.0, 688.0, 300.0)),
+        GentufaToolbarLayout::OneRow
+    );
+    assert_eq!(
+        gentufa_toolbar_layout_from_metrics(metrics(687.99, 688.0, 300.0)),
+        GentufaToolbarLayout::TwoRows
+    );
+    assert_eq!(
+        gentufa_toolbar_layout_from_metrics(metrics(687.99, 688.0, 687.99)),
+        GentufaToolbarLayout::TwoRows
+    );
+    assert_eq!(
+        gentufa_toolbar_layout_from_metrics(metrics(299.99, 688.0, 300.0)),
+        GentufaToolbarLayout::ThreeRows
     );
 }
