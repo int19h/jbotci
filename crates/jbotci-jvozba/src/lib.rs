@@ -559,10 +559,12 @@ pub struct LujvoSegmentInfo<'a> {
 /// How the final part of an input lujvo behaves in each position.
 ///
 /// A gismu form (`lefmo`, `bangu`) is the full word finally and its long
-/// (4-letter) rafsi non-finally. A fu'ivla form (`iismu`, `spageti`) is the
-/// full word in both positions: finally it ends the lujvo, and non-finally
-/// the bonding adds `'y` (CLL 4.16). A short rafsi (`bau`, `si'o`) is one
-/// rafsi in both positions.
+/// (4-letter) rafsi non-finally. A dictionary fu'ivla form (`spageti`)
+/// is the full word in both positions: finally it ends the lujvo, and
+/// non-finally the bonding adds `'y` (CLL 4.16). A self-sourced fu'ivla
+/// form (`iismu`) is the full word only finally; non-finally it is
+/// refused, in `candidate_list_for_input`. A short rafsi (`bau`, `si'o`)
+/// is one rafsi in both positions.
 #[invariant(true)]
 #[invariant(::Gismu => true)]
 #[invariant(::FullBrivla => true)]
@@ -993,9 +995,12 @@ fn is_long_gismu_stem(form: &str) -> bool {
     form.chars().count() == 4 && GismuShape::classify(&format!("{form}a")).is_some()
 }
 
-/// Whether `form` is a fu'ivla word form that names no dictionary
-/// fu'ivla at all: not a dictionary word, and not a short stem of one.
-/// Such a form cannot round-trip without a dictionary entry.
+/// Whether `form` is an unknown fu'ivla rafsi: a fu'ivla rafsi form
+/// (a full fu'ivla word, or a stem that the morphology reads as a
+/// fu'ivla rafsi before its hyphen) that names no dictionary fu'ivla
+/// at all: not a dictionary word, not a short stem of one, and not any
+/// dictionary rafsi. Such a form cannot round-trip without a
+/// dictionary entry.
 #[requires(true)]
 #[ensures(true)]
 fn is_unknown_fuhivla_form(
@@ -1003,10 +1008,11 @@ fn is_unknown_fuhivla_form(
     form: &str,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
-    Ok(
-        word_kind_of_form(form, cancellation)? == Some(WordKind::Fuhivla)
-            && fuivla_rafsi_source_set(dictionary, form).is_empty(),
-    )
+    let is_fuhivla_form = is_fuhivla_rafsi_form(form)
+        || word_kind_of_form(form, cancellation)? == Some(WordKind::Fuhivla);
+    Ok(is_fuhivla_form
+        && fuivla_rafsi_source_set(dictionary, form).is_empty()
+        && dictionary.lookup_rafsi(form).next().is_none())
 }
 
 /// The morphology kind of one word form, or `None` when it is not one word.
@@ -1041,11 +1047,11 @@ fn long_gismu_stem(form: &str) -> String {
 /// cmevla ends in a consonant. A short rafsi is itself in both positions.
 /// A fu'ivla form is the full word finally; non-finally a sourced part
 /// offers both of its positional forms, the stem and the full word
-/// (CLL 4.16), when `stem` is one of them, and a self-sourced part offers
-/// only the full word, because its stem would lose the final vowel and
-/// could collide with a dictionary stem. Both forms of a sourced part
-/// are the same kept part, so the scorer still cannot re-choose a
-/// different rafsi.
+/// (CLL 4.16), when `stem` is one of them. A self-sourced part is
+/// refused non-finally in `candidate_list_for_input`, so the only
+/// self-sourced candidate made here is the final full word. Both forms
+/// of a sourced part are the same kept part, so the scorer still cannot
+/// re-choose a different rafsi.
 #[requires(!form.is_empty())]
 #[ensures(!ret.is_empty())]
 fn final_part_candidates(
@@ -1354,8 +1360,8 @@ fn non_dictionary_word_candidates(
     // send one here: it gets no candidate, and `is_morphology_lujvo` then
     // decides. Only a gismu or a fu'ivla has a form that is predictable
     // without the dictionary: the full word finally, the long rafsi of a
-    // gismu non-finally and in cmevla mode, and the full fu'ivla in every
-    // position (CLL 4.16).
+    // gismu non-finally and in cmevla mode, and the full fu'ivla in the
+    // final position (an unlisted fu'ivla is accepted only there).
     let full = canonicalize_text(word.phonemes().as_str());
     let candidate = match word.kind() {
         WordKind::Gismu if mode == JvozbaMode::Cmevla || !is_last_input => {
@@ -3309,6 +3315,28 @@ mod tests {
                 "{inputs:?}"
             );
         }
+        // Unknown fu'ivla stems are refused too, in both modes: `iism`,
+        // `adz` and `bolvii` are fu'ivla rafsi forms that name no
+        // dictionary fu'ivla. A pinned form that names one (`tci'il`)
+        // and ordinary rafsi (`lefm`, `lef`) still build.
+        for mode in [JvozbaMode::Lujvo, JvozbaMode::Cmevla] {
+            for (inputs, offending) in [
+                (vec![rafsi("iism"), word("klama")], "iism"),
+                (vec![rafsi("adz"), word("bangu")], "adz"),
+                (vec![rafsi("bolvii"), word("bangu")], "bolvii"),
+            ] {
+                assert_eq!(
+                    build_best_jvozba_detailed(mode, dictionary, &inputs, &token),
+                    Err(JvozbaError::NoDictionaryEntry {
+                        offending: offending.to_owned(),
+                    }),
+                    "{mode:?} {inputs:?}"
+                );
+            }
+        }
+        assert_eq!(built(&[rafsi("tci'il"), word("klama")]), "tci'ilykla");
+        assert_eq!(built(&[rafsi("lefm"), word("bajra")]), "lefmybajra");
+        assert_eq!(built(&[rafsi("lef"), word("bajra")]), "lefybajra");
     }
 
     #[test]
@@ -3376,6 +3404,143 @@ mod tests {
         assert!(built(&[word("kukte"), word("tciile")]).ends_with("tciiles"));
     }
 
+    /// The source entry a built part must name on decomposition, or
+    /// `None` when the part is its own source.
+    #[requires(true)]
+    #[ensures(true)]
+    fn expected_source_entry(input: &ExpandedInput<'_>) -> Option<EntryIndex> {
+        match input {
+            ExpandedInput::DictionaryWord(entry) => Some(*entry),
+            ExpandedInput::KeptRafsi(kept) => Some(kept.source),
+            ExpandedInput::KeptFuhivlaStem(kept) => Some(kept.source),
+            ExpandedInput::KeptFinalPart(kept) => Some(kept.source),
+            _ => None,
+        }
+    }
+
+    /// The form a self-sourced part must decompose back to, if any.
+    #[requires(true)]
+    #[ensures(true)]
+    fn expected_self_source_form(input: &ExpandedInput<'_>) -> Option<String> {
+        match input {
+            ExpandedInput::SelfSourcedFinalPart(part) => Some(part.form.clone()),
+            ExpandedInput::PinnedLongRafsi(pinned) => Some(pinned.stem.clone()),
+            ExpandedInput::FixedRafsi(text) => Some(canonicalize_text(text)),
+            ExpandedInput::UnlistedWord(text) => Some(normalized_spelling(text)),
+            _ => None,
+        }
+    }
+
+    /// Build `inputs` and check the round-trip against the inputs
+    /// themselves: the built word decomposes into its own segments,
+    /// every decomposed part names the source that built it, and the
+    /// word rebuilds from itself.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_round_trip(
+        dictionary: &Dictionary<'_>,
+        inputs: &[JvozbaInput],
+        token: &CancellationToken,
+    ) -> JvozbaBuildResult {
+        let result = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, inputs, token)
+            .unwrap_or_else(|error| panic!("{inputs:?} does not build: {error}"));
+        let mut expanded = Vec::new();
+        for input in inputs {
+            plan_expansion(dictionary, input, token)
+                .unwrap_or_else(|error| panic!("{input:?} has no plan: {error}"))
+                .append_to(&mut expanded);
+        }
+        let decomposition = decompose_lujvo_like(dictionary, &result.word, token)
+            .expect("a built word decomposes without interruption")
+            .unwrap_or_else(|| panic!("built word {} does not decompose", result.word));
+        let surfaces = decomposition
+            .segments
+            .iter()
+            .map(|segment| canonicalize_text(segment.segment.phonemes().as_str()))
+            .collect::<Vec<_>>();
+        let expected = result
+            .segments
+            .iter()
+            .map(|segment| segment.text.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(surfaces, expected, "decomposition of {}", result.word);
+        let parsed = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.segment.clone())
+            .collect::<Vec<_>>();
+        assert!(
+            sources_match(dictionary, &expanded, &parsed),
+            "the parts of {} name the sources that built it",
+            result.word
+        );
+        let rafsi_segments = decomposition
+            .segments
+            .iter()
+            .filter(|segment| segment.kind.is_rafsi());
+        for (segment, input) in rafsi_segments.zip(expanded.iter()) {
+            match expected_source_entry(input) {
+                // A fu'ivla rafsi part must name its exact source in the
+                // decomposition too: that is where a full form was once
+                // hijacked to another fu'ivla (`tci'ilo` to `tci'ile`).
+                // An ordinary rafsi can be a shared universal form
+                // (`tend` for both `tendo` and `tende`), whose primary
+                // decomposition source is the higher-ranked claimant;
+                // `sources_match` above is its source check.
+                Some(entry) if segment.kind == DictionaryLujvoSegmentKind::FuivlaRafsi => {
+                    assert!(
+                        segment
+                            .sources
+                            .iter()
+                            .any(|source| source.entry_index == entry),
+                        "a part of {} does not name its source entry",
+                        result.word
+                    )
+                }
+                Some(_) => {}
+                None => {
+                    // A self-sourced part names itself. Its stem can also
+                    // be the shared universal form of a dictionary word
+                    // (`rimn` is the long rafsi of both `rimna` and
+                    // `rimni`), which is the standing shared-form rule,
+                    // not a different source.
+                    let form = expected_self_source_form(input).unwrap_or_default();
+                    let surface = canonicalize_text(segment.segment.phonemes().as_str());
+                    for source in &segment.sources {
+                        let entry = dictionary
+                            .entry_for_index(source.entry_index)
+                            .expect("decomposition source entry");
+                        let entry_word = normalized_spelling(entry.word);
+                        let names_itself =
+                            normalize_lookup_query(&entry_word) == normalize_lookup_query(&form);
+                        let shares_form = if entry.word_type.is_gismu_like() {
+                            GismuShape::classify(&entry_word).is_some()
+                                && long_gismu_stem(&entry_word) == surface
+                        } else if entry.word_type.is_fuivla_like() {
+                            fuivla_stem_rafsi(&entry_word).as_deref() == Some(surface.as_str())
+                        } else {
+                            false
+                        };
+                        assert!(
+                            names_itself || shares_form,
+                            "a part of {} names a source other than itself",
+                            result.word
+                        );
+                    }
+                }
+            }
+        }
+        let rebuilt = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[JvozbaInput::Word(result.word.clone())],
+            token,
+        )
+        .unwrap_or_else(|error| panic!("built word {} does not rebuild: {error}", result.word));
+        assert_eq!(rebuilt.word, result.word, "round-trip of {}", result.word);
+        result
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -3425,39 +3590,30 @@ mod tests {
                 vec![word(entry_word), word("klama")],
                 vec![word("klama"), word(entry_word)],
             ] {
-                let Ok(result) =
-                    build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
-                else {
+                if build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
+                    .is_err()
+                {
                     continue;
-                };
+                }
                 built_count += 1;
-                let decomposition = decompose_lujvo_like(dictionary, &result.word, &token)
-                    .expect("a built word decomposes without interruption")
-                    .unwrap_or_else(|| panic!("built word {} does not decompose", result.word));
-                let surfaces = decomposition
-                    .segments
-                    .iter()
-                    .map(|segment| canonicalize_text(segment.segment.phonemes().as_str()))
-                    .collect::<Vec<_>>();
-                let expected = result
-                    .segments
-                    .iter()
-                    .map(|segment| segment.text.clone())
-                    .collect::<Vec<_>>();
-                assert_eq!(surfaces, expected, "decomposition of {}", result.word);
-                let rebuilt = build_best_jvozba_detailed(
-                    JvozbaMode::Lujvo,
-                    dictionary,
-                    &[word(&result.word)],
-                    &token,
-                )
-                .unwrap_or_else(|error| {
-                    panic!("built word {} does not rebuild: {error}", result.word)
-                });
-                assert_eq!(rebuilt.word, result.word, "round-trip of {}", result.word);
+                assert_round_trip(dictionary, &inputs, &token);
             }
         }
         assert!(built_count > 0, "the sweep must build some words");
+        // Valid unlisted builds round-trip by the same assertion.
+        for (inputs, expected_word) in [
+            (vec![word("bajra"), word("aktyiismu")], "bajy'aktyiismu"),
+            (vec![word("bajra"), word("klalefmo")], "bajyklalefmo"),
+            (vec![word("lefmo"), word("bajra")], "lefmybajra"),
+            (vec![word("golfyjvi"), word("klama")], "golfyjvikla"),
+            (
+                vec![word("klama"), JvozbaInput::FixedRafsi("iismu".to_owned())],
+                "klamyiismu",
+            ),
+        ] {
+            let result = assert_round_trip(dictionary, &inputs, &token);
+            assert_eq!(result.word, expected_word, "{inputs:?}");
+        }
     }
 
     #[test]
