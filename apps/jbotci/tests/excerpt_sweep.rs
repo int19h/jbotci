@@ -26,7 +26,8 @@ struct SweepCase {
     text: String,
 }
 
-#[invariant(true)]
+#[invariant(failed.iter().all(|tag| !tag.is_empty()))]
+#[invariant(notes.iter().all(|note| !note.is_empty()))]
 struct SweepTotals {
     inputs: usize,
     parity_failures: usize,
@@ -61,7 +62,7 @@ fn excerpt_sweep_matches_an_uncut_baseline_and_keeps_cut_lines_narrow() {
             .map(|join| join.join().expect("sweep worker"))
             .collect::<Vec<_>>()
     });
-    let mut totals = SweepTotals {
+    let mut totals = new!(SweepTotals {
         inputs: 0,
         parity_failures: 0,
         width_failures: 0,
@@ -69,8 +70,10 @@ fn excerpt_sweep_matches_an_uncut_baseline_and_keeps_cut_lines_narrow() {
         control_leaks: 0,
         failed: Vec::new(),
         notes: Vec::new(),
-    };
+    })
+    .into_data();
     for part in parts {
+        let part = part.into_data();
         totals.inputs += part.inputs;
         totals.parity_failures += part.parity_failures;
         totals.width_failures += part.width_failures;
@@ -122,7 +125,7 @@ fn excerpt_sweep_matches_an_uncut_baseline_and_keeps_cut_lines_narrow() {
 #[requires(true)]
 #[ensures(true)]
 fn run_chunk(cases: &[SweepCase], baseline: Option<&Path>) -> SweepTotals {
-    let mut totals = SweepTotals {
+    let mut totals = new!(SweepTotals {
         inputs: 0,
         parity_failures: 0,
         width_failures: 0,
@@ -130,7 +133,8 @@ fn run_chunk(cases: &[SweepCase], baseline: Option<&Path>) -> SweepTotals {
         control_leaks: 0,
         failed: Vec::new(),
         notes: Vec::new(),
-    };
+    })
+    .into_data();
     for case in cases {
         let controlled = source_has_terminal_control(&case.text);
         let mut cut_for = [false, false];
@@ -187,7 +191,7 @@ fn run_chunk(cases: &[SweepCase], baseline: Option<&Path>) -> SweepTotals {
             }
         }
     }
-    totals
+    SweepTotals::from_data(totals)
 }
 
 #[requires(true)]
