@@ -41,7 +41,7 @@ use jbotci_ide::{
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
 use serde::Deserialize;
 use serde_json::json;
-use tokio::sync::{Semaphore, watch};
+use tokio::sync::{Semaphore, mpsc, watch};
 use tokio::task::AbortHandle;
 use tower::ServiceBuilder;
 
@@ -311,18 +311,38 @@ mod publication {
             })
         }
 
-        /// Send only when this analysis still owns the document.
+        /// The document address for this publication.
+        #[requires(true)]
+        #[ensures(*ret == self.uri)]
+        pub(super) fn uri(&self) -> &Url {
+            &self.uri
+        }
+
+        /// The document version for this publication.
+        #[requires(true)]
+        #[ensures(ret == self.version)]
+        pub(super) fn version(&self) -> i32 {
+            self.version
+        }
+
+        /// The diagnostic snapshot for this publication.
+        #[requires(true)]
+        #[ensures(ret.version == i64::from(self.version))]
+        pub(super) fn snapshot(&self) -> &DiagnosticSnapshot {
+            &self.snapshot
+        }
+
+        /// Queue `send` only when this analysis still owns the document.
         ///
-        /// `send` runs before the document-store lock is released.
+        /// The caller builds the message before this call.
+        /// `send` runs while this function holds the document-store lock.
+        /// `send` only queues that message with `UnboundedSender::send`.
+        /// It does not build the message and it does not wait.
         /// A close or a reopen takes that same lock.
         #[requires(true)]
         #[ensures(true)]
-        pub(super) fn emit(&self, send: impl FnOnce(&Url, i32, &DiagnosticSnapshot)) -> bool {
-            let table = self
-                .store
-                .documents
-                .lock()
-                .expect("document store poisoned");
+        pub(super) fn emit(&self, send: impl FnOnce()) -> bool {
+            let table = self.store.lock_documents();
             let Some(document) = table.documents.get(&self.uri) else {
                 return false;
             };
@@ -331,7 +351,7 @@ mod publication {
             {
                 return false;
             }
-            send(&self.uri, self.version, &self.snapshot);
+            send();
             true
         }
     }
@@ -520,10 +540,23 @@ impl DocumentStore {
         result
     }
 
+    /// Lock the open documents.
+    ///
+    /// A poisoned lock means an update panicked while it held the table.
+    /// `write_locked_documents` may have left the empty table in place.
+    /// This method panics on that lock, so later requests stop.
+    /// `note_analysis_failure` is the one exception.
+    /// It runs from `Drop`, and a second panic there aborts the process.
+    #[requires(true)]
+    #[ensures(true)]
+    fn lock_documents(&self) -> std::sync::MutexGuard<'_, DocumentTable> {
+        self.documents.lock().expect("document store poisoned")
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn edit_documents<T>(&self, edit: impl FnOnce(&mut DocumentTableData) -> T) -> T {
-        let guard = self.documents.lock().expect("document store poisoned");
+        let guard = self.lock_documents();
         Self::write_locked_documents(guard, edit)
     }
 
@@ -544,7 +577,7 @@ impl DocumentStore {
         + 'static,
     ) {
         let identity = {
-            let guard = self.documents.lock().expect("document store poisoned");
+            let guard = self.lock_documents();
             let epoch = guard.next_epoch;
             let next_epoch = epoch
                 .checked_add(1)
@@ -766,7 +799,7 @@ impl DocumentStore {
         uri: &Url,
         identity: AnalysisIdentity,
     ) -> Option<(String, i32, Option<Arc<DocumentSnapshot>>)> {
-        let table = self.documents.lock().expect("document store poisoned");
+        let table = self.lock_documents();
         let document = table.documents.get(uri)?;
         (document.revision.identity == identity).then(|| {
             (
@@ -923,7 +956,7 @@ impl DocumentStore {
     #[ensures(true)]
     async fn snapshot_for_features(&self, uri: &Url) -> DocumentWait<Arc<DocumentSnapshot>> {
         let mut confirmed = {
-            let table = self.documents.lock().expect("document store poisoned");
+            let table = self.lock_documents();
             let Some(document) = table.documents.get(uri) else {
                 return DocumentWait::Closed;
             };
@@ -940,7 +973,7 @@ impl DocumentStore {
             if confirmed.changed().await.is_err() {
                 return DocumentWait::Closed;
             }
-            let table = self.documents.lock().expect("document store poisoned");
+            let table = self.lock_documents();
             let Some(document) = table.documents.get(uri) else {
                 return DocumentWait::Closed;
             };
@@ -956,12 +989,13 @@ impl DocumentStore {
     /// Return diagnostics for this identity or a later one in the same epoch.
     ///
     /// A stored publication wins over a later failure.
-    /// That keeps a provisional publication after the publisher panics.
+    /// The publisher builds its message before it takes the store lock.
+    /// A panic in that build leaves the provisional publication in place.
     #[requires(true)]
     #[ensures(true)]
     async fn diagnostics_for_current(&self, uri: &Url) -> DocumentWait<Arc<PublishedDiagnostics>> {
         let (target_identity, target_version, mut diagnostics) = {
-            let table = self.documents.lock().expect("document store poisoned");
+            let table = self.lock_documents();
             let Some(document) = table.documents.get(uri) else {
                 return DocumentWait::Closed;
             };
@@ -982,7 +1016,7 @@ impl DocumentStore {
             if diagnostics.changed().await.is_err() {
                 return DocumentWait::Closed;
             }
-            let table = self.documents.lock().expect("document store poisoned");
+            let table = self.lock_documents();
             let Some(document) = table.documents.get(uri) else {
                 return DocumentWait::Closed;
             };
@@ -1447,7 +1481,7 @@ fn semantic_tokens_legend() -> SemanticTokensLegend {
 #[ensures(true)]
 fn no_diagnostics_publisher() -> DiagnosticsPublisher {
     Arc::new(|publication| {
-        publication.emit(|_uri, _version, _snapshot| {});
+        publication.emit(|| {});
     })
 }
 
@@ -1457,13 +1491,24 @@ fn push_diagnostics_publisher(
     client: ClientSocket,
     encoding: ServerPositionEncoding,
 ) -> DiagnosticsPublisher {
-    // `notify` only queues the message. It does not take the document-store lock.
+    // The task sends queued messages. It does not take the document-store lock.
+    let (tx, mut rx) = mpsc::unbounded_channel::<PublishDiagnosticsParams>();
+    tokio::spawn(async move {
+        while let Some(params) = rx.recv().await {
+            let _ = client.notify::<notification::PublishDiagnostics>(params);
+        }
+    });
     Arc::new(move |publication| {
-        publication.emit(|uri, version, snapshot| {
-            let diagnostics = diagnostic_snapshot_to_lsp(snapshot, uri, encoding);
-            let _ = client.notify::<notification::PublishDiagnostics>(
-                PublishDiagnosticsParams::new(uri.clone(), diagnostics, Some(version)),
-            );
+        let diagnostics =
+            diagnostic_snapshot_to_lsp(publication.snapshot(), publication.uri(), encoding);
+        let params = PublishDiagnosticsParams::new(
+            publication.uri().clone(),
+            diagnostics,
+            Some(publication.version()),
+        );
+        let tx = tx.clone();
+        publication.emit(move || {
+            let _ = tx.send(params);
         });
     })
 }
@@ -1471,14 +1516,19 @@ fn push_diagnostics_publisher(
 #[requires(true)]
 #[ensures(true)]
 fn pull_diagnostics_refresh_publisher(client: ClientSocket) -> DiagnosticsPublisher {
+    // The task sends the refresh. It does not take the document-store lock.
+    let (tx, mut rx) = mpsc::unbounded_channel::<()>();
+    tokio::spawn(async move {
+        while rx.recv().await.is_some() {
+            let _ = client
+                .request::<request::WorkspaceDiagnosticRefresh>(())
+                .await;
+        }
+    });
     Arc::new(move |publication| {
-        publication.emit(|_uri, _version, _snapshot| {
-            let client = client.clone();
-            tokio::spawn(async move {
-                let _ = client
-                    .request::<request::WorkspaceDiagnosticRefresh>(())
-                    .await;
-            });
+        let tx = tx.clone();
+        publication.emit(move || {
+            let _ = tx.send(());
         });
     })
 }
@@ -2891,7 +2941,7 @@ mod tests {
         let (arrived_tx, arrived_rx) = std::sync::mpsc::sync_channel(1);
         let (release_tx, release_rx) = std::sync::mpsc::channel();
         let release_rx = Mutex::new(Some(release_rx));
-        let publisher: DiagnosticsPublisher = Arc::new(move |_publication| {
+        let publisher: DiagnosticsPublisher = Arc::new(move |publication| {
             arrived_tx
                 .send(())
                 .expect("the test waits for the publisher");
@@ -2901,6 +2951,12 @@ mod tests {
                 .take()
                 .expect("the publisher runs once");
             release.recv().expect("the test releases the publisher");
+            // Production converts here, before `emit`. A bad diagnostic panics here.
+            let _message = diagnostic_snapshot_to_lsp(
+                publication.snapshot(),
+                publication.uri(),
+                ServerPositionEncoding::Utf16,
+            );
             panic!("test publisher failure");
         });
         assert!(store.change(
@@ -3043,6 +3099,58 @@ mod tests {
         .await
         .expect_err("a publisher panic leaves no confirmed tree");
         assert_analysis_failed(&hover);
+
+        let other = Url::parse("file:///publisher-panic-other.jbo").expect("valid test URI");
+        store.open(
+            other.clone(),
+            "coi".to_owned(),
+            1,
+            no_diagnostics_publisher(),
+            PreparedDocumentAnalysis::prepare,
+        );
+        let other_report = expect_ready(
+            tokio::time::timeout(
+                Duration::from_secs(5),
+                store.diagnostics_for_current(&other),
+            )
+            .await
+            .expect("another document answers after the publisher panic"),
+            "another document has diagnostics",
+        );
+        assert_eq!(other_report.phase, PublishedDiagnosticPhase::Confirmed);
+        document_hover(
+            store.clone(),
+            ServerPositionEncoding::Utf16,
+            lsp_types::HoverParams {
+                text_document_position_params: position_params(&other),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            },
+        )
+        .await
+        .expect("another document still answers a hover");
+        assert!(
+            store.change(
+                &other,
+                2,
+                vec![TextDocumentContentChangeEvent {
+                    range: None,
+                    range_length: None,
+                    text: "coi broda".to_owned(),
+                }],
+                ServerPositionEncoding::Utf16,
+                no_diagnostics_publisher(),
+                PreparedDocumentAnalysis::prepare,
+            ),
+            "the next change returns"
+        );
+        assert!(store.close(&uri), "the next close returns");
+        store.open(
+            Url::parse("file:///publisher-panic-next.jbo").expect("valid test URI"),
+            "coi".to_owned(),
+            1,
+            no_diagnostics_publisher(),
+            PreparedDocumentAnalysis::prepare,
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3087,8 +3195,7 @@ mod tests {
         let (outcome_tx, outcome_rx) = std::sync::mpsc::channel();
         let release_rx = Mutex::new(Some(release_rx));
         let calls = std::sync::atomic::AtomicUsize::new(0);
-        let emitted = Arc::new(Mutex::new(Vec::<(i32, String)>::new()));
-        let emitted_log = Arc::clone(&emitted);
+        let (emitted_tx, mut emitted_rx) = mpsc::unbounded_channel::<(i32, String)>();
         let publisher: DiagnosticsPublisher = Arc::new(move |publication| {
             let call = calls.fetch_add(1, AtomicOrdering::SeqCst);
             let hold = match held {
@@ -3106,12 +3213,12 @@ mod tests {
                     .expect("the held publisher runs once");
                 release.recv().expect("the test releases the publisher");
             }
-            let log = Arc::clone(&emitted_log);
-            let sent = publication.emit(move |_uri, version, snapshot| {
+            let version = publication.version();
+            let text = publication.snapshot().text.to_string();
+            let emitted_tx = emitted_tx.clone();
+            let sent = publication.emit(move || {
                 if hold {
-                    log.lock()
-                        .expect("publication log poisoned")
-                        .push((version, snapshot.text.to_string()));
+                    let _ = emitted_tx.send((version, text));
                 }
             });
             if hold {
@@ -3160,7 +3267,7 @@ mod tests {
                 .expect("the old publisher finishes");
         assert!(!sent, "an old analysis emitted after reopen");
         assert!(
-            emitted.lock().expect("publication log poisoned").is_empty(),
+            emitted_rx.try_recv().is_err(),
             "an old analysis recorded an emission after reopen"
         );
     }
@@ -3171,18 +3278,14 @@ mod tests {
     async fn superseded_analysis_never_publishes() {
         let store = DocumentStore::new();
         let uri = Url::parse("file:///superseded.jbo").expect("valid test URI");
-        let published = Arc::new(Mutex::new(Vec::new()));
-        let publisher: DiagnosticsPublisher = {
-            let published = Arc::clone(&published);
-            Arc::new(move |publication| {
-                publication.emit(|_uri, version, _snapshot| {
-                    published
-                        .lock()
-                        .expect("publication log poisoned")
-                        .push(version);
-                });
-            })
-        };
+        let (published_tx, mut published_rx) = mpsc::unbounded_channel();
+        let publisher: DiagnosticsPublisher = Arc::new(move |publication| {
+            let version = publication.version();
+            let published_tx = published_tx.clone();
+            publication.emit(move || {
+                let _ = published_tx.send(version);
+            });
+        });
 
         store.open(
             uri.clone(),
@@ -3210,10 +3313,11 @@ mod tests {
         );
         assert_eq!(snapshot.version, 2);
         tokio::time::sleep(DEBOUNCE_DELAY).await;
-        assert_eq!(
-            *published.lock().expect("publication log poisoned"),
-            vec![2]
-        );
+        let mut published = Vec::new();
+        while let Ok(version) = published_rx.try_recv() {
+            published.push(version);
+        }
+        assert_eq!(published, vec![2]);
     }
 
     #[tokio::test(flavor = "current_thread")]
