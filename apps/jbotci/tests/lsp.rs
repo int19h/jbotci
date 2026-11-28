@@ -1,11 +1,15 @@
 use std::io::{BufRead, BufReader, Read, Write};
-use std::process::{Child, ChildStderr, ChildStdin, Command, Stdio};
-use std::sync::mpsc;
+use std::panic::AssertUnwindSafe;
+use std::process::{ChildStderr, ChildStdin, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
 #[path = "support/lsp_frame.rs"]
 mod lsp_frame;
+#[path = "support/test_process.rs"]
+mod test_process;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
@@ -20,10 +24,9 @@ const UTF16_ERROR_END: u64 = 17;
 
 #[invariant(true)]
 struct LspClient {
-    child: Option<Child>,
+    process: Arc<Mutex<test_process::TestProcess>>,
     stdin: Option<ChildStdin>,
     messages: mpsc::Receiver<Value>,
-    stdout_reader: Option<thread::JoinHandle<()>>,
     stderr: ChildStderr,
     next_id: u64,
 }
@@ -53,14 +56,33 @@ impl LspClient {
         let stdout = child.stdout.take().expect("child stdout");
         let stderr = child.stderr.take().expect("child stderr");
         let (messages, stdout_reader) = lsp_frame::spawn_lsp_reader(stdout);
+        let mut process = test_process::TestProcess::new(child);
+        process.add_reader(stdout_reader);
         Self {
-            child: Some(child),
+            process: Arc::new(Mutex::new(process)),
             stdin: Some(stdin),
             messages,
-            stdout_reader: Some(stdout_reader),
             stderr,
             next_id: 1,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    fn process_id(&self) -> u32 {
+        self.process.lock().expect("LSP process lock").id()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn reader_joined(&self) -> Arc<AtomicBool> {
+        self.process.lock().expect("LSP process lock").joined_flag()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn child_reaped(&self) -> Arc<AtomicBool> {
+        self.process.lock().expect("LSP process lock").reaped_flag()
     }
 
     #[requires(!method.is_empty())]
@@ -185,22 +207,19 @@ impl LspClient {
         self.exit_after_shutdown();
     }
 
-    #[requires(self.child.is_some())]
+    #[requires(true)]
     #[ensures(true)]
     fn exit_after_shutdown(mut self) {
         self.notify("exit", Value::Null);
         drop(self.stdin.take());
-        let status = self
-            .child
-            .take()
-            .expect("LSP child remains owned until exit")
-            .wait()
-            .expect("wait for LSP server");
+        let mut process = self.process.lock().expect("LSP process lock");
+        // The server sees EOF on stdin and exits.
+        // Wait without killing so a non-zero status still fails this test.
+        let status = process.wait().expect("wait for LSP server");
         // The child has exited, so its stdout is closed.
         // The reader thread finishes, then this call joins it.
-        if let Some(reader) = self.stdout_reader.take() {
-            reader.join().expect("LSP stdout reader finishes");
-        }
+        process.join_readers_strict();
+        drop(process);
         let mut stderr = String::new();
         self.stderr
             .read_to_string(&mut stderr)
@@ -208,6 +227,46 @@ impl LspClient {
         assert!(status.success(), "LSP exit {status}: {stderr}");
         assert!(stderr.is_empty(), "unexpected LSP stderr: {stderr}");
     }
+}
+
+impl Drop for LspClient {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        // A failed assertion skips `exit_after_shutdown`.
+        // Close stdin first so a live server can leave its read.
+        // Then reap and join. Ignore errors so unwind does not panic again.
+        drop(self.stdin.take());
+        let mut process = self
+            .process
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        process.finish_quiet();
+    }
+}
+
+/// Hold cleanup until `shutdown` returns, and run it if that wait expires.
+///
+/// The child stays in the client.
+/// A timeout, or a dropped disarm sender, uses the same quiet cleanup as `Drop`.
+#[requires(true)]
+#[ensures(true)]
+fn spawn_shutdown_watchdog(
+    process: Arc<Mutex<test_process::TestProcess>>,
+    timeout: Duration,
+) -> (mpsc::SyncSender<()>, thread::JoinHandle<bool>) {
+    let (disarm_sender, disarm_receiver) = mpsc::sync_channel(1);
+    let watchdog = thread::spawn(move || {
+        let timed_out = disarm_receiver.recv_timeout(timeout).is_err();
+        if timed_out {
+            let mut process = process
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            process.finish_quiet();
+        }
+        timed_out
+    });
+    (disarm_sender, watchdog)
 }
 
 #[requires(matches!(position_encoding, "utf-8" | "utf-16"))]
@@ -959,33 +1018,18 @@ fn shutdown_is_orderly_during_background_confirmation() {
             .is_some_and(|result_id| result_id.ends_with(":2:provisional"))
     );
 
-    // The confirming phase starts at the 200 ms debounce deadline. Keep
-    // process ownership in a watchdog so a shutdown regression is bounded.
+    // The confirming phase starts at the 200 ms debounce deadline.
+    // A watchdog kills the server if shutdown does not return in time.
     thread::sleep(Duration::from_millis(205));
-    let child = client
-        .child
-        .take()
-        .expect("watchdog temporarily owns the LSP child");
-    let (disarm_sender, disarm_receiver) = mpsc::sync_channel(1);
-    let (child_sender, child_receiver) = mpsc::sync_channel(1);
-    let watchdog = thread::spawn(move || {
-        let mut child = child;
-        let timed_out = disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err();
-        if timed_out {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        let _ = child_sender.send((child, timed_out));
-    });
+    let (disarm_sender, watchdog) =
+        spawn_shutdown_watchdog(Arc::clone(&client.process), SHUTDOWN_TIMEOUT);
 
     assert_eq!(client.request("shutdown", Value::Null), Value::Null);
     disarm_sender
         .send(())
         .expect("disarm confirmation shutdown watchdog");
-    let (child, timed_out) = child_receiver.recv().expect("recover LSP child");
-    watchdog.join().expect("confirmation watchdog joins");
+    let timed_out = watchdog.join().expect("confirmation watchdog joins");
     assert!(!timed_out, "shutdown timed out during confirming parse");
-    client.child = Some(child);
     client.exit_after_shutdown();
 }
 
@@ -1247,24 +1291,11 @@ fn shutdown_completes_during_an_in_flight_completion() {
     );
     assert_eq!(diagnostics["kind"], "full");
 
-    // Keep process ownership in a watchdog while the main test thread blocks
-    // on protocol input. A regression that wedges the protocol loop therefore
-    // fails in bounded time instead of hanging the entire test process.
-    let child = client
-        .child
-        .take()
-        .expect("watchdog temporarily owns the LSP child");
-    let (disarm_sender, disarm_receiver) = mpsc::sync_channel(1);
-    let (child_sender, child_receiver) = mpsc::sync_channel(1);
-    let watchdog = thread::spawn(move || {
-        let mut child = child;
-        let timed_out = disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err();
-        if timed_out {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        let _ = child_sender.send((child, timed_out));
-    });
+    // A watchdog kills the server if shutdown does not return in time.
+    // A regression that wedges the protocol loop therefore fails in bounded
+    // time instead of hanging the entire test process.
+    let (disarm_sender, watchdog) =
+        spawn_shutdown_watchdog(Arc::clone(&client.process), SHUTDOWN_TIMEOUT);
 
     let _completion_id = client.start_request(
         "textDocument/completion",
@@ -1279,15 +1310,11 @@ fn shutdown_completes_during_an_in_flight_completion() {
     disarm_sender
         .send(())
         .expect("disarm the shutdown watchdog");
-    let (child, timed_out) = child_receiver
-        .recv()
-        .expect("watchdog returns the LSP child");
-    watchdog.join().expect("shutdown watchdog must not panic");
+    let timed_out = watchdog.join().expect("shutdown watchdog must not panic");
     assert!(
         !timed_out,
         "shutdown response exceeded {SHUTDOWN_TIMEOUT:?}"
     );
-    client.child = Some(child);
     client.exit_after_shutdown();
 }
 
@@ -1647,6 +1674,7 @@ fn two_frames_in_one_write_both_arrive_before_the_timeout() {
     writer.flush().expect("flush two frames");
 
     let (messages, reader_thread) = lsp_frame::spawn_lsp_reader(reader);
+    let mut guard = test_process::ReaderGuard::new(writer, reader_thread);
     let first = messages
         .recv_timeout(Duration::from_secs(2))
         .expect("the first frame arrives");
@@ -1655,8 +1683,63 @@ fn two_frames_in_one_write_both_arrive_before_the_timeout() {
         .expect("the second frame arrives from the buffer");
     assert_eq!(first["id"], 1);
     assert_eq!(second["id"], 2);
-    drop(writer);
-    reader_thread.join().expect("the reader thread finishes");
+    guard.finish();
+}
+
+/// A panic must reap the server and join the reader before the test continues.
+///
+/// The joined flag changes only after `join` returns.
+/// A finished thread and a joined thread look the same in `/proc`.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_panic_inside_the_client_reaps_the_child_and_joins_the_reader() {
+    let client = LspClient::spawn();
+    let pid = client.process_id();
+    let joined = client.reader_joined();
+    let reaped = client.child_reaped();
+    assert!(pid > 0, "the child has a process id");
+    assert!(!reaped.load(Ordering::SeqCst), "the child is still live");
+    assert!(
+        !joined.load(Ordering::SeqCst),
+        "the reader is not joined yet"
+    );
+    let caught = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let _client = client;
+        panic!("planned panic inside the LSP client scope");
+    }));
+    assert!(caught.is_err(), "the planned panic reaches the test");
+    assert!(reaped.load(Ordering::SeqCst), "the child was waited on");
+    assert!(joined.load(Ordering::SeqCst), "the reader was joined");
+    #[cfg(target_os = "linux")]
+    assert!(
+        !child_is_zombie_of_this_process(pid),
+        "the child is not a zombie of this test"
+    );
+}
+
+/// Read `/proc/<pid>/stat` and report a zombie whose parent is this process.
+///
+/// The command name can contain spaces.
+/// The state follows the last `)`.
+#[cfg(target_os = "linux")]
+#[requires(pid > 0)]
+#[ensures(true)]
+fn child_is_zombie_of_this_process(pid: u32) -> bool {
+    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+        return false;
+    };
+    let Some(marker) = stat.rfind(')') else {
+        return false;
+    };
+    let mut fields = stat[marker + 1..].split_whitespace();
+    let Some(state) = fields.next() else {
+        return false;
+    };
+    let Ok(ppid) = fields.next().unwrap_or("").parse::<u32>() else {
+        return false;
+    };
+    state == "Z" && ppid == std::process::id()
 }
 
 #[test]
@@ -1885,13 +1968,14 @@ fn server_survives_socketpair_stdio() {
 
     let (mut parent, child_end) = UnixStream::pair().expect("socketpair");
     let child_stdin = child_end.try_clone().expect("clone socket for child stdin");
-    let mut child = Command::new(env!("CARGO_BIN_EXE_jbotci"))
+    let child = Command::new(env!("CARGO_BIN_EXE_jbotci"))
         .arg("lsp")
         .stdin(Stdio::from(OwnedFd::from(child_stdin)))
         .stdout(Stdio::from(OwnedFd::from(child_end)))
         .stderr(Stdio::piped())
         .spawn()
         .expect("spawn jbotci lsp over socketpair");
+    let mut process = test_process::TestProcess::new(child);
 
     let body = serde_json::to_vec(&json!({
         "jsonrpc": "2.0",
@@ -1935,6 +2019,5 @@ fn server_survives_socketpair_stdio() {
         "utf-8"
     );
 
-    child.kill().expect("kill server");
-    let _ = child.wait();
+    process.kill_and_wait();
 }

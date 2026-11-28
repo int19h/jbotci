@@ -26,9 +26,8 @@ use std::num::NonZeroUsize;
 #[cfg(target_os = "linux")]
 use std::os::unix::process::CommandExt;
 use std::panic::{AssertUnwindSafe, resume_unwind};
-use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
+use std::process::{ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use std::{thread, time};
 
@@ -38,6 +37,8 @@ use serde_json::{Value, json};
 
 #[path = "support/lsp_frame.rs"]
 mod lsp_frame;
+#[path = "support/test_process.rs"]
+mod test_process;
 
 const DOCUMENT_URI: &str = "untitled:inflight-repro.jbo";
 const DOCUMENT_TEXT: &str = "mi klama .i do klama";
@@ -64,15 +65,15 @@ fn burst_len() -> u64 {
 
 /// A live LSP process started by a test.
 ///
-/// `pid` is the process id of `child`.
+/// `pid` is the process id of the test child.
+/// `stop` reaps that child and joins its readers.
+/// Dropping the inner process does the same when `stop` did not run.
 #[invariant(*pid > 0)]
-#[invariant(*pid == child.lock().expect("server process lock poisoned").id())]
+#[invariant(*pid == process.lock().expect("server process lock poisoned").id())]
 struct RunningServer {
     pid: u32,
-    child: Mutex<Child>,
+    process: Mutex<test_process::TestProcess>,
     stderr: Arc<Mutex<String>>,
-    stderr_reader: Mutex<Option<JoinHandle<()>>>,
-    stdout_reader: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl RunningServer {
@@ -114,13 +115,14 @@ impl RunningServer {
             }
         });
         let (messages, stdout_reader) = lsp_frame::spawn_lsp_reader(stdout);
+        let mut process = test_process::TestProcess::new(child);
+        process.add_reader(stderr_reader);
+        process.add_reader(stdout_reader);
         (
             new!(RunningServer {
                 pid,
-                child: Mutex::new(child),
+                process: Mutex::new(process),
                 stderr: stderr_log,
-                stderr_reader: Mutex::new(Some(stderr_reader)),
-                stdout_reader: Mutex::new(Some(stdout_reader)),
             }),
             stdin,
             messages,
@@ -130,7 +132,7 @@ impl RunningServer {
     #[requires(true)]
     #[ensures(true)]
     fn try_wait(&self) -> Option<ExitStatus> {
-        self.child
+        self.process
             .lock()
             .expect("server process lock poisoned")
             .try_wait()
@@ -146,36 +148,19 @@ impl RunningServer {
     #[requires(true)]
     #[ensures(true)]
     fn stop(&self) {
-        let mut child = self.child.lock().expect("server process lock poisoned");
-        // try_wait stores the status after the first reap.
-        // A kill after that reap can hit a pid that the OS reused.
-        if matches!(child.try_wait(), Ok(None)) {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        drop(child);
-        self.join_readers();
+        self.process
+            .lock()
+            .expect("server process lock poisoned")
+            .finish_quiet();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn join_readers(&self) {
-        if let Some(reader) = self
-            .stdout_reader
+        self.process
             .lock()
-            .expect("stdout reader lock poisoned")
-            .take()
-        {
-            let _ = reader.join();
-        }
-        if let Some(reader) = self
-            .stderr_reader
-            .lock()
-            .expect("stderr reader lock poisoned")
-            .take()
-        {
-            let _ = reader.join();
-        }
+            .expect("server process lock poisoned")
+            .join_readers_quiet();
     }
 }
 

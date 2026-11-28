@@ -608,6 +608,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "test helper records CLI process output after run_cli returns a status",
     ),
     (
+        "apps/jbotci/tests/support/test_process.rs:ReaderGuard",
+        "socket reader guard closes its input and joins the reader in Drop, and it does not own a child",
+    ),
+    (
+        "apps/jbotci/tests/support/test_process.rs:TestProcess",
+        "test process owner reaps its child and joins its readers in Drop, so both states are valid",
+    ),
+    (
         "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:ImplType",
         "contract scanner fixture intentionally contains accepted no-op markers",
     ),
@@ -1558,6 +1566,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:PlaceAnalysis",
         "place-analysis map consistency is produced by PlaceAnalysisBuilder and exposed through typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceBoundaryProbe",
+        "place-boundary probe reaps its child in Drop when the wait loop does not",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:PlaceCursor",

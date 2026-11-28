@@ -8373,9 +8373,53 @@ mod tests {
     use super::*;
 
     #[allow(unused_imports)]
-    use bityzba::{ensures, requires};
+    use bityzba::{ensures, invariant, requires};
     use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
+
+    /// The place-boundary probe process.
+    ///
+    /// `Drop` reaps it when an assertion fails before the wait loop does.
+    #[invariant(true)]
+    struct PlaceBoundaryProbe {
+        child: std::process::Child,
+    }
+
+    impl PlaceBoundaryProbe {
+        #[requires(true)]
+        #[ensures(true)]
+        fn try_wait(&mut self) -> std::io::Result<Option<std::process::ExitStatus>> {
+            self.child.try_wait()
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn kill_and_wait(&mut self) {
+            self.child
+                .kill()
+                .expect("stop the stalled place-boundary probe");
+            self.child.wait().expect("reap the place-boundary probe");
+        }
+    }
+
+    impl Drop for PlaceBoundaryProbe {
+        #[requires(true)]
+        #[ensures(true)]
+        fn drop(&mut self) {
+            // A panic in the test skips the wait loop.
+            // Reap here, and ignore a second error.
+            match self.child.try_wait() {
+                Ok(Some(_)) => {}
+                Ok(None) => {
+                    let _ = self.child.kill();
+                    let _ = self.child.wait();
+                }
+                Err(_) => {
+                    let _ = self.child.wait();
+                }
+            }
+        }
+    }
 
     #[test]
     #[requires(true)]
@@ -8390,19 +8434,21 @@ mod tests {
         }
 
         // A broken progression loop must not hang the workspace test process.
-        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "references::tests::numbered_place_boundary_probes_finish_within_the_deadline",
-                "--nocapture",
-            ])
-            .env(CHILD_FLAG, "1")
-            .stdin(std::process::Stdio::null())
-            .spawn()
-            .expect("start the place-boundary probe");
+        let mut probe = PlaceBoundaryProbe {
+            child: std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "references::tests::numbered_place_boundary_probes_finish_within_the_deadline",
+                    "--nocapture",
+                ])
+                .env(CHILD_FLAG, "1")
+                .stdin(std::process::Stdio::null())
+                .spawn()
+                .expect("start the place-boundary probe"),
+        };
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
-            if let Some(status) = child.try_wait().expect("read the probe status") {
+            if let Some(status) = probe.try_wait().expect("read the probe status") {
                 // An empty test filter exits zero. Require proof that both probes ran.
                 assert_eq!(
                     status.code(),
@@ -8412,8 +8458,7 @@ mod tests {
                 break;
             }
             if std::time::Instant::now() >= deadline {
-                child.kill().expect("stop the stalled place-boundary probe");
-                child.wait().expect("reap the place-boundary probe");
+                probe.kill_and_wait();
                 panic!("The place-boundary probe did not finish within 30 seconds.");
             }
             std::thread::sleep(std::time::Duration::from_millis(10));
