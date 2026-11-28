@@ -15,11 +15,12 @@ use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    MorphologyOptions, MorphologyWarningKind, ShortRafsiShape, canonicalize_text, ends_with_vowel,
-    fold_lojban_diacritic, is_fuhivla_rafsi_form, normalize_latin_apostrophe,
-    normalize_lojban_input_text, possible_short_rafsi_forms,
+    GLIDE_PARTNER_MARK, LookupStep, LookupStepData, MorphologyOptions, MorphologyWarningKind,
+    ShortRafsiShape, awaits_next_unit, canonicalize_text, ends_with_vowel, fold_lojban_diacritic,
+    is_fuhivla_rafsi_form, normalize_lojban_input_text, possible_short_rafsi_forms,
     segment_words_with_modifiers_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id_attempt, strip_lojban_diacritic,
+    transcribe_lookup_run,
 };
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -208,7 +209,7 @@ impl<'a> Dictionary<'a> {
             }
         }
     })]
-    pub fn lookup_word(&self, query: &str) -> Option<&DictionaryEntry<'a>> {
+    pub fn lookup_word(&self, query: &LookupKey) -> Option<&DictionaryEntry<'a>> {
         self.lookup_word_index(query)
             .map(|index| self.entry_at(index))
     }
@@ -216,10 +217,9 @@ impl<'a> Dictionary<'a> {
     /// Return the index of the highest-scored entry for a word.
     #[requires(true)]
     #[ensures(ret.is_none_or(|index| index.0 < self.entries.len()))]
-    pub fn lookup_word_index(&self, query: &str) -> Option<EntryIndex> {
-        let normalized = normalize_lookup_query(query);
+    pub fn lookup_word_index(&self, query: &LookupKey) -> Option<EntryIndex> {
         let targets = self
-            .word_index_entry(&normalized)
+            .word_index_entry(query.as_str())
             .map(|entry| entry.targets)
             .unwrap_or(&[]);
         targets.iter().copied().min_by(|left, right| {
@@ -239,11 +239,10 @@ impl<'a> Dictionary<'a> {
     #[ensures(true)]
     pub fn lookup_words<'lookup>(
         &'lookup self,
-        query: &str,
+        query: &LookupKey,
     ) -> impl Iterator<Item = &'lookup DictionaryEntry<'a>> + 'lookup {
-        let normalized = normalize_lookup_query(query);
         let mut indices = self
-            .word_index_entry(&normalized)
+            .word_index_entry(query.as_str())
             .map(|entry| entry.targets)
             .unwrap_or(&[])
             .to_vec();
@@ -259,9 +258,8 @@ impl<'a> Dictionary<'a> {
     #[requires(true)]
     #[ensures(entry_indices_ranked_by_score(self, &ret))]
     #[bityzba::expensive_ensures({
-        let normalized = normalize_lookup_query(query);
         let mut stored = self
-            .word_index_entry(&normalized)
+            .word_index_entry(query.as_str())
             .map_or(&[][..], |entry| entry.targets)
             .iter()
             .copied()
@@ -272,10 +270,9 @@ impl<'a> Dictionary<'a> {
         ranked.sort();
         stored == ranked
     })]
-    pub fn exact_definition_indices(&self, query: &str) -> Vec<EntryIndex> {
-        let normalized = normalize_lookup_query(query);
+    pub fn exact_definition_indices(&self, query: &LookupKey) -> Vec<EntryIndex> {
         let mut targets = self
-            .word_index_entry(&normalized)
+            .word_index_entry(query.as_str())
             .map_or(&[][..], |entry| entry.targets)
             .iter()
             .copied()
@@ -358,7 +355,7 @@ impl<'a> Dictionary<'a> {
                 .map(|keyword| keyword.word)
                 .find(|item| !item.is_empty())
     }))]
-    pub fn first_gloss_keywords_for_words(&self, words: &[&str]) -> Vec<Option<&'a str>> {
+    pub fn first_gloss_keywords_for_words(&self, words: &[&LookupKey]) -> Vec<Option<&'a str>> {
         words
             .iter()
             .map(|word| {
@@ -370,25 +367,41 @@ impl<'a> Dictionary<'a> {
             .collect()
     }
 
-    /// Return dictionary entries whose normalized word starts with `prefix`.
+    /// Return dictionary entries whose normalized word starts with a reading
+    /// of `prefix`.
     ///
-    /// Index keys stay in lexicographic order. The iterator reads one key at
-    /// a time. Entries that share one key are ordered by score, from high to
+    /// Each reading selects one run of index keys. With two readings, the
+    /// runs are joined: an overlap is read once, so no entry repeats. Index
+    /// keys stay in lexicographic order. The iterator reads one key at a
+    /// time. Entries that share one key are ordered by score, from high to
     /// low. Entries with the same score stay in source order.
     #[requires(true)]
     #[ensures(true)]
     pub fn entries_by_word_prefix<'lookup>(
         &'lookup self,
-        prefix: &str,
+        prefix: &LookupPrefix,
     ) -> impl Iterator<Item = &'lookup DictionaryEntry<'a>> + 'lookup {
-        let normalized = normalize_lookup_query(prefix);
-        let start = self
-            .word_index
-            .partition_point(|entry| entry.key < normalized.as_str());
-        let end = self.word_index.partition_point(|entry| {
-            entry.key < normalized.as_str() || entry.key.starts_with(&normalized)
-        });
-        let mut position = start;
+        let mut runs = prefix
+            .readings()
+            .map(|reading| {
+                let key = reading.as_str();
+                let start = self.word_index.partition_point(|entry| entry.key < key);
+                let end = self
+                    .word_index
+                    .partition_point(|entry| entry.key < key || entry.key.starts_with(key));
+                start..end
+            })
+            .collect::<Vec<_>>();
+        runs.sort_by_key(|run| run.start);
+        // Join the runs that overlap, so each index position is read once.
+        let mut positions = Vec::<std::ops::Range<usize>>::with_capacity(runs.len());
+        for run in runs {
+            match positions.last_mut() {
+                Some(last) if run.start <= last.end => last.end = last.end.max(run.end),
+                _ => positions.push(run),
+            }
+        }
+        let mut positions = positions.into_iter().flatten();
         let mut pending = Vec::new();
         let mut cursor = 0;
         std::iter::from_fn(move || {
@@ -398,11 +411,8 @@ impl<'a> Dictionary<'a> {
                     cursor += 1;
                     return Some(self.entry_at(index));
                 }
-                if position >= end {
-                    return None;
-                }
+                let position = positions.next()?;
                 pending = self.word_index[position].targets.to_vec();
-                position += 1;
                 rank_entry_indices_by_score(self, &mut pending);
                 cursor = 0;
             }
@@ -418,11 +428,10 @@ impl<'a> Dictionary<'a> {
     #[ensures(true)]
     pub fn lookup_rafsi<'lookup>(
         &'lookup self,
-        query: &str,
+        query: &LookupKey,
     ) -> impl Iterator<Item = RafsiMatch<'lookup, 'a>> + 'lookup {
-        let normalized = normalize_lookup_query(query);
         let mut targets = self
-            .rafsi_index_entry(&normalized)
+            .rafsi_index_entry(query.as_str())
             .map(|entry| entry.targets)
             .unwrap_or(&[])
             .to_vec();
@@ -482,20 +491,20 @@ impl<'a> Dictionary<'a> {
     #[bityzba::expensive_ensures(
         ret.is_free()
             != self
-                .lookup_rafsi(rafsi)
+                .lookup_rafsi(&LookupKey::from_stored(rafsi))
                 .any(|matched| matched.source.listed_standing().is_some()),
         "any listed claimant takes the form, whatever its word type"
     )]
     #[bityzba::expensive_ensures(
         (ret.claim_kind() == Some(RafsiClaimKind::Official))
             == self
-                .lookup_rafsi(rafsi)
+                .lookup_rafsi(&LookupKey::from_stored(rafsi))
                 .any(|matched| matched.source.listed_standing() == Some(RafsiClaimKind::Official)),
         "an official claim outranks any experimental one"
     )]
     #[bityzba::expensive_ensures(
         ret.claimant_words().iter().map(String::as_str).eq(
-            self.lookup_rafsi(rafsi)
+            self.lookup_rafsi(&LookupKey::from_stored(rafsi))
                 .filter(|matched| {
                     matched.source.listed_standing().is_some()
                         && matched.source.listed_standing() == ret.claim_kind()
@@ -507,7 +516,7 @@ impl<'a> Dictionary<'a> {
     fn rafsi_availability(&self, rafsi: &str) -> RafsiAvailability {
         let mut official = Vec::new();
         let mut experimental = Vec::new();
-        for matched in self.lookup_rafsi(rafsi) {
+        for matched in self.lookup_rafsi(&LookupKey::from_stored(rafsi)) {
             let word = matched.entry.word.to_owned();
             match matched.source.listed_standing() {
                 Some(RafsiClaimKind::Official) => official.push(word),
@@ -1240,15 +1249,190 @@ fn rafsi_targets_ranked_by_entry_score(
         })
 }
 
-/// Return v0-compatible normalized lookup text.
+/// Return the lookup key of `raw`, as the dictionary index stores it.
+///
+/// This is the key of `normalize_lookup_pattern` for `raw` alone, with one
+/// difference: an index key cannot fail, so a character that a lookup rejects
+/// is left out. See `lookup_key_char` for the character rules.
+///
+/// Most stored text, such as a headword or a completion label, is already
+/// plain Lojban in lowercase ASCII. For that text the converter reads each
+/// letter as itself, so the key is the words with commas removed, joined by
+/// one space, and the function takes that short path. The expensive
+/// postcondition checks that the short path gives the converter's key.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(!ret.starts_with(' ') && !ret.ends_with(' '))]
+#[bityzba::expensive_ensures(!ret.contains("  ") && ret.chars().all(|value| value == ' ' || is_lookup_char(value)))]
+#[bityzba::expensive_ensures(
+    ret == key_text_of(
+        &build_lookup_key::<()>(&[LookupPatternPart::Literal(raw)], LookupKeyMode::Index)
+            .expect("an index key leaves out what a lookup rejects")
+    ),
+    "the short path gives the converter's key"
+)]
 pub fn normalize_lookup_query(raw: &str) -> String {
-    raw.split_whitespace()
-        .map(normalize_lookup_token)
-        .filter(|token| !token.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ")
+    if let Some(key) = plain_lojban_key(raw) {
+        return key;
+    }
+    let keyed = build_lookup_key::<()>(&[LookupPatternPart::Literal(raw)], LookupKeyMode::Index)
+        .expect("an index key leaves out what a lookup rejects");
+    key_text_of(&keyed)
+}
+
+/// The key of text that the converter reads letter by letter as itself, or
+/// `None` for any other text.
+///
+/// That text has only lowercase ASCII letters other than `h`, `q` and `w`,
+/// digits, apostrophes, commas, periods and ASCII whitespace. The Latin
+/// converter reads each such letter, digit and apostrophe as itself and adds
+/// no implicit apostrophe, a comma is a mark inside a word, and a period or a
+/// space is a word break. `h` is an apostrophe spelling, and `q` and `w` are
+/// no Lojban letters, so they take the full path.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|key| !key.starts_with(' ') && !key.ends_with(' ') && !key.contains("  ")))]
+fn plain_lojban_key(raw: &str) -> Option<String> {
+    let plain = raw.bytes().all(|byte| {
+        matches!(byte, b'a'..=b'z' | b'0'..=b'9' | b'\'' | b',' | b'.')
+            && !matches!(byte, b'h' | b'q' | b'w')
+            || byte.is_ascii_whitespace()
+    });
+    if !plain {
+        return None;
+    }
+    let mut key = String::with_capacity(raw.len());
+    for word in raw.split(|value: char| value == '.' || value.is_ascii_whitespace()) {
+        let mut letters = word.chars().filter(|value| *value != ',').peekable();
+        if letters.peek().is_none() {
+            continue;
+        }
+        if !key.is_empty() {
+            key.push(' ');
+        }
+        key.extend(letters);
+    }
+    Some(key)
+}
+
+/// A key of the word index or the rafsi index.
+///
+/// Every `Dictionary` lookup takes this type, so the caller must say which
+/// rule makes the key. `from_typed` is the rule for text that a user typed:
+/// it fails on a character that gentufa rejects, such as `â` in `klâma` or
+/// `#` in `klama#`, and the error names that character. `from_stored` is the
+/// rule of the index itself, for a stored headword, a canonical rafsi or
+/// morphology phonemes: it leaves such a character out, so the headword
+/// `klâma` keeps the key `klama`. Typed text therefore cannot reach the
+/// index through the index rule by accident.
+#[invariant(!text.starts_with(' ') && !text.ends_with(' ') && !text.contains("  "), "one space between key words")]
+#[invariant(text.chars().all(|value| value == ' ' || is_lookup_char(value)), "only key characters")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LookupKey {
+    text: String,
+}
+
+/// The key of a typed prefix of a word, for a search by word prefix.
+///
+/// A prefix is not a whole query: it is the text before a cursor, so its
+/// last unit can still wait for a partner. The prefix rule follows the
+/// typed-query rule (`LookupKey::from_typed`) with two differences, both for
+/// such a last unit:
+///
+/// - A Zbalermorna shorthand mark with no payload yet (a bare U+ED8B at the
+///   end) adds nothing, because its letters come from the payload.
+/// - A vowel that a following breve would turn into a glide has two
+///   readings, and the prefix holds the key of each. Cyrillic `шои` reads
+///   `co'i`, and `шои` + U+0306 reads `coĭ`, so the prefix searches for both
+///   `co'i` and `coi`.
+///
+/// So a prefix has one or two keys, and the type cannot hold more or none.
+/// A prefix with any other character that a lookup rejects is still an
+/// error. This is a separate type, so an exact lookup cannot take a prefix
+/// key, and a prefix search cannot take an exact key.
+#[invariant(glide.as_ref().is_none_or(|glide| glide != typed), "two readings have two different keys")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LookupPrefix {
+    /// The reading of the text as typed.
+    typed: LookupKey,
+    /// The reading with a following breve, when it is another key.
+    glide: Option<LookupKey>,
+}
+
+impl LookupPrefix {
+    #[requires(true)]
+    #[ensures(true)]
+    #[bityzba::expensive_ensures(
+        match (&ret, text.trim_end().strip_suffix(awaits_next_unit)) {
+            (Ok(prefix), Some(rest)) => LookupKey::from_typed(rest).is_ok_and(|key| key == prefix.typed) && prefix.glide.is_none(),
+            (Ok(prefix), None) => LookupKey::from_typed(text).is_ok_and(|key| key == prefix.typed),
+            (Err(_), _) => true,
+        },
+        "the typed reading is the typed key of the text before any waiting shorthand mark"
+    )]
+    pub fn from_typed(text: &str) -> Result<Self, LookupPatternError> {
+        let text = text.trim_end();
+        if let Some(rest) = text.strip_suffix(awaits_next_unit) {
+            let typed = LookupKey::from_typed(rest)?;
+            return Ok(new!(LookupPrefix { typed, glide: None }));
+        }
+        let typed = LookupKey::from_typed(text)?;
+        let glide = LookupKey::from_typed(&format!("{text}{GLIDE_PARTNER_MARK}"))
+            .ok()
+            .filter(|glide| *glide != typed);
+        Ok(new!(LookupPrefix { typed, glide }))
+    }
+
+    /// The one or two keys of this prefix, the typed reading first.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn readings(&self) -> impl Iterator<Item = &LookupKey> {
+        std::iter::once(&self.typed).chain(self.glide.as_ref())
+    }
+
+    /// Whether `key` starts with one of the readings.
+    #[requires(true)]
+    #[ensures(ret == self.readings().any(|reading| key.starts_with(reading.as_str())))]
+    pub fn matches(&self, key: &str) -> bool {
+        key.starts_with(self.typed.as_str())
+            || self
+                .glide
+                .as_ref()
+                .is_some_and(|glide| key.starts_with(glide.as_str()))
+    }
+}
+
+impl LookupKey {
+    /// The key of text that a user typed. Empty or blank text gives the
+    /// empty key.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|key| !key.is_empty()) || text.trim().is_empty() || ret.is_err())]
+    pub fn from_typed(text: &str) -> Result<Self, LookupPatternError> {
+        let keyed =
+            build_lookup_key::<()>(&[LookupPatternPart::Literal(text)], LookupKeyMode::Lookup)?;
+        Ok(new!(LookupKey {
+            text: key_text_of(&keyed),
+        }))
+    }
+
+    /// The key of stored text: a headword, a canonical rafsi, or phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn from_stored(text: &str) -> Self {
+        new!(LookupKey {
+            text: normalize_lookup_query(text),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn as_str(&self) -> &str {
+        &self.text
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.text.is_empty())]
+    pub fn is_empty(&self) -> bool {
+        self.text.is_empty()
+    }
 }
 
 /// The short rafsi form of a fu'ivla, from CLL 4.16.
@@ -1366,6 +1550,151 @@ fn short_form_of_phonemes(phonemes: &str) -> Option<String> {
     (!stem.is_empty()).then_some(stem)
 }
 
+/// One piece of a lookup pattern, before keying.
+///
+/// A literal is source text. A wildcard stands for one pattern token.
+#[invariant(true)]
+#[invariant(::Literal(_) => true)]
+#[invariant(::Wildcard(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LookupPatternPart<'a, T> {
+    Literal(&'a str),
+    Wildcard(T),
+}
+
+/// One piece of a lookup pattern after keying.
+///
+/// `Text` is non-empty key text. A wildcard is the same token the caller
+/// supplied.
+#[invariant(::Text(text) => !text.is_empty())]
+#[invariant(::Wildcard(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LookupKeyPart<T> {
+    Text(String),
+    Wildcard(T),
+}
+
+impl<T> LookupKeyPart<T> {
+    /// The key text of this part, when the part is text.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(LookupKeyPart::Text(_))))]
+    pub fn text(&self) -> Option<&str> {
+        match self.as_data() {
+            data!(LookupKeyPart::Text(text)) => Some(text.as_str()),
+            data!(LookupKeyPart::Wildcard(_)) => None,
+        }
+    }
+
+    /// The wildcard token of this part, when the part is a wildcard.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(LookupKeyPart::Wildcard(_))))]
+    pub fn wildcard(&self) -> Option<&T> {
+        match self.as_data() {
+            data!(LookupKeyPart::Wildcard(token)) => Some(token),
+            data!(LookupKeyPart::Text(_)) => None,
+        }
+    }
+}
+
+/// A lookup pattern that a lookup rejects.
+///
+/// `InvalidCharacter` names a character that gentufa also rejects, such as
+/// a letter with a non-stress diacritic. `NoLookupCharacter` names a literal
+/// run that has only characters a key leaves out, such as `,` in `*,*`.
+#[invariant(::InvalidCharacter { character } => !character.is_whitespace())]
+#[invariant(::NoLookupCharacter { text } => !text.is_empty() && text.trim() == text)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LookupPatternError {
+    InvalidCharacter { character: char },
+    NoLookupCharacter { text: String },
+}
+
+impl LookupPatternError {
+    /// The rejected character, when the error names one.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|character| !character.is_whitespace()))]
+    pub fn invalid_character(&self) -> Option<char> {
+        match self.as_data() {
+            data!(LookupPatternError::InvalidCharacter { character }) => Some(*character),
+            data!(LookupPatternError::NoLookupCharacter { .. }) => None,
+        }
+    }
+}
+
+impl std::fmt::Display for LookupPatternError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.as_data() {
+            data!(LookupPatternError::InvalidCharacter { character }) => {
+                write!(formatter, "unsupported character `{character}`")
+            }
+            data!(LookupPatternError::NoLookupCharacter { text }) => {
+                write!(
+                    formatter,
+                    "`{text}` has no character that a lookup can search for"
+                )
+            }
+        }
+    }
+}
+
+/// Key one whole lookup pattern.
+///
+/// `parts` is literal text and wildcard tokens in pattern order. The
+/// function transcribes each run of literals between wildcards as one stream.
+/// It carries the converter state across adjacent literals. A wildcard resets
+/// that state. Each transcription step then follows `lookup_key_char`:
+/// a letter stays, a word break becomes one space, a comma or a middle dot
+/// disappears, and any other character is an error that names it. A wildcard
+/// counts as a part that stays. A space stays when a surviving part is on
+/// both sides. A literal run that keeps no letter is an error. A pattern with
+/// no wildcard has the same key as that text alone.
+#[requires(true)]
+#[ensures(true)]
+#[bityzba::expensive_ensures({
+    if parts
+        .iter()
+        .any(|part| matches!(part, LookupPatternPart::Wildcard(_)))
+    {
+        true
+    } else {
+        let mut joined = String::new();
+        for part in parts {
+            if let LookupPatternPart::Literal(text) = part {
+                joined.push_str(text);
+            }
+        }
+        let whole = build_lookup_key::<T>(
+            &[LookupPatternPart::Literal(joined.as_str())],
+            LookupKeyMode::Lookup,
+        );
+        // The lookup transcript and the strict converter of the parser are
+        // two walks. When the strict conversion succeeds, both give one key.
+        let agrees_with_parser =
+            match (jbotci_morphology::normalize_lojban_input_text(&joined), ret.as_ref()) {
+                (None, _) => true,
+                (Some(strict), Ok(actual)) => key_text_of(actual) == normalize_lookup_query(&strict),
+                // A run with no letter, such as `, ,`, is an error here and
+                // an empty key there.
+                (Some(strict), Err(error)) => {
+                    error.invalid_character().is_none() && normalize_lookup_query(&strict).is_empty()
+                }
+            };
+        agrees_with_parser
+            && match (ret.as_ref(), whole.as_ref()) {
+                (Ok(actual), Ok(expected)) => key_text_of(actual) == key_text_of(expected),
+                (Err(actual), Err(expected)) => actual == expected,
+                _ => false,
+            }
+    }
+})]
+pub fn normalize_lookup_pattern<T: Clone>(
+    parts: &[LookupPatternPart<'_, T>],
+) -> Result<Vec<LookupKeyPart<T>>, LookupPatternError> {
+    build_lookup_key(parts, LookupKeyMode::Lookup)
+}
+
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
 #[requires(true)]
 #[ensures(true)]
@@ -1390,15 +1719,173 @@ pub fn universal_gismu_rafsi_forms(word: &str) -> Vec<(String, RafsiSource)> {
     forms
 }
 
+/// Whether a key may fail.
+///
+/// A lookup reports a rejected character. An index key leaves it out.
+#[invariant(true)]
+#[invariant(::Lookup => true)]
+#[invariant(::Index => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LookupKeyMode {
+    Lookup,
+    Index,
+}
+
+/// What a lookup key does with one transcription step.
+#[invariant(::Letter(value) => is_lookup_char(*value))]
+#[invariant(::WordBreak => true)]
+#[invariant(::Removed => true)]
+#[invariant(::Invalid(value) => !value.is_whitespace())]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LookupKeyChar {
+    Letter(char),
+    WordBreak,
+    Removed,
+    Invalid(char),
+}
+
+/// The key rule for one transcription step.
+///
+/// The converter of the parser decides the class of each character (see
+/// `jbotci_morphology::LookupStep`). A letter keeps its base letter: its
+/// stress mark and its glide mark fold away. A comma is a mark inside a
+/// word, so it disappears. A word break is a space (`broda-zei-brode` keys
+/// as `broda zei brode`). A character that the converter cannot read is
+/// invalid, as in gentufa: a letter with another diacritic, a letter that no
+/// converter reads such as `q` or `w`, a combining breve, and other symbols.
+/// The one exception is the middle dot U+00B7 and the hyphenation point
+/// U+2027, which the owner ruled to be marks inside a word, like a comma.
+#[requires(true)]
+#[ensures(matches!(step.into_data(), data!(LookupStep::WordBreak(_))) == matches!(ret.as_data(), data!(LookupKeyChar::WordBreak)))]
+fn lookup_key_char(step: LookupStep) -> LookupKeyChar {
+    match step.into_data() {
+        data!(LookupStep::Letter(',')) => new!(LookupKeyChar::Removed),
+        data!(LookupStep::Letter(value)) => {
+            let folded = fold_lojban_diacritic(value).unwrap_or(value);
+            if is_lookup_char(folded) {
+                new!(LookupKeyChar::Letter(folded))
+            } else {
+                new!(LookupKeyChar::Invalid(value))
+            }
+        }
+        data!(LookupStep::WordBreak(_)) => new!(LookupKeyChar::WordBreak),
+        data!(LookupStep::Unread('\u{00b7}' | '\u{2027}')) => new!(LookupKeyChar::Removed),
+        data!(LookupStep::Unread(value)) => new!(LookupKeyChar::Invalid(value)),
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
-fn normalize_lookup_token(raw: &str) -> String {
-    raw.chars()
-        .filter_map(fold_lojban_diacritic)
-        .flat_map(char::to_lowercase)
-        .map(normalize_latin_apostrophe)
-        .filter(|value| is_lookup_char(*value))
-        .collect()
+fn key_text_of<T>(parts: &[LookupKeyPart<T>]) -> String {
+    let mut text = String::new();
+    for part in parts {
+        if let data!(LookupKeyPart::Text(value)) = part.as_data() {
+            text.push_str(value);
+        }
+    }
+    text
+}
+
+/// Key one literal run and add it to `current`.
+///
+/// A word break sets `pending_space`, and the space is written only before
+/// the next letter, or before a wildcard (see `build_lookup_key`). `started`
+/// is true when a letter or a wildcard came before the run. In the lookup
+/// mode, the first character that the key rejects is an error, and a run
+/// with text that adds nothing to the key is an error too. A run adds to the
+/// key when it keeps a letter, or when it leaves a space between two
+/// searchable parts: the pending space of a word break, when a wildcard
+/// follows (`before_wildcard`). So `*!*` and `* , *` key as `* *`, while
+/// `*,*`, `!*` and a trailing `*!` add nothing.
+#[requires(!current.ends_with(' '))]
+#[ensures(!current.ends_with(' '))]
+#[ensures(*pending_space -> (started || !current.is_empty()))]
+fn key_literal_run(
+    run: &str,
+    mode: LookupKeyMode,
+    before_wildcard: bool,
+    started: bool,
+    current: &mut String,
+    pending_space: &mut bool,
+) -> Result<(), LookupPatternError> {
+    let mut started = started;
+    let mut kept = false;
+    let mut invalid = None;
+    transcribe_lookup_run(run, |step| match lookup_key_char(step).into_data() {
+        data!(LookupKeyChar::WordBreak) => {
+            if started {
+                *pending_space = true;
+            }
+        }
+        data!(LookupKeyChar::Removed) => {}
+        data!(LookupKeyChar::Invalid(value)) => {
+            invalid.get_or_insert(value);
+        }
+        data!(LookupKeyChar::Letter(letter)) => {
+            if *pending_space {
+                current.push(' ');
+                *pending_space = false;
+            }
+            current.push(letter);
+            started = true;
+            kept = true;
+        }
+    });
+    if mode == LookupKeyMode::Lookup {
+        if let Some(character) = invalid {
+            return Err(new!(LookupPatternError::InvalidCharacter { character }));
+        }
+        let adds_space = before_wildcard && *pending_space;
+        let trimmed = run.trim();
+        if !kept && !adds_space && !trimmed.is_empty() {
+            return Err(new!(LookupPatternError::NoLookupCharacter {
+                text: trimmed.to_owned(),
+            }));
+        }
+    }
+    Ok(())
+}
+
+/// Key a lookup pattern: literal runs between wildcards, in order.
+///
+/// Each run of adjacent literals is one text for the converter, so a pair
+/// that spans two literals, such as a base letter and its combining mark,
+/// converts as one unit. A wildcard ends the run, and it counts as a part
+/// that stays. A space stays when a surviving part is on both sides.
+#[requires(true)]
+#[ensures(mode == LookupKeyMode::Index -> ret.is_ok())]
+fn build_lookup_key<T: Clone>(
+    parts: &[LookupPatternPart<'_, T>],
+    mode: LookupKeyMode,
+) -> Result<Vec<LookupKeyPart<T>>, LookupPatternError> {
+    let mut keyed = Vec::new();
+    let mut current = String::new();
+    let mut pending_space = false;
+    let mut run = String::new();
+    for part in parts {
+        match part {
+            LookupPatternPart::Literal(text) => run.push_str(text),
+            LookupPatternPart::Wildcard(token) => {
+                let started = !keyed.is_empty() || !current.is_empty();
+                key_literal_run(&run, mode, true, started, &mut current, &mut pending_space)?;
+                run.clear();
+                if pending_space {
+                    current.push(' ');
+                    pending_space = false;
+                }
+                if !current.is_empty() {
+                    keyed.push(new!(LookupKeyPart::Text(std::mem::take(&mut current))));
+                }
+                keyed.push(new!(LookupKeyPart::Wildcard(token.clone())));
+            }
+        }
+    }
+    let started = !keyed.is_empty() || !current.is_empty();
+    key_literal_run(&run, mode, false, started, &mut current, &mut pending_space)?;
+    if !current.is_empty() {
+        keyed.push(new!(LookupKeyPart::Text(current)));
+    }
+    Ok(keyed)
 }
 
 #[requires(true)]
@@ -1720,11 +2207,489 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn the_plain_lojban_short_path_gives_the_converter_key() {
+        // The short path of `normalize_lookup_query` must give the key of the
+        // full converter path for every text that it takes.
+        let full = |text: &str| {
+            key_text_of(
+                &build_lookup_key::<()>(&[LookupPatternPart::Literal(text)], LookupKeyMode::Index)
+                    .expect("an index key"),
+            )
+        };
+        for text in [
+            "klama",
+            "co'i",
+            "dat,ni",
+            ".bad.",
+            "mi  klama",
+            " lo nu ",
+            "ma,u",
+            ", , ,",
+            "pa re ci 123",
+            "la.djan.",
+            "\tmi\nklama ",
+            "",
+        ] {
+            assert_eq!(plain_lojban_key(text), Some(full(text)), "{text:?}");
+            assert_eq!(normalize_lookup_query(text), full(text), "{text:?}");
+        }
+        // Text with `h`, `q`, `w`, a capital or any other character takes the
+        // full path.
+        for text in ["coha", "klaqma", "wa", "Klama", "bárda", "клама", "ma;u"] {
+            assert_eq!(plain_lojban_key(text), None, "{text:?}");
+            assert_eq!(normalize_lookup_query(text), full(text), "{text:?}");
+        }
+        // Every headword of a small dictionary keys alike on both paths.
+        for word in ["broda", "brode", "lo'e", "nu'e", "zo'u"] {
+            assert_eq!(normalize_lookup_query(word), full(word), "{word:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_prefix_key_allows_a_last_unit_that_waits_for_a_partner() {
+        let prefix = |text: &str| {
+            LookupPrefix::from_typed(text).map(|prefix| {
+                prefix
+                    .readings()
+                    .map(|reading| reading.as_str().to_owned())
+                    .collect::<Vec<_>>()
+            })
+        };
+        // A bare shorthand mark waits for its payload. An exact lookup
+        // rejects it, and a prefix keys the text before it.
+        assert_eq!(prefix("\u{ed8b}"), Ok(vec![String::new()]));
+        assert_eq!(prefix("co\u{ed8b}"), Ok(vec!["co".to_owned()]));
+        assert_eq!(
+            LookupKey::from_typed("\u{ed8b}").map_err(|error| error.invalid_character()),
+            Err(Some('\u{ed8b}'))
+        );
+        // A Cyrillic vowel before a breve has two readings: a vowel with an
+        // implicit apostrophe, and a glide.
+        for text in ["шои", "ШОИ"] {
+            assert_eq!(
+                prefix(text),
+                Ok(vec!["co'i".to_owned(), "coi".to_owned()]),
+                "{text}"
+            );
+        }
+        assert_eq!(prefix("шои\u{0306}"), Ok(vec!["coi".to_owned()]));
+        // `шу` reads `cu` with or without the breve, and a Latin vowel keys
+        // alike with or without it, so each has one reading.
+        assert_eq!(prefix("шу"), Ok(vec!["cu".to_owned()]));
+        assert_eq!(prefix("coi"), Ok(vec!["coi".to_owned()]));
+        // A base letter before its combining mark, or before a stress mark,
+        // is a whole unit.
+        assert_eq!(prefix("kla"), Ok(vec!["kla".to_owned()]));
+        // Any other rejected character is still an error.
+        for (text, character) in [("klâ", 'â'), ("kla#", '#'), ("q", 'q')] {
+            assert_eq!(
+                LookupPrefix::from_typed(text).map_err(|error| error.invalid_character()),
+                Err(Some(character)),
+                "{text}"
+            );
+        }
+        // A prefix search returns the union of both readings, with no repeat,
+        // and nothing that starts with `co` but continues neither reading.
+        let entries = &[
+            test_entry("co'i", WordType::Cmavo, &[], None),
+            test_entry("coi", WordType::Cmavo, &[], None),
+            test_entry("coico'u", WordType::Cmavo, &[], None),
+            test_entry("cortu", WordType::Gismu, &[], None),
+        ];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &[],
+            0,
+        );
+        let found = |text: &str| {
+            dictionary
+                .entries_by_word_prefix(&LookupPrefix::from_typed(text).expect("prefix"))
+                .map(|entry| entry.word)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(found("шои"), ["co'i", "coi", "coico'u"]);
+        assert_eq!(found("co"), ["co'i", "coi", "coico'u", "cortu"]);
+        assert_eq!(found("coi"), ["coi", "coico'u"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_typed_key_names_what_a_stored_key_leaves_out() {
+        // The owner rule of #1130: a typed lookup with a non-stress diacritic
+        // is an invalid character that names it, while the stored headword
+        // keeps its base letter.
+        for (text, character, stored) in [
+            ("klâma", 'â', "klama"),
+            ("çmene", 'ç', "cmene"),
+            ("klama#", '#', "klama"),
+            ("klaqma", 'q', "klama"),
+        ] {
+            assert_eq!(
+                LookupKey::from_typed(text).map_err(|error| error.invalid_character()),
+                Err(Some(character)),
+                "{text}"
+            );
+            assert_eq!(LookupKey::from_stored(text).as_str(), stored, "{text}");
+        }
+        for (text, key) in [
+            ("klama", "klama"),
+            ("Klámà", "klama"),
+            ("клама", "klama"),
+            ("co'i", "co'i"),
+            ("ko·ri", "kori"),
+            ("ko\u{2027}ri", "kori"),
+            ("broda-zei-brode", "broda zei brode"),
+            ("", ""),
+        ] {
+            assert_eq!(
+                LookupKey::from_typed(text).as_ref().map(LookupKey::as_str),
+                Ok(key),
+                "{text}"
+            );
+            assert_eq!(LookupKey::from_stored(text).as_str(), key, "{text}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn pattern_lookup_key_uses_apostrophe_spelling() {
         assert_eq!(normalize_lookup_query("daʼoi"), "da'oi");
         assert_eq!(normalize_lookup_query("da\u{2019}oi"), "da'oi");
         assert_eq!(normalize_lookup_query("dahoi"), "da'oi");
         assert_eq!(normalize_lookup_query("da\u{02d2}oi"), "da'oi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_pattern_uses_the_exact_key_rules() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn whole(text: &str) -> Result<Vec<LookupKeyPart<char>>, LookupPatternError> {
+            normalize_lookup_pattern(&[LookupPatternPart::Literal(text)])
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn text_of(text: &str) -> String {
+            key_text_of(&whole(text).expect("the sample keeps a lookup character"))
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn invalid(text: &str) -> Option<char> {
+            whole(text)
+                .expect_err("the sample is rejected")
+                .invalid_character()
+        }
+
+        assert_eq!(text_of(" .Án,iis. "), normalize_lookup_query(" .Án,iis. "));
+        assert_eq!(text_of(" .Án,iis. "), "aniis");
+        assert_eq!(text_of("lo  brodá"), "lo broda");
+        assert_eq!(text_of("клама"), "klama");
+        // No converter reads `q`, so a lookup names it, as gentufa does.
+        assert_eq!(
+            whole("qá").map_err(|error| error.invalid_character()),
+            Err(Some('q'))
+        );
+        assert_eq!(text_of("\u{ed8b}\u{eda2}"), "i'");
+        // A word break is a space. A comma, U+00B7 and U+2027 disappear.
+        assert_eq!(text_of("broda-zei-brode"), "broda zei brode");
+        assert_eq!(text_of("ma;u"), "ma u");
+        assert_eq!(text_of("xa!"), "xa");
+        assert_eq!(text_of("mi\u{00b7}do"), "mido");
+        assert_eq!(text_of("mi\u{2027}do"), "mido");
+        assert_eq!(text_of("mi,do"), "mido");
+        // Gentufa rejects these characters, so a lookup does too.
+        assert_eq!(invalid("клама#da"), Some('#'));
+        assert_eq!(invalid("coһi#"), Some('#'));
+        assert_eq!(invalid("klâma"), Some('â'));
+        assert_eq!(invalid("klama\u{0302}"), Some('\u{0302}'));
+        assert_eq!(invalid("kläm"), Some('ä'));
+        assert_eq!(invalid("кламя"), Some('я'));
+        assert_eq!(invalid("mi\u{2022}do"), Some('\u{2022}'));
+        assert_eq!(invalid("mi\u{2219}do"), Some('\u{2219}'));
+        assert_eq!(invalid("\u{0306}"), Some('\u{0306}'));
+        assert_eq!(invalid(",\u{0306}"), Some('\u{0306}'));
+        assert_eq!(invalid("🙂"), Some('🙂'));
+        // A run that keeps no letter names its text.
+        assert_eq!(
+            whole(", ,").expect_err("no letter"),
+            new!(LookupPatternError::NoLookupCharacter {
+                text: ", ,".to_owned()
+            })
+        );
+        // The index key leaves a rejected character out. `â` is `a` and a
+        // combining circumflex, so only the mark goes.
+        assert_eq!(normalize_lookup_query("klâma"), "klama");
+        assert_eq!(normalize_lookup_query("kla\u{0302}ma"), "klama");
+        assert_eq!(normalize_lookup_query("ma;u"), "ma u");
+        assert!(whole(" ").expect("blank").is_empty());
+
+        let split = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ca"),
+            LookupPatternPart::Literal(","),
+        ]);
+        assert_eq!(split, whole("ca,"));
+        assert_eq!(text_of("ca,"), "ca");
+
+        let comma_before_star = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ca ,"),
+            LookupPatternPart::Wildcard('*'),
+        ])
+        .expect("space stays before the star");
+        assert_eq!(key_text_of(&comma_before_star), "ca ");
+        assert_eq!(
+            comma_before_star,
+            vec![
+                new!(LookupKeyPart::Text("ca ".to_owned())),
+                new!(LookupKeyPart::Wildcard('*'))
+            ]
+        );
+
+        let bang_before_star = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ca !"),
+            LookupPatternPart::Wildcard('*'),
+        ])
+        .expect("a bang does not hide the space");
+        assert_eq!(key_text_of(&bang_before_star), "ca ");
+
+        let comma_between = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ca ,"),
+            LookupPatternPart::Wildcard('?'),
+            LookupPatternPart::Literal("ma"),
+        ])
+        .expect("comma does not hide the space");
+        assert_eq!(key_text_of(&comma_between), "ca ma");
+
+        let stars = normalize_lookup_pattern(&[
+            LookupPatternPart::Wildcard('*'),
+            LookupPatternPart::Literal(" "),
+            LookupPatternPart::Wildcard('*'),
+        ])
+        .expect("space between stars");
+        assert_eq!(key_text_of(&stars), " ");
+        assert_eq!(stars.len(), 3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_decomposition_never_makes_a_word_break_in_a_key() {
+        // U+037E decomposes to `;`, and U+226E and U+226F to `<` or `>` and a
+        // mark. A word break is decided from the typed character, so none of
+        // them is a space in the index key, in an exact lookup or in a glob.
+        for value in ['\u{037e}', '\u{226e}', '\u{226f}', '\u{0387}'] {
+            let text = format!("abu{value}sance");
+            assert!(!normalize_lookup_query(&text).contains(' '), "{value:?}");
+            assert_eq!(
+                normalize_lookup_pattern::<char>(&[LookupPatternPart::Literal(&text)])
+                    .expect_err("gentufa rejects the character")
+                    .invalid_character(),
+                Some(value),
+                "{value:?}"
+            );
+            assert!(
+                normalize_lookup_pattern(&[
+                    LookupPatternPart::Literal(&text),
+                    LookupPatternPart::Wildcard('*'),
+                ])
+                .is_err(),
+                "{value:?}"
+            );
+        }
+        // Canonically equivalent headwords get one index key, also where a
+        // lookup rejects them.
+        assert_eq!(
+            normalize_lookup_query("аи\u{0327}\u{0306}"),
+            normalize_lookup_query("аи\u{0306}\u{0327}")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_break_between_wildcards_is_a_space() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn between(text: &str) -> Result<Vec<LookupKeyPart<char>>, LookupPatternError> {
+            normalize_lookup_pattern(&[
+                LookupPatternPart::Wildcard('*'),
+                LookupPatternPart::Literal(text),
+                LookupPatternPart::Wildcard('*'),
+            ])
+        }
+
+        let space = between(" ").expect("a space between stars");
+        let mut breaks = 0;
+        let mut buffer = [0; 4];
+        for code in 0..=u32::from(char::MAX) {
+            let Some(value) = char::from_u32(code) else {
+                continue;
+            };
+            // The converter is the authority on word breaks, as for the key.
+            let mut steps = Vec::new();
+            transcribe_lookup_run(value.encode_utf8(&mut buffer), |step| steps.push(step));
+            if !matches!(steps.as_slice(), [step] if matches!(step.as_data(), data!(LookupStep::WordBreak(_))))
+            {
+                continue;
+            }
+            assert_eq!(between(&value.to_string()), Ok(space.clone()), "{value:?}");
+            breaks += 1;
+        }
+        assert!(breaks > 30, "{breaks}");
+        // A removed mark next to a break leaves the space.
+        for text in [" , ", ",!", "!,", "\u{00b7}-", "\u{2027} ", ". \u{00b7}"] {
+            assert_eq!(between(text), Ok(space.clone()), "{text:?}");
+        }
+        // A run that adds nothing to the key is still an error.
+        for text in [",", "\u{00b7}", "\u{2027}", ",,"] {
+            assert_eq!(
+                between(text),
+                Err(new!(LookupPatternError::NoLookupCharacter {
+                    text: text.to_owned()
+                })),
+                "{text:?}"
+            );
+        }
+        for parts in [
+            [
+                LookupPatternPart::Literal("!"),
+                LookupPatternPart::Wildcard('*'),
+            ],
+            [
+                LookupPatternPart::Wildcard('*'),
+                LookupPatternPart::Literal("!"),
+            ],
+        ] {
+            assert!(normalize_lookup_pattern(&parts).is_err(), "{parts:?}");
+        }
+        // A letter run keeps its break as before.
+        assert_eq!(
+            key_text_of(
+                &normalize_lookup_pattern(&[
+                    LookupPatternPart::Literal("ca"),
+                    LookupPatternPart::Wildcard('*'),
+                    LookupPatternPart::Literal("!"),
+                    LookupPatternPart::Wildcard('*'),
+                ])
+                .expect("ca *!*")
+            ),
+            "ca "
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn adjacent_literals_share_one_lookup_stream() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn whole(text: &str) -> Result<Vec<LookupKeyPart<char>>, LookupPatternError> {
+            normalize_lookup_pattern(&[LookupPatternPart::Literal(text)])
+        }
+
+        let cyrillic = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("шо"),
+            LookupPatternPart::Literal("и"),
+        ]);
+        assert_eq!(cyrillic, whole("шои"));
+        assert_eq!(
+            key_text_of(&cyrillic.expect("split Cyrillic keeps a letter")),
+            "co'i"
+        );
+
+        let with_empty = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("шо"),
+            LookupPatternPart::Literal(""),
+            LookupPatternPart::Literal("и"),
+        ]);
+        assert_eq!(with_empty, whole("шои"));
+
+        let three = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("ш"),
+            LookupPatternPart::Literal("о"),
+            LookupPatternPart::Literal("и"),
+        ]);
+        assert_eq!(three, whole("шои"));
+
+        let shorthand = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("\u{ed8b}"),
+            LookupPatternPart::Literal("\u{eda2}"),
+        ]);
+        assert_eq!(shorthand, whole("\u{ed8b}\u{eda2}"));
+        assert_eq!(
+            key_text_of(&shorthand.expect("split shorthand keeps a letter")),
+            "i'"
+        );
+
+        let shorthand_with_empty = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("\u{ed8b}"),
+            LookupPatternPart::Literal(""),
+            LookupPatternPart::Literal("\u{eda2}"),
+        ]);
+        assert_eq!(shorthand_with_empty, whole("\u{ed8b}\u{eda2}"));
+
+        // A shorthand mark with no payload is a character that gentufa
+        // rejects, so the key rejects it.
+        let bare_mark = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("\u{ed8b}"),
+            LookupPatternPart::Literal("a"),
+        ]);
+        assert_eq!(bare_mark, whole("\u{ed8b}a"));
+        assert_eq!(
+            bare_mark.expect_err("a bare mark").invalid_character(),
+            Some('\u{ed8b}')
+        );
+
+        let across_star = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("шо"),
+            LookupPatternPart::Wildcard('*'),
+            LookupPatternPart::Literal("и"),
+        ])
+        .expect("a wildcard starts a new stream");
+        assert_eq!(
+            across_star,
+            vec![
+                new!(LookupKeyPart::Text("co".to_owned())),
+                new!(LookupKeyPart::Wildcard('*')),
+                new!(LookupKeyPart::Text("i".to_owned())),
+            ]
+        );
+
+        assert_eq!(
+            normalize_lookup_pattern(&[
+                LookupPatternPart::Literal("\u{ed8b}"),
+                LookupPatternPart::Wildcard('*'),
+            ])
+            .expect_err("a bare shorthand mark keeps no letter")
+            .invalid_character(),
+            Some('\u{ed8b}')
+        );
+
+        let mark_before_star = normalize_lookup_pattern(&[
+            LookupPatternPart::Literal("a"),
+            LookupPatternPart::Literal("\u{ed8b}"),
+            LookupPatternPart::Wildcard('*'),
+            LookupPatternPart::Literal("\u{eda2}"),
+        ]);
+        // A wildcard ends the run, so the mark has no payload.
+        assert_eq!(
+            mark_before_star
+                .expect_err("a bare mark before a wildcard")
+                .invalid_character(),
+            Some('\u{ed8b}')
+        );
     }
 
     #[test]
@@ -1785,7 +2750,10 @@ mod tests {
         );
         dictionary.validate().expect("consistent indexes");
         for (stem, word) in [("ierx", "ierxi"), ("tci'il", "tci'ile")] {
-            let matched = dictionary.lookup_rafsi(stem).next().expect(stem);
+            let matched = dictionary
+                .lookup_rafsi(&LookupKey::from_stored(stem))
+                .next()
+                .expect(stem);
             assert_eq!(matched.source, RafsiSource::FuivlaStem);
             assert_eq!(matched.entry.word, word);
             assert!(dictionary.rafsi_availability(stem).is_free());
@@ -1819,7 +2787,12 @@ mod tests {
         ] {
             assert_eq!(fuivla_stem_rafsi(word).as_deref(), Some(stem), "{word}");
         }
-        assert!(dictionary.lookup_rafsi("spaget").next().is_none());
+        assert!(
+            dictionary
+                .lookup_rafsi(&LookupKey::from_stored("spaget"))
+                .next()
+                .is_none()
+        );
         assert!(dictionary.rafsi_availability("spaget").is_free());
     }
 
@@ -2049,7 +3022,7 @@ mod tests {
 
         assert_eq!(
             dictionary
-                .lookup_rafsi("ska")
+                .lookup_rafsi(&LookupKey::from_stored("ska"))
                 .map(|matched| (matched.entry.word, matched.entry.word_type))
                 .collect::<Vec<_>>(),
             vec![
@@ -2059,7 +3032,7 @@ mod tests {
         );
         assert_eq!(
             dictionary
-                .lookup_rafsi("kli")
+                .lookup_rafsi(&LookupKey::from_stored("kli"))
                 .map(|matched| (matched.entry.word, matched.entry.word_type))
                 .collect::<Vec<_>>(),
             vec![("kliniko", WordType::Fuivla)]
@@ -2068,7 +3041,7 @@ mod tests {
         // rafsi, so availability never has to filter them out on content.
         assert_eq!(
             dictionary
-                .lookup_rafsi("salc")
+                .lookup_rafsi(&LookupKey::from_stored("salc"))
                 .map(|matched| (matched.entry.word, matched.entry.word_type))
                 .collect::<Vec<_>>(),
             vec![("salci", WordType::Gismu)]
@@ -2169,7 +3142,7 @@ mod tests {
         assert!(dictionary.validate().is_ok());
         assert_eq!(
             dictionary
-                .lookup_words("internet")
+                .lookup_words(&LookupKey::from_stored("internet"))
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["INternet", "internet"]
@@ -2210,33 +3183,39 @@ mod tests {
         assert!(dictionary.validate().is_ok());
         assert_eq!(
             dictionary
-                .lookup_words("gaurkihu")
+                .lookup_words(&LookupKey::from_stored("gaurkihu"))
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["gaurki'u", "gaurkihu"]
         );
         assert_eq!(
             dictionary
-                .lookup_words("gaurki\u{02bc}u")
+                .lookup_words(&LookupKey::from_stored("gaurki\u{02bc}u"))
                 .map(|entry| (entry.word, entry.score.get()))
                 .collect::<Vec<_>>(),
             vec![("gaurki'u", 1.0), ("gaurkihu", -2.0)]
         );
-        assert_eq!(dictionary.lookup_word("gaurki'u").unwrap().word, "gaurki'u");
         assert_eq!(
             dictionary
-                .entries_by_word_prefix("gaurki")
+                .lookup_word(&LookupKey::from_stored("gaurki'u"))
+                .unwrap()
+                .word,
+            "gaurki'u"
+        );
+        assert_eq!(
+            dictionary
+                .entries_by_word_prefix(&LookupPrefix::from_typed("gaurki").expect("prefix"))
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["gaurki'u", "gaurkihu"]
         );
         assert_eq!(
-            dictionary.first_gloss_keywords_for_words(&["gaurkihu"]),
+            dictionary.first_gloss_keywords_for_words(&[&LookupKey::from_stored("gaurkihu")]),
             vec![Some("reason")]
         );
         assert_eq!(
             dictionary
-                .exact_definition_indices("gaurki'u")
+                .exact_definition_indices(&LookupKey::from_stored("gaurki'u"))
                 .iter()
                 .map(|index| dictionary.entry_at(*index).word)
                 .collect::<Vec<_>>(),
@@ -2277,12 +3256,12 @@ mod tests {
 
         assert!(dictionary.validate().is_ok());
         assert_eq!(
-            dictionary.exact_definition_indices("gaurkihu"),
+            dictionary.exact_definition_indices(&LookupKey::from_stored("gaurkihu")),
             [EntryIndex(1), EntryIndex(2), EntryIndex(0)]
         );
         assert_eq!(
             dictionary
-                .lookup_words("gaurki'u")
+                .lookup_words(&LookupKey::from_stored("gaurki'u"))
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["gaurki'u", "gaurki\u{02bc}u", "gaurkihu"]
@@ -2366,7 +3345,7 @@ mod tests {
         assert!(tied_dictionary.validate().is_ok());
         assert_eq!(
             tied_dictionary
-                .lookup_rafsi("gahu")
+                .lookup_rafsi(&LookupKey::from_stored("gahu"))
                 .map(|matched| matched.entry.word)
                 .collect::<Vec<_>>(),
             vec!["ganzy", "gancy", "gasny"]
@@ -2398,7 +3377,7 @@ mod tests {
         assert!(mixed_dictionary.validate().is_ok());
         assert_eq!(
             mixed_dictionary
-                .lookup_rafsi("gau")
+                .lookup_rafsi(&LookupKey::from_stored("gau"))
                 .map(|matched| (matched.entry.word, matched.entry.score.get()))
                 .collect::<Vec<_>>(),
             vec![("exprm", 5.0), ("offcl", -2.0)]
@@ -2433,7 +3412,10 @@ mod tests {
 
         assert!(dictionary.validate().is_ok());
         assert_eq!(
-            dictionary.first_gloss_keywords_for_words(&[".bárda.", "missing"]),
+            dictionary.first_gloss_keywords_for_words(&[
+                &LookupKey::from_stored(".bárda."),
+                &LookupKey::from_stored("missing"),
+            ]),
             vec![Some("large"), None],
         );
     }
@@ -2463,17 +3445,22 @@ mod tests {
         assert!(dictionary.validate().is_ok());
         assert_eq!(
             dictionary
-                .entries_by_word_prefix("BÁ")
+                .entries_by_word_prefix(&LookupPrefix::from_typed("BÁ").expect("prefix"))
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["BÁJRA", "bajra", "barda"],
         );
         assert!(
-            dictionary.entries_by_word_prefix("bas").next().is_none(),
+            dictionary
+                .entries_by_word_prefix(&LookupPrefix::from_typed("bas").expect("prefix"))
+                .next()
+                .is_none(),
             "the partitioned range must stop before adjacent non-matches",
         );
         assert_eq!(
-            dictionary.entries_by_word_prefix("").count(),
+            dictionary
+                .entries_by_word_prefix(&LookupPrefix::from_typed("").expect("prefix"))
+                .count(),
             entries.len(),
             "an empty prefix covers the complete index without a separate scan",
         );
@@ -2539,7 +3526,7 @@ mod tests {
             0,
         );
         assert_eq!(
-            incomplete.exact_definition_indices("pu ba"),
+            incomplete.exact_definition_indices(&LookupKey::from_stored("pu ba")),
             [EntryIndex(1)]
         );
         let indexes = build_owned_indexes(&entries);
@@ -2570,12 +3557,12 @@ mod tests {
             rows[0].targets()
         );
         assert_eq!(
-            dictionary.exact_definition_indices("pu ba"),
+            dictionary.exact_definition_indices(&LookupKey::from_stored("pu ba")),
             [EntryIndex(1)]
         );
         assert!(
             dictionary
-                .exact_definition_indices("klama zei tavla")
+                .exact_definition_indices(&LookupKey::from_stored("klama zei tavla"))
                 .is_empty()
         );
         let bad_maximum = Dictionary {

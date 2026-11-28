@@ -1248,6 +1248,38 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "validation error wrapper carries the sound index position and structural diagnostic",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyPart::Wildcard",
+        "a wildcard carries the caller token unchanged. The text part already requires a non-empty string",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:ConverterStep::Unread",
+        "an unread step carries any source character and its index, as the user wrote it",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyChar::Removed",
+        "a unit variant for a character that a lookup key leaves out",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyChar::WordBreak",
+        "a unit variant for a character that a lookup key reads as a space",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyMode::Index",
+        "a unit variant that selects the index key, which cannot fail",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupKeyMode::Lookup",
+        "a unit variant that selects the lookup key, which can fail",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupPatternPart::Literal",
+        "a literal accepts any source text. The key function decides which characters stay",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:LookupPatternPart::Wildcard",
+        "a wildcard carries the caller token unchanged. The token type has its own rules",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:RafsiAvailability::Free",
         "a free short rafsi has no claimants to constrain; the Taken alternative carries and validates the claimant list",
     ),
@@ -1738,6 +1770,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::FixedRafsiEmpty",
         "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::WordEmpty",
+        "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::InvalidCharacter",
+        "the error names typed text and a character that the typed-query key rejected",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::Interrupted",

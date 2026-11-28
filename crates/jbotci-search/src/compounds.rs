@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use bityzba::{data, expensive_invariant, invariant, new, requires};
-use jbotci_dictionary::{Dictionary, EntryIndex, is_compound_separator};
+use jbotci_dictionary::{Dictionary, EntryIndex, LookupKey, is_compound_separator};
 use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
 
@@ -275,7 +275,7 @@ fn cmavo_match(
 #[requires(matches!(word.as_data(), data!(WordLike::ZeiCompound { .. })))]
 #[ensures(ret.as_ref().is_none_or(|item| item.kind == ParsedCompoundKind::Zei))]
 #[bityzba::expensive_ensures(ret.as_ref().is_none_or(|item| {
-    item.entry_indices == dictionary.exact_definition_indices(&item.lookup_text)
+    item.entry_indices == dictionary.exact_definition_indices(&LookupKey::from_stored(&item.lookup_text))
 }))]
 fn attested_zei(
     dictionary: &Dictionary<'_>,
@@ -284,7 +284,7 @@ fn attested_zei(
     barriers: &BarrierIndex,
 ) -> Option<ParsedCompoundMatch> {
     let lookup_text = word_like_lookup_text(word)?;
-    let targets = dictionary.exact_definition_indices(&lookup_text);
+    let targets = dictionary.exact_definition_indices(&LookupKey::from_stored(&lookup_text));
     if targets.is_empty() {
         return None;
     }
@@ -579,7 +579,7 @@ mod tests {
         let source = "batke zei uidje zei klama";
         let words = segment_words_with_modifiers(source).unwrap();
         let mut entry = *jbotci_dictionary_data::english()
-            .lookup_words("batke zei uidje")
+            .lookup_words(&LookupKey::from_stored("batke zei uidje"))
             .next()
             .unwrap();
         entry.word = source;
@@ -637,7 +637,7 @@ mod tests {
         }];
 
         let base_zei = *jbotci_dictionary_data::english()
-            .lookup_words("batke zei uidje")
+            .lookup_words(&LookupKey::from_stored("batke zei uidje"))
             .next()
             .unwrap();
         let mut worse_zei = base_zei;
@@ -657,7 +657,7 @@ mod tests {
         better_zei.rafsi = &[];
 
         let base_cmavo = *jbotci_dictionary_data::english()
-            .lookup_words("na'e")
+            .lookup_words(&LookupKey::from_stored("na'e"))
             .next()
             .unwrap();
         let mut worse_cmavo = base_cmavo;
@@ -752,7 +752,7 @@ mod tests {
             assert_eq!(cards[0].word, "nu'empcr zei klama", "{zei_src}");
             assert_eq!(cards[1].word, "nuhempcr zei klama", "{zei_src}");
             assert_eq!(
-                dictionary.exact_definition_indices(zei_src),
+                dictionary.exact_definition_indices(&LookupKey::from_stored(zei_src)),
                 [EntryIndex(1), EntryIndex(0)],
                 "{zei_src}"
             );

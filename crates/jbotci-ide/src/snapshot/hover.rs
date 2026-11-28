@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_dictionary::normalize_lookup_query;
+use jbotci_dictionary::{LookupKey, normalize_lookup_query};
 use jbotci_morphology::{LujvoPart, Word, WordKind, WordLike, WordLikeData, canonicalize_text};
 use jbotci_output::{render_vlacku_cards_markdown, render_vlacku_headword_markdown};
 use jbotci_search::compounds::{cmavo_sequence_containing, compound_cards};
@@ -248,7 +248,7 @@ fn zei_compound_hover_markdown(word_like: &WordLike) -> String {
     let lookup_text = word_like_headword(word_like);
     let dictionary = jbotci_dictionary_data::english();
     let own_cards = dictionary
-        .exact_definition_indices(&lookup_text)
+        .exact_definition_indices(&LookupKey::from_stored(&lookup_text))
         .into_iter()
         .map(|index| {
             dictionary_entry_card(

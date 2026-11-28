@@ -2,15 +2,15 @@ use std::collections::HashSet;
 
 use bityzba::{data, invariant, new, requires};
 use jbotci_dictionary::{
-    Dictionary, DictionaryEntry, DictionaryLujvoEntry, EntryIndex, Keyword, WordType,
+    Dictionary, DictionaryEntry, DictionaryLujvoEntry, EntryIndex, Keyword, LookupKey,
+    LookupPatternError, LookupPatternPart, WordType, normalize_lookup_pattern,
     normalize_lookup_query,
 };
 use jbotci_interrupt::CancellationToken;
 use jbotci_jvozba::{JvozbaError, LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, MorphologyOptions, Verbatim, Word, WordKey, WordKind, WordLike, WordLikeData,
-    canonicalize_text, lex_single_word, normalize_lojban_input_text,
-    segment_words_with_modifiers_with_options_and_source_id,
+    canonicalize_text, lex_single_word, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_phonetic::{
     AlineSimilarityScratch, PreparedAlineQuery, compare_similarity_then_index, prepare_sound_query,
@@ -799,7 +799,7 @@ fn dictionary_cards_for_lookup_target_with_options(
     options: &VlackuSearchOptions,
 ) -> Result<Vec<VlackuCard>, jbotci_interrupt::Interrupted> {
     let exact_definition_found = dictionary
-        .lookup_words(&target.lookup_text)
+        .lookup_words(&LookupKey::from_stored(&target.lookup_text))
         .any(|entry| !entry.definition.trim().is_empty());
     let output = if target.is_lujvo && !exact_definition_found {
         cards_for_lujvo(dictionary, &target.lookup_text, options)?
@@ -1019,14 +1019,32 @@ fn cards_for_valsi(
     } else {
         None
     };
-    let Some(query) = normalize_exact_lojban_query(query) else {
-        return Ok(invalid_lojban_word_output(query));
+    let key = match LookupKey::from_typed(query) {
+        Ok(key) => key,
+        Err(error) => return Ok(rejected_lookup_output(query, &error)),
     };
-    let query = query.as_str();
-    let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
+    let query = key.as_str();
+    let entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     if !entries.is_empty() {
+        // Owner ruling for #1130 (2026-11-27): a query with a space shows the
+        // exact phrase match first, then the result for each word on its own
+        // (`ma u` shows the headword `ma;u`, then `ma` and `u`).
+        let words = if key.as_str().contains(' ') {
+            resolve_segmented_lookup(dictionary, query, &options.cancellation)?.unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let mut seen = entries
+            .iter()
+            .map(|entry| std::ptr::from_ref(*entry))
+            .collect::<HashSet<_>>();
         let candidates = entries
             .into_iter()
+            .chain(
+                words
+                    .into_iter()
+                    .filter(|entry| seen.insert(std::ptr::from_ref(*entry))),
+            )
             .map(VlackuCandidate::entry)
             .collect::<Vec<_>>();
         return Ok(found_or_missing(cards_with_optional_lujvo_sources(
@@ -1064,12 +1082,13 @@ fn cards_for_rafsi(
         return cards_for_rafsi_pattern(dictionary, query.trim(), options);
     }
 
-    let Some(query) = normalize_exact_lojban_query(query) else {
-        return invalid_lojban_word_output(query);
+    let key = match LookupKey::from_typed(query) {
+        Ok(key) => key,
+        Err(error) => return rejected_lookup_output(query, &error),
     };
     let mut seen = HashSet::new();
     let candidates = dictionary
-        .lookup_rafsi(&query)
+        .lookup_rafsi(&key)
         .filter(|matched| seen.insert(matched.entry_index))
         .map(|matched| VlackuCandidate::entry(matched.entry))
         .collect::<Vec<_>>();
@@ -1083,17 +1102,18 @@ fn cards_for_lujvo(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
-    let Some(query) = normalize_exact_lojban_query(query) else {
-        return Ok(invalid_lojban_word_output(query));
+    let key = match LookupKey::from_typed(query) {
+        Ok(key) => key,
+        Err(error) => return Ok(rejected_lookup_output(query, &error)),
     };
-    let query = query.as_str();
-    let normalized = normalize_lookup_query(query);
-    let exact_entries = dictionary.lookup_words(query).collect::<Vec<_>>();
+    // The key is already the lookup key of the query, so it is not keyed again.
+    let query = key.as_str();
+    let exact_entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     let exact_found = !exact_entries.is_empty();
     let mut runtime_decomposition = None;
     let mut candidates = if exact_entries.is_empty() {
         let decomposition = decompose_query(dictionary, query, &options.cancellation)?;
-        let candidates = match classify_exact_word(query, &normalized, &options.cancellation)? {
+        let candidates = match classify_exact_word(query, query, &options.cancellation)? {
             Some(classification) => vec![new!(VlackuCandidate::Missing {
                 card: unknown_card(classification, decomposition.as_ref()),
             })],
@@ -1595,19 +1615,6 @@ fn found_or_missing(cards: Vec<VlackuCard>) -> VlackuSearchOutput {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || query.trim().is_empty()))]
-fn normalize_exact_lojban_query(query: &str) -> Option<String> {
-    let normalized = normalize_lookup_query(
-        &normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned()),
-    );
-    if normalized.is_empty() && !query.trim().is_empty() {
-        None
-    } else {
-        Some(normalized)
-    }
-}
-
-#[requires(true)]
 #[ensures(ret.outcome == VlackuOutcome::Invalid)]
 fn invalid_output(message: String) -> VlackuSearchOutput {
     VlackuSearchOutput {
@@ -1623,6 +1630,22 @@ fn invalid_lojban_word_output(query: &str) -> VlackuSearchOutput {
     invalid_output(format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}"))
 }
 
+/// The output for an exact query that the key rule rejects.
+///
+/// A rejected character is named. A query with no searchable character keeps
+/// the plain message.
+#[requires(true)]
+#[ensures(ret.outcome == VlackuOutcome::Invalid)]
+fn rejected_lookup_output(query: &str, error: &LookupPatternError) -> VlackuSearchOutput {
+    if error.invalid_character().is_some() {
+        invalid_output(format!(
+            "{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query} ({error})"
+        ))
+    } else {
+        invalid_lojban_word_output(query)
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn missing_exact_output(
@@ -1631,8 +1654,9 @@ fn missing_exact_output(
     options: &VlackuSearchOptions,
     lexical_word: Option<&Word>,
 ) -> Result<VlackuSearchOutput, jbotci_interrupt::Interrupted> {
-    let normalized = normalize_lookup_query(query);
-    match classify_exact_word(query, &normalized, &options.cancellation)? {
+    // `query` is already the lookup key of the typed query (see
+    // `cards_for_valsi`), so it is not keyed again.
+    match classify_exact_word(query, query, &options.cancellation)? {
         Some(classification) => {
             let decomposition = if options.decompose_lujvo {
                 decompose_query(dictionary, query, &options.cancellation)?
@@ -1739,7 +1763,7 @@ fn dictionary_lujvo_decomposition_for_query<'dictionary>(
     query: &str,
 ) -> Option<&'dictionary DictionaryLujvoEntry<'dictionary>> {
     dictionary
-        .lookup_words(query)
+        .lookup_words(&LookupKey::from_stored(query))
         .find_map(|entry| dictionary_lujvo_decomposition_for_entry(dictionary, entry))
 }
 
@@ -1842,15 +1866,15 @@ fn candidates_for_lujvo_final_segment<'dictionary>(
     surface: &str,
     cancellation: &CancellationToken,
 ) -> Result<Vec<VlackuCandidate<'dictionary>>, jbotci_interrupt::Interrupted> {
-    let normalized = normalize_lookup_query(surface);
-    let Some(classification) = classify_exact_word(surface, &normalized, cancellation)? else {
+    let key = LookupKey::from_stored(surface);
+    let Some(classification) = classify_exact_word(surface, key.as_str(), cancellation)? else {
         return Ok(Vec::new());
     };
     if !classification.word_type.is_brivla() {
         return Ok(Vec::new());
     }
 
-    let entries = dictionary.lookup_words(&normalized).collect::<Vec<_>>();
+    let entries = dictionary.lookup_words(&key).collect::<Vec<_>>();
     if entries.is_empty() {
         Ok(vec![new!(VlackuCandidate::Missing {
             card: unknown_card(classification, None),
@@ -1877,7 +1901,7 @@ fn resolve_segmented_lookup<'lookup, 'a>(
     let mut entries = Vec::with_capacity(words.len());
     for word in &words {
         let surface = flattened_word_like_phonemes(word);
-        let Some(entry) = dictionary.lookup_word(&surface) else {
+        let Some(entry) = dictionary.lookup_word(&LookupKey::from_stored(&surface)) else {
             return Ok(None);
         };
         entries.push(entry);
@@ -2049,6 +2073,8 @@ fn decompose_query<'a>(
         Err(
             error @ (JvozbaError::RequiresAtLeastTwoInputs
             | JvozbaError::FixedRafsiEmpty
+            | JvozbaError::InvalidCharacter { .. }
+            | JvozbaError::WordEmpty
             | JvozbaError::NonFinalUniversalLongRafsi { .. }
             | JvozbaError::FinalConsonant { .. }
             | JvozbaError::NoRafsiAvailable { .. }
@@ -2374,26 +2400,19 @@ fn regex_pattern_body(pattern: &str) -> Option<&str> {
 #[ensures(true)]
 #[ensures(ret.as_ref().is_ok_and(|pattern| !pattern.tokens.is_empty()) || ret.is_err())]
 fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
+    // Tokenize the pattern, then key it as one sequence. The key function
+    // decides which spaces stay and which letters a conversion keeps.
+    let parts = glob_pattern_parts(pattern);
+    let keyed = normalize_lookup_pattern(&parts)
+        .map_err(|error| format!("Invalid glob pattern `{pattern}`: {error}."))?;
     let mut tokens = Vec::new();
-    for raw in pattern.chars() {
-        match raw {
-            '$' => tokens.push(GlobToken::Consonant),
-            '@' => tokens.push(GlobToken::Vowel),
-            '?' => tokens.push(GlobToken::AnyOne),
-            '*' => {
-                if tokens.last() != Some(&GlobToken::AnyMany) {
-                    tokens.push(GlobToken::AnyMany);
-                }
+    for part in &keyed {
+        if let Some(text) = part.text() {
+            for value in text.chars() {
+                tokens.push(GlobToken::Literal(value));
             }
-            value => {
-                if let Some(normalized) = normalize_glob_literal(value) {
-                    tokens.push(GlobToken::Literal(normalized));
-                } else {
-                    return Err(format!(
-                        "Invalid glob pattern `{pattern}`: unsupported character `{value}`."
-                    ));
-                }
-            }
+        } else if let Some(token) = part.wildcard() {
+            tokens.push(*token);
         }
     }
     if tokens.is_empty() {
@@ -2403,21 +2422,40 @@ fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
     }
 }
 
+/// Split `pattern` into literal slices and wildcard tokens.
+///
+/// Consecutive `*` tokens become one `*` token. The slices borrow `pattern`.
 #[requires(true)]
 #[ensures(true)]
-fn normalize_glob_literal(value: char) -> Option<char> {
-    let text = value.to_string();
-    let normalized = canonicalize_text(&text);
-    let mut chars = normalized.chars();
-    let value = chars.next()?;
-    if chars.next().is_some() {
-        return None;
+fn glob_pattern_parts(pattern: &str) -> Vec<LookupPatternPart<'_, GlobToken>> {
+    let mut parts = Vec::new();
+    let mut literal_start = 0;
+    let mut last_was_star = false;
+    for (index, value) in pattern.char_indices() {
+        let wildcard = match value {
+            '$' => Some(GlobToken::Consonant),
+            '@' => Some(GlobToken::Vowel),
+            '?' => Some(GlobToken::AnyOne),
+            '*' => Some(GlobToken::AnyMany),
+            _ => None,
+        };
+        if let Some(token) = wildcard {
+            if literal_start < index {
+                parts.push(LookupPatternPart::Literal(&pattern[literal_start..index]));
+            }
+            if token != GlobToken::AnyMany || !last_was_star {
+                parts.push(LookupPatternPart::Wildcard(token));
+            }
+            last_was_star = token == GlobToken::AnyMany;
+            literal_start = index + value.len_utf8();
+        } else {
+            last_was_star = false;
+        }
     }
-    if value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' {
-        Some(value)
-    } else {
-        None
+    if literal_start < pattern.len() {
+        parts.push(LookupPatternPart::Literal(&pattern[literal_start..]));
     }
+    parts
 }
 
 #[requires(true)]
@@ -2563,6 +2601,43 @@ mod tests {
         )
         .expect("exact rafsi lookup");
         assert!(exact.cards.iter().any(|card| card.word == "ierxi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_query_with_a_space_shows_the_phrase_then_each_word() {
+        // Owner ruling for #1130 (2026-11-27): the exact phrase match comes
+        // first, then the result for each word on its own. The CLI, MCP,
+        // Discord and the web all run `run_vlacku_requests`.
+        let options = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+        });
+        let dictionary = jbotci_dictionary_data::english();
+        let words = |query: &str| {
+            run_vlacku_requests(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            )
+            .expect("valsi lookup")
+            .cards
+            .iter()
+            .map(|card| card.word.clone())
+            .collect::<Vec<_>>()
+        };
+        for query in ["ma u", "ma;u", "  ma   u "] {
+            assert_eq!(words(query), ["ma;u", "ma", "u"], "{query:?}");
+        }
+        // With no exact phrase match, the words alone show, as before.
+        assert_eq!(words("mi klama"), ["mi", "klama"]);
+        // A one-word query has no word results to add.
+        assert_eq!(words("klama"), ["klama"]);
+        // A glob matches whole keys, so a space in a pattern matches a space
+        // in a headword key, and the pattern is not split into words.
+        let globbed = words("ma u*");
+        assert!(globbed.iter().any(|word| word == "ma;u"), "{globbed:?}");
+        assert!(!globbed.iter().any(|word| word == "ma"), "{globbed:?}");
     }
 
     #[test]
@@ -2804,7 +2879,7 @@ mod tests {
         // the ones Lensisku typed as lujvo (#914).
         let dictionary = jbotci_dictionary_data::english();
         let entry = dictionary
-            .lookup_word("mumymast")
+            .lookup_word(&LookupKey::from_stored("mumymast"))
             .expect("entry for mumymast");
         assert!(WordTypeFilter::Cmevla.matches_word_type(entry.word_type));
 
@@ -3000,7 +3075,7 @@ mod tests {
     #[ensures(true)]
     fn dictionary_entry_cards_do_not_render_blank_selmaho() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("brode")
+            .lookup_word(&LookupKey::from_stored("brode"))
             .expect("entry for brode");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3014,7 +3089,7 @@ mod tests {
     #[ensures(true)]
     fn dictionary_entry_cards_include_author_and_official_status() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("klama")
+            .lookup_word(&LookupKey::from_stored("klama"))
             .expect("entry for klama");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3030,7 +3105,7 @@ mod tests {
     #[ensures(true)]
     fn dictionary_entry_cards_include_etymology() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("abniena")
+            .lookup_word(&LookupKey::from_stored("abniena"))
             .expect("entry for abniena");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3063,7 +3138,7 @@ mod tests {
     #[ensures(true)]
     fn official_status_uses_author_not_vote_threshold() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("birka")
+            .lookup_word(&LookupKey::from_stored("birka"))
             .expect("entry for birka");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3136,12 +3211,20 @@ mod tests {
             assert_eq!(result.outcome, ascii.outcome, "{query}");
             assert_eq!(result.cards, ascii.cards, "{query}");
         }
+        // U+2018 is a word break. A lookup key reads it as a space, so the
+        // glob does too.
         let word_break = search(
             dictionary,
             &[VlackuRequest::valsi("da\u{2018}*".to_owned())],
             &options,
         );
-        assert_eq!(word_break.outcome, VlackuOutcome::Invalid);
+        let without_mark = search(
+            dictionary,
+            &[VlackuRequest::valsi("da *".to_owned())],
+            &options,
+        );
+        assert_eq!(word_break.outcome, without_mark.outcome);
+        assert_eq!(word_break.cards, without_mark.cards);
     }
 
     #[test]
@@ -3188,20 +3271,965 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn exact_valsi_glob_reports_invalid_characters() {
-        let result = search(
-            jbotci_dictionary_data::english(),
+    fn exact_valsi_glob_follows_the_lookup_key_character_rules() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let star = search(
+            dictionary,
+            &[VlackuRequest::valsi("da*".to_owned())],
+            &options,
+        );
+        assert_eq!(star.outcome, VlackuOutcome::Found, "{:?}", star.diagnostics);
+        for query in ["da,*", "d,a*", "da\u{0301}*", "da\u{00b7}*", "da\u{2027}*"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, star.outcome, "{query}");
+            assert_eq!(result.cards, star.cards, "{query}");
+            assert_eq!(
+                compile_glob_pattern(query)
+                    .expect("pattern keeps a searchable character")
+                    .tokens,
+                compile_glob_pattern("da*").expect("da* compiles").tokens,
+                "{query}"
+            );
+        }
+
+        let with_bang = search(
+            dictionary,
             &[VlackuRequest::valsi("kl!m*".to_owned())],
-            &VlackuSearchOptions::default(),
+            &options,
+        );
+        // A word break is a space, so `kl!m*` means `kl m*`.
+        let with_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("kl m*".to_owned())],
+            &options,
+        );
+        assert_eq!(with_bang.outcome, with_space.outcome);
+        assert_eq!(with_bang.cards, with_space.cards);
+        assert_eq!(
+            compile_glob_pattern("da.*").map(|pattern| pattern.tokens),
+            compile_glob_pattern("da *").map(|pattern| pattern.tokens)
         );
 
-        assert_eq!(result.outcome, VlackuOutcome::Invalid);
-        assert!(result.cards.is_empty());
+        // Gentufa rejects a dotted capital I, so a glob does too.
+        let dotted_i = compile_glob_pattern("\u{0130}").expect_err("dotted capital i");
+        assert!(dotted_i.contains("unsupported character"), "{dotted_i}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_rejects_a_pattern_with_no_lookup_character() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        // These strings have no wildcard, so vlacku reads them as exact words.
+        // The glob compiler still rejects them when every character is absent
+        // from a lookup key.
+        for query in [",", ",,,", "\u{0301}", "\u{0300}", "\u{0306}", "!"] {
+            let error = compile_glob_pattern(query).expect_err("exact lookup rejects the run");
+            // A combining breve is rejected as a character. The other runs have
+            // nothing a lookup can search for.
+            let expected = if query == "\u{0306}" {
+                "unsupported character"
+            } else {
+                "has no character that a lookup can search for"
+            };
+            assert!(error.contains(expected), "{query}: {error}");
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Invalid, "{query}");
+            assert!(result.cards.is_empty(), "{query}");
+            assert!(
+                result
+                    .diagnostics
+                    .first()
+                    .is_some_and(|message| message.contains("Invalid Lojban word")),
+                "{query}: {:?}",
+                result.diagnostics
+            );
+        }
+        let blank = compile_glob_pattern(" ").expect_err("blank pattern has no token");
         assert!(
-            result
+            blank.contains("at least one searchable character"),
+            "{blank}"
+        );
+        for query in [" "] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Invalid, "{query}");
+            assert!(result.cards.is_empty(), "{query}");
+            assert!(
+                result
+                    .diagnostics
+                    .first()
+                    .is_some_and(|message| message.contains("Invalid Lojban word")),
+                "{query}: {:?}",
+                result.diagnostics
+            );
+        }
+
+        // A run that the exact lookup rejects stays an error beside a wildcard.
+        // Word search and rafsi search both use this compiler.
+        let match_all = search(
+            dictionary,
+            &[VlackuRequest::valsi("*".to_owned())],
+            &options,
+        );
+        assert_eq!(match_all.outcome, VlackuOutcome::Found);
+        let match_all_rafsi = search(
+            dictionary,
+            &[VlackuRequest::rafsi("*".to_owned())],
+            &options,
+        );
+        assert_eq!(match_all_rafsi.outcome, VlackuOutcome::Found);
+        for query in [",*", "\u{0301}*", "!*", "🙂*"] {
+            let error = compile_glob_pattern(query).expect_err("rejected literal run");
+            let expected = if query == "🙂*" {
+                "unsupported character"
+            } else {
+                "has no character that a lookup can search for"
+            };
+            assert!(error.contains(expected), "{query}: {error}");
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Invalid, "{query}");
+            assert!(result.cards.is_empty(), "{query}");
+            assert_ne!(result.cards, match_all.cards, "{query}");
+            let rafsi = search(
+                dictionary,
+                &[VlackuRequest::rafsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(rafsi.outcome, VlackuOutcome::Invalid, "rafsi {query}");
+            assert!(rafsi.cards.is_empty(), "rafsi {query}");
+            assert_ne!(rafsi.cards, match_all_rafsi.cards, "rafsi {query}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_normalizes_literal_runs_like_an_exact_lookup() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let phrase = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca ma*".to_owned())],
+            &options,
+        );
+        assert_eq!(
+            phrase.outcome,
+            VlackuOutcome::Found,
+            "{:?}",
+            phrase.diagnostics
+        );
+        assert!(
+            phrase.cards.iter().any(|card| card.word == "ca ma"),
+            "{:?}",
+            phrase
+                .cards
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>()
+        );
+        let phrase_tokens = compile_glob_pattern("ca ma*").expect("phrase glob").tokens;
+        assert_eq!(
+            phrase_tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+                GlobToken::AnyMany,
+            ]
+        );
+        for query in ["ca  ma*", "ca\tma*", "ca ma,*", "ca ! ma*"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, phrase.outcome, "{query}");
+            assert_eq!(result.cards, phrase.cards, "{query}");
+            assert_eq!(
+                compile_glob_pattern(query).expect("phrase spelling").tokens,
+                phrase_tokens,
+                "{query}"
+            );
+        }
+
+        let latin = search(
+            dictionary,
+            &[VlackuRequest::valsi("klama*".to_owned())],
+            &options,
+        );
+        let cyrillic = search(
+            dictionary,
+            &[VlackuRequest::valsi("клама*".to_owned())],
+            &options,
+        );
+        assert_eq!(cyrillic.outcome, latin.outcome);
+        assert_eq!(cyrillic.cards, latin.cards);
+        assert!(cyrillic.cards.iter().any(|card| card.word == "klama"));
+        let match_all = search(
+            dictionary,
+            &[VlackuRequest::valsi("*".to_owned())],
+            &options,
+        );
+        assert_ne!(cyrillic.cards, match_all.cards);
+
+        let latin_short = search(
+            dictionary,
+            &[VlackuRequest::valsi("kla*".to_owned())],
+            &options,
+        );
+        let cyrillic_short = search(
+            dictionary,
+            &[VlackuRequest::valsi("кла*".to_owned())],
+            &options,
+        );
+        assert_eq!(cyrillic_short.cards, latin_short.cards);
+        let latin_rafsi = search(
+            dictionary,
+            &[VlackuRequest::rafsi("kla*".to_owned())],
+            &options,
+        );
+        let cyrillic_rafsi = search(
+            dictionary,
+            &[VlackuRequest::rafsi("кла*".to_owned())],
+            &options,
+        );
+        assert_eq!(cyrillic_rafsi.outcome, latin_rafsi.outcome);
+        assert_eq!(cyrillic_rafsi.cards, latin_rafsi.cards);
+        assert!(cyrillic_rafsi.cards.iter().any(|card| card.word == "klama"));
+        let match_all_rafsi = search(
+            dictionary,
+            &[VlackuRequest::rafsi("*".to_owned())],
+            &options,
+        );
+        assert_ne!(cyrillic_rafsi.cards, match_all_rafsi.cards);
+        let latin_rafsi_word = search(
+            dictionary,
+            &[VlackuRequest::rafsi("klama*".to_owned())],
+            &options,
+        );
+        let cyrillic_rafsi_word = search(
+            dictionary,
+            &[VlackuRequest::rafsi("клама*".to_owned())],
+            &options,
+        );
+        assert_eq!(cyrillic_rafsi_word.cards, latin_rafsi_word.cards);
+
+        let zbalermorna = "\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}*";
+        let zbalermorna_result = search(
+            dictionary,
+            &[VlackuRequest::valsi(zbalermorna.to_owned())],
+            &options,
+        );
+        assert_eq!(zbalermorna_result.cards, latin.cards);
+
+        assert_eq!(
+            compile_glob_pattern("ca?ma").expect("question mark").tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::AnyOne,
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert_eq!(
+            compile_glob_pattern("ca*ma").expect("star").tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::AnyMany,
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert_eq!(
+            compile_glob_pattern("KLÁ*").expect("stress").tokens,
+            compile_glob_pattern("kla*").expect("plain").tokens
+        );
+        assert_eq!(
+            compile_glob_pattern("kla?").expect("one vowel").tokens,
+            vec![
+                GlobToken::Literal('k'),
+                GlobToken::Literal('l'),
+                GlobToken::Literal('a'),
+                GlobToken::AnyOne,
+            ]
+        );
+        assert_eq!(
+            compile_glob_pattern("faHon*").expect("h apostrophe").tokens,
+            compile_glob_pattern("fa'on*").expect("apostrophe").tokens
+        );
+
+        let anchored_phrase = search(
+            dictionary,
+            &[VlackuRequest::valsi("/^ca ma$/".to_owned())],
+            &options,
+        );
+        assert_eq!(anchored_phrase.outcome, VlackuOutcome::Found);
+        assert!(
+            anchored_phrase
+                .cards
+                .iter()
+                .any(|card| card.word == "ca ma")
+        );
+        let anchored_word = search(
+            dictionary,
+            &[VlackuRequest::valsi("/^klama$/".to_owned())],
+            &options,
+        );
+        assert_eq!(anchored_word.outcome, VlackuOutcome::Found);
+        assert!(anchored_word.cards.iter().any(|card| card.word == "klama"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_keeps_a_space_beside_a_wildcard() {
+        let space_between_stars = compile_glob_pattern("* *").expect("space between stars");
+        assert_eq!(
+            space_between_stars.tokens,
+            vec![
+                GlobToken::AnyMany,
+                GlobToken::Literal(' '),
+                GlobToken::AnyMany,
+            ]
+        );
+        assert!(space_between_stars.matches("ca ma"));
+        assert!(!space_between_stars.matches("a"));
+        assert!(!space_between_stars.matches("klama"));
+        for query in ["*  *", "*\t*", "*\n*", "  *   *  "] {
+            assert_eq!(
+                compile_glob_pattern(query)
+                    .expect("repeated space collapses")
+                    .tokens,
+                space_between_stars.tokens,
+                "{query:?}"
+            );
+        }
+
+        let before_question = compile_glob_pattern("ca ?ma").expect("space before ?");
+        assert_eq!(
+            before_question.tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::AnyOne,
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert!(!before_question.matches("ca ma"));
+        assert!(before_question.matches("ca xma"));
+        assert_eq!(
+            compile_glob_pattern("ca   ?ma")
+                .expect("repeated space before ?")
+                .tokens,
+            before_question.tokens
+        );
+        assert_eq!(
+            compile_glob_pattern("ca\t?ma")
+                .expect("tab before ?")
+                .tokens,
+            before_question.tokens
+        );
+
+        let after_star = compile_glob_pattern("* ca ma").expect("space after *");
+        assert_eq!(
+            after_star.tokens,
+            vec![
+                GlobToken::AnyMany,
+                GlobToken::Literal(' '),
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert!(!after_star.matches("ca ma"));
+        assert!(after_star.matches("x ca ma"));
+        assert!(!after_star.matches("xca ma"));
+
+        let after_consonant = compile_glob_pattern("ca$ ma").expect("space after $");
+        assert_eq!(
+            after_consonant.tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Consonant,
+                GlobToken::Literal(' '),
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert!(after_consonant.matches("cab ma"));
+        assert!(!after_consonant.matches("cabma"));
+
+        let before_vowel = compile_glob_pattern("ca @ma").expect("space before @");
+        assert_eq!(
+            before_vowel.tokens,
+            vec![
+                GlobToken::Literal('c'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::Vowel,
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+            ]
+        );
+        assert!(before_vowel.matches("ca ama"));
+        assert!(!before_vowel.matches("caama"));
+
+        // A space at either end of the whole pattern is not part of a key.
+        assert_eq!(
+            compile_glob_pattern(" *ma").expect("leading space").tokens,
+            compile_glob_pattern("*ma")
+                .expect("no leading space")
+                .tokens
+        );
+        assert_eq!(
+            compile_glob_pattern("ma* ").expect("trailing space").tokens,
+            compile_glob_pattern("ma*")
+                .expect("no trailing space")
+                .tokens
+        );
+        let space_before_final_star = compile_glob_pattern("ma *").expect("space before final *");
+        assert_eq!(
+            space_before_final_star.tokens,
+            vec![
+                GlobToken::Literal('m'),
+                GlobToken::Literal('a'),
+                GlobToken::Literal(' '),
+                GlobToken::AnyMany,
+            ]
+        );
+        assert!(space_before_final_star.matches("ma x"));
+        assert!(!space_before_final_star.matches("max"));
+
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let match_all = search(
+            dictionary,
+            &[VlackuRequest::valsi("*".to_owned())],
+            &options,
+        );
+        let spaced = search(
+            dictionary,
+            &[VlackuRequest::valsi("* *".to_owned())],
+            &options,
+        );
+        assert_eq!(
+            spaced.outcome,
+            VlackuOutcome::Found,
+            "{:?}",
+            spaced.diagnostics
+        );
+        assert_ne!(spaced.cards, match_all.cards);
+        assert!(spaced.cards.iter().all(|card| card.word.contains(' ')));
+        let star_then_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("* ca ma".to_owned())],
+            &options,
+        );
+        assert!(
+            star_then_space
+                .cards
+                .iter()
+                .all(|card| card.word != "ca ma")
+        );
+        let star_without_that_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("*ca ma".to_owned())],
+            &options,
+        );
+        assert!(
+            star_without_that_space
+                .cards
+                .iter()
+                .any(|card| card.word == "ca ma")
+        );
+
+        let question_with_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca ?ma".to_owned())],
+            &options,
+        );
+        assert!(
+            question_with_space
+                .cards
+                .iter()
+                .all(|card| card.word != "ca ma"),
+            "{:?}",
+            question_with_space
+                .cards
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>()
+        );
+        let question_without_space = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca?ma".to_owned())],
+            &options,
+        );
+        assert!(
+            question_without_space
+                .cards
+                .iter()
+                .any(|card| card.word == "ca ma")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_decomposed_cyrillic_glide_keys_like_the_composed_letter() {
+        // `и` + U+0306 is `й`, and `у` + U+0306 is `ў` (issue #1130).
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default().with_data(data! { count: usize::MAX });
+        for (composed, decomposed, key) in [
+            ("шой", "шои\u{0306}", "coi"),
+            ("ай", "аи\u{0306}", "ai"),
+            ("аў", "ау\u{0306}", "au"),
+        ] {
+            assert_eq!(
+                LookupKey::from_typed(decomposed)
+                    .as_ref()
+                    .map(LookupKey::as_str),
+                Ok(key)
+            );
+            assert_eq!(
+                LookupKey::from_typed(composed)
+                    .as_ref()
+                    .map(LookupKey::as_str),
+                Ok(key)
+            );
+            for mode in [
+                VlackuRequest::valsi,
+                VlackuRequest::rafsi,
+                VlackuRequest::lujvo,
+            ] {
+                let expected = search(dictionary, &[mode(composed.to_owned())], &options);
+                let actual = search(dictionary, &[mode(decomposed.to_owned())], &options);
+                assert_eq!(actual.outcome, expected.outcome, "{decomposed}");
+                assert_eq!(actual.cards, expected.cards, "{decomposed}");
+            }
+            let glob = |text: &str| {
+                search(
+                    dictionary,
+                    &[VlackuRequest::valsi(format!("{text}*"))],
+                    &options,
+                )
+            };
+            assert_eq!(
+                glob(decomposed).cards,
+                glob(composed).cards,
+                "{decomposed}*"
+            );
+        }
+        // The breve can follow a wildcard-free split of the literal.
+        assert_eq!(
+            compile_glob_pattern("шои\u{0306}*").map(|pattern| pattern.tokens),
+            compile_glob_pattern("шой*").map(|pattern| pattern.tokens)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_break_between_glob_wildcards_matches_a_space() {
+        // `*!*` means `* *`, in valsi and in rafsi globs (issue #1130).
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default().with_data(data! { count: 50 });
+        let space = compile_glob_pattern("* *").expect("* *").tokens;
+        for pattern in [
+            "*!*",
+            "*-*",
+            "*.*",
+            "*\u{2018}*",
+            "* , *",
+            "*\u{00b7} *",
+            "*\u{2027}-*",
+        ] {
+            assert_eq!(
+                compile_glob_pattern(pattern).map(|pattern| pattern.tokens),
+                Ok(space.clone()),
+                "{pattern}"
+            );
+            for mode in [VlackuRequest::valsi, VlackuRequest::rafsi] {
+                let expected = search(dictionary, &[mode("* *".to_owned())], &options);
+                let actual = search(dictionary, &[mode(pattern.to_owned())], &options);
+                assert_eq!(actual.outcome, expected.outcome, "{pattern}");
+                assert_eq!(actual.cards, expected.cards, "{pattern}");
+            }
+        }
+        assert_eq!(
+            compile_glob_pattern("ca *!*").map(|pattern| pattern.tokens),
+            compile_glob_pattern("ca * *").map(|pattern| pattern.tokens)
+        );
+        let comma = compile_glob_pattern("*,*").expect_err("a comma adds nothing");
+        assert!(comma.contains("has no character"), "{comma}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_keys_follow_the_gentufa_character_rules() {
+        // A word break is a space, in an exact lookup and in a glob.
+        assert_eq!(
+            LookupKey::from_typed("broda-zei-brode")
+                .as_ref()
+                .map(LookupKey::as_str),
+            Ok("broda zei brode")
+        );
+        assert_eq!(
+            compile_glob_pattern("kl!m*").map(|pattern| pattern.tokens),
+            compile_glob_pattern("kl m*").map(|pattern| pattern.tokens)
+        );
+        // A comma and the two middle dots disappear. Other dots are rejected.
+        for text in ["mi,do", "mi\u{00b7}do", "mi\u{2027}do"] {
+            assert_eq!(
+                LookupKey::from_typed(text).as_ref().map(LookupKey::as_str),
+                Ok("mido"),
+                "{text}"
+            );
+        }
+        for (text, character) in [
+            ("mi\u{2022}do", '\u{2022}'),
+            ("mi\u{2219}do", '\u{2219}'),
+            ("klâma", 'â'),
+            ("kläm*", 'ä'),
+            ("кля*", 'я'),
+        ] {
+            let error = normalize_lookup_pattern(&glob_pattern_parts(text))
+                .expect_err("the character is rejected");
+            assert_eq!(error.invalid_character(), Some(character), "{text}");
+        }
+        // The exact error names the character.
+        let dictionary = jbotci_dictionary_data::english();
+        let output = search(
+            dictionary,
+            &[VlackuRequest::valsi("klâma".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert_eq!(output.outcome, VlackuOutcome::Invalid);
+        assert!(
+            output
                 .diagnostics
-                .first()
-                .is_some_and(|message| message.contains("Invalid glob pattern"))
+                .iter()
+                .any(|diagnostic| diagnostic.contains("`â`")),
+            "{:?}",
+            output.diagnostics
+        );
+        // A run with no searchable character is named as such, not as an
+        // unsupported comma.
+        let message = compile_glob_pattern("*,*").expect_err("no searchable character");
+        assert!(message.contains("`,` has no character"), "{message}");
+        assert!(!message.contains("unsupported"), "{message}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_and_glob_keep_a_partial_script_conversion() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn exact_lookup_key_ok(text: &str) -> Option<String> {
+            LookupKey::from_typed(text)
+                .ok()
+                .map(|key| key.as_str().to_owned())
+        }
+
+        assert_eq!(exact_lookup_key_ok("клама,da").as_deref(), Some("klamada"));
+        assert_eq!(exact_lookup_key_ok("клама").as_deref(), Some("klama"));
+        assert_eq!(exact_lookup_key_ok("coһi,").as_deref(), Some("co'i"));
+        assert_eq!(exact_lookup_key_ok("co\u{ed8a}i,").as_deref(), Some("co'i"));
+        // `q` and `w` are no Lojban letters, so no converter reads them, and a
+        // typed lookup names them, as gentufa does.
+        assert!(
+            compile_glob_pattern("q*")
+                .expect_err("q is no Lojban letter")
+                .contains("unsupported character `q`")
+        );
+        for text in ["qá", "Áq", "klaqma", "W"] {
+            assert_eq!(
+                LookupKey::from_typed(text).map_err(|error| error.invalid_character()),
+                Err(Some(if text.contains('q') { 'q' } else { 'W' })),
+                "{text}"
+            );
+        }
+        assert_eq!(
+            exact_lookup_key_ok("\u{ed8b}\u{eda2}").as_deref(),
+            Some("i'")
+        );
+        assert_eq!(
+            exact_lookup_key_ok("\u{ed8b}\u{eda2},").as_deref(),
+            Some("i'")
+        );
+        assert_eq!(exact_lookup_key_ok("\u{0306}"), None);
+        assert_eq!(exact_lookup_key_ok(",\u{0306}"), None);
+        // A character that gentufa rejects is an error that names it.
+        assert_eq!(
+            LookupKey::from_typed("клама#da")
+                .map(|key| key.as_str().to_owned())
+                .map_err(|error| error.invalid_character()),
+            Err(Some('#'))
+        );
+
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        #[requires(true)]
+        #[ensures(true)]
+        fn same_cards(
+            dictionary: &Dictionary<'_>,
+            options: &VlackuSearchOptions,
+            left: VlackuRequest,
+            right: &str,
+            mode: fn(String) -> VlackuRequest,
+        ) {
+            let expected = search(dictionary, &[mode(right.to_owned())], options);
+            let actual = search(dictionary, &[left], options);
+            assert_eq!(actual.outcome, expected.outcome, "{right}");
+            assert_eq!(actual.cards, expected.cards, "{right}");
+        }
+        same_cards(
+            dictionary,
+            &options,
+            VlackuRequest::valsi("клама,da".to_owned()),
+            "klamada",
+            VlackuRequest::valsi,
+        );
+        same_cards(
+            dictionary,
+            &options,
+            VlackuRequest::valsi("coһi,".to_owned()),
+            "co'i",
+            VlackuRequest::valsi,
+        );
+        same_cards(
+            dictionary,
+            &options,
+            VlackuRequest::valsi("\u{ed8b}\u{eda2}".to_owned()),
+            "i'",
+            VlackuRequest::valsi,
+        );
+        same_cards(
+            dictionary,
+            &options,
+            VlackuRequest::valsi("\u{ed8b}\u{eda2},".to_owned()),
+            "i'",
+            VlackuRequest::valsi,
+        );
+        same_cards(
+            dictionary,
+            &options,
+            VlackuRequest::rafsi("\u{ed8b}\u{eda2}".to_owned()),
+            "i'",
+            VlackuRequest::rafsi,
+        );
+        same_cards(
+            dictionary,
+            &options,
+            VlackuRequest::rafsi("\u{ed8b}\u{eda2},".to_owned()),
+            "i'",
+            VlackuRequest::rafsi,
+        );
+        same_cards(
+            dictionary,
+            &options,
+            VlackuRequest::lujvo("\u{ed8b}\u{eda2}".to_owned()),
+            "i'",
+            VlackuRequest::lujvo,
+        );
+        same_cards(
+            dictionary,
+            &options,
+            VlackuRequest::lujvo("\u{ed8b}\u{eda2},".to_owned()),
+            "i'",
+            VlackuRequest::lujvo,
+        );
+
+        let pairs = [
+            ("клама,da*", "klamada*"),
+            ("*клама,da", "*klamada"),
+            ("da,клама*", "daklama*"),
+            ("coһi,*", "co'i*"),
+            ("co\u{ed8a}i,*", "co'i*"),
+            ("\u{ed8b}\u{eda2}*", "i'*"),
+            ("\u{ed8b}\u{eda2},*", "i'*"),
+        ];
+        for (query, expected) in pairs {
+            assert_eq!(
+                compile_glob_pattern(query)
+                    .expect("partial conversion")
+                    .tokens,
+                compile_glob_pattern(expected).expect("latin key").tokens,
+                "{query}"
+            );
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            let latin = search(
+                dictionary,
+                &[VlackuRequest::valsi(expected.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, latin.outcome, "{query}");
+            assert_eq!(result.cards, latin.cards, "{query}");
+            assert_ne!(result.outcome, VlackuOutcome::Invalid, "{query}");
+            let rafsi = search(
+                dictionary,
+                &[VlackuRequest::rafsi(query.to_owned())],
+                &options,
+            );
+            let latin_rafsi = search(
+                dictionary,
+                &[VlackuRequest::rafsi(expected.to_owned())],
+                &options,
+            );
+            assert_eq!(rafsi.cards, latin_rafsi.cards, "rafsi {query}");
+            assert_ne!(rafsi.outcome, VlackuOutcome::Invalid, "rafsi {query}");
+        }
+
+        let coi_star = search(
+            dictionary,
+            &[VlackuRequest::valsi("coi*".to_owned())],
+            &options,
+        );
+        let apostrophe_star = search(
+            dictionary,
+            &[VlackuRequest::valsi("coһi,*".to_owned())],
+            &options,
+        );
+        assert_ne!(apostrophe_star.cards, coi_star.cards);
+
+        for query in ["\u{0306}", ",\u{0306}", "\u{0306}*", ",\u{0306}*"] {
+            if query.contains('*') {
+                let error = compile_glob_pattern(query).expect_err("mark folds away");
+                assert!(error.contains("unsupported character"), "{query}: {error}");
+            }
+            for request in [
+                VlackuRequest::valsi(query.to_owned()),
+                VlackuRequest::rafsi(query.to_owned()),
+            ] {
+                let result = search(dictionary, &[request], &options);
+                assert_eq!(result.outcome, VlackuOutcome::Invalid, "{query}");
+                assert!(result.cards.is_empty(), "{query}");
+            }
+        }
+        for query in ["\u{0306}", ",\u{0306}"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::lujvo(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.outcome, VlackuOutcome::Invalid, "lujvo {query}");
+            assert!(result.cards.is_empty(), "lujvo {query}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_keeps_a_space_that_a_removed_character_does_not_hide() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default();
+        let phrase = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca *".to_owned())],
+            &options,
+        );
+        let word = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca*".to_owned())],
+            &options,
+        );
+        assert_ne!(phrase.cards, word.cards);
+        for query in ["ca ,*", "ca !*"] {
+            let result = search(
+                dictionary,
+                &[VlackuRequest::valsi(query.to_owned())],
+                &options,
+            );
+            assert_eq!(result.cards, phrase.cards, "{query}");
+            assert_ne!(result.cards, word.cards, "{query}");
+            assert_eq!(
+                compile_glob_pattern(query).expect("space stays").tokens,
+                compile_glob_pattern("ca *").expect("phrase").tokens,
+                "{query}"
+            );
+        }
+        let after_star = search(
+            dictionary,
+            &[VlackuRequest::valsi("* ca".to_owned())],
+            &options,
+        );
+        let leading_comma = search(
+            dictionary,
+            &[VlackuRequest::valsi("*, ca".to_owned())],
+            &options,
+        );
+        assert_eq!(leading_comma.cards, after_star.cards);
+        assert_eq!(
+            compile_glob_pattern("*, ca").expect("leading comma").tokens,
+            compile_glob_pattern("* ca")
+                .expect("space after star")
+                .tokens
+        );
+        let question = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca ?ma".to_owned())],
+            &options,
+        );
+        let question_comma = search(
+            dictionary,
+            &[VlackuRequest::valsi("ca ,?ma".to_owned())],
+            &options,
+        );
+        assert_eq!(question_comma.cards, question.cards);
+        assert_eq!(
+            compile_glob_pattern("ca ,?ma")
+                .expect("comma before question")
+                .tokens,
+            compile_glob_pattern("ca ?ma")
+                .expect("space before question")
+                .tokens
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_rejects_a_long_pattern_without_a_rescan() {
+        let mut pattern = "A".repeat(120_000);
+        pattern.push_str("k*\u{1f642}");
+        let error =
+            compile_glob_pattern(&pattern).expect_err("the emoji is not a lookup character");
+        assert!(
+            error.contains("unsupported character `\u{1f642}`"),
+            "long pattern rejected the emoji"
         );
     }
 
@@ -3294,7 +4322,9 @@ mod tests {
     #[ensures(true)]
     fn entry_filters_match_card_filters_for_dictionary_entries() {
         let dictionary = jbotci_dictionary_data::english();
-        let entry = dictionary.lookup_word("klama").expect("entry for klama");
+        let entry = dictionary
+            .lookup_word(&LookupKey::from_stored("klama"))
+            .expect("entry for klama");
         let card = dictionary_entry_card(dictionary, entry, Some(0.42), false);
 
         for options in [
@@ -3359,7 +4389,9 @@ mod tests {
     #[ensures(true)]
     fn sound_score_retention_keeps_best_scores_with_dictionary_order_ties() {
         let dictionary = jbotci_dictionary_data::english();
-        let entry = dictionary.lookup_word("klama").expect("entry for klama");
+        let entry = dictionary
+            .lookup_word(&LookupKey::from_stored("klama"))
+            .expect("entry for klama");
         let mut scored = vec![
             new!(SoundScoreEntry {
                 entry_index: 4,
@@ -3560,7 +4592,7 @@ mod tests {
     #[ensures(true)]
     fn entry_derived_cards_are_marked_known() {
         let entry = jbotci_dictionary_data::english()
-            .lookup_word("klama")
+            .lookup_word(&LookupKey::from_stored("klama"))
             .expect("entry for klama");
         let card =
             dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
@@ -3674,7 +4706,9 @@ mod tests {
         }];
         let ierxi = DictionaryEntry {
             rafsi: &listed,
-            ..*english.lookup_word("ierxi").expect("ierxi entry")
+            ..*english
+                .lookup_word(&LookupKey::from_stored("ierxi"))
+                .expect("ierxi entry")
         };
         let ierxa = DictionaryEntry {
             word: "ierxa",
@@ -3687,7 +4721,9 @@ mod tests {
         let entries = [
             ierxi,
             ierxa,
-            *english.lookup_word("klama").expect("klama entry"),
+            *english
+                .lookup_word(&LookupKey::from_stored("klama"))
+                .expect("klama entry"),
         ];
         let indexes = build_owned_indexes(&entries);
         let word_index = indexes
@@ -3711,7 +4747,12 @@ mod tests {
         let options = VlackuSearchOptions::default().with_data(data! {
             decompose_lujvo: true,
         });
-        assert_eq!(dictionary.lookup_rafsi("ierx").count(), 3);
+        assert_eq!(
+            dictionary
+                .lookup_rafsi(&LookupKey::from_stored("ierx"))
+                .count(),
+            3
+        );
         let exact_rafsi = search(
             &dictionary,
             &[VlackuRequest::rafsi("ierx".to_owned())],

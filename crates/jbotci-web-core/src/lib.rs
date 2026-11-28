@@ -9187,7 +9187,9 @@ mod tests {
     #[ensures(true)]
     fn tooltip_keeps_both_entries_with_the_same_normalized_spelling() {
         let dictionary = jbotci_dictionary_data::english();
-        let expected = dictionary.lookup_rafsi("onj").collect::<Vec<_>>();
+        let expected = dictionary
+            .lookup_rafsi(&jbotci_dictionary::LookupKey::from_stored("onj"))
+            .collect::<Vec<_>>();
         assert_eq!(
             expected
                 .iter()
@@ -11350,7 +11352,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn vlacku_word_search_prefers_exact_phrase_before_segmenting() {
+    fn vlacku_word_search_shows_the_exact_phrase_before_each_word() {
+        // Owner ruling for #1130 (2026-11-27): a query with a space shows the
+        // exact phrase match first, then the result for each word on its own,
+        // as the CLI does.
         let result = build_vlacku_web_result(&VlackuWebState {
             min_votes: Default::default(),
             mode: VlackuWebMode::Word,
@@ -11361,14 +11366,12 @@ mod tests {
 
         assert!(result.errors.is_empty(), "{:?}", result.errors);
         assert_eq!(
-            result.cards.first().map(|card| card.word.as_str()),
-            Some("ca ma")
-        );
-        assert!(
-            !result
+            result
                 .cards
                 .iter()
-                .any(|card| card.word == "ca" || card.word == "ma")
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ca ma", "ca", "ma"]
         );
     }
 
@@ -11998,7 +12001,9 @@ mod tests {
             source: None,
             indent_level: 0,
         };
-        let entries = dictionary.lookup_words("onji").collect::<Vec<_>>();
+        let entries = dictionary
+            .lookup_words(&jbotci_dictionary::LookupKey::from_stored("onji"))
+            .collect::<Vec<_>>();
         assert_eq!(entries.len(), 2);
         let expected = build_best_jvozba_detailed(
             JvozbaMode::Lujvo,
@@ -12042,7 +12047,7 @@ mod tests {
             indent_level: 0,
         };
         let golfyjvi = dictionary
-            .lookup_word_index("golfyjvi")
+            .lookup_word_index(&jbotci_dictionary::LookupKey::from_stored("golfyjvi"))
             .expect("golfyjvi entry");
         for (items, word, part) in [
             (

@@ -4904,13 +4904,41 @@ fn vlacku_min_votes_exempts_literal_magic_words() {
 #[requires(true)]
 #[ensures(true)]
 fn vlacku_vote_exemption_uses_original_word_boundaries() {
-    for query in [
-        "lo.jban.girzu",
-        "LOjbangirzu",
-        "me.hoi",
-        "ло.жбан.гирзу",
-        "\u{ed84}\u{eda3}.\u{ed96}\u{ed90}\u{eda0}\u{ed97}.\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+    // A period is a word break, so a lookup key reads it as a space (#1130).
+    // A dotted query is then the same lookup as its words with spaces.
+    for (dotted, spaced) in [
+        ("lo.jban.girzu", "lo jban girzu"),
+        ("me.hoi", "me hoi"),
+        ("ло.жбан.гирзу", "lo jban girzu"),
+        (
+            "\u{ed84}\u{eda3}.\u{ed96}\u{ed90}\u{eda0}\u{ed97}.\u{ed92}\u{eda2}\u{ed94}\u{ed95}\u{eda4}",
+            "lo jban girzu",
+        ),
     ] {
+        let run = |query: &str| {
+            run_cli_capture(
+                &[
+                    "jbotci",
+                    "vlacku",
+                    "--valsi",
+                    query,
+                    "--decompose-lujvo",
+                    "--min-votes",
+                    "2147483647",
+                ],
+                false,
+            )
+        };
+        let dotted_run = run(dotted);
+        let spaced_run = run(spaced);
+        assert_eq!(dotted_run.stdout, spaced_run.stdout, "{dotted}");
+        assert_eq!(
+            dotted_run.stderr.replace(dotted, spaced),
+            spaced_run.stderr,
+            "{dotted}"
+        );
+    }
+    for query in ["LOjbangirzu"] {
         let run = run_cli_capture(
             &[
                 "jbotci",

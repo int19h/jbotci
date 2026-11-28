@@ -8,8 +8,8 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use jbotci_dictionary::{Dictionary, LookupKey, LookupPrefix, WordType, normalize_lookup_query};
 use jbotci_morphology::{
     Cmavo, MorphologyContextKind, MorphologyError, NodeRef as MorphologyNodeRef, Selmaho,
     TreeNode as MorphologyTreeNode, Word, WordKind, WordLike, WordLikeData, analyze_valsi,
@@ -169,6 +169,7 @@ impl CompletionDocumentationHandle {
 #[invariant(replacement_text == label || replacement_text.strip_prefix(' ').is_some_and(|text| text == label.as_str()))]
 #[invariant(replacement_span.byte_start <= replacement_span.byte_end)]
 #[invariant(replacement_span.char_start <= replacement_span.char_end)]
+#[expensive_invariant(*lookup_key == LookupKey::from_stored(label), "the key is the stored-text key of the label")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompletionItem {
     pub label: String,
@@ -183,6 +184,9 @@ pub struct CompletionItem {
     pub document_local: bool,
     pub preselect: bool,
     suffix_consistent: bool,
+    /// The stored-text key of `label`, made once when the item is added, so
+    /// the gloss lookup and the preselect test do not key the label again.
+    lookup_key: LookupKey,
 }
 
 impl CompletionItem {
@@ -218,7 +222,11 @@ struct CompletionContext<'snapshot, 'dictionary, 'entries, 'cancellation> {
     interpretation: CompletionInterpretation,
     replacement_span: SourceSpan,
     insert_leading_space: bool,
-    normalized_prefix: String,
+    /// The prefix key of the text before the cursor, or `None` when the
+    /// prefix has a character that a lookup rejects, so that no dictionary
+    /// word starts with it. A last unit that still waits for a partner, such
+    /// as a bare U+ED8B, does not make the prefix invalid.
+    normalized_prefix: Option<LookupPrefix>,
     suffix_consistent_labels: BTreeSet<String>,
 }
 
@@ -446,9 +454,11 @@ impl DocumentSnapshot {
         }
 
         let short_glosses = {
+            // The labels are dictionary words and cmavo, which use the
+            // stored-text key that `add_candidate` made.
             let labels = items
                 .values()
-                .map(|item| item.label.as_str())
+                .map(|item| &item.lookup_key)
                 .collect::<Vec<_>>();
             dictionary.first_gloss_keywords_for_words(&labels)
         };
@@ -473,7 +483,7 @@ impl DocumentSnapshot {
                     && item.replacement_span == replacement_span
                     && current_word
                         .as_ref()
-                        .is_some_and(|current| normalize_lookup_query(&item.label) == *current);
+                        .is_some_and(|current| item.lookup_key.as_str() == current.as_str());
                 if should_preselect {
                     preselected = true;
                     item.with_data(data! { preselect: true })
@@ -626,7 +636,15 @@ impl DocumentSnapshot {
             interpretation,
             replacement_span,
             insert_leading_space,
-            normalized_prefix: normalize_lookup_query(prefix),
+            normalized_prefix: match LookupPrefix::from_typed(prefix) {
+                Ok(prefix) => Some(prefix),
+                // A prefix with no key character, such as `,`, keys as the
+                // empty prefix.
+                Err(error) if error.invalid_character().is_none() => {
+                    Some(LookupPrefix::from_typed("").expect("the empty prefix"))
+                }
+                Err(_) => None,
+            },
             suffix_consistent_labels,
         });
         match cursor_context {
@@ -996,8 +1014,11 @@ impl CompletionContext<'_, '_, '_, '_> {
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         let dictionary = self.dictionary;
+        let Some(prefix) = &self.normalized_prefix else {
+            return;
+        };
         for entry in dictionary
-            .entries_by_word_prefix(&self.normalized_prefix)
+            .entries_by_word_prefix(prefix)
             .filter(|entry| is_completion_brivla_type(entry.word_type))
         {
             if self.cancellation.is_cancelled() {
@@ -1042,9 +1063,14 @@ impl CompletionContext<'_, '_, '_, '_> {
         if self.cancellation.is_cancelled() {
             return;
         }
-        let normalized_label = normalize_lookup_query(label);
+        // The label is keyed once, here.
+        let lookup_key = LookupKey::from_stored(label);
+        let normalized_label = lookup_key.as_str().to_owned();
         if normalized_label.is_empty()
-            || !normalized_label.starts_with(&self.normalized_prefix)
+            || !self
+                .normalized_prefix
+                .as_ref()
+                .is_some_and(|prefix| prefix.matches(&normalized_label))
             || !self.snapshot.completion_candidate_surfaces(
                 label,
                 &self.replacement_span,
@@ -1092,6 +1118,7 @@ impl CompletionContext<'_, '_, '_, '_> {
                 document_local,
                 preselect: false,
                 suffix_consistent,
+                lookup_key,
             }),
         );
     }
@@ -1103,7 +1130,7 @@ impl CompletionContext<'_, '_, '_, '_> {
 pub fn completion_documentation_markdown(handle: &CompletionDocumentationHandle) -> String {
     let dictionary = jbotci_dictionary_data::english();
     let cards = dictionary
-        .lookup_words(handle.word())
+        .lookup_words(&LookupKey::from_stored(handle.word()))
         .map(|entry| dictionary_entry_card(dictionary, entry, None, true))
         .collect::<Vec<_>>();
     if !cards.is_empty() {
@@ -1251,6 +1278,98 @@ mod tests {
     #[ensures(ret <= items.len())]
     fn preselected_count(items: &[CompletionItem]) -> usize {
         items.iter().filter(|item| item.preselect).count()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completion_treats_canonically_equivalent_spellings_alike() {
+        // A breve after a vowel and a Zbalermorna shorthand mark take part in
+        // the word, so completion replaces the whole word in each spelling.
+        #[requires(true)]
+        #[ensures(true)]
+        fn replaced_words(source: &str) -> Vec<(String, usize, usize)> {
+            let mut items = completions_at_marker(source)
+                .into_iter()
+                .map(|item| {
+                    (
+                        item.label.clone(),
+                        item.replacement_span.char_start,
+                        item.replacement_span.char_end,
+                    )
+                })
+                .collect::<Vec<_>>();
+            items.sort();
+            items
+        }
+
+        let composed = replaced_words("coĭ|");
+        assert!(!composed.is_empty());
+        assert!(
+            composed
+                .iter()
+                .any(|(_, start, end)| (*start, *end) == (0, 3))
+        );
+        let decomposed = replaced_words("coi\u{0306}|");
+        assert!(
+            decomposed
+                .iter()
+                .any(|(_, start, end)| (*start, *end) == (0, 4)),
+            "{decomposed:?}"
+        );
+        assert_eq!(
+            composed.iter().map(|(label, ..)| label).collect::<Vec<_>>(),
+            decomposed
+                .iter()
+                .map(|(label, ..)| label)
+                .collect::<Vec<_>>()
+        );
+        let cyrillic = replaced_words("шои\u{0306}|");
+        assert!(
+            cyrillic
+                .iter()
+                .any(|(_, start, end)| (*start, *end) == (0, 4)),
+            "{cyrillic:?}"
+        );
+        // Inside `\u{ed8b}\u{eda2}` the replacement covers the shorthand mark too.
+        // A bare shorthand mark waits for its payload, so the prefix is not
+        // invalid, and completion still offers words.
+        let shorthand = replaced_words("\u{ed8b}|\u{eda2}");
+        assert!(!shorthand.is_empty(), "a bare U+ED8B keeps its completions");
+        assert!(
+            shorthand.iter().all(|(_, start, _)| *start == 0),
+            "{shorthand:?}"
+        );
+        let bare = replaced_words("\u{ed8b}|");
+        assert!(
+            !bare.is_empty(),
+            "a bare U+ED8B at the end keeps its completions"
+        );
+        // A Cyrillic vowel before its breve has two readings, so `шои`
+        // offers `co'i` and `coi`, which `шои` + U+0306 spells, and nothing
+        // that continues neither reading, such as `cortu`. `шои` is also a
+        // whole word, so the list also holds next words inserted at the
+        // cursor (span 3..3). Only the replacements of `шои` (span 0..3) use
+        // the prefix.
+        let before_breve = replaced_words("шои|")
+            .into_iter()
+            .filter(|(_, start, end)| (*start, *end) == (0, 3))
+            .map(|(label, ..)| label)
+            .collect::<Vec<_>>();
+        assert!(
+            before_breve.iter().any(|label| label == "coi"),
+            "{before_breve:?}"
+        );
+        assert!(
+            before_breve.iter().any(|label| label == "co'i"),
+            "{before_breve:?}"
+        );
+        assert!(
+            before_breve
+                .iter()
+                .all(|label| label.starts_with("coi") || label.starts_with("co'i")),
+            "{before_breve:?}"
+        );
     }
 
     #[test]
@@ -1942,7 +2061,7 @@ mod tests {
             interpretation: CompletionInterpretation::Continue,
             replacement_span,
             insert_leading_space: false,
-            normalized_prefix: String::new(),
+            normalized_prefix: Some(LookupPrefix::from_typed("").expect("the empty prefix")),
             suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();
@@ -1978,7 +2097,7 @@ mod tests {
             interpretation: CompletionInterpretation::Extend,
             replacement_span,
             insert_leading_space: false,
-            normalized_prefix: normalize_lookup_query("l"),
+            normalized_prefix: Some(LookupPrefix::from_typed("l").expect("prefix")),
             suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();

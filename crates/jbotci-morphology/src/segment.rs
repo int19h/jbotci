@@ -84,6 +84,415 @@ pub(crate) fn normalize_word_checked_with_options(
     )
 }
 
+/// One step of a lookup transcription, in the converter's own classes.
+///
+/// `Letter` is a Lojban letter that the converter reads, with its stress and
+/// glide marks (`á`, `ĭ`), or a comma. `WordBreak` is a separator that
+/// breaks a word, with each period spelled `.`. `Unread` is a character that
+/// the converter cannot read, as the user typed it. The lookup key takes the
+/// class of each character from this step, so the converter is the only
+/// authority on what a letter is.
+#[invariant(::Letter(value) => is_valid_normalized_char(*value))]
+#[invariant(::WordBreak(value) => is_separator(*value))]
+#[invariant(::Unread(value) => !is_separator(*value))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LookupStep {
+    Letter(char),
+    WordBreak(char),
+    Unread(char),
+}
+
+/// Transcribe one literal run of a lookup with the converter of the parser.
+///
+/// The run is one text, so a pair such as a base letter and its combining
+/// mark, or a shorthand mark and its payload, converts as one unit. A stress
+/// mark gives no step. The walk is `walk_converter_units` with separators, as
+/// the parser uses it, with the default options, because the index key and
+/// the query key must agree.
+#[requires(true)]
+#[ensures(true)]
+pub fn transcribe_lookup_run(run: &str, mut on_step: impl FnMut(LookupStep)) {
+    thread_local! {
+        // A key is made for every completion label, so the default options,
+        // which build a compiled dialect, are made once for each thread.
+        static LOOKUP_OPTIONS: MorphologyOptions = MorphologyOptions::default();
+    }
+    LOOKUP_OPTIONS.with(|options| transcribe_lookup_run_with(run, options, &mut on_step));
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn transcribe_lookup_run_with(
+    run: &str,
+    options: &MorphologyOptions,
+    on_step: &mut impl FnMut(LookupStep),
+) {
+    let units = canonical_converter_units(run.chars().enumerate(), options);
+    let _ = walk_converter_units::<std::convert::Infallible>(&units, options, true, |step| {
+        match step.into_data() {
+            data!(ConverterStep::Letter { value, .. }) => on_step(new!(LookupStep::Letter(value))),
+            data!(ConverterStep::Stress { .. }) => {}
+            data!(ConverterStep::Separator { value }) => on_step(new!(LookupStep::WordBreak(
+                if crate::is_period_character(value) {
+                    '.'
+                } else {
+                    value
+                }
+            ))),
+            data!(ConverterStep::Unread { value, .. }) => on_step(new!(LookupStep::Unread(value))),
+        }
+        Ok(())
+    });
+}
+
+/// One converter input character and the source characters it covers.
+///
+/// `source_value` is the character the user wrote at `start`. A diagnostic
+/// names it, so a rejected `â` is named as `â` and not as its combining mark.
+#[invariant(*start < *end, "a unit covers at least one source character")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ConverterUnit {
+    start: usize,
+    end: usize,
+    value: char,
+    source_value: char,
+}
+
+/// The converter input for source characters, the same for every canonically
+/// equivalent spelling.
+///
+/// Three steps, as in Unicode canonical normalization:
+///
+/// 1. Each typed letter or combining mark is split into its canonical
+///    decomposition. Every other typed character stays as typed, so a word
+///    break or a punctuation mark is decided from what the user wrote, and a
+///    decomposition never creates one. U+037E stays U+037E and does not
+///    become `;`. A decomposition is used only when all its parts are letters
+///    or marks.
+/// 2. Each run of combining marks is put in canonical order, a stable sort
+///    by canonical combining class. `и` + U+0327 + U+0306 and `и` + U+0306 +
+///    U+0327 become the same characters.
+/// 3. Canonical composition joins a base with a mark that is not blocked,
+///    but only when the composition is a letter that the converter reads,
+///    such as `й`, `ĭ` or `á`. Otherwise the mark stays apart: a stress mark
+///    marks the letter before it, and any other mark is a character that the
+///    converter cannot read.
+///
+/// So canonically equivalent input gives the same units, apart from their
+/// source positions. Each unit keeps the source range of its parts and the
+/// character the user typed, for errors and spans.
+#[requires(true)]
+#[ensures(true)]
+#[bityzba::expensive_ensures(ret.iter().all(|unit| !is_separator(unit.value) || unit.value == unit.source_value), "a decomposition never creates a separator")]
+pub(crate) fn canonical_converter_units(
+    chars: impl IntoIterator<Item = (usize, char)>,
+    options: &MorphologyOptions,
+) -> Vec<ConverterUnit> {
+    use unicode_normalization::char::{
+        canonical_combining_class, compose, decompose_canonical, is_combining_mark,
+    };
+    let is_letter_or_mark = |value: char| value.is_alphabetic() || is_combining_mark(value);
+    let mut pieces = Vec::new();
+    let mut parts = Vec::new();
+    for (index, source_value) in chars {
+        parts.clear();
+        decompose_canonical(source_value, |value| parts.push(value));
+        let decompose =
+            is_letter_or_mark(source_value) && parts.iter().all(|part| is_letter_or_mark(*part));
+        if decompose {
+            pieces.extend(parts.iter().map(|value| {
+                new!(ConverterUnit {
+                    start: index,
+                    end: index + 1,
+                    value: *value,
+                    source_value,
+                })
+            }));
+        } else {
+            pieces.push(new!(ConverterUnit {
+                start: index,
+                end: index + 1,
+                value: source_value,
+                source_value,
+            }));
+        }
+    }
+    let mut run_start = 0;
+    while run_start < pieces.len() {
+        if canonical_combining_class(pieces[run_start].value) == 0 {
+            run_start += 1;
+            continue;
+        }
+        let run_end = (run_start..pieces.len())
+            .find(|index| canonical_combining_class(pieces[*index].value) == 0)
+            .unwrap_or(pieces.len());
+        pieces[run_start..run_end].sort_by_key(|piece| canonical_combining_class(piece.value));
+        run_start = run_end;
+    }
+    let mut units = Vec::with_capacity(pieces.len());
+    let mut cursor = 0;
+    while cursor < pieces.len() {
+        let mut base = pieces[cursor];
+        cursor += 1;
+        if canonical_combining_class(base.value) != 0 {
+            units.push(base);
+            continue;
+        }
+        let mut kept = Vec::new();
+        let mut last_kept_class = 0;
+        while cursor < pieces.len() && canonical_combining_class(pieces[cursor].value) != 0 {
+            let mark = pieces[cursor];
+            cursor += 1;
+            let class = canonical_combining_class(mark.value);
+            let blocked = !kept.is_empty() && last_kept_class >= class;
+            if !blocked
+                && let Some(composed) = compose(base.value, mark.value)
+                && converter_reads(composed, options)
+            {
+                base = new!(ConverterUnit {
+                    start: base.start.min(mark.start),
+                    end: base.end.max(mark.end),
+                    value: composed,
+                    source_value: if base.start == mark.start {
+                        base.source_value
+                    } else {
+                        composed
+                    },
+                });
+            } else {
+                kept.push(mark);
+                last_kept_class = class;
+            }
+        }
+        units.push(base);
+        units.extend(kept);
+    }
+    units
+}
+
+/// The combining mark that changes the unit before it: the breve marks a
+/// glide on the Latin or Cyrillic vowel before it, so `и` + U+0306 is the
+/// glide `й`, not a vowel with an implicit apostrophe.
+pub const GLIDE_PARTNER_MARK: char = '\u{0306}';
+
+/// Whether `value` waits for the unit after it: the Zbalermorna shorthand
+/// mark U+ED8B takes the vowel after it as its payload.
+#[requires(true)]
+#[ensures(ret == (value == '\u{ed8b}'))]
+pub fn awaits_next_unit(value: char) -> bool {
+    is_zbalermorna_attitudinal_shorthand(value)
+}
+
+/// True when `value` can take part in a word under the active scripts.
+///
+/// A character counts by itself when the converter reads it, after its
+/// canonical decomposition, as in a word (`ś` is `s` and a stress mark). Two
+/// characters count only with a partner: the combining breve U+0306 marks a
+/// glide on the Latin or Cyrillic vowel before it, and the Zbalermorna
+/// shorthand mark U+ED8B takes the vowel after it.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn converter_can_spell_with(value: char, options: &MorphologyOptions) -> bool {
+    let mut encoded = [0_u8; 4];
+    normalize_word_checked_with_options(value.encode_utf8(&mut encoded), options).is_some()
+        || (value == GLIDE_PARTNER_MARK && (options.accept_latin || options.accept_cyrillic))
+        || (options.accept_zbalermorna && awaits_next_unit(value))
+}
+
+/// True when the converter reads `value` as a letter.
+#[requires(true)]
+#[ensures(true)]
+fn converter_reads(value: char, options: &MorphologyOptions) -> bool {
+    matches!(
+        normalize_char_event(value, options).map(|event| event.into_data()),
+        Some(data!(NormalizedCharEvent::Emit { .. }) | data!(NormalizedCharEvent::EmitText { .. }))
+    )
+}
+
+/// One step of the shared converter walk.
+#[invariant(::Letter { source_start, source_end, value, ends_unit, .. } => source_start <= source_end && is_valid_normalized_char(*value) && (*ends_unit -> source_start < source_end))]
+#[invariant(::Stress { source_end, .. } => *source_end > 0, "a stress mark ends after its own source character")]
+#[invariant(::Separator { value } => is_separator(*value))]
+#[invariant(::Unread { .. } => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ConverterStep {
+    /// A Lojban letter for `source_start..source_end`. An implicit apostrophe
+    /// has an empty range.
+    ///
+    /// One converter unit, or one Zbalermorna shorthand and its payload, is
+    /// atomic: no word can end inside it. Its letters come in a row, and
+    /// `ends_unit` is true on the last one only. Every letter of the unit
+    /// with a nonempty range ends where the unit ends.
+    Letter {
+        source_start: usize,
+        source_end: usize,
+        source_value: char,
+        value: char,
+        ends_unit: bool,
+    },
+    /// A stress mark that ends at `source_end`. `vowel` is true when the mark
+    /// stresses the last vowel rather than the last letter. The mark is part
+    /// of its word, so the word's source range covers it.
+    Stress { vowel: bool, source_end: usize },
+    /// A separator, when the walk passes separators through.
+    Separator { value: char },
+    /// A character that the converter cannot read, as the user wrote it.
+    Unread { index: usize, value: char },
+}
+
+/// The one converter walk for the parser and for lookup keys.
+///
+/// The walk keeps the implicit-apostrophe rule of the Cyrillic converter and
+/// the Zbalermorna shorthand, which takes the next unit as its payload. With
+/// `pass_separators`, a separator is a step of its own and resets the
+/// implicit apostrophe. `on_step` can stop the walk with an error.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn walk_converter_units<E>(
+    units: &[ConverterUnit],
+    options: &MorphologyOptions,
+    pass_separators: bool,
+    mut on_step: impl FnMut(ConverterStep) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut previous_implicit_apostrophe_vowel = false;
+    let letter = |start: usize,
+                  end: usize,
+                  source_value: char,
+                  value: char,
+                  ends_unit: bool,
+                  implicit_apostrophe_vowel: bool,
+                  previous: &mut bool,
+                  on_step: &mut dyn FnMut(ConverterStep) -> Result<(), E>|
+     -> Result<(), E> {
+        if *previous && implicit_apostrophe_vowel {
+            // The implicit apostrophe belongs to the vowel's unit, so it never
+            // ends a unit.
+            on_step(new!(ConverterStep::Letter {
+                source_start: start,
+                source_end: start,
+                source_value: '\'',
+                value: '\'',
+                ends_unit: false,
+            }))?;
+        }
+        on_step(new!(ConverterStep::Letter {
+            source_start: start,
+            source_end: end,
+            source_value: source_value,
+            value: value,
+            ends_unit: ends_unit,
+        }))?;
+        *previous = implicit_apostrophe_vowel;
+        Ok(())
+    };
+    let mut cursor = 0;
+    while cursor < units.len() {
+        let unit = units[cursor];
+        if pass_separators && is_separator(unit.value) {
+            on_step(new!(ConverterStep::Separator { value: unit.value }))?;
+            previous_implicit_apostrophe_vowel = false;
+            cursor += 1;
+            continue;
+        }
+        if options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(unit.value) {
+            if let Some(payload_unit) = units.get(cursor + 1).copied()
+                && let Some(payload) = normalize_zbalermorna_shorthand_payload(payload_unit.value)
+            {
+                // The shorthand and its payload are one atomic unit with one
+                // source range, and the apostrophe is its last letter.
+                for value in payload.chars() {
+                    letter(
+                        unit.start,
+                        payload_unit.end,
+                        payload_unit.source_value,
+                        value,
+                        false,
+                        false,
+                        &mut previous_implicit_apostrophe_vowel,
+                        &mut on_step,
+                    )?;
+                }
+                letter(
+                    unit.start,
+                    payload_unit.end,
+                    unit.source_value,
+                    '\'',
+                    true,
+                    false,
+                    &mut previous_implicit_apostrophe_vowel,
+                    &mut on_step,
+                )?;
+                cursor += 2;
+                continue;
+            }
+            on_step(new!(ConverterStep::Unread {
+                index: unit.start,
+                value: unit.source_value,
+            }))?;
+            previous_implicit_apostrophe_vowel = false;
+            cursor += 1;
+            continue;
+        }
+        match normalize_char_event(unit.value, options).map(|event| event.into_data()) {
+            Some(
+                data!(NormalizedCharEvent::Emit {
+                    value,
+                    implicit_apostrophe_vowel,
+                }),
+            ) => letter(
+                unit.start,
+                unit.end,
+                unit.source_value,
+                value,
+                true,
+                implicit_apostrophe_vowel,
+                &mut previous_implicit_apostrophe_vowel,
+                &mut on_step,
+            )?,
+            Some(data!(NormalizedCharEvent::EmitText { text })) => {
+                // A Zbalermorna diphthong glyph is one unit of two letters.
+                let mut values = text.chars().peekable();
+                while let Some(value) = values.next() {
+                    letter(
+                        unit.start,
+                        unit.end,
+                        unit.source_value,
+                        value,
+                        values.peek().is_none(),
+                        false,
+                        &mut previous_implicit_apostrophe_vowel,
+                        &mut on_step,
+                    )?;
+                }
+            }
+            Some(data!(NormalizedCharEvent::StressPrevious)) => {
+                on_step(new!(ConverterStep::Stress {
+                    vowel: false,
+                    source_end: unit.end,
+                }))?;
+            }
+            Some(data!(NormalizedCharEvent::StressPreviousVowel)) => {
+                on_step(new!(ConverterStep::Stress {
+                    vowel: true,
+                    source_end: unit.end,
+                }))?;
+            }
+            Some(data!(NormalizedCharEvent::Ignore)) => {
+                previous_implicit_apostrophe_vowel = false;
+            }
+            None => {
+                on_step(new!(ConverterStep::Unread {
+                    index: unit.start,
+                    value: unit.source_value,
+                }))?;
+                previous_implicit_apostrophe_vowel = false;
+            }
+        }
+        cursor += 1;
+    }
+    Ok(())
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn first_unnormalizable_word_char(
@@ -95,14 +504,20 @@ pub(crate) fn first_unnormalizable_word_char(
         .map(|error| (error.source_index, error.source_value))
 }
 
+/// One normalized letter and its source range.
+///
+/// `ends_unit` marks the last letter of an atomic converter unit (see
+/// [`ConverterStep::Letter`]). A word can end only after such a letter.
 #[invariant(self.source_start <= self.source_end)]
 #[invariant(is_valid_normalized_char(self.value))]
+#[invariant(self.ends_unit -> self.source_start < self.source_end, "a unit ends after a source character")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NormalizedSourceChar {
     pub source_start: usize,
     pub source_end: usize,
     pub source_value: char,
     pub value: char,
+    pub ends_unit: bool,
 }
 
 #[invariant(true)]
@@ -174,156 +589,65 @@ pub(crate) fn normalize_source_chars_checked(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|chars| chars.iter().all(|item| is_valid_normalized_char(item.value))) || ret.is_err())]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|chars| chars.last().is_none_or(|last| last.ends_unit)), "the last letter ends a unit")]
+#[bityzba::expensive_ensures(
+    ret.as_ref().is_err() || ret.as_ref().is_ok_and(|chars| chars.windows(2).all(|pair| {
+        pair[0].ends_unit
+            || pair[0].source_start == pair[0].source_end
+            || pair[0].source_end == pair[1].source_end
+    })),
+    "every letter of a unit with a nonempty range ends where the unit ends"
+)]
 fn normalize_source_chars_with_mode(
     chars: impl IntoIterator<Item = (usize, char)>,
     options: &MorphologyOptions,
     checked: bool,
 ) -> Result<Vec<NormalizedSourceChar>, NormalizationError> {
-    let source_chars = chars.into_iter().collect::<Vec<_>>();
+    let units = canonical_converter_units(chars, options);
     let mut normalized = Vec::new();
-    let mut previous_implicit_apostrophe_vowel = false;
-    let mut cursor = 0;
-    while cursor < source_chars.len() {
-        let (source_index, value) = source_chars[cursor];
-        if options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value) {
-            if let Some((payload_index, payload_value)) = source_chars.get(cursor + 1).copied()
-                && let Some(payload) = normalize_zbalermorna_shorthand_payload(payload_value)
-            {
-                push_normalized_text(
-                    &mut normalized,
-                    &mut previous_implicit_apostrophe_vowel,
-                    payload_index,
-                    payload_index + 1,
-                    payload_value,
-                    payload,
-                    false,
-                );
-                push_normalized_value(
-                    &mut normalized,
-                    &mut previous_implicit_apostrophe_vowel,
-                    source_index,
-                    payload_index + 1,
-                    value,
-                    '\'',
-                    false,
-                );
-                cursor += 2;
-                continue;
-            }
-            if checked {
-                return Err(NormalizationError {
-                    source_index,
-                    source_value: value,
-                });
-            }
-            previous_implicit_apostrophe_vowel = false;
-            cursor += 1;
-            continue;
-        }
-        match normalize_char_event(value, options) {
-            Some(event) => match event.as_data() {
-                data!(NormalizedCharEvent::Emit {
-                    value: normalized_value,
-                    implicit_apostrophe_vowel,
-                }) => {
-                    push_normalized_value(
-                        &mut normalized,
-                        &mut previous_implicit_apostrophe_vowel,
-                        source_index,
-                        source_index + 1,
-                        value,
-                        *normalized_value,
-                        *implicit_apostrophe_vowel,
-                    );
-                }
-                data!(NormalizedCharEvent::EmitText { text }) => {
-                    push_normalized_text(
-                        &mut normalized,
-                        &mut previous_implicit_apostrophe_vowel,
-                        source_index,
-                        source_index + 1,
-                        value,
-                        text,
-                        false,
-                    );
-                }
-                data!(NormalizedCharEvent::StressPrevious) => {
+    walk_converter_units(&units, options, false, |step| {
+        match step.into_data() {
+            data!(ConverterStep::Letter {
+                source_start,
+                source_end,
+                source_value,
+                value,
+                ends_unit,
+            }) => normalized.push(new!(NormalizedSourceChar {
+                source_start: source_start,
+                source_end: source_end,
+                source_value: source_value,
+                value: value,
+                ends_unit: ends_unit,
+            })),
+            data!(ConverterStep::Stress {
+                vowel,
+                source_end,
+                ..
+            }) => {
+                if vowel {
+                    stress_last_normalized_vowel_char(&mut normalized);
+                } else {
                     stress_last_normalized_char(&mut normalized);
                 }
-                data!(NormalizedCharEvent::StressPreviousVowel) => {
-                    stress_last_normalized_vowel_char(&mut normalized);
-                }
-                data!(NormalizedCharEvent::Ignore) => {
-                    previous_implicit_apostrophe_vowel = false;
-                }
-            },
-            None => {
+                // A postfix stress mark belongs to its word: the last unit's
+                // range covers it, so the word ends after the mark, in every
+                // canonically equivalent spelling.
+                extend_last_normalized_unit_end(&mut normalized, source_end);
+            }
+            data!(ConverterStep::Separator { .. }) => {}
+            data!(ConverterStep::Unread { index, value }) => {
                 if checked {
                     return Err(NormalizationError {
-                        source_index,
+                        source_index: index,
                         source_value: value,
                     });
                 }
-                previous_implicit_apostrophe_vowel = false;
             }
         }
-        cursor += 1;
-    }
+        Ok(())
+    })?;
     Ok(normalized)
-}
-
-#[requires(is_valid_normalized_char(value))]
-#[requires(source_start <= source_end)]
-#[ensures(true)]
-fn push_normalized_value(
-    normalized: &mut Vec<NormalizedSourceChar>,
-    previous_implicit_apostrophe_vowel: &mut bool,
-    source_start: usize,
-    source_end: usize,
-    source_value: char,
-    value: char,
-    implicit_apostrophe_vowel: bool,
-) {
-    if *previous_implicit_apostrophe_vowel && implicit_apostrophe_vowel {
-        normalized.push(new!(NormalizedSourceChar {
-            source_start: source_start,
-            source_end: source_start,
-            source_value: '\'',
-            value: '\''
-        }));
-    }
-    normalized.push(new!(NormalizedSourceChar {
-        source_start: source_start,
-        source_end: source_end,
-        source_value: source_value,
-        value: value,
-    }));
-    *previous_implicit_apostrophe_vowel = implicit_apostrophe_vowel;
-}
-
-#[requires(text.chars().all(is_valid_normalized_char))]
-#[requires(source_start <= source_end)]
-#[ensures(true)]
-fn push_normalized_text(
-    normalized: &mut Vec<NormalizedSourceChar>,
-    previous_implicit_apostrophe_vowel: &mut bool,
-    source_start: usize,
-    source_end: usize,
-    source_value: char,
-    text: &str,
-    implicit_apostrophe_vowel: bool,
-) {
-    for value in text.chars() {
-        push_normalized_value(
-            normalized,
-            previous_implicit_apostrophe_vowel,
-            source_start,
-            source_end,
-            source_value,
-            value,
-            implicit_apostrophe_vowel,
-        );
-    }
 }
 
 #[requires(true)]
@@ -550,7 +874,10 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty() || normalized_word.is_empty())]
+#[ensures(normalized_word.is_empty() -> ret.is_empty())]
+#[bityzba::expensive_ensures(
+    !ret.contains(',') && ret.is_empty() == normalized_word.chars().all(|value| value == ',')
+)]
 fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     mark_predictable_stress(
         &canonicalize_word_phonemes(normalized_word)
@@ -1476,7 +1803,9 @@ enum NormalizedCharEvent {
 #[requires(true)]
 #[ensures(true)]
 fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<NormalizedCharEvent> {
-    if is_combining_stress_mark(value) {
+    if (options.accept_latin || options.accept_cyrillic || options.accept_zbalermorna)
+        && is_combining_stress_mark(value)
+    {
         return Some(new!(NormalizedCharEvent::StressPrevious));
     }
     if options.accept_zbalermorna && is_zbalermorna_stress_mark(value) {
@@ -1727,6 +2056,39 @@ fn is_zbalermorna_ignored_mark(value: char) -> bool {
     matches!(value, '\u{ed8c}' | '\u{ed99}' | '\u{ed9b}')
 }
 
+/// Extend the last unit's source range to `source_end`.
+///
+/// Every letter of the unit that ends where the unit ends moves with it, so
+/// the unit stays atomic: a Zbalermorna diphthong keeps its glide, and a
+/// shorthand keeps its apostrophe. An implicit apostrophe keeps its empty
+/// range.
+#[requires(chars.last().is_none_or(|last| last.ends_unit))]
+#[ensures(chars.last().is_none_or(|last| last.source_end >= source_end))]
+fn extend_last_normalized_unit_end(chars: &mut [NormalizedSourceChar], source_end: usize) {
+    let Some(old_end) = chars
+        .last()
+        .map(|last| last.source_end)
+        .filter(|old_end| *old_end < source_end)
+    else {
+        return;
+    };
+    let unit_start = chars[..chars.len() - 1]
+        .iter()
+        .rposition(|source_char| source_char.ends_unit)
+        .map_or(0, |index| index + 1);
+    for source_char in &mut chars[unit_start..] {
+        if source_char.source_end == old_end {
+            *source_char = new!(NormalizedSourceChar {
+                source_start: source_char.source_start,
+                source_end: source_end,
+                source_value: source_char.source_value,
+                value: source_char.value,
+                ends_unit: source_char.ends_unit,
+            });
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn stress_last_normalized_char(chars: &mut [NormalizedSourceChar]) {
@@ -1738,6 +2100,7 @@ fn stress_last_normalized_char(chars: &mut [NormalizedSourceChar]) {
             source_end: last.source_end,
             source_value: last.source_value,
             value: stressed,
+            ends_unit: last.ends_unit,
         });
     }
 }
@@ -1756,6 +2119,7 @@ fn stress_last_normalized_vowel_char(chars: &mut [NormalizedSourceChar]) {
             source_end: last.source_end,
             source_value: last.source_value,
             value: stressed,
+            ends_unit: last.ends_unit,
         });
     }
 }
@@ -6540,6 +6904,18 @@ pub(crate) fn digit_to_cmavo(value: char) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn brivla_phonemes_drop_commas() {
+        assert_eq!(canonicalize_brivla_phonemes(""), "");
+        assert_eq!(canonicalize_brivla_phonemes(","), "");
+        assert_eq!(canonicalize_brivla_phonemes(",,"), "");
+        let kept = canonicalize_brivla_phonemes("kl,ama");
+        assert!(!kept.is_empty());
+        assert!(!kept.contains(','));
+    }
 
     #[test]
     #[requires(true)]

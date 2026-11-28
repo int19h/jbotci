@@ -4288,7 +4288,7 @@ mod tests {
             cmavo_table::dictionary_link_target(
                 candidate,
                 jbotci_dictionary_data::english()
-                    .lookup_words(candidate)
+                    .lookup_words(&jbotci_dictionary::LookupKey::from_stored(candidate))
                     .map(|entry| entry.word),
             )
         };

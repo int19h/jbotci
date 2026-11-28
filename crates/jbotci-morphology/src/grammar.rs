@@ -415,12 +415,10 @@ fn region_accepts_suffix(
     {
         return false;
     }
-    let local = start - region.source_start;
     let Some(offset) = region
         .normalized
-        .source_stripped_char_ends
-        .get(local)
-        .copied()
+        .boundary_at(start - region.source_start)
+        .map(|boundary| boundary.stripped_end())
     else {
         return false;
     };
@@ -432,10 +430,14 @@ fn region_accepts_suffix(
 
 #[requires(start >= region.source_start)]
 #[requires(start - region.source_start <= region.normalized.source_char_count)]
+#[requires(region.normalized.boundary_at(start - region.source_start).is_some(), "a word starts only at a unit boundary")]
 #[ensures(ret <= region.stripped_chars.len())]
 fn shared_stripped_offset(region: &ActiveWordRegion, start: usize) -> usize {
-    let local = start - region.source_start;
-    region.normalized.source_stripped_char_ends[local]
+    region
+        .normalized
+        .boundary_at(start - region.source_start)
+        .expect("the region was opened or reused at a unit boundary")
+        .stripped_end()
 }
 
 impl<'a> Segmenter<'a> {
@@ -1303,12 +1305,12 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<usize> {
-        for end in (start + 1)..=candidate_end {
+        for boundary in normalized.word_ends() {
+            let end = start + boundary.relative_end();
             if !self.pause_at(end) {
                 continue;
             }
-            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
-            if crate::segment::is_cmevla_text(normalized_prefix) {
+            if crate::segment::is_cmevla_text(normalized.prefix_text(boundary)) {
                 return Some(end);
             }
         }
@@ -1328,25 +1330,19 @@ impl<'a> Segmenter<'a> {
             let data!(StreamingWordCandidate { end, .. }) = candidate.into_data();
             return Some(end);
         }
-        for end in (start + 1)..=candidate_end {
+        let word_start = normalized.start_boundary();
+        for boundary in normalized.word_ends() {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
-            let relative_end = end - start;
             if normalized
-                .stripped_cmavo_phonemes(0, relative_end)
+                .stripped_cmavo_phonemes(word_start, boundary)
                 .is_none()
             {
                 continue;
             }
-            let normalized_prefix = normalized.slice_to_source_end(relative_end)?;
-            if self.relaxed_cmavo_boundary_ok(
-                start,
-                end,
-                candidate_end,
-                normalized_prefix,
-                normalized,
-            ) {
+            let end = start + boundary.relative_end();
+            if self.relaxed_cmavo_boundary_ok(start, end, candidate_end, boundary, normalized) {
                 return Some(end);
             }
         }
@@ -1354,23 +1350,21 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(prefix_start < prefix_end && prefix_end <= candidate_end && candidate_end <= self.chars.len())]
+    #[requires(prefix_start + boundary.relative_end() == prefix_end)]
     #[ensures(true)]
     fn relaxed_cmavo_boundary_ok(
         &self,
         prefix_start: usize,
         prefix_end: usize,
         candidate_end: usize,
-        prefix: &str,
+        boundary: UnitBoundary,
         normalized: &NormalizedCandidate,
     ) -> bool {
         if self.pause_at(prefix_end) {
             return true;
         }
-        let Some(remainder) =
-            normalized.slice_source_range(prefix_end - prefix_start, candidate_end - prefix_start)
-        else {
-            return false;
-        };
+        let prefix = normalized.prefix_text(boundary);
+        let remainder = normalized.text_between(boundary, normalized.end_boundary());
         if boundary_repeats_diphthong_semivowel(prefix, remainder) {
             return false;
         }
@@ -1394,30 +1388,22 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<usize> {
-        for end in (start + 1)..=candidate_end {
+        for boundary in normalized.word_ends() {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
-            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
-            if !self.relaxed_brivla_boundary_ok(
-                start,
-                end,
-                candidate_end,
-                normalized_prefix,
-                normalized,
-            ) {
+            let end = start + boundary.relative_end();
+            if !self.relaxed_brivla_boundary_ok(end, boundary, normalized) {
                 continue;
             }
-            let local_stripped_end = normalized.stripped_end_to_source_end(end - start)?;
-            let normalized_prefix_chars = normalized.normalized_chars_to_source_end(end - start)?;
             let classified =
                 self.with_shared_cache(start, normalized, |stripped, offset, cache| {
                     crate::segment::classify_word_with_cache(
-                        normalized_prefix,
-                        normalized_prefix_chars,
+                        normalized.prefix_text(boundary),
+                        normalized.prefix_chars(boundary),
                         stripped,
                         offset,
-                        offset + local_stripped_end,
+                        offset + boundary.stripped_end(),
                         cache,
                     )
                 });
@@ -1430,16 +1416,15 @@ impl<'a> Segmenter<'a> {
         None
     }
 
-    #[requires(start < end && end <= candidate_end && candidate_end <= self.chars.len())]
+    #[requires(end <= self.chars.len())]
     #[ensures(true)]
     fn relaxed_brivla_boundary_ok(
         &self,
-        start: usize,
         end: usize,
-        candidate_end: usize,
-        prefix: &str,
+        boundary: UnitBoundary,
         normalized: &NormalizedCandidate,
     ) -> bool {
+        let prefix = normalized.prefix_text(boundary);
         if !has_explicit_brivla_stress(prefix) {
             return self.pause_at(end);
         }
@@ -1449,14 +1434,11 @@ impl<'a> Segmenter<'a> {
         if self.pause_at(end) {
             return true;
         }
-        let Some(remainder) = normalized.slice_source_range(end - start, candidate_end - start)
-        else {
-            return false;
-        };
+        let remainder = normalized.text_between(boundary, normalized.end_boundary());
         if boundary_repeats_diphthong_semivowel(prefix, remainder) {
             return false;
         }
-        self.pause_at(end) || !self.starts_with_pause_required_nucleus_at(end)
+        !self.starts_with_pause_required_nucleus_at(end)
     }
 
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
@@ -1665,39 +1647,22 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        for end in (start + 1)..=candidate_end {
+        for boundary in normalized.word_ends() {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
-            let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
-                continue;
-            };
-            if !self.post_word_ok_for_brivla(
-                start,
-                end,
-                candidate_end,
-                normalized_prefix,
-                normalized,
-            ) {
+            let end = start + boundary.relative_end();
+            if !self.post_word_ok_for_brivla(end, boundary, normalized) {
                 continue;
             }
-            let Some(local_stripped_end) = normalized.stripped_end_to_source_end(end - start)
-            else {
-                continue;
-            };
-            let Some(normalized_prefix_chars) =
-                normalized.normalized_chars_to_source_end(end - start)
-            else {
-                continue;
-            };
             let Some((kind, phonemes)) =
                 self.with_shared_cache(start, normalized, |stripped, offset, cache| {
                     crate::segment::classify_word_with_cache(
-                        normalized_prefix,
-                        normalized_prefix_chars,
+                        normalized.prefix_text(boundary),
+                        normalized.prefix_chars(boundary),
                         stripped,
                         offset,
-                        offset + local_stripped_end,
+                        offset + boundary.stripped_end(),
                         cache,
                     )
                 })
@@ -1716,42 +1681,36 @@ impl<'a> Segmenter<'a> {
         None
     }
 
-    #[requires(start < end && end <= candidate_end && candidate_end <= self.chars.len())]
+    #[requires(end <= self.chars.len())]
     #[ensures(true)]
     fn post_word_ok_for_brivla(
         &self,
-        start: usize,
         end: usize,
-        candidate_end: usize,
-        normalized_prefix: &str,
+        boundary: UnitBoundary,
         normalized: &NormalizedCandidate,
     ) -> bool {
-        if has_explicit_brivla_stress(normalized_prefix) {
-            explicit_brivla_stress_is_valid(normalized_prefix)
-                && self.brivla_boundary_ok(start, end, candidate_end, normalized_prefix, normalized)
+        let prefix = normalized.prefix_text(boundary);
+        if has_explicit_brivla_stress(prefix) {
+            explicit_brivla_stress_is_valid(prefix)
+                && self.brivla_boundary_ok(end, boundary, normalized)
         } else {
             self.pause_at(end)
         }
     }
 
-    #[requires(start <= end && end <= candidate_end && candidate_end <= self.chars.len())]
+    #[requires(end <= self.chars.len())]
     #[ensures(true)]
     fn brivla_boundary_ok(
         &self,
-        start: usize,
         end: usize,
-        candidate_end: usize,
-        prefix: &str,
+        boundary: UnitBoundary,
         normalized: &NormalizedCandidate,
     ) -> bool {
         if self.pause_at(end) {
             return true;
         }
-        let Some(remainder) = normalized.slice_source_range(end - start, candidate_end - start)
-        else {
-            return false;
-        };
-        if boundary_repeats_diphthong_semivowel(prefix, remainder) {
+        let remainder = normalized.text_between(boundary, normalized.end_boundary());
+        if boundary_repeats_diphthong_semivowel(normalized.prefix_text(boundary), remainder) {
             return false;
         }
         self.post_word_at(end)
@@ -1766,16 +1725,15 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        for end in (start + 1)..=candidate_end {
+        for boundary in normalized.word_ends() {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
+            let end = start + boundary.relative_end();
             if !self.pause_at(end) {
                 continue;
             }
-            let Some(normalized_prefix) = normalized.slice_to_source_end(end - start) else {
-                continue;
-            };
+            let normalized_prefix = normalized.prefix_text(boundary);
             if !crate::segment::is_cmevla_text(normalized_prefix) {
                 continue;
             }
@@ -1823,18 +1781,12 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<Option<StreamingWordCandidate>> {
-        let Some(full_candidate) = normalized.slice_to_source_end(candidate_end - start) else {
-            return Some(None);
-        };
-        let Some(local_stripped_end) = normalized.stripped_end_to_source_end(candidate_end - start)
-        else {
-            return Some(None);
-        };
-        let Some(full_candidate_chars) =
-            normalized.normalized_chars_to_source_end(candidate_end - start)
-        else {
-            return Some(None);
-        };
+        // The whole candidate ends at a boundary, so the scan needs no
+        // lookup that could fail.
+        let whole = normalized.end_boundary();
+        let full_candidate = normalized.prefix_text(whole);
+        let local_stripped_end = whole.stripped_end();
+        let full_candidate_chars = normalized.prefix_chars(whole);
         let blocks_brivla = self.with_shared_cache(start, normalized, |stripped, offset, cache| {
             crate::segment::starts_with_cvcy_lujvo_chars_with_cache(
                 stripped,
@@ -1888,19 +1840,18 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        for end in (start + 1)..=candidate_end {
+        let word_start = normalized.start_boundary();
+        for boundary in normalized.word_ends() {
             if self.options.cancellation.is_cancelled() {
                 return None;
             }
-            let relative_end = end - start;
             // The cluster after a stressed final nucleus can start in the next word.
-            let Some(phonemes) = normalized.stripped_cmavo_phonemes(0, relative_end) else {
+            let Some(phonemes) = normalized.stripped_cmavo_phonemes(word_start, boundary) else {
                 continue;
             };
-            let Some(normalized_prefix) = normalized.slice_to_source_end(relative_end) else {
-                continue;
-            };
-            if !self.cmavo_boundary_ok(start, end, candidate_end, normalized_prefix, normalized) {
+            let end = start + boundary.relative_end();
+            if !self.cmavo_boundary_ok(start, word_start, end, boundary, candidate_end, normalized)
+            {
                 continue;
             }
             return Some(new!(StreamingWordCandidate {
@@ -2772,24 +2723,26 @@ impl<'a> Segmenter<'a> {
         ))
     }
 
-    #[requires(prefix_start <= prefix_end && prefix_end <= candidate_end && candidate_end <= self.chars.len())]
+    /// Whether a cmavo from `from` to `to` can end at the source position
+    /// `prefix_end`. `start` is the source position of the candidate, the
+    /// frame of every boundary of `normalized`.
+    #[requires(start + to.relative_end() == prefix_end && from.relative_end() <= to.relative_end())]
+    #[requires(prefix_end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
     fn cmavo_boundary_ok(
         &self,
-        prefix_start: usize,
+        start: usize,
+        from: UnitBoundary,
         prefix_end: usize,
+        to: UnitBoundary,
         candidate_end: usize,
-        prefix: &str,
         normalized: &NormalizedCandidate,
     ) -> bool {
         if self.pause_at(prefix_end) {
             return true;
         }
-        let Some(remainder) =
-            normalized.slice_source_range(prefix_end - prefix_start, candidate_end - prefix_start)
-        else {
-            return false;
-        };
+        let prefix = normalized.text_between(from, to);
+        let remainder = normalized.text_between(to, normalized.end_boundary());
         if boundary_repeats_diphthong_semivowel(prefix, remainder) {
             return false;
         }
@@ -2797,7 +2750,7 @@ impl<'a> Segmenter<'a> {
         if pause_required
             && !self.indicator_cmavo_boundary_ok(
                 prefix,
-                prefix_start,
+                start,
                 prefix_end,
                 candidate_end,
                 normalized,
@@ -2808,31 +2761,28 @@ impl<'a> Segmenter<'a> {
         self.lojban_word_starts_at(prefix_end)
     }
 
-    #[requires(prefix_end <= candidate_end && candidate_end <= self.chars.len())]
+    #[requires(start <= prefix_end && prefix_end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
     fn indicator_cmavo_boundary_ok(
         &self,
         prefix: &str,
-        prefix_start: usize,
+        start: usize,
         prefix_end: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
     ) -> bool {
         is_indicator_cmavo_text(prefix)
-            && self.camxes_non_nucleus_word_start_at(
-                prefix_start,
-                prefix_end,
-                candidate_end,
-                normalized,
-            )
-            && self.indicator_cmavo_starts_at(prefix_start, prefix_end, candidate_end, normalized)
+            && self.camxes_non_nucleus_word_start_at(start, prefix_end, candidate_end, normalized)
+            && self.indicator_cmavo_starts_at(start, prefix_end, candidate_end, normalized)
     }
 
-    #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
+    /// `start` is the source position of the candidate, the frame of every
+    /// boundary of `normalized`. A position inside a unit starts no word.
+    #[requires(start <= index && index <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
     fn camxes_non_nucleus_word_start_at(
         &self,
-        prefix_start: usize,
+        start: usize,
         index: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
@@ -2841,16 +2791,19 @@ impl<'a> Segmenter<'a> {
         if index >= candidate_end || self.is_word_separator_at(index) {
             return false;
         }
-        normalized
-            .normalized_chars_source_range(index - prefix_start, candidate_end - prefix_start)
-            .is_some_and(|normalized| !starts_with_nucleus(normalized, 0))
+        normalized.boundary_at(index - start).is_some_and(|from| {
+            !starts_with_nucleus(normalized.chars_between(from, normalized.end_boundary()), 0)
+        })
     }
 
-    #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
+    /// Whether an indicator cmavo starts at `index` and ends at a boundary.
+    /// `start` is the source position of the candidate, the frame of every
+    /// boundary of `normalized`.
+    #[requires(start <= index && index <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
     fn indicator_cmavo_starts_at(
         &self,
-        prefix_start: usize,
+        start: usize,
         index: usize,
         candidate_end: usize,
         normalized: &NormalizedCandidate,
@@ -2858,20 +2811,21 @@ impl<'a> Segmenter<'a> {
         if index >= candidate_end {
             return false;
         }
-        let relative_start = index - prefix_start;
-        ((index + 1)..=candidate_end).any(|end| {
-            let relative_end = end - prefix_start;
-            let Some(phonemes) = normalized.stripped_cmavo_phonemes(relative_start, relative_end)
-            else {
-                return false;
-            };
-            let Some(normalized_prefix) =
-                normalized.slice_source_range(relative_start, relative_end)
-            else {
-                return false;
-            };
-            is_indicator_cmavo_text(&phonemes)
-                && self.cmavo_boundary_ok(index, end, candidate_end, normalized_prefix, normalized)
+        let Some(from) = normalized.boundary_at(index - start) else {
+            return false;
+        };
+        normalized.boundaries_after(from).any(|to| {
+            normalized
+                .stripped_cmavo_phonemes(from, to)
+                .is_some_and(|phonemes| is_indicator_cmavo_text(&phonemes))
+                && self.cmavo_boundary_ok(
+                    start,
+                    from,
+                    start + to.relative_end(),
+                    to,
+                    candidate_end,
+                    normalized,
+                )
         })
     }
 
@@ -3445,149 +3399,279 @@ struct StreamingWordCandidate {
     phonemes: String,
 }
 
-#[invariant(source_text_byte_ends.len() == source_char_count + 1)]
-#[invariant(source_normalized_char_ends.len() == source_char_count + 1)]
-#[invariant(source_stripped_char_ends.len() == source_char_count + 1)]
-#[invariant(source_text_byte_ends.iter().all(|end| *end <= text.len()))]
-#[invariant(source_normalized_char_ends.iter().all(|end| *end <= normalized_chars.len()))]
-#[invariant(source_stripped_char_ends.iter().all(|end| *end <= stripped_chars.len()))]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct NormalizedCandidate {
-    source_char_count: usize,
-    text: String,
-    normalized_chars: Vec<char>,
-    stripped_chars: Vec<char>,
-    source_text_byte_ends: Vec<usize>,
-    source_normalized_char_ends: Vec<usize>,
-    source_stripped_char_ends: Vec<usize>,
-}
+/// The normalized candidate of one source slice and its unit boundaries.
+///
+/// The child module keeps the fields of `UnitBoundary` private, so only a
+/// `NormalizedCandidate` can make a boundary.
+mod candidate {
+    use super::*;
 
-impl NormalizedCandidate {
-    #[requires(source_char_count > 0)]
-    #[ensures(ret.source_char_count == source_char_count)]
-    fn from_normalized_source_chars(
-        source_char_count: usize,
-        chars: Vec<NormalizedSourceChar>,
-    ) -> Self {
-        let mut text = String::new();
-        let mut normalized_chars = Vec::with_capacity(chars.len());
-        let mut stripped_chars = Vec::with_capacity(chars.len());
-        let mut source_text_byte_ends = vec![None; source_char_count + 1];
-        let mut source_normalized_char_ends = vec![None; source_char_count + 1];
-        let mut source_stripped_char_ends = vec![None; source_char_count + 1];
-        source_text_byte_ends[0] = Some(0);
-        source_normalized_char_ends[0] = Some(0);
-        source_stripped_char_ends[0] = Some(0);
+    /// A source position of a `NormalizedCandidate` where a word can start or
+    /// end, with the length of the normalized prefix that ends there.
+    ///
+    /// Only a `NormalizedCandidate` makes one, for a position that is not inside
+    /// an atomic converter unit. The fields are private to this module, so no
+    /// other code can build one. So a value of this type is always a real
+    /// boundary: code that holds one cannot step onto a unit interior. The
+    /// lengths count the text in bytes, the normalized letters, and the letters
+    /// without commas.
+    #[invariant(text_end >= normalized_end && normalized_end >= stripped_end, "bytes, letters, letters without commas")]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(super) struct UnitBoundary {
+        relative_end: usize,
+        text_end: usize,
+        normalized_end: usize,
+        stripped_end: usize,
+    }
 
-        for source_char in chars {
-            let required_prefix = if source_char.source_start == source_char.source_end {
-                source_char.source_start + 1
-            } else {
-                source_char.source_end
-            };
-            text.push(source_char.value);
-            normalized_chars.push(source_char.value);
-            if source_char.value != ',' {
-                stripped_chars.push(source_char.value);
-            }
-            if required_prefix <= source_char_count {
-                source_text_byte_ends[required_prefix] = Some(text.len());
-                source_normalized_char_ends[required_prefix] = Some(normalized_chars.len());
-                source_stripped_char_ends[required_prefix] = Some(stripped_chars.len());
-            }
+    /// The normalized text of one source slice, with the boundary at each source
+    /// position.
+    ///
+    /// A source position inside an atomic converter unit is no boundary (`None`):
+    /// no word can start or end there. Such a position lies inside a base letter
+    /// and its combining marks, a unit and its postfix stress marks, or a
+    /// Zbalermorna shorthand and its payload. A position after a character that
+    /// gives no letter, such as an ignored mark, is a boundary with the prefix
+    /// before it. The table is private: code reads it only through
+    /// `boundary_at`, `boundaries_after` and the slices of a `UnitBoundary`, so
+    /// "inside a unit" never shares a type with "past the end".
+    #[invariant(boundaries.len() == source_char_count + 1)]
+    #[invariant(boundaries[0].is_some_and(|start| start.relative_end() == 0 && start.text_end == 0 && start.normalized_end == 0 && start.stripped_end() == 0), "the empty prefix is a boundary")]
+    #[invariant(boundaries[*source_char_count].is_some(), "the whole slice ends at a boundary")]
+    #[invariant(
+        boundaries.iter().enumerate().all(|(position, boundary)| boundary.is_none_or(|boundary| {
+            boundary.relative_end() == position
+                && boundary.text_end <= text.len()
+                && boundary.normalized_end <= normalized_chars.len()
+                && boundary.stripped_end() <= stripped_chars.len()
+        })),
+        "each boundary sits at its own position and inside the text"
+    )]
+    #[expensive_invariant(
+        boundaries.iter().flatten().zip(boundaries.iter().flatten().skip(1)).all(|(left, right)| {
+            left.text_end <= right.text_end
+                && left.normalized_end <= right.normalized_end
+                && left.stripped_end() <= right.stripped_end()
+        }),
+        "prefixes grow with the position"
+    )]
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub(super) struct NormalizedCandidate {
+        pub(super) source_char_count: usize,
+        text: String,
+        normalized_chars: Vec<char>,
+        pub(super) stripped_chars: Vec<char>,
+        boundaries: Vec<Option<UnitBoundary>>,
+    }
+
+    impl UnitBoundary {
+        /// The source position of this boundary, counted from the start of its
+        /// candidate.
+        #[requires(true)]
+        #[ensures(ret == self.relative_end)]
+        pub(super) fn relative_end(&self) -> usize {
+            self.relative_end
         }
 
-        let source_text_byte_ends = fill_source_prefix_ends(source_text_byte_ends);
-        let source_normalized_char_ends = fill_source_prefix_ends(source_normalized_char_ends);
-        let source_stripped_char_ends = fill_source_prefix_ends(source_stripped_char_ends);
-        new!(NormalizedCandidate {
-            source_char_count: source_char_count,
-            text: text,
-            normalized_chars: normalized_chars,
-            stripped_chars: stripped_chars,
-            source_text_byte_ends: source_text_byte_ends,
-            source_normalized_char_ends: source_normalized_char_ends,
-            source_stripped_char_ends: source_stripped_char_ends,
-        })
+        /// The number of letters without commas before this boundary.
+        #[requires(true)]
+        #[ensures(ret == self.stripped_end)]
+        pub(super) fn stripped_end(&self) -> usize {
+            self.stripped_end
+        }
     }
 
-    #[requires(relative_end <= self.source_char_count)]
-    #[ensures(true)]
-    fn slice_to_source_end(&self, relative_end: usize) -> Option<&str> {
-        let byte_end = *self.source_text_byte_ends.get(relative_end)?;
-        self.text.get(..byte_end)
-    }
+    impl NormalizedCandidate {
+        #[requires(source_char_count > 0)]
+        #[ensures(ret.source_char_count == source_char_count)]
+        pub(super) fn from_normalized_source_chars(
+            source_char_count: usize,
+            chars: Vec<NormalizedSourceChar>,
+        ) -> Self {
+            let mut text = String::new();
+            let mut normalized_chars = Vec::with_capacity(chars.len());
+            let mut stripped_chars = Vec::with_capacity(chars.len());
+            // The prefix that ends after each unit, at the unit's source end.
+            let mut unit_ends = vec![None::<UnitBoundary>; source_char_count + 1];
+            unit_ends[0] = Some(new!(UnitBoundary {
+                relative_end: 0,
+                text_end: 0,
+                normalized_end: 0,
+                stripped_end: 0,
+            }));
+            // `inside[position]` is true when a unit covers the source characters
+            // on both sides of `position`.
+            let mut inside = vec![false; source_char_count + 1];
+            let mut unit_start = None::<usize>;
 
-    #[requires(relative_start <= relative_end && relative_end <= self.source_char_count)]
-    #[ensures(true)]
-    fn slice_source_range(&self, relative_start: usize, relative_end: usize) -> Option<&str> {
-        let byte_start = *self.source_text_byte_ends.get(relative_start)?;
-        let byte_end = *self.source_text_byte_ends.get(relative_end)?;
-        self.text.get(byte_start..byte_end)
-    }
-
-    #[requires(relative_end <= self.source_char_count)]
-    #[ensures(ret.is_none_or(|end| end <= self.normalized_chars.len()))]
-    fn normalized_char_end(&self, relative_end: usize) -> Option<usize> {
-        self.source_normalized_char_ends.get(relative_end).copied()
-    }
-
-    #[requires(relative_end <= self.source_char_count)]
-    #[ensures(true)]
-    fn normalized_chars_to_source_end(&self, relative_end: usize) -> Option<&[char]> {
-        let char_end = self.normalized_char_end(relative_end)?;
-        self.normalized_chars.get(..char_end)
-    }
-
-    #[requires(relative_start <= relative_end && relative_end <= self.source_char_count)]
-    #[ensures(true)]
-    fn normalized_chars_source_range(
-        &self,
-        relative_start: usize,
-        relative_end: usize,
-    ) -> Option<&[char]> {
-        let char_start = *self.source_normalized_char_ends.get(relative_start)?;
-        let char_end = *self.source_normalized_char_ends.get(relative_end)?;
-        self.normalized_chars.get(char_start..char_end)
-    }
-
-    #[requires(relative_end <= self.source_char_count)]
-    #[ensures(ret.is_none_or(|end| end <= self.stripped_chars.len()))]
-    fn stripped_end_to_source_end(&self, relative_end: usize) -> Option<usize> {
-        self.source_stripped_char_ends.get(relative_end).copied()
-    }
-
-    #[requires(relative_start <= relative_end && relative_end <= self.source_char_count)]
-    #[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.is_empty()))]
-    fn stripped_cmavo_phonemes(
-        &self,
-        relative_start: usize,
-        relative_end: usize,
-    ) -> Option<String> {
-        let stripped_start = self.stripped_end_to_source_end(relative_start)?;
-        let stripped_end = self.stripped_end_to_source_end(relative_end)?;
-        crate::segment::parse_cmavo_form_with_lookahead(
-            &self.stripped_chars,
-            stripped_start,
-            stripped_end,
-            self.stripped_chars.len(),
-        )
-    }
-}
-
-#[requires(!ends.is_empty())]
-#[ensures(!ret.is_empty())]
-fn fill_source_prefix_ends(ends: Vec<Option<usize>>) -> Vec<usize> {
-    let mut current = 0;
-    ends.into_iter()
-        .map(|end| {
-            if let Some(end) = end {
-                current = end;
+            for source_char in chars {
+                let start = unit_start.map_or(source_char.source_start, |start| {
+                    start.min(source_char.source_start)
+                });
+                unit_start = Some(start);
+                text.push(source_char.value);
+                normalized_chars.push(source_char.value);
+                if source_char.value != ',' {
+                    stripped_chars.push(source_char.value);
+                }
+                // A word can end only after the last letter of a converter unit.
+                // A prefix that ended inside one would split a Zbalermorna
+                // diphthong, a shorthand and its payload, or an implicit
+                // apostrophe and its vowel.
+                if source_char.ends_unit {
+                    let end = source_char.source_end.min(source_char_count);
+                    for position in &mut inside[(start + 1).min(end)..end] {
+                        *position = true;
+                    }
+                    unit_start = None;
+                    if source_char.source_end <= source_char_count {
+                        unit_ends[source_char.source_end] = Some(new!(UnitBoundary {
+                            relative_end: source_char.source_end,
+                            text_end: text.len(),
+                            normalized_end: normalized_chars.len(),
+                            stripped_end: stripped_chars.len(),
+                        }));
+                    }
+                }
             }
-            current
-        })
-        .collect()
+
+            // A position inside a unit is no boundary. Any other position keeps
+            // the prefix before it, because the characters between give no
+            // letters.
+            let mut current = unit_ends[0].expect("the empty prefix is a boundary");
+            let boundaries = unit_ends
+                .into_iter()
+                .zip(inside)
+                .enumerate()
+                .map(|(position, (unit_end, inside))| {
+                    if let Some(unit_end) = unit_end {
+                        current = unit_end;
+                    }
+                    (!inside).then(|| {
+                        new!(UnitBoundary {
+                            relative_end: position,
+                            text_end: current.text_end,
+                            normalized_end: current.normalized_end,
+                            stripped_end: current.stripped_end(),
+                        })
+                    })
+                })
+                .collect();
+            new!(NormalizedCandidate {
+                source_char_count: source_char_count,
+                text: text,
+                normalized_chars: normalized_chars,
+                stripped_chars: stripped_chars,
+                boundaries: boundaries,
+            })
+        }
+
+        /// The boundary at `relative_end`, or `None` inside a unit. The position
+        /// must be inside the slice, so `None` has this one meaning.
+        #[requires(relative_end <= self.source_char_count)]
+        #[ensures(ret.is_none_or(|boundary| boundary.relative_end() == relative_end))]
+        pub(super) fn boundary_at(&self, relative_end: usize) -> Option<UnitBoundary> {
+            self.boundaries[relative_end]
+        }
+
+        /// The boundary at the end of the slice.
+        #[requires(true)]
+        #[ensures(ret.relative_end() == self.source_char_count)]
+        pub(super) fn end_boundary(&self) -> UnitBoundary {
+            self.boundaries[self.source_char_count].expect("the whole slice ends at a boundary")
+        }
+
+        /// The boundaries after `from`, in order. Every word-end loop runs over
+        /// these, so no loop can stop or test at a unit interior.
+        #[requires(from.relative_end() <= self.source_char_count)]
+        #[ensures(true)]
+        pub(super) fn boundaries_after(
+            &self,
+            from: UnitBoundary,
+        ) -> impl Iterator<Item = UnitBoundary> + '_ {
+            self.boundaries[from.relative_end() + 1..]
+                .iter()
+                .flatten()
+                .copied()
+        }
+
+        /// The boundaries after the start of the slice, in order.
+        #[requires(true)]
+        #[ensures(true)]
+        pub(super) fn word_ends(&self) -> impl Iterator<Item = UnitBoundary> + '_ {
+            self.boundaries[1..].iter().flatten().copied()
+        }
+
+        /// The boundary at the start of the slice.
+        #[requires(true)]
+        #[ensures(ret.relative_end() == 0)]
+        pub(super) fn start_boundary(&self) -> UnitBoundary {
+            self.boundaries[0].expect("the empty prefix is a boundary")
+        }
+
+        #[requires(end.text_end <= self.text.len())]
+        #[ensures(true)]
+        pub(super) fn prefix_text(&self, end: UnitBoundary) -> &str {
+            &self.text[..end.text_end]
+        }
+
+        #[requires(from.text_end <= to.text_end && to.text_end <= self.text.len())]
+        #[ensures(true)]
+        pub(super) fn text_between(&self, from: UnitBoundary, to: UnitBoundary) -> &str {
+            &self.text[from.text_end..to.text_end]
+        }
+
+        #[requires(end.normalized_end <= self.normalized_chars.len())]
+        #[ensures(ret.len() == end.normalized_end)]
+        pub(super) fn prefix_chars(&self, end: UnitBoundary) -> &[char] {
+            &self.normalized_chars[..end.normalized_end]
+        }
+
+        #[requires(from.normalized_end <= to.normalized_end && to.normalized_end <= self.normalized_chars.len())]
+        #[ensures(ret.len() == to.normalized_end - from.normalized_end)]
+        pub(super) fn chars_between(&self, from: UnitBoundary, to: UnitBoundary) -> &[char] {
+            &self.normalized_chars[from.normalized_end..to.normalized_end]
+        }
+
+        /// The cmavo phonemes of the letters between two boundaries, or `None`
+        /// when they are not a cmavo.
+        #[requires(from.stripped_end() <= to.stripped_end() && to.stripped_end() <= self.stripped_chars.len())]
+        #[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.is_empty()))]
+        pub(super) fn stripped_cmavo_phonemes(
+            &self,
+            from: UnitBoundary,
+            to: UnitBoundary,
+        ) -> Option<String> {
+            crate::segment::parse_cmavo_form_with_lookahead(
+                &self.stripped_chars,
+                from.stripped_end(),
+                to.stripped_end(),
+                self.stripped_chars.len(),
+            )
+        }
+    }
+
+    /// The number of normalized letters before each source prefix end, as the
+    /// word candidates see them, or `None` inside a unit. Tests use it to check
+    /// that no prefix ends inside a converter unit.
+    #[cfg(test)]
+    #[requires(source_char_count > 0)]
+    #[ensures(ret.len() == source_char_count + 1)]
+    pub(crate) fn normalized_prefix_letter_counts(
+        source_char_count: usize,
+        chars: Vec<NormalizedSourceChar>,
+    ) -> Vec<Option<usize>> {
+        NormalizedCandidate::from_normalized_source_chars(source_char_count, chars)
+            .boundaries
+            .iter()
+            .map(|boundary| boundary.map(|boundary| boundary.normalized_end))
+            .collect()
+    }
 }
+
+#[cfg(test)]
+pub(crate) use candidate::normalized_prefix_letter_counts;
+use candidate::{NormalizedCandidate, UnitBoundary};
 
 #[invariant(true)]
 #[invariant(::Cmavo(_) => true)]
@@ -4214,6 +4298,39 @@ mod tests {
     use crate::LujvoParseExpectation;
     use crate::PhonotacticDetailKind;
     use bityzba::requires;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_nested_indicator_check_reads_the_candidate_frame() {
+        // Round 12 of #1130: every boundary of a candidate counts from the
+        // candidate start. The nested indicator check of `cmavo_boundary_ok`
+        // used to count positions from the inner start (`index`) in a table
+        // that counts from the candidate start, so it read the wrong slice.
+        // No full input is known where that changed a result (the review
+        // sweep ran 10,321 vowel-initial cmavo chains with the same output on
+        // main), so this test pins the frame rule at the slice level, where
+        // the old frame gives another slice.
+        let text = "uiuado";
+        let chars = crate::segment::normalize_source_chars(
+            text.chars().enumerate(),
+            &crate::MorphologyOptions::default(),
+        );
+        let candidate = NormalizedCandidate::from_normalized_source_chars(6, chars);
+        let (index, end) = (2, 4);
+        let to = candidate.boundary_at(end).expect("a boundary after `ua`");
+        // The rest of the candidate after `uiua` is `do`.
+        assert_eq!(candidate.text_between(to, candidate.end_boundary()), "do");
+        // The old frame took the slice from `end - index` to
+        // `candidate_end - index`, which is `ua`, not the rest after `end`.
+        let old_from = candidate.boundary_at(end - index).expect("boundary");
+        let old_to = candidate.boundary_at(6 - index).expect("boundary");
+        assert_eq!(candidate.text_between(old_from, old_to), "ua");
+        // The indicator from `index` to `end` is `ua`, read in the frame of
+        // the candidate start.
+        let from = candidate.boundary_at(index).expect("a boundary after `ui`");
+        assert_eq!(candidate.text_between(from, to), "ua");
+    }
 
     #[test]
     #[requires(true)]

@@ -89,6 +89,9 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, possible_short_rafsi_forms, rafsi_shape, syllables_pattern,
 };
+pub use segment::{
+    GLIDE_PARTNER_MARK, LookupStep, LookupStepData, awaits_next_unit, transcribe_lookup_run,
+};
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,
     word_needs_leading_pause_in_context,
@@ -837,8 +840,8 @@ impl Default for PhonemeRenderOptions {
     }
 }
 
-#[invariant(!text.is_empty(), "phoneme text must not be empty")]
 #[invariant(text.chars().all(is_valid_phoneme), "phonemes must use canonical Lojban phoneme characters")]
+#[invariant(text.chars().any(|value| value != ','), "phoneme text must contain a character other than a comma")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Phonemes {
@@ -868,11 +871,11 @@ impl Phonemes {
         options: PhonemeRenderOptions,
         output: &mut impl std::fmt::Write,
     ) -> Result<(), String> {
-        if text.is_empty() {
-            return Err("phoneme text must not be empty".to_owned());
-        }
         if !text.chars().all(is_valid_phoneme) {
             return Err("phonemes must use canonical Lojban phoneme characters".to_owned());
+        }
+        if !text.chars().any(|value| value != ',') {
+            return Err("phoneme text must contain a character other than a comma".to_owned());
         }
         for ch in text.chars() {
             output
@@ -3334,6 +3337,8 @@ fn single_constructor(
     Ok(object.into_iter().next().expect("object has one item"))
 }
 
+/// Return whether `value` is a canonical Lojban phoneme character: a letter
+/// with its stress and glide marks, an apostrophe, a comma, or a digit.
 #[requires(true)]
 #[ensures(true)]
 pub fn is_valid_phoneme(value: char) -> bool {
@@ -3378,17 +3383,15 @@ pub fn is_valid_phoneme(value: char) -> bool {
 
 /// Return whether `value` can participate in a morphology word spelling.
 ///
-/// This deliberately follows the same script- and diacritic-aware source
-/// normalization as segmentation. Digits are excluded because they form PA
-/// words but are not identifier-style word characters for editor queries.
+/// The converter answers, under the active scripts. A character can need a
+/// partner and still take part in a word: a combining breve marks a glide on
+/// the vowel before it, and the Zbalermorna shorthand mark U+ED8B takes the
+/// vowel after it. Digits are excluded because they form PA words but are not
+/// identifier-style word characters for editor queries.
 #[requires(true)]
 #[ensures(!ret || !value.is_ascii_digit())]
 pub fn is_word_forming_character_with_options(value: char, options: &MorphologyOptions) -> bool {
-    if value.is_ascii_digit() {
-        return false;
-    }
-    let mut encoded = [0_u8; 4];
-    segment::normalize_word_checked_with_options(value.encode_utf8(&mut encoded), options).is_some()
+    !value.is_ascii_digit() && segment::converter_can_spell_with(value, options)
 }
 
 /// Return whether `value` can participate in a default-dialect word spelling.
@@ -3400,11 +3403,18 @@ pub fn is_word_forming_character(value: char) -> bool {
 
 /// Return the canonical spelling of Lojban text.
 ///
-/// Letters are lowercase. Commas are removed. Stress marks and glide marks
-/// become plain vowels. Each Latin apostrophe spelling becomes `'`.
+/// The function writes letters in lowercase. It removes each comma. A stress
+/// mark or a glide mark becomes the plain vowel. Each Latin apostrophe
+/// spelling becomes `'`. A combining acute, grave, or breve disappears. When
+/// every character disappears, the result is empty. A non-empty input can
+/// return an empty string.
 #[requires(true)]
 #[ensures(!ret.is_empty() || canonical_text_chars(text).next().is_none())]
-#[bityzba::expensive_ensures(ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value)))]
+#[bityzba::expensive_ensures(
+    !ret.contains(',')
+        && !ret.chars().any(|value| matches!(value, '\u{0301}' | '\u{0300}' | '\u{0306}'))
+        && ret.chars().all(|value| value == '\'' || !LATIN_APOSTROPHE_CHARACTERS.contains(&value))
+)]
 pub fn canonicalize_text(text: &str) -> String {
     canonical_text_chars(text).collect()
 }
@@ -3490,6 +3500,8 @@ pub fn normalize_lojban_input_text_with_options(
         }
     }
     append_normalized_lojban_input_chunk(&mut output, &chunk, options)?;
+    // Commas survive morphology normalization and then disappear here.
+    // A non-empty input with an empty result is not a successful normalization.
     (!output.is_empty() || input.is_empty()).then_some(output)
 }
 
@@ -4958,6 +4970,861 @@ mod tests {
         );
     }
 
+    /// The lookup steps of `input` as text: each letter, each word break and
+    /// each unread character, in order.
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_transcript(input: &str) -> String {
+        let mut text = String::new();
+        transcribe_lookup_run(input, |step| {
+            text.push(match step.into_data() {
+                data!(LookupStep::Letter(value))
+                | data!(LookupStep::WordBreak(value))
+                | data!(LookupStep::Unread(value)) => value,
+            })
+        });
+        text
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_transcript_keeps_a_partial_conversion() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn transcript(input: &str) -> String {
+            lookup_transcript(input)
+        }
+
+        let shorthand = transcript("\u{ed8b}\u{eda2}");
+        assert_eq!(shorthand, "i'");
+        assert!(!shorthand.contains('\u{ed8b}'));
+        assert_eq!(transcript("\u{ed8b}\u{eda2}#"), "i'#");
+        assert_eq!(transcript("клама#da"), "klama#da");
+        assert_eq!(transcript("coһi#"), "co'i#");
+        assert_eq!(transcript("шои"), "co'i");
+        assert_eq!(transcript("\u{0306}"), "\u{0306}");
+        assert_eq!(transcript("\u{0301}"), "");
+    }
+
+    /// Check that no source prefix of `text` ends inside a converter unit.
+    ///
+    /// A unit is one converter input character, or a Zbalermorna shorthand
+    /// and its payload, with the stress marks after it. Its letters with a
+    /// nonempty source range end where the unit ends, and every prefix that
+    /// a word candidate can take ends after a whole unit.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_prefixes_end_at_unit_ends(text: &str) {
+        let count = text.chars().count();
+        if count == 0 {
+            return;
+        }
+        let chars = segment::normalize_source_chars(
+            text.chars().enumerate(),
+            &MorphologyOptions::default(),
+        );
+        if let Some(last) = chars.last() {
+            assert!(last.ends_unit, "{text:?}: the last letter ends a unit");
+        }
+        for (index, source_char) in chars.iter().enumerate() {
+            if !source_char.ends_unit && source_char.source_start < source_char.source_end {
+                assert_eq!(
+                    source_char.source_end,
+                    chars[index + 1].source_end,
+                    "{text:?}: letter {index} ends inside its unit"
+                );
+            }
+        }
+        let unit_ends = std::iter::once(0)
+            .chain(
+                chars
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, source_char)| source_char.ends_unit)
+                    .map(|(index, _)| index + 1),
+            )
+            .collect::<std::collections::BTreeSet<_>>();
+        // The source span of each unit: its least start and its end.
+        let mut unit_spans = Vec::new();
+        let mut unit_start = None::<usize>;
+        for source_char in &chars {
+            let start = unit_start.map_or(source_char.source_start, |start: usize| {
+                start.min(source_char.source_start)
+            });
+            unit_start = Some(start);
+            if source_char.ends_unit {
+                unit_spans.push((start, source_char.source_end));
+                unit_start = None;
+            }
+        }
+        for (position, letters) in grammar::normalized_prefix_letter_counts(count, chars)
+            .into_iter()
+            .enumerate()
+        {
+            let inside = unit_spans
+                .iter()
+                .any(|(start, end)| *start < position && position < *end);
+            match letters {
+                None => assert!(
+                    inside,
+                    "{text:?}: position {position} is a boundary but has no prefix"
+                ),
+                Some(letters) => {
+                    assert!(
+                        !inside,
+                        "{text:?}: position {position} is inside a unit but has a prefix"
+                    );
+                    assert!(
+                        unit_ends.contains(&letters),
+                        "{text:?}: the prefix to {position} ends inside a unit, after {letters} letters"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn canonically_equivalent_spellings_convert_alike() {
+        use unicode_normalization::UnicodeNormalization;
+
+        // Every character that the converter reads, and every character whose
+        // decomposition the converter reads, gives one result in either
+        // spelling, for the parser and for the lookup transcript.
+        #[requires(true)]
+        #[ensures(true)]
+        fn transcript(input: &str) -> String {
+            lookup_transcript(input)
+        }
+
+        // The letters that the converter keeps when it may skip what it
+        // cannot read, as the index does. An unread character is named as
+        // typed, so `Â` and `A` + U+0302 name different characters, but both
+        // are rejected, and the index leaves both out.
+        #[requires(true)]
+        #[ensures(true)]
+        fn kept(input: &str) -> String {
+            segment::normalize_source_chars(
+                input.chars().enumerate(),
+                &MorphologyOptions::default(),
+            )
+            .iter()
+            .map(|item| item.value)
+            .collect()
+        }
+
+        // The parse of a word and the next word: phonemes, the kind of each
+        // word, and where each word ends, counted from the end of the text.
+        #[requires(true)]
+        #[ensures(true)]
+        fn parse(input: &str) -> Option<Vec<(String, usize)>> {
+            let text = format!("{input} klama");
+            let length = text.chars().count();
+            segment_words_with_modifiers(&text).ok().map(|words| {
+                words
+                    .iter()
+                    .filter_map(base_word)
+                    .map(|word| {
+                        (
+                            word.phonemes().as_str().to_owned(),
+                            length - word.span().char_end,
+                        )
+                    })
+                    .collect()
+            })
+        }
+
+        // The same for an attached word: `do` and `klama` right after the
+        // input, with no space, so a word boundary inside the input's last
+        // unit would show.
+        #[requires(true)]
+        #[ensures(true)]
+        fn attached(input: &str) -> [Option<Vec<(String, usize)>>; 2] {
+            ["do", "klama"].map(|next| {
+                let text = format!("{input}{next}");
+                let length = text.chars().count();
+                segment_words_with_modifiers(&text).ok().map(|words| {
+                    words
+                        .iter()
+                        .filter_map(base_word)
+                        .map(|word| {
+                            (
+                                word.phonemes().as_str().to_owned(),
+                                length - word.span().char_end,
+                            )
+                        })
+                        .collect()
+                })
+            })
+        }
+
+        let options = MorphologyOptions::default();
+        let strict = |text: &str| {
+            segment::normalize_source_chars_checked(text.chars().enumerate(), &options)
+                .map(|chars| chars.iter().map(|item| item.value).collect::<String>())
+                .ok()
+        };
+        let mut checked = 0;
+        for code in 0..=u32::from(char::MAX) {
+            let Some(composed) = char::from_u32(code) else {
+                continue;
+            };
+            let mut decomposed = String::new();
+            unicode_normalization::char::decompose_canonical(composed, |value| {
+                decomposed.push(value)
+            });
+            if decomposed.chars().eq(std::iter::once(composed)) {
+                continue;
+            }
+            let composed_text = composed.to_string();
+            let composed_strict = strict(&composed_text);
+            let decomposed_strict = strict(&decomposed);
+            let letters_and_marks = |text: &str| {
+                text.chars().all(|value| {
+                    value.is_alphabetic() || unicode_normalization::char::is_combining_mark(value)
+                })
+            };
+            if !letters_and_marks(&composed_text) || !letters_and_marks(&decomposed) {
+                // A decomposition into punctuation or a separator is not
+                // used: the typed character stays as typed, so the
+                // transcript cannot gain a word break (U+037E, U+226E).
+                assert_eq!(transcript(&composed_text), composed_text, "{composed:?}");
+                continue;
+            }
+            assert_prefixes_end_at_unit_ends(&composed_text);
+            assert_prefixes_end_at_unit_ends(&decomposed);
+            // The index uses the transcript even where both strict spellings
+            // fail, so the transcripts must agree in every case.
+            assert_eq!(
+                kept(&composed_text),
+                kept(&decomposed),
+                "{composed:?} {decomposed:?}"
+            );
+            if composed_strict.is_none() && decomposed_strict.is_none() {
+                continue;
+            }
+            assert_eq!(
+                composed_strict, decomposed_strict,
+                "{composed:?} {decomposed:?}"
+            );
+            assert_eq!(
+                attached(&format!("a{composed_text}")),
+                attached(&format!("a{decomposed}")),
+                "{composed:?} {decomposed:?}"
+            );
+            // An invalid tail after the letter, which the relaxed search
+            // reports.
+            for (before, after) in [("k", "ibrodybra"), ("", "brodybra"), ("kai", "dybra")] {
+                assert_eq!(
+                    segment_around_unit(before, &composed_text, after),
+                    segment_around_unit(before, &decomposed, after),
+                    "{composed:?} {decomposed:?} {before} {after}"
+                );
+            }
+            checked += 1;
+        }
+        // Mark sequences in either canonical order give one result, for the
+        // parser and for the transcript, also where both spellings fail.
+        let marks = [
+            '\u{0301}', '\u{0300}', '\u{0306}', '\u{0327}', '\u{0323}', '\u{0302}', '\u{0308}',
+            '\u{0303}',
+        ];
+        let mut pairs = 0;
+        for base in ['a', 'e', 'i', 'o', 'u', 'y', 'I', 'и', 'у', 'е', 'а', 'И'] {
+            for first in marks {
+                for second in marks {
+                    let forward = format!("а{base}{first}{second}");
+                    let backward = format!("а{base}{second}{first}");
+                    if forward.nfd().ne(backward.nfd()) {
+                        continue;
+                    }
+                    assert_prefixes_end_at_unit_ends(&forward);
+                    for other in [backward.clone(), forward.nfc().collect::<String>()] {
+                        assert_prefixes_end_at_unit_ends(&other);
+                        assert_eq!(kept(&forward), kept(&other), "{forward:?} {other:?}");
+                        assert_eq!(parse(&forward), parse(&other), "{forward:?} {other:?}");
+                        assert_eq!(
+                            attached(&forward),
+                            attached(&other),
+                            "{forward:?} {other:?}"
+                        );
+                        // An unread mark is named where it was typed, so two
+                        // mark orders can name it at different positions. The
+                        // kind must still agree.
+                        let unit = |text: &str| text.chars().skip(1).collect::<String>();
+                        let tail =
+                            |text: &str| match segment_around_unit("а", &unit(text), "brodybra") {
+                                Err((MorphologyErrorKind::InvalidCharacter, _, _)) => {
+                                    Err((MorphologyErrorKind::InvalidCharacter, 0, 0))
+                                }
+                                other => other,
+                            };
+                        assert_eq!(tail(&forward), tail(&other), "{forward:?} {other:?}");
+                        assert_eq!(strict(&forward), strict(&other), "{forward:?} {other:?}");
+                    }
+                    pairs += 1;
+                }
+            }
+        }
+        assert!(pairs > 100, "{pairs}");
+        // The case from the review: the cedilla does not hide the glide.
+        assert_eq!(kept("аи\u{0327}\u{0306}"), kept("аи\u{0306}\u{0327}"));
+        // The stressed Latin vowels, the four glides in each script and case,
+        // and the Cyrillic grave letters.
+        assert!(checked >= 40, "{checked}");
+        for (composed, decomposed) in [
+            ("coĭ", "coi\u{0306}"),
+            ("aŭ", "au\u{0306}"),
+            ("мѝ", "ми\u{0300}"),
+            ("лѐ", "ле\u{0300}"),
+            ("шой", "шои\u{0306}"),
+        ] {
+            assert_eq!(
+                normalize_lojban_input_text(composed),
+                normalize_lojban_input_text(decomposed),
+                "{composed}"
+            );
+            assert!(
+                normalize_lojban_input_text(composed).is_some(),
+                "{composed}"
+            );
+            assert_eq!(transcript(composed), transcript(decomposed), "{composed}");
+        }
+        // Units of several letters, with each stress mark after them: the
+        // four Zbalermorna diphthongs, the shorthand and its payload, and a
+        // Cyrillic vowel with an implicit apostrophe.
+        for unit in [
+            "\u{eda6}",
+            "\u{eda7}",
+            "\u{eda8}",
+            "\u{eda9}",
+            "\u{ed8b}\u{eda2}",
+            "\u{ed8b}\u{eda6}",
+        ] {
+            for mark in ['\u{0301}', '\u{0300}', '\u{ed98}'] {
+                assert_prefixes_end_at_unit_ends(&format!("\u{ed82}{unit}{mark}\u{ed91}\u{eda3}"));
+            }
+        }
+        for text in ["уаѝ", "уаи\u{0300}", "уаи\u{0301}", "уаи\u{0300}до"] {
+            assert_prefixes_end_at_unit_ends(text);
+        }
+        assert_eq!(parse("уаѝ"), parse("уаи\u{0300}"));
+        // A non-stress mark stays an unread character in either spelling.
+        assert_eq!(normalize_lojban_input_text("klâma"), None);
+        assert_eq!(normalize_lojban_input_text("kla\u{0302}ma"), None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_character_that_needs_a_partner_forms_words() {
+        // The breve marks a glide on the vowel before it, and U+ED8B takes the
+        // vowel after it. Each takes part in a word under its scripts.
+        assert!(is_word_forming_character('\u{0306}'));
+        assert!(is_word_forming_character('\u{ed8b}'));
+        assert!(is_word_forming_character('\u{0301}'));
+        assert!(is_word_forming_character('ś'));
+        let no_scripts = MorphologyOptions {
+            accept_latin: false,
+            accept_cyrillic: false,
+            accept_zbalermorna: false,
+            ..MorphologyOptions::default()
+        };
+        for value in ['\u{0306}', '\u{ed8b}', '\u{0301}', '\u{0300}', 'a'] {
+            assert!(
+                !is_word_forming_character_with_options(value, &no_scripts),
+                "{value:?}"
+            );
+        }
+        let latin_only = MorphologyOptions {
+            accept_cyrillic: false,
+            accept_zbalermorna: false,
+            ..MorphologyOptions::default()
+        };
+        assert!(is_word_forming_character_with_options(
+            '\u{0306}',
+            &latin_only
+        ));
+        assert!(!is_word_forming_character_with_options(
+            '\u{ed8b}',
+            &latin_only
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_postfix_stress_mark_belongs_to_its_word() {
+        // Each stress mark stays in the source span of the word it stresses,
+        // so the next word, and the digit run after `li`, start after it.
+        #[requires(true)]
+        #[ensures(true)]
+        fn words(text: &str) -> Vec<(String, usize, usize)> {
+            segment_words_with_modifiers(text)
+                .unwrap_or_else(|error| panic!("{text}: {error}"))
+                .iter()
+                .map(|word| {
+                    let word = base_word(word).expect("plain word");
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        word.span().char_start,
+                        word.span().char_end,
+                    )
+                })
+                .collect()
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn phonemes(text: &str) -> Vec<String> {
+            words(text)
+                .into_iter()
+                .map(|(phonemes, _, _)| phonemes)
+                .collect()
+        }
+
+        let latin = phonemes("lí1.2");
+        assert!(latin.iter().any(|word| word == "pi"), "{latin:?}");
+        for text in [
+            "лѝ1.2",
+            "ли\u{0300}1.2",
+            "ли\u{0301}1.2",
+            "lí\u{0301}1.2",
+            "\u{ed84}\u{eda2}\u{ed98}1.2",
+        ] {
+            assert_eq!(phonemes(text), latin, "{text}");
+        }
+        assert_eq!(phonemes("лѐ1.2"), phonemes("ле\u{0300}1.2"));
+        let glide = phonemes("coĭ\u{0301}1.2");
+        assert!(glide.iter().any(|word| word == "pi"), "{glide:?}");
+        for (text, first_end) in [
+            ("ми\u{0300}до клама", 3),
+            ("ми\u{0301}до клама", 3),
+            ("мѝдо клама", 2),
+            ("mí\u{0301}do klama", 3),
+            ("\u{ed87}\u{eda2}\u{ed98}\u{ed91}\u{eda3}", 3),
+        ] {
+            let words = words(text);
+            assert_eq!(words[0].2, first_end, "{text}: {words:?}");
+            assert_eq!(words[1].1, first_end, "{text}: {words:?}");
+        }
+        // A violation range covers the stress mark on its last letter.
+        let Err(MorphologyError::Invalid {
+            char_start,
+            char_end,
+            ..
+        }) = segment_words_with_modifiers("klamm\u{0301}a")
+        else {
+            panic!("geminated consonants are an error");
+        };
+        assert_eq!((char_start, char_end), (3, 6));
+        // An ignored Zbalermorna mark is a prefix, not a postfix, so it still
+        // starts the next word.
+        let carrier = words("\u{ed8c}\u{eda4}\u{edaa}\u{ed8c}\u{eda6}");
+        assert_eq!(carrier[1].1, 2, "{carrier:?}");
+    }
+
+    /// The result of segmenting `text`: the phonemes and the end of each word,
+    /// or the error kind and range. Positions count from the end of the text,
+    /// so a composed and a decomposed spelling compare alike.
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_from_end(
+        text: &str,
+    ) -> Result<Vec<(String, usize)>, (MorphologyErrorKind, usize, usize)> {
+        let length = text.chars().count();
+        match segment_words_with_modifiers(text) {
+            Ok(words) => Ok(words
+                .iter()
+                .filter_map(base_word)
+                .map(|word| {
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        length - word.span().char_end,
+                    )
+                })
+                .collect()),
+            Err(MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                ..
+            }) => Err((kind, length - char_start, length - char_end)),
+            Err(error) => panic!("{text:?}: {error}"),
+        }
+    }
+
+    /// The result of segmenting `before` + `unit` + `after`, with each position
+    /// in a frame where `unit` is one character. So two spellings of one unit
+    /// compare alike. A position inside `unit` maps to `usize::MAX`, so a word
+    /// boundary inside a unit shows as a difference.
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_around_unit(
+        before: &str,
+        unit: &str,
+        after: &str,
+    ) -> Result<Vec<(String, usize, usize)>, (MorphologyErrorKind, usize, usize)> {
+        let unit_start = before.chars().count();
+        let unit_length = unit.chars().count();
+        let frame = |position: usize| {
+            if position <= unit_start {
+                position
+            } else if position >= unit_start + unit_length {
+                position + 1 - unit_length
+            } else {
+                usize::MAX
+            }
+        };
+        let text = format!("{before}{unit}{after}");
+        match segment_words_with_modifiers(&text) {
+            Ok(words) => Ok(words
+                .iter()
+                .filter_map(base_word)
+                .map(|word| {
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        frame(word.span().char_start),
+                        frame(word.span().char_end),
+                    )
+                })
+                .collect()),
+            Err(MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                ..
+            }) => Err((kind, frame(char_start), frame(char_end))),
+            Err(error) => panic!("{text:?}: {error}"),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_invalid_tail_after_a_unit_is_found_in_every_spelling() {
+        // The relaxed search looks for the longest valid word before an
+        // error. A position inside a unit used to stop that search, so
+        // `ka` + U+0301 + `ibrodybra` reported `invalid-lujvo` on the whole
+        // word, while `káibrodybra` reports `unrecognized-word` on `bra`, as
+        // on main. Every spelling now reports `bra`.
+        let unrecognized_bra = Err((MorphologyErrorKind::UnrecognizedWord, 3, 0));
+        for mark in ['\u{0301}', '\u{0300}'] {
+            for text in [
+                "káibrodybra".to_owned(),
+                format!("ka{mark}ibrodybra"),
+                "bródadybra".to_owned(),
+                format!("bro{mark}dadybra"),
+                "śáibrodybra".to_owned(),
+                format!("s{mark}áibrodybra"),
+                "káibrobródabra".to_owned(),
+                format!("káibrobro{mark}dabra"),
+                "клѐмадыбра".to_owned(),
+                format!("кле{mark}мадыбра"),
+                "каѝбродыбра".to_owned(),
+                format!("каи{mark}бродыбра"),
+                // Zbalermorna `bródadybra`, and the shorthand in
+                // `ta'íbrodybra`, with each mark.
+                format!(
+                    "\u{ed90}\u{ed94}\u{eda3}{mark}\u{ed91}\u{eda0}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}"
+                ),
+                format!(
+                    "\u{ed81}\u{ed8b}\u{eda0}\u{edb2}{mark}\u{ed90}\u{ed94}\u{eda3}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}"
+                ),
+            ] {
+                assert_eq!(segment_from_end(&text), unrecognized_bra, "{text:?}");
+            }
+        }
+        // A combining mark after a diphthong glyph stresses nothing, because
+        // the glyph ends in a glide. So that spelling reads `kaĭ bródybra`, as
+        // on main, and only U+ED98 gives `káibrodybra`.
+        for mark in ['\u{0301}', '\u{0300}'] {
+            let text = format!(
+                "\u{ed82}\u{eda6}{mark}\u{ed90}\u{ed94}\u{eda3}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}"
+            );
+            assert_eq!(
+                segment_from_end(&text),
+                Ok(vec![("kaĭ".to_owned(), 8), ("bródybra".to_owned(), 0)]),
+                "{text:?}"
+            );
+        }
+        for text in [
+            "\u{ed82}\u{eda6}\u{ed98}\u{ed90}\u{ed94}\u{eda3}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}",
+            "\u{ed90}\u{ed94}\u{eda3}\u{ed98}\u{ed91}\u{eda0}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}",
+            "\u{ed81}\u{ed8b}\u{eda0}\u{edb2}\u{ed98}\u{ed90}\u{ed94}\u{eda3}\u{ed91}\u{eda5}\u{ed90}\u{ed94}\u{eda0}",
+        ] {
+            assert_eq!(segment_from_end(text), unrecognized_bra, "{text:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_attached_word_starts_only_at_a_unit_boundary() {
+        // Each multi-character unit kind, with an attached `do` or `klama`
+        // and a cmavo before it. A word boundary inside the unit used to let
+        // the search drop the unit (`as` + U+0301 + `do` read as `a do`). The
+        // phonemes match main, and a composed spelling matches its
+        // decomposed one. Each first word covers its postfix stress mark.
+        #[requires(true)]
+        #[ensures(true)]
+        fn words(text: &str) -> Vec<(String, usize, usize)> {
+            segment_words_with_modifiers(text)
+                .unwrap_or_else(|error| panic!("{text:?}: {error}"))
+                .iter()
+                .map(|word| {
+                    let word = base_word(word).expect("plain word");
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        word.span().char_start,
+                        word.span().char_end,
+                    )
+                })
+                .collect()
+        }
+
+        // A composed letter: `ś` is `s` with U+0301. `asdo` breaks the
+        // voicing rule in both spellings, as on main.
+        for text in ["as\u{0301}do", "aśdo"] {
+            let Err(MorphologyError::Invalid { kind, .. }) = segment_words_with_modifiers(text)
+            else {
+                panic!("{text:?} breaks the voicing rule");
+            };
+            assert_eq!(kind, MorphologyErrorKind::VoicingMismatch, "{text:?}");
+        }
+        let owned = |words: &[(&str, usize, usize)]| {
+            words
+                .iter()
+                .map(|(phonemes, start, end)| ((*phonemes).to_owned(), *start, *end))
+                .collect::<Vec<_>>()
+        };
+        for (text, expected) in [
+            ("as\u{0301}klama", owned(&[("askláma", 0, 8)])),
+            ("aśklama", owned(&[("askláma", 0, 7)])),
+            // A stressed Latin vowel, decomposed and composed, with each mark.
+            ("mi\u{0301}do", owned(&[("mí", 0, 3), ("do", 3, 5)])),
+            ("mído", owned(&[("mí", 0, 2), ("do", 2, 4)])),
+            ("mi\u{0300}do", owned(&[("mí", 0, 3), ("do", 3, 5)])),
+            ("mìdo", owned(&[("mí", 0, 2), ("do", 2, 4)])),
+            ("mi\u{0301}klama", owned(&[("míkla", 0, 6), ("ma", 6, 8)])),
+            ("míklama", owned(&[("míkla", 0, 5), ("ma", 5, 7)])),
+            // A Cyrillic vowel with a stress mark, after a cmavo.
+            ("аи\u{0300}до", owned(&[("a'í", 0, 3), ("do", 3, 5)])),
+            ("аи\u{0301}до", owned(&[("a'í", 0, 3), ("do", 3, 5)])),
+            ("аѝдо", owned(&[("a'í", 0, 2), ("do", 2, 4)])),
+            ("аи\u{0300}клама", owned(&[("a'íkla", 0, 6), ("ma", 6, 8)])),
+            ("аѝклама", owned(&[("a'íkla", 0, 5), ("ma", 5, 7)])),
+            // The implicit Cyrillic apostrophe and its vowel.
+            ("уаи\u{0300}до", owned(&[("u'a'í", 0, 4), ("do", 4, 6)])),
+            ("уаѝдо", owned(&[("u'a'í", 0, 3), ("do", 3, 5)])),
+            (
+                "уаи\u{0300}клама",
+                owned(&[("u'a'íkla", 0, 7), ("ma", 7, 9)]),
+            ),
+            // The Zbalermorna shorthand and its payload, with each mark.
+            (
+                "\u{ed8b}\u{eda2}\u{ed98}\u{eda0}\u{ed91}\u{eda3}",
+                owned(&[("í'a", 0, 4), ("do", 4, 6)]),
+            ),
+            (
+                "\u{ed8b}\u{eda2}\u{0301}\u{eda0}\u{ed91}\u{eda3}",
+                owned(&[("i'a", 0, 4), ("do", 4, 6)]),
+            ),
+            (
+                "\u{ed8b}\u{eda2}\u{ed98}\u{eda0}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+                owned(&[("í'a", 0, 4), ("kláma", 4, 9)]),
+            ),
+            // A Zbalermorna diphthong glyph, with each mark.
+            (
+                "\u{eda6}\u{ed98}\u{ed91}\u{eda3}",
+                owned(&[("áĭ", 0, 2), ("do", 2, 4)]),
+            ),
+            (
+                "\u{eda6}\u{0301}\u{ed91}\u{eda3}",
+                owned(&[("aĭ", 0, 2), ("do", 2, 4)]),
+            ),
+            (
+                "\u{eda6}\u{0300}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+                owned(&[("aĭ", 0, 2), ("kláma", 2, 7)]),
+            ),
+            // A Zbalermorna letter with each mark.
+            (
+                "\u{ed87}\u{eda2}\u{ed98}\u{ed91}\u{eda3}",
+                owned(&[("mí", 0, 3), ("do", 3, 5)]),
+            ),
+            (
+                "\u{ed87}\u{eda2}\u{0301}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+                owned(&[("míkla", 0, 6), ("ma", 6, 8)]),
+            ),
+        ] {
+            assert_eq!(words(text), expected, "{text:?}");
+            assert_prefixes_end_at_unit_ends(text);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_stress_mark_keeps_each_converter_unit_whole() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn words(text: &str) -> Vec<(String, usize, usize)> {
+            segment_words_with_modifiers(text)
+                .unwrap_or_else(|error| panic!("{text:?}: {error}"))
+                .iter()
+                .map(|word| {
+                    let word = base_word(word).expect("plain word");
+                    (
+                        word.phonemes().as_str().to_owned(),
+                        word.span().char_start,
+                        word.span().char_end,
+                    )
+                })
+                .collect()
+        }
+
+        // A Zbalermorna diphthong glyph is one unit. A stress mark after it
+        // stays in its word, and the glide stays too. The phonemes match main
+        // and the spelling with no mark (`klamau do` reads `klámaŭ do`).
+        for (word, phonemes) in [
+            ("\u{ed80}\u{eda2}\u{ed98}\u{ed84}\u{ed82}\u{eda6}", "pílkaĭ"),
+            ("\u{ed82}\u{eda0}\u{ed98}\u{ed97}\u{ed80}\u{eda7}", "kánpeĭ"),
+            ("\u{ed81}\u{eda0}\u{ed98}\u{ed97}\u{ed82}\u{eda8}", "tánkoĭ"),
+            ("\u{ed82}\u{ed84}\u{eda0}\u{ed98}\u{ed87}\u{eda9}", "klámaŭ"),
+        ] {
+            let plain = words(&format!("{word}\u{ed91}\u{eda3}"));
+            assert_eq!(
+                plain,
+                [(phonemes.to_owned(), 0, 6), ("do".to_owned(), 6, 8)],
+                "{word:?}"
+            );
+            for mark in ['\u{0301}', '\u{0300}'] {
+                assert_eq!(
+                    words(&format!("{word}{mark}\u{ed91}\u{eda3}")),
+                    [(phonemes.to_owned(), 0, 7), ("do".to_owned(), 7, 9)],
+                    "{word:?} {mark:?}"
+                );
+            }
+        }
+        // The shorthand and its payload are one unit, and the apostrophe is
+        // part of it. A mark after the payload keeps the apostrophe, as on
+        // main: `í'a` and `i'a` are cmavo.
+        assert_eq!(
+            words("\u{ed8b}\u{eda2}\u{ed98}\u{eda0}"),
+            [("í'a".to_owned(), 0, 4)]
+        );
+        assert_eq!(
+            words("\u{ed8b}\u{eda2}\u{0301}\u{eda0}"),
+            [("i'a".to_owned(), 0, 4)]
+        );
+        // An apostrophe before a consonant or a digit is still an error, as on
+        // main. Main marks the shorthand and its payload (`0..2`). The range
+        // now also covers the stress mark, as for a mark on any last letter.
+        for text in [
+            "\u{ed8b}\u{eda2}\u{ed98}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+            "\u{ed8b}\u{eda2}\u{0301}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+            "\u{ed8b}\u{eda6}\u{ed98}\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}",
+            "\u{ed8b}\u{eda6}\u{ed98}1.2",
+        ] {
+            let Err(MorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                ..
+            }) = segment_words_with_modifiers(text)
+            else {
+                panic!("{text:?} has an apostrophe before a consonant or digit");
+            };
+            assert_eq!(kind, MorphologyErrorKind::InvalidApostrophe, "{text:?}");
+            assert_eq!((char_start, char_end), (0, 3), "{text:?}");
+        }
+        // The implicit Cyrillic apostrophe belongs to its vowel: `уаи` and a
+        // grave mark read as `уаѝ` reads, one cmavo over the whole text.
+        assert_eq!(words("уаи\u{0300}"), [("u'a'í".to_owned(), 0, 4)]);
+        assert_eq!(words("уаѝ"), [("u'a'í".to_owned(), 0, 3)]);
+        assert_eq!(
+            words("уаи\u{0300} do"),
+            [("u'a'í".to_owned(), 0, 4), ("do".to_owned(), 5, 7)]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_transcript_reads_a_decomposed_cyrillic_glide() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn stream(parts: &[&str]) -> String {
+            // The dictionary joins the pieces of one literal run before it
+            // transcribes them.
+            lookup_transcript(&parts.concat())
+        }
+
+        // `и` + U+0306 is `й`, and `у` + U+0306 is `ў`. Each pair is one glide,
+        // so the vowel before it gets no apostrophe.
+        for (composed, decomposed) in [
+            ("шой", "шои\u{0306}"),
+            ("ай", "аи\u{0306}"),
+            ("аў", "ау\u{0306}"),
+            ("ШОЙ", "ШОИ\u{0306}"),
+            ("АЎ", "АУ\u{0306}"),
+        ] {
+            assert_eq!(stream(&[decomposed]), stream(&[composed]), "{decomposed}");
+        }
+        assert_eq!(stream(&["шои\u{0306}"]), "coĭ");
+        // The pair can cross a literal piece.
+        assert_eq!(stream(&["шои", "\u{0306}"]), "coĭ");
+        assert_eq!(stream(&["шои", "", "\u{0306}"]), "coĭ");
+        // A base with no breve is a vowel, at the end of a piece too.
+        assert_eq!(stream(&["шои"]), "co'i");
+        assert_eq!(stream(&["шои", "а"]), "co'i'a");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lookup_transcript_carries_state_across_literal_pieces() {
+        #[requires(true)]
+        #[ensures(true)]
+        fn stream(parts: &[&str]) -> String {
+            // The dictionary joins the pieces of one literal run before it
+            // transcribes them.
+            lookup_transcript(&parts.concat())
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn whole(input: &str) -> String {
+            stream(&[input])
+        }
+
+        assert_eq!(stream(&["шо", "и"]), whole("шои"));
+        assert_eq!(stream(&["шо", "и"]), "co'i");
+        assert_eq!(stream(&["шо", "", "и"]), "co'i");
+        assert_eq!(stream(&["ш", "о", "и"]), "co'i");
+        assert_eq!(stream(&["\u{ed8b}", "\u{eda2}"]), whole("\u{ed8b}\u{eda2}"));
+        assert_eq!(stream(&["\u{ed8b}", "\u{eda2}"]), "i'");
+        assert_eq!(stream(&["\u{ed8b}", "", "\u{eda2}"]), "i'");
+        assert_eq!(stream(&["\u{ed8b}", "a"]), whole("\u{ed8b}a"));
+        assert_eq!(stream(&["\u{ed8b}"]), "\u{ed8b}");
+
+        // Two runs, as at a wildcard, transcribe apart.
+        assert_eq!(
+            format!("{}{}", lookup_transcript("шо"), lookup_transcript("и")),
+            "coi"
+        );
+        assert_eq!(
+            format!(
+                "{}{}",
+                lookup_transcript("\u{ed8b}"),
+                lookup_transcript("\u{eda2}")
+            ),
+            "\u{ed8b}i"
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -5826,7 +6693,33 @@ mod tests {
         )
         .expect_err("empty phoneme text must be rejected");
 
-        assert!(error.to_string().contains("phoneme text must not be empty"));
+        assert!(
+            error
+                .to_string()
+                .contains("phoneme text must contain a character other than a comma")
+        );
+
+        let commas = serde_json::from_str::<Word>(
+            r#"{
+                "Cmavo": {
+                    "phonemes": ",",
+                    "span": {
+                        "source_id": null,
+                        "byte_start": 0,
+                        "byte_end": 1,
+                        "char_start": 0,
+                        "char_end": 1,
+                        "start": null,
+                        "end": null
+                    }
+                }
+            }"#,
+        )
+        .expect_err("comma-only phoneme text must be rejected");
+        assert!(
+            commas.to_string().contains("character other than a comma"),
+            "{commas}"
+        );
     }
 
     #[test]
@@ -5944,6 +6837,21 @@ mod tests {
         assert_eq!(canonicalize_text("nA\u{2019}e"), "na'e");
         assert_eq!(canonicalize_text("TA'Á,kla"), "ta'akla");
         assert_eq!(canonicalize_text("co\u{2018}a"), "co\u{2018}a");
+        assert_eq!(canonicalize_text(""), "");
+        assert_eq!(canonicalize_text(","), "");
+        assert_eq!(canonicalize_text(",,"), "");
+        assert_eq!(canonicalize_text("\u{0301}"), "");
+        assert_eq!(canonicalize_text("\u{0300}"), "");
+        assert_eq!(canonicalize_text("\u{0306}"), "");
+        assert_eq!(canonicalize_text(",,\u{0301}"), "");
+        assert_eq!(normalize_lojban_input_text(","), None);
+        assert_eq!(normalize_lojban_input_text(",,"), None);
+        assert_eq!(normalize_lojban_input_text("\u{0301}"), None);
+        assert_eq!(normalize_lojban_input_text("da,").as_deref(), Some("da"));
+        assert!(Phonemes::from_canonical(",".to_owned()).is_err());
+        assert!(Phonemes::from_canonical(",,".to_owned()).is_err());
+        let comma_word = test_word(WordKind::Cmevla, "d,an", 0);
+        assert_eq!(comma_word.canonical_phonemes(), "dan");
         assert!(canonical_text_eq("nahe", "na'e"));
         assert!(canonical_text_eq("nuhempcr", "nu'empcr"));
         assert!(!canonical_text_eq("jo\u{2018}a", "jo'a"));

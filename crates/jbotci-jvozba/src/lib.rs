@@ -3,8 +3,8 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{
-    Dictionary, DictionaryLujvoSegmentKind, DictionaryLujvoSource, EntryIndex, RafsiSource,
-    WordType, fuivla_stem_rafsi, normalize_lookup_query,
+    Dictionary, DictionaryLujvoSegmentKind, DictionaryLujvoSource, EntryIndex, LookupKey,
+    LookupPatternError, RafsiSource, WordType, fuivla_stem_rafsi, normalize_lookup_query,
 };
 use jbotci_interrupt::CancellationToken;
 use jbotci_morphology::{
@@ -81,6 +81,8 @@ pub enum JvozbaSegmentKind {
 #[invariant(true)]
 #[invariant(::RequiresAtLeastTwoInputs => true)]
 #[invariant(::FixedRafsiEmpty => true)]
+#[invariant(::InvalidCharacter { .. } => true)]
+#[invariant(::WordEmpty => true)]
 #[invariant(::NonFinalUniversalLongRafsi { .. } => true)]
 #[invariant(::FinalConsonant { .. } => true)]
 #[invariant(::NoRafsiAvailable { .. } => true)]
@@ -97,6 +99,13 @@ pub enum JvozbaError {
     RequiresAtLeastTwoInputs,
     #[error("Fixed rafsi cannot be empty.")]
     FixedRafsiEmpty,
+    /// A typed word or fixed rafsi has a character that gentufa rejects, such
+    /// as `â` in `klâma` or `#` in `klama#`. The error names it, as vlacku
+    /// does, rather than reading the text without it.
+    #[error("Invalid Lojban word: {word} (unsupported character `{character}`).")]
+    InvalidCharacter { word: String, character: char },
+    #[error("A word input cannot be empty.")]
+    WordEmpty,
     #[error("Fixed rafsi `{offending}` can only appear at the end of a lujvo.")]
     NonFinalUniversalLongRafsi { offending: String },
     #[error("{message}", message = render_final_consonant_message(offending, *is_fixed_rafsi))]
@@ -395,12 +404,11 @@ pub fn word_can_enter_jvozba_pane(
     word_text: &str,
     cancellation: &CancellationToken,
 ) -> Result<bool, JvozbaError> {
-    input_can_enter_jvozba_pane(
-        dictionary,
-        word_text,
-        ExpandedInput::for_word(dictionary, word_text),
-        cancellation,
-    )
+    // A word with a character that gentufa rejects cannot enter the pane.
+    let Ok(input) = ExpandedInput::for_word(dictionary, word_text) else {
+        return Ok(false);
+    };
+    input_can_enter_jvozba_pane(dictionary, word_text, input, cancellation)
 }
 
 /// Test the exact dictionary entry carried by a result card.
@@ -560,13 +568,33 @@ enum ExpandedInput<'a> {
 }
 
 impl<'a> ExpandedInput<'a> {
+    /// The input for a typed word. The word is keyed with the typed-query
+    /// rule, so a character that gentufa rejects is an error that names it.
+    /// A word with no key character, such as `,`, is an unlisted word, and
+    /// its error names it as typed.
     #[requires(true)]
-    #[ensures(true)]
-    fn for_word(dictionary: &Dictionary<'_>, word: &'a str) -> Self {
-        dictionary
-            .lookup_word_index(word)
-            .map_or(Self::UnlistedWord(word), Self::DictionaryWord)
+    #[ensures(ret.as_ref().is_err_and(|error| matches!(error, JvozbaError::InvalidCharacter { .. })) || ret.is_ok())]
+    fn for_word(dictionary: &Dictionary<'_>, word: &'a str) -> Result<Self, JvozbaError> {
+        match LookupKey::from_typed(word) {
+            Ok(key) => Ok(dictionary
+                .lookup_word_index(&key)
+                .map_or(Self::UnlistedWord(word), Self::DictionaryWord)),
+            Err(error) => typed_input_error(word, &error).map_or(Ok(Self::UnlistedWord(word)), Err),
+        }
     }
+}
+
+/// The error for typed text that the typed-query key rejects, or `None` when
+/// the text only has no key character, which the caller reports itself.
+#[requires(true)]
+#[ensures(ret.is_some() == error.invalid_character().is_some())]
+fn typed_input_error(text: &str, error: &LookupPatternError) -> Option<JvozbaError> {
+    error
+        .invalid_character()
+        .map(|character| JvozbaError::InvalidCharacter {
+            word: text.trim().to_owned(),
+            character,
+        })
 }
 
 /// A borrowed input, or the source words of its decomposition, before
@@ -645,7 +673,10 @@ fn plan_expansion<'input>(
     cancellation: &CancellationToken,
 ) -> Result<ExpansionPlan<'input>, JvozbaError> {
     let (input, word_text) = match input {
-        JvozbaInput::Word(text) => (ExpandedInput::for_word(dictionary, text), Some(text)),
+        // A word of spaces only names nothing. A word of other characters that
+        // normalize to nothing keeps its typed spelling in the error.
+        JvozbaInput::Word(text) if text.trim().is_empty() => return Err(JvozbaError::WordEmpty),
+        JvozbaInput::Word(text) => (ExpandedInput::for_word(dictionary, text)?, Some(text)),
         JvozbaInput::DictionaryWord { entry_index, word } => {
             if !dictionary
                 .entry_for_index(*entry_index)
@@ -746,8 +777,18 @@ fn candidate_list_for_input(
     cancellation: &CancellationToken,
 ) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
     match input {
-        ExpandedInput::FixedRafsi(rafsi_text) => {
-            let rafsi_text = canonicalize_text(rafsi_text);
+        ExpandedInput::FixedRafsi(typed) => {
+            // A typed rafsi goes through the same typed-query rule as a typed
+            // word, so `--rafsi кла` reads as `kla`, and `--rafsi klâ` is an
+            // error that names `â`.
+            let rafsi_text = match LookupKey::from_typed(typed) {
+                Ok(key) => key.as_str().to_owned(),
+                Err(error) => {
+                    return Err(
+                        typed_input_error(typed, &error).unwrap_or(JvozbaError::FixedRafsiEmpty)
+                    );
+                }
+            };
             if rafsi_text.is_empty() {
                 return Err(JvozbaError::FixedRafsiEmpty);
             }
@@ -1025,12 +1066,14 @@ fn render_final_consonant_message(offending: &str, is_fixed_rafsi: bool) -> Stri
 #[ensures(true)]
 fn is_fixed_universal_long_gismu_rafsi(dictionary: &Dictionary<'_>, rafsi_text: &str) -> bool {
     is_universal_gismu_long_rafsi(rafsi_text)
-        && dictionary.lookup_word(rafsi_text).is_some_and(|entry| {
-            matches!(
-                entry.word_type,
-                WordType::Gismu | WordType::ExperimentalGismu
-            )
-        })
+        && dictionary
+            .lookup_word(&LookupKey::from_stored(rafsi_text))
+            .is_some_and(|entry| {
+                matches!(
+                    entry.word_type,
+                    WordType::Gismu | WordType::ExperimentalGismu
+                )
+            })
 }
 
 #[requires(true)]
@@ -1183,7 +1226,7 @@ fn primary_rafsi_source<'a>(
 ) -> Option<DictionaryLujvoSource<'a>> {
     let surface = phonemes.as_str();
     if let Some(matched) = dictionary
-        .lookup_rafsi(surface)
+        .lookup_rafsi(&LookupKey::from_stored(surface))
         .find(|matched| matched.source != RafsiSource::FuivlaStem)
     {
         return Some(DictionaryLujvoSource {
@@ -1191,7 +1234,7 @@ fn primary_rafsi_source<'a>(
             word: matched.entry.word,
         });
     }
-    let entry_index = dictionary.lookup_word_index(surface)?;
+    let entry_index = dictionary.lookup_word_index(&LookupKey::from_stored(surface))?;
     let entry = dictionary.entry_for_index(entry_index)?;
     word_type_is_direct_brivla(entry.word_type).then_some(DictionaryLujvoSource {
         entry_index,
@@ -1223,7 +1266,7 @@ fn fuivla_rafsi_source_set<'a>(
     part: &str,
 ) -> Vec<DictionaryLujvoSource<'a>> {
     let full_forms = dictionary
-        .lookup_words(part)
+        .lookup_words(&LookupKey::from_stored(part))
         .filter(|entry| entry.word_type.is_fuivla_like())
         .filter_map(|entry| {
             dictionary
@@ -1238,7 +1281,7 @@ fn fuivla_rafsi_source_set<'a>(
         return full_forms;
     }
     dictionary
-        .lookup_rafsi(part)
+        .lookup_rafsi(&LookupKey::from_stored(part))
         .filter(|matched| matched.source == RafsiSource::FuivlaStem)
         .map(|matched| DictionaryLujvoSource {
             entry_index: matched.entry_index,
@@ -1295,7 +1338,7 @@ fn rafsi_part_names_entry(
 ) -> bool {
     let surface = phonemes.as_str();
     let mut rafsi_sources = dictionary
-        .lookup_rafsi(surface)
+        .lookup_rafsi(&LookupKey::from_stored(surface))
         .filter(|matched| matched.source != RafsiSource::FuivlaStem)
         .peekable();
     if rafsi_sources.peek().is_some() {
@@ -1355,6 +1398,152 @@ mod tests {
     use super::*;
     use jbotci_interrupt::assert_exit_check;
     use jbotci_morphology::normalize_latin_apostrophe;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_fixed_rafsi_that_canonicalizes_to_nothing_is_empty() {
+        let dictionary = jbotci_dictionary_data::english();
+        for rafsi in [",", ",,", "\u{0301}"] {
+            let error = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::FixedRafsi(rafsi.to_owned()),
+                    JvozbaInput::Word("klama".to_owned()),
+                ],
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect_err("a rafsi with no letters");
+            assert_eq!(error, JvozbaError::FixedRafsiEmpty, "{rafsi:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_typed_character_that_gentufa_rejects_is_named() {
+        // A typed word or fixed rafsi is keyed with the typed-query rule, so a
+        // non-stress diacritic or a symbol is an error that names it, as
+        // vlacku reports it. The index rule, which would read `klâma` as
+        // `klama`, is only for stored headwords.
+        let dictionary = jbotci_dictionary_data::english();
+        let token = CancellationToken::never();
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let rafsi = |text: &str| JvozbaInput::FixedRafsi(text.to_owned());
+        for (inputs, typed, character) in [
+            (vec![word("klâma"), word("gasnu")], "klâma", 'â'),
+            (vec![word("çmene"), word("gasnu")], "çmene", 'ç'),
+            (vec![word("klämä"), word("gasnu")], "klämä", 'ä'),
+            (vec![word("kľama"), word("gasnu")], "kľama", 'ľ'),
+            (vec![word("gâsnu"), word("klâma")], "gâsnu", 'â'),
+            (vec![word("klama#"), word("gasnu")], "klama#", '#'),
+            (vec![word("klaqma"), word("gasnu")], "klaqma", 'q'),
+            (vec![rafsi("klâ"), word("gasnu")], "klâ", 'â'),
+        ] {
+            let error = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
+                .expect_err("a rejected character");
+            assert_eq!(
+                error,
+                JvozbaError::InvalidCharacter {
+                    word: typed.to_owned(),
+                    character,
+                },
+                "{inputs:?}"
+            );
+        }
+        assert_eq!(
+            build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[word("klâma"), word("gasnu")],
+                &token
+            )
+            .unwrap_err()
+            .to_string(),
+            "Invalid Lojban word: klâma (unsupported character `â`)."
+        );
+        // The decomposed spelling is rejected too.
+        let decomposed = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[word("kla\u{0302}ma"), word("gasnu")],
+            &token,
+        )
+        .expect_err("a non-stress mark");
+        assert!(
+            matches!(decomposed, JvozbaError::InvalidCharacter { .. }),
+            "{decomposed:?}"
+        );
+        // A fixed rafsi in another script converts as a word does.
+        for inputs in [
+            vec![word("клама"), word("gasnu")],
+            vec![rafsi("кла"), word("gasnu")],
+        ] {
+            let result = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs, &token)
+                .unwrap_or_else(|error| panic!("{inputs:?}: {error}"));
+            assert_eq!(result.word, "klagau", "{inputs:?}");
+        }
+        // The pane does not admit such a word.
+        assert_eq!(
+            word_can_enter_jvozba_pane(dictionary, "klâma", &token),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_that_canonicalizes_to_nothing_has_no_dictionary_entry() {
+        let dictionary = jbotci_dictionary_data::english();
+        let error = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word(",".to_owned()),
+                JvozbaInput::Word("klama".to_owned()),
+            ],
+            &jbotci_interrupt::CancellationToken::never(),
+        )
+        .expect_err("a comma is not a dictionary word");
+        assert_eq!(
+            error,
+            JvozbaError::NoDictionaryEntry {
+                offending: ",".to_owned()
+            }
+        );
+        assert_eq!(error.to_string(), "No dictionary entry for `,`.");
+        // Spaces around removed marks do not make a name, and a word of
+        // spaces only is empty.
+        for (word, expected) in [
+            (
+                " , ",
+                JvozbaError::NoDictionaryEntry {
+                    offending: ",".to_owned(),
+                },
+            ),
+            (
+                " \u{0301} ",
+                JvozbaError::NoDictionaryEntry {
+                    offending: "\u{0301}".to_owned(),
+                },
+            ),
+            ("   ", JvozbaError::WordEmpty),
+            ("", JvozbaError::WordEmpty),
+        ] {
+            let error = build_best_jvozba_detailed(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &[
+                    JvozbaInput::Word(word.to_owned()),
+                    JvozbaInput::Word("klama".to_owned()),
+                ],
+                &jbotci_interrupt::CancellationToken::never(),
+            )
+            .expect_err("no letters");
+            assert_eq!(error, expected, "{word:?}");
+        }
+    }
 
     /// The figures the Discord service uses, so the boundaries these tests
     /// pin are the ones a caller with a deadline actually applies.
@@ -1608,7 +1797,9 @@ mod tests {
         }];
         let datni = DictionaryEntry {
             rafsi: &listed,
-            ..*english.lookup_word("datni").unwrap()
+            ..*english
+                .lookup_word(&LookupKey::from_stored("datni"))
+                .unwrap()
         };
         let dat_ni = DictionaryEntry {
             word: "dat,ni",
@@ -1616,10 +1807,18 @@ mod tests {
             score: Score(datni.score.get() + 1.0),
             ..datni
         };
-        let sidbo = *english.lookup_word("sidbo").unwrap();
+        let sidbo = *english
+            .lookup_word(&LookupKey::from_stored("sidbo"))
+            .unwrap();
         let token = CancellationToken::never();
         with_source_dictionary(&[datni, dat_ni, sidbo], |dictionary| {
-            assert_eq!(dictionary.lookup_word("datni").unwrap().word, "dat,ni");
+            assert_eq!(
+                dictionary
+                    .lookup_word(&LookupKey::from_stored("datni"))
+                    .unwrap()
+                    .word,
+                "dat,ni"
+            );
             let decomposition = decompose_lujvo_like(dictionary, "datsi'o", &token)
                 .unwrap()
                 .unwrap();
@@ -1664,15 +1863,21 @@ mod tests {
         }];
         let bahe = DictionaryEntry {
             rafsi: &listed,
-            ..*english.lookup_word("ba'e").unwrap()
+            ..*english
+                .lookup_word(&LookupKey::from_stored("ba'e"))
+                .unwrap()
         };
-        let ierxi = *english.lookup_word("ierxi").unwrap();
+        let ierxi = *english
+            .lookup_word(&LookupKey::from_stored("ierxi"))
+            .unwrap();
         let ierxa = DictionaryEntry {
             word: "ierxa",
             rafsi: &[],
             ..ierxi
         };
-        let klama = *english.lookup_word("klama").unwrap();
+        let klama = *english
+            .lookup_word(&LookupKey::from_stored("klama"))
+            .unwrap();
         let token = CancellationToken::never();
         with_source_dictionary(&[bahe, ierxi, ierxa, klama], |dictionary| {
             let final_piece = JvozbaInput::FixedRafsi("kla".to_owned());
@@ -1708,7 +1913,9 @@ mod tests {
         let klama = DictionaryEntry {
             rafsi: &[],
             score: Score(2.0),
-            ..*english.lookup_word("klama").unwrap()
+            ..*english
+                .lookup_word(&LookupKey::from_stored("klama"))
+                .unwrap()
         };
         let klami = DictionaryEntry {
             word: "klami",
@@ -2045,12 +2252,16 @@ mod tests {
         // `actce`. `actce` builds with its own shorter form `actc`, and
         // `actce'o` keeps its full form.
         let english = jbotci_dictionary_data::english();
-        let actceho = *english.lookup_word("actce'o").unwrap();
+        let actceho = *english
+            .lookup_word(&LookupKey::from_stored("actce'o"))
+            .unwrap();
         let actce = DictionaryEntry {
             word: "actce",
             ..actceho
         };
-        let bangu = *english.lookup_word("bangu").unwrap();
+        let bangu = *english
+            .lookup_word(&LookupKey::from_stored("bangu"))
+            .unwrap();
         let token = CancellationToken::never();
         with_source_dictionary(&[actceho, actce, bangu], |dictionary| {
             let decomposition = decompose_lujvo_like(dictionary, "actce'ybau", &token)
@@ -2096,12 +2307,16 @@ mod tests {
         // enter a build. The word input and both entry indexes give the same
         // result.
         let english = jbotci_dictionary_data::english();
-        let onji = *english.lookup_word("onji").unwrap();
+        let onji = *english
+            .lookup_word(&LookupKey::from_stored("onji"))
+            .unwrap();
         let dotted = DictionaryEntry {
             word: ".onji",
             ..onji
         };
-        let klama = *english.lookup_word("klama").unwrap();
+        let klama = *english
+            .lookup_word(&LookupKey::from_stored("klama"))
+            .unwrap();
         let token = CancellationToken::never();
         with_source_dictionary(&[onji, dotted, klama], |dictionary| {
             let decomposition = decompose_lujvo_like(dictionary, "onjykla", &token)
@@ -2368,7 +2583,7 @@ mod tests {
         // A dictionary lujvo with such a part reports it too, whether the
         // input names the word or the exact entry, as the jvozba pane does.
         let entry_index = dictionary
-            .lookup_word_index("golfyjvi")
+            .lookup_word_index(&LookupKey::from_stored("golfyjvi"))
             .expect("golfyjvi entry");
         for input in [
             word("golfyjvi"),
@@ -2449,7 +2664,7 @@ mod tests {
             );
         }
         let entry_index = dictionary
-            .lookup_word_index("golfyjvi")
+            .lookup_word_index(&LookupKey::from_stored("golfyjvi"))
             .expect("golfyjvi entry");
         assert_eq!(
             entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
@@ -2470,7 +2685,9 @@ mod tests {
                 Ok(false),
                 "{text}"
             );
-            let entry_index = dictionary.lookup_word_index(text).expect("cmevla entry");
+            let entry_index = dictionary
+                .lookup_word_index(&LookupKey::from_stored(text))
+                .expect("cmevla entry");
             assert_eq!(
                 entry_can_enter_jvozba_pane(dictionary, entry_index, &token),
                 Ok(false),
@@ -2644,12 +2861,18 @@ mod tests {
             form: "ierx",
             standing: RafsiClaimKind::Experimental,
         }];
-        let ierxi = *english.lookup_word("ierxi").unwrap();
+        let ierxi = *english
+            .lookup_word(&LookupKey::from_stored("ierxi"))
+            .unwrap();
         let spageti = DictionaryEntry {
             rafsi: &listed,
-            ..*english.lookup_word("spageti").unwrap()
+            ..*english
+                .lookup_word(&LookupKey::from_stored("spageti"))
+                .unwrap()
         };
-        let kukte = *english.lookup_word("kukte").unwrap();
+        let kukte = *english
+            .lookup_word(&LookupKey::from_stored("kukte"))
+            .unwrap();
         let token = CancellationToken::never();
         with_source_dictionary(&[ierxi, spageti, kukte], |dictionary| {
             let result = build_best_jvozba_detailed(
@@ -2690,7 +2913,9 @@ mod tests {
         let period = DictionaryEntry {
             word: ".",
             rafsi: &listed,
-            ..*english.lookup_word("spageti").unwrap()
+            ..*english
+                .lookup_word(&LookupKey::from_stored("spageti"))
+                .unwrap()
         };
         let unlisted = DictionaryEntry {
             word: ".",
