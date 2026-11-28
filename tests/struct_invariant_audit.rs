@@ -1896,6 +1896,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "every typed value and optional persistent parent combination is a valid stack node",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:DerivedSharedStack",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:DerivedSharedStackNode",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedVec",
         "empty and shared copy-on-write vectors are both valid; Some(empty) has the same semantics as the allocation-free None representation",
     ),
@@ -2210,6 +2218,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:WithFreeModifiers",
         "the test wrapper stores one value and a list of modifiers. Every combination is valid",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedChain",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedFreeModifierSyntax",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedLeafNode",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedPrefix",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedRecoveredLeaf",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedWithFreeModifiers",
+        "debug comparison model. The derived formatter is the expected text",
     ),
     (
         "crates/jbotci-tree/src/node_drop.rs:DropQueue",

@@ -728,6 +728,103 @@ mod generated_model {
         assert_eq!(helper.0, Token);
         assert_eq!(pair.computed, 0);
     }
+
+    #[allow(dead_code)]
+    #[bityzba::invariant(true)]
+    #[derive(Debug)]
+    struct DerivedPairSyntax {
+        head: Token,
+        nonempty: vec1::Vec1<Token>,
+        computed: usize,
+        child: Box<ItemSyntax>,
+    }
+
+    #[allow(dead_code)]
+    #[bityzba::invariant(true)]
+    #[derive(Debug)]
+    struct DerivedHelperProductSyntax(Token);
+
+    #[allow(dead_code)]
+    #[bityzba::invariant(true)]
+    #[bityzba::invariant(::ChoiceFirst(_) => true)]
+    #[bityzba::invariant(::ChoiceSecond(_) => true)]
+    #[derive(Debug)]
+    enum DerivedChoiceSyntax {
+        ChoiceFirst(std::sync::Arc<ChoiceFirstSyntax>),
+        ChoiceSecond(std::sync::Arc<ChoiceSecondSyntax>),
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn assert_same_debug(actual: &impl std::fmt::Debug, derived: &impl std::fmt::Debug) {
+        assert_eq!(format!("{actual:?}"), format!("{derived:?}"));
+        assert_eq!(format!("{actual:#?}"), format!("{derived:#?}"));
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn assert_renamed_debug(
+        actual: &impl std::fmt::Debug,
+        derived: &impl std::fmt::Debug,
+        from: &str,
+        to: &str,
+    ) {
+        assert_eq!(
+            format!("{actual:?}"),
+            format!("{derived:?}").replace(from, to)
+        );
+        assert_eq!(
+            format!("{actual:#?}"),
+            format!("{derived:#?}").replace(from, to)
+        );
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn grammar_node_debug_matches_derived_output() {
+        let item = ItemSyntax { token: Token };
+        let pair = PairSyntax {
+            head: Token,
+            nonempty: vec1::Vec1::new(Token),
+            computed: 0,
+            child: Box::new(item.clone()),
+        };
+        assert_renamed_debug(
+            &pair,
+            &DerivedPairSyntax {
+                head: Token,
+                nonempty: vec1::Vec1::new(Token),
+                computed: 0,
+                child: Box::new(item.clone()),
+            },
+            "DerivedPairSyntax",
+            "PairSyntax",
+        );
+
+        let helper = HelperProductSyntax(Token);
+        assert_renamed_debug(
+            &helper,
+            &DerivedHelperProductSyntax(Token),
+            "DerivedHelperProductSyntax",
+            "HelperProductSyntax",
+        );
+
+        let first = ChoiceSyntax::ChoiceFirst(std::sync::Arc::new(ChoiceFirstSyntax(Token)));
+        assert_same_debug(
+            &first,
+            &DerivedChoiceSyntax::ChoiceFirst(std::sync::Arc::new(ChoiceFirstSyntax(Token))),
+        );
+
+        let second =
+            ChoiceSyntax::ChoiceSecond(std::sync::Arc::new(ChoiceSecondSyntax(Box::new(item))));
+        assert_same_debug(
+            &second,
+            &DerivedChoiceSyntax::ChoiceSecond(std::sync::Arc::new(ChoiceSecondSyntax(Box::new(
+                ItemSyntax { token: Token },
+            )))),
+        );
+    }
 }
 
 mod shared_containment {

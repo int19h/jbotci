@@ -290,39 +290,15 @@ impl<T: fmt::Debug> fmt::Debug for SharedStackNode<T> {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut values = Vec::new();
-        let mut node = Some(self);
-        while let Some(current) = node {
-            values.push(&current.value);
-            node = current.parent.as_deref();
-        }
-        formatter.write_str("SharedStackNode { value: ")?;
-        values[0].fmt(formatter)?;
-        formatter.write_str(", parent: ")?;
-        write_shared_stack_parents(formatter, &values[1..])?;
-        formatter.write_str(" }")
+        // `debug_struct` keeps alternate formatting. Each parent grows the stack.
+        jbotci_tree::with_tree_stack(|| {
+            formatter
+                .debug_struct("SharedStackNode")
+                .field("value", &self.value)
+                .field("parent", &self.parent)
+                .finish()
+        })
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn write_shared_stack_parents<T: fmt::Debug>(
-    formatter: &mut fmt::Formatter<'_>,
-    values: &[&T],
-) -> fmt::Result {
-    if values.is_empty() {
-        return formatter.write_str("None");
-    }
-    for value in values {
-        formatter.write_str("Some(SharedStackNode { value: ")?;
-        value.fmt(formatter)?;
-        formatter.write_str(", parent: ")?;
-    }
-    formatter.write_str("None")?;
-    for _ in values {
-        formatter.write_str(" })")?;
-    }
-    Ok(())
 }
 
 /// The parent chain is one link per parser frame.
@@ -1684,9 +1660,60 @@ fn merge_optional_equal<T: PartialEq>(left: Option<T>, right: Option<T>) -> Opti
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
-    use bityzba::{ensures, requires};
+    use bityzba::{ensures, invariant, requires};
+    use std::rc::Rc;
 
     use super::*;
+
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct DerivedSharedStack<T> {
+        head: Option<Rc<DerivedSharedStackNode<T>>>,
+        len: usize,
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct DerivedSharedStackNode<T> {
+        value: T,
+        parent: Option<Rc<DerivedSharedStackNode<T>>>,
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_derived(stack: &DerivedSharedStack<u32>, value: u32) -> DerivedSharedStack<u32> {
+        DerivedSharedStack {
+            head: Some(Rc::new(DerivedSharedStackNode {
+                value,
+                parent: stack.head.clone(),
+            })),
+            len: stack.len + 1,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_shared_stack_debug(actual: &SharedStack<u32>, derived: &DerivedSharedStack<u32>) {
+        let compact = format!("{derived:?}")
+            .replace("DerivedSharedStackNode", "SharedStackNode")
+            .replace("DerivedSharedStack", "SharedStack");
+        let pretty = format!("{derived:#?}")
+            .replace("DerivedSharedStackNode", "SharedStackNode")
+            .replace("DerivedSharedStack", "SharedStack");
+        assert_eq!(
+            format!("{actual:?}"),
+            compact,
+            "compact len {}",
+            actual.len()
+        );
+        assert_eq!(
+            format!("{actual:#?}"),
+            pretty,
+            "pretty len {}",
+            actual.len()
+        );
+    }
 
     #[test]
     #[requires(true)]
@@ -1724,6 +1751,25 @@ mod tests {
         assert_eq!(left_hash.finish(), right_hash.finish());
         let rendered = format!("{first:?}");
         assert!(rendered.starts_with("SharedStack { head: Some(SharedStackNode { value: 7"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_stack_debug_matches_derived_output() {
+        let mut actual = SharedStack::<u32>::empty();
+        let mut derived = DerivedSharedStack { head: None, len: 0 };
+        assert_shared_stack_debug(&actual, &derived);
+
+        actual = actual.pushed(1);
+        derived = push_derived(&derived, 1);
+        assert_shared_stack_debug(&actual, &derived);
+
+        actual = actual.pushed(2);
+        derived = push_derived(&derived, 2);
+        actual = actual.pushed(3);
+        derived = push_derived(&derived, 3);
+        assert_shared_stack_debug(&actual, &derived);
     }
 
     #[test]

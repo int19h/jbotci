@@ -2592,6 +2592,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "macro parser AST variants delegate validity to their typed syn or grammar payloads",
     ),
     (
+        "crates/jbotci-syntax-macros/tests/syntax_grammar.rs:DerivedChoiceSyntax::ChoiceFirst",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/syntax_grammar.rs:DerivedChoiceSyntax::ChoiceSecond",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Faha",
         "the motion-prefix flag is intentionally unconstrained; both Boolean states identify valid FAhA atoms",
     ),
@@ -2698,6 +2706,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree-macros/src/lib.rs:UnwrappedTreeType::Children",
         "tree macro helper variants delegate validity to borrowed syn types collected from parsed input",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedRecovered::Error",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedRecovered::Prefix",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedRecovered::Valid",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedRecoveredWrapped::Named",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedRecoveredWrapped::Tuple",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedWrapped::Named",
+        "debug comparison model. The derived formatter is the expected text",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:DerivedWrapped::Tuple",
+        "debug comparison model. The derived formatter is the expected text",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:Recovered::Error",

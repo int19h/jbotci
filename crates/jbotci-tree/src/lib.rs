@@ -1864,6 +1864,251 @@ mod tests {
         let round_trip: TreePath = serde_json::from_value(value).expect("path deserializes");
         assert_eq!(round_trip, path);
     }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct DerivedChain<E, Links> {
+        first: E,
+        links: Links,
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct DerivedLeafNode {
+        text: String,
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct DerivedPrefix<T, E> {
+        errors: Vec1<E>,
+        value: Box<T>,
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct DerivedRecoveredLeaf {
+        text: recovered::Recovered<String>,
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[invariant(::Valid(_) => true)]
+    #[invariant(::Error(_) => true)]
+    #[invariant(::Prefix(_) => true)]
+    #[derive(Debug)]
+    enum DerivedRecovered<T, E> {
+        Valid(Box<T>),
+        Error(E),
+        Prefix(RecoveredPrefix<T, E>),
+        Released,
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[invariant(::Tuple(_) => true)]
+    #[invariant(::Named => true)]
+    #[derive(Debug)]
+    enum DerivedWrapped {
+        Tuple(LeafNode),
+        Named { left: LeafNode, right: LeafNode },
+        Unit,
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[invariant(::Tuple(_) => true)]
+    #[invariant(::Named => true)]
+    #[derive(Debug)]
+    enum DerivedRecoveredWrapped {
+        Tuple(recovered::Recovered<recovered::LeafNode>),
+        Named {
+            left: recovered::Recovered<recovered::LeafNode>,
+            right: recovered::Recovered<recovered::LeafNode>,
+        },
+        Unit,
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_same_debug(actual: &impl std::fmt::Debug, derived: &impl std::fmt::Debug) {
+        assert_eq!(format!("{actual:?}"), format!("{derived:?}"));
+        assert_eq!(format!("{actual:#?}"), format!("{derived:#?}"));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_renamed_debug(
+        actual: &impl std::fmt::Debug,
+        derived: &impl std::fmt::Debug,
+        from: &str,
+        to: &str,
+    ) {
+        assert_eq!(
+            format!("{actual:?}"),
+            format!("{derived:?}").replace(from, to)
+        );
+        assert_eq!(
+            format!("{actual:#?}"),
+            format!("{derived:#?}").replace(from, to)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chain_debug_matches_derived_output() {
+        let actual = Chain::new(1u8, vec![2u8, 3]);
+        let derived = DerivedChain {
+            first: 1u8,
+            links: vec![2u8, 3],
+        };
+        assert_renamed_debug(&actual, &derived, "DerivedChain", "Chain");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_debug_matches_derived_output() {
+        let valid = Recovered::<u8, u8>::valid(7);
+        assert_same_debug(&valid, &DerivedRecovered::<u8, u8>::Valid(Box::new(7u8)));
+
+        let error = Recovered::<u8, u8>::error(9);
+        assert_same_debug(&error, &DerivedRecovered::<u8, u8>::Error(9u8));
+
+        let prefix = Recovered::<u8, u8>::prefix(vec![1, 4], 2);
+        let Recovered::Prefix(prefix_value) = &prefix else {
+            panic!("prefix constructor returns the prefix variant");
+        };
+        assert_same_debug(
+            &prefix,
+            &DerivedRecovered::<u8, u8>::Prefix(RecoveredPrefix {
+                errors: prefix_value.errors.clone(),
+                value: prefix_value.value.clone(),
+            }),
+        );
+
+        let released = Recovered::<u8, u8>::Released;
+        assert_same_debug(&released, &DerivedRecovered::<u8, u8>::Released);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_prefix_debug_matches_derived_output() {
+        let actual = RecoveredPrefix {
+            errors: Vec1::new(1u8),
+            value: Box::new(2u8),
+        };
+        let derived = DerivedPrefix {
+            errors: Vec1::new(1u8),
+            value: Box::new(2u8),
+        };
+        assert_renamed_debug(&actual, &derived, "DerivedPrefix", "RecoveredPrefix");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_node_debug_matches_derived_output() {
+        let leaf = LeafNode {
+            text: "leaf".to_owned(),
+        };
+        assert_renamed_debug(
+            &leaf,
+            &DerivedLeafNode {
+                text: "leaf".to_owned(),
+            },
+            "DerivedLeafNode",
+            "LeafNode",
+        );
+
+        let tuple = WrappedNode::Tuple(LeafNode {
+            text: "tuple".to_owned(),
+        });
+        assert_same_debug(
+            &tuple,
+            &DerivedWrapped::Tuple(LeafNode {
+                text: "tuple".to_owned(),
+            }),
+        );
+
+        let named = WrappedNode::Named {
+            left: LeafNode {
+                text: "left".to_owned(),
+            },
+            right: LeafNode {
+                text: "right".to_owned(),
+            },
+        };
+        assert_same_debug(
+            &named,
+            &DerivedWrapped::Named {
+                left: LeafNode {
+                    text: "left".to_owned(),
+                },
+                right: LeafNode {
+                    text: "right".to_owned(),
+                },
+            },
+        );
+
+        assert_same_debug(&WrappedNode::Unit, &DerivedWrapped::Unit);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_leaf_node(text: &str) -> recovered::LeafNode {
+        recovered::LeafNode {
+            text: recovered::Recovered::valid(text.to_owned()),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_node_debug_matches_derived_output() {
+        let leaf = recovered_leaf_node("leaf");
+        assert_renamed_debug(
+            &leaf,
+            &DerivedRecoveredLeaf {
+                text: recovered::Recovered::valid("leaf".to_owned()),
+            },
+            "DerivedRecoveredLeaf",
+            "LeafNode",
+        );
+
+        let tuple = recovered::WrappedNode::Tuple(recovered::Recovered::valid(
+            recovered_leaf_node("tuple"),
+        ));
+        assert_same_debug(
+            &tuple,
+            &DerivedRecoveredWrapped::Tuple(recovered::Recovered::valid(recovered_leaf_node(
+                "tuple",
+            ))),
+        );
+
+        let named = recovered::WrappedNode::Named {
+            left: recovered::Recovered::valid(recovered_leaf_node("left")),
+            right: recovered::Recovered::valid(recovered_leaf_node("right")),
+        };
+        assert_same_debug(
+            &named,
+            &DerivedRecoveredWrapped::Named {
+                left: recovered::Recovered::valid(recovered_leaf_node("left")),
+                right: recovered::Recovered::valid(recovered_leaf_node("right")),
+            },
+        );
+
+        assert_same_debug(
+            &recovered::WrappedNode::Unit,
+            &DerivedRecoveredWrapped::Unit,
+        );
+    }
 }
 
 #[cfg(test)]
@@ -2070,5 +2315,74 @@ mod deep_drop {
             ))));
         }
         drop(next);
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct DerivedWithFreeModifiers<T, F> {
+        value: T,
+        free_modifiers: Vec<F>,
+    }
+
+    #[allow(dead_code)]
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct DerivedFreeModifierSyntax;
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn assert_renamed_debug(
+        actual: &impl std::fmt::Debug,
+        derived: &impl std::fmt::Debug,
+        from: &str,
+        to: &str,
+    ) {
+        assert_eq!(
+            format!("{actual:?}"),
+            format!("{derived:?}").replace(from, to)
+        );
+        assert_eq!(
+            format!("{actual:#?}"),
+            format!("{derived:#?}").replace(from, to)
+        );
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn with_free_modifiers_debug_matches_derived_output() {
+        let actual = recovered::WithFreeModifiers {
+            value: 1u8,
+            free_modifiers: vec![2u8, 3],
+        };
+        let derived = DerivedWithFreeModifiers {
+            value: 1u8,
+            free_modifiers: vec![2u8, 3],
+        };
+        assert_renamed_debug(
+            &actual,
+            &derived,
+            "DerivedWithFreeModifiers",
+            "WithFreeModifiers",
+        );
+    }
+
+    #[test]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn generated_unit_debug_matches_derived_output() {
+        assert_renamed_debug(
+            &FreeModifierSyntax,
+            &DerivedFreeModifierSyntax,
+            "DerivedFreeModifierSyntax",
+            "FreeModifierSyntax",
+        );
+        assert_renamed_debug(
+            &recovered::FreeModifierSyntax,
+            &DerivedFreeModifierSyntax,
+            "DerivedFreeModifierSyntax",
+            "FreeModifierSyntax",
+        );
     }
 }
