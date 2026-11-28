@@ -1880,6 +1880,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a nonzero trial identity and shared memo store are independently valid components",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialState",
+        "the trial bundle's consumption-stack relationship is an impl invariant on ParserState, and the bundle is constructed only by new_with_recovery",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRuleObservationNode",
         "observation child indices are finalized and checked by the enclosing memo store APIs",
     ),
