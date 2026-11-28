@@ -87,7 +87,7 @@ use jbotci_search::vlacku::{
     VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
     dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
     dictionary_matches_for_word_likes, format_vote_display, grouped_word_type_filter_key,
-    is_brivla_like, normalize_word_type_filter, run_vlacku_requests, vlacku_exact_query_is_pattern,
+    is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::{
     GeneratedReferenceAnalysis, PlaceSlot, RawSyntaxNodeId, SelbriPlaceFrameId,
@@ -2938,7 +2938,7 @@ fn build_vlacku_web_result_with_dictionary(
 ) -> VlackuWebResult {
     let normalized_state = normalize_vlacku_state(state);
     let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
-    if normalized_state.query.trim().is_empty() {
+    if normalized_state.query.is_empty() {
         return new!(VlackuWebResult {
             hidden_by_vote_filter: false,
             state: normalized_state,
@@ -3149,7 +3149,7 @@ pub fn build_vlacku_semantic_web_result_with_loading(
 ) -> VlackuWebResult {
     let normalized_state = normalize_vlacku_state(state);
     let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
-    if normalized_state.query.trim().is_empty() {
+    if normalized_state.query.is_empty() {
         return new!(VlackuWebResult {
             hidden_by_vote_filter: false,
             state: normalized_state,
@@ -3620,7 +3620,7 @@ pub mod blocking {
     #[requires(true)]
     #[ensures(true)]
     fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
-        let query = state.query.trim();
+        let query = state.query.as_str();
         if query.is_empty() {
             return None;
         }
@@ -4631,7 +4631,7 @@ fn build_vlacku_page_meta_with_description(
     exact_description: Option<String>,
 ) -> PageMeta {
     let state = normalize_vlacku_state(state);
-    let query = state.query.trim();
+    let query = state.query.as_str();
     page_meta(
         if query.is_empty() {
             "jbotci vlacku".to_owned()
@@ -5377,18 +5377,11 @@ fn normalize_cukta_search_query(mode: CuktaWebMode, query: &str) -> String {
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn normalize_vlacku_search_query(mode: VlackuWebMode, query: &str) -> String {
-    match mode {
-        VlackuWebMode::Word | VlackuWebMode::Rafsi if vlacku_exact_query_is_pattern(query) => {
-            query.trim().to_owned()
-        }
-        // Word identity depends on the written boundaries and stress. The
-        // search retains lexical evidence before it creates a lookup key.
-        VlackuWebMode::Word => query.trim().to_owned(),
-        VlackuWebMode::Rafsi => query.to_owned(),
-        VlackuWebMode::Sound | VlackuWebMode::Meaning => query.trim().to_owned(),
-    }
+#[ensures(ret == query.trim())]
+fn normalize_vlacku_search_query(_mode: VlackuWebMode, query: &str) -> String {
+    // Word identity depends on the written boundaries and stress. The search
+    // retains lexical evidence before it creates a lookup key.
+    query.trim().to_owned()
 }
 
 #[requires(true)]
@@ -5401,6 +5394,7 @@ fn normalize_lojban_exact_query(query: &str) -> String {
 #[requires(true)]
 #[ensures(ret.count >= 1)]
 #[ensures(ret.min_votes == state.min_votes)]
+#[ensures(ret.query == state.query.trim())]
 pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
     let mut word_types = Vec::new();
     for raw in &state.word_types {
@@ -11288,6 +11282,65 @@ mod tests {
             missing.errors,
             [format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!")]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rafsi_state_normalization_trims_once_for_every_consumer() {
+        for mode in [
+            VlackuWebMode::Word,
+            VlackuWebMode::Rafsi,
+            VlackuWebMode::Sound,
+            VlackuWebMode::Meaning,
+        ] {
+            assert_eq!(normalize_vlacku_search_query(mode, " kla "), "kla");
+        }
+
+        let blank = VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: "   ".to_owned(),
+            ..VlackuWebState::default()
+        };
+        let normalized_blank = normalize_vlacku_state(&blank);
+        assert_eq!(normalized_blank.query, "");
+        assert_eq!(vlacku_web_url("", &normalized_blank), "/vlacku?mode=rafsi");
+        let blank_result = build_vlacku_web_result(&blank);
+        assert!(blank_result.dictionary_info.is_some());
+        let blank_meta = blocking::build_computed_page_meta("", &WebRoute::Vlacku(blank));
+        assert_eq!(blank_meta.title, "jbotci vlacku");
+        assert_eq!(blank_meta.canonical_url, "/vlacku?mode=rafsi");
+
+        let kla = VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: " kla ".to_owned(),
+            ..VlackuWebState::default()
+        };
+        let kla_result = build_vlacku_web_result(&kla);
+        assert_eq!(kla_result.state.query, "kla");
+        assert_eq!(
+            vlacku_web_url("", &kla_result.state),
+            "/vlacku?mode=rafsi&q=kla"
+        );
+        let kla_meta = blocking::build_computed_page_meta("", &WebRoute::Vlacku(kla));
+        assert_eq!(kla_meta.canonical_url, "/vlacku?mode=rafsi&q=kla");
+
+        let comma = VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: " , ".to_owned(),
+            ..VlackuWebState::default()
+        };
+        let dictionary = dictionary_with_forms(leak(vec![Rafsi {
+            form: ",",
+            standing: RafsiClaimKind::Experimental,
+        }]));
+        let comma_result = build_vlacku_web_result_with_dictionary(&comma, dictionary);
+        assert_eq!(comma_result.state.query, ",");
+        assert_eq!(comma_result.cards.len(), 1);
+        assert_eq!(comma_result.cards[0].word, "klama");
+        let comma_meta = build_vlacku_page_meta_from_result("", &comma_result);
+        assert_eq!(comma_meta.description, "test definition");
+        assert_eq!(comma_meta.canonical_url, "/vlacku?mode=rafsi&q=%2C");
     }
 
     #[test]

@@ -62,34 +62,6 @@ pub(crate) fn is_separator(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn normalize_word_for_lookup_with_options(
-    raw: &str,
-    options: &MorphologyOptions,
-) -> String {
-    let source_chars = raw.chars().enumerate().collect::<Vec<_>>();
-    let normalized = normalize_source_chars(source_chars.clone(), options);
-    let mut unconverted = source_chars
-        .into_iter()
-        .filter(|(_, value)| normalize_char_event(*value, options).is_none())
-        .peekable();
-    let mut output = String::new();
-    for value in normalized {
-        while unconverted
-            .peek()
-            .is_some_and(|(index, _)| *index < value.source_start)
-        {
-            output.push(unconverted.next().expect("peeked character").1);
-        }
-        output.push(value.value);
-    }
-    for (_, value) in unconverted {
-        output.push(value);
-    }
-    output
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions) -> String {
     normalize_source_chars(raw.chars().enumerate(), options)
         .into_iter()
