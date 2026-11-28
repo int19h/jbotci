@@ -458,7 +458,7 @@ impl DocumentSnapshot {
             // stored-text key that `add_candidate` made.
             let labels = items
                 .values()
-                .map(|item| item.lookup_key.clone())
+                .map(|item| &item.lookup_key)
                 .collect::<Vec<_>>();
             dictionary.first_gloss_keywords_for_words(&labels)
         };

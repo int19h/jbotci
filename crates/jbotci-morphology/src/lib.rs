@@ -3533,17 +3533,6 @@ fn normalized_lojban_input_separator(value: char) -> char {
     }
 }
 
-/// Return whether the morphology ends a word at `value`.
-///
-/// This is the separator set of the segmenter: whitespace, the period
-/// spellings, and the punctuation that gentufa reads as a word break.
-#[requires(true)]
-#[ensures(value.is_whitespace() -> ret)]
-#[ensures(is_period_character(value) -> ret)]
-pub fn is_word_break(value: char) -> bool {
-    segment::is_separator(value)
-}
-
 #[requires(true)]
 #[ensures(ret == matches!(value, '.' | 'ӏ' | 'Ӏ' | '\u{ed89}'))]
 pub fn is_period_character(value: char) -> bool {

@@ -355,7 +355,7 @@ impl<'a> Dictionary<'a> {
                 .map(|keyword| keyword.word)
                 .find(|item| !item.is_empty())
     }))]
-    pub fn first_gloss_keywords_for_words(&self, words: &[LookupKey]) -> Vec<Option<&'a str>> {
+    pub fn first_gloss_keywords_for_words(&self, words: &[&LookupKey]) -> Vec<Option<&'a str>> {
         words
             .iter()
             .map(|word| {
@@ -2532,11 +2532,16 @@ mod tests {
 
         let space = between(" ").expect("a space between stars");
         let mut breaks = 0;
+        let mut buffer = [0; 4];
         for code in 0..=u32::from(char::MAX) {
             let Some(value) = char::from_u32(code) else {
                 continue;
             };
-            if !jbotci_morphology::is_word_break(value) {
+            // The converter is the authority on word breaks, as for the key.
+            let mut steps = Vec::new();
+            transcribe_lookup_run(value.encode_utf8(&mut buffer), |step| steps.push(step));
+            if !matches!(steps.as_slice(), [step] if matches!(step.as_data(), data!(LookupStep::WordBreak(_))))
+            {
                 continue;
             }
             assert_eq!(between(&value.to_string()), Ok(space.clone()), "{value:?}");
@@ -3205,7 +3210,7 @@ mod tests {
             vec!["gaurki'u", "gaurkihu"]
         );
         assert_eq!(
-            dictionary.first_gloss_keywords_for_words(&[LookupKey::from_stored("gaurkihu")]),
+            dictionary.first_gloss_keywords_for_words(&[&LookupKey::from_stored("gaurkihu")]),
             vec![Some("reason")]
         );
         assert_eq!(
@@ -3408,8 +3413,8 @@ mod tests {
         assert!(dictionary.validate().is_ok());
         assert_eq!(
             dictionary.first_gloss_keywords_for_words(&[
-                LookupKey::from_stored(".bárda."),
-                LookupKey::from_stored("missing"),
+                &LookupKey::from_stored(".bárda."),
+                &LookupKey::from_stored("missing"),
             ]),
             vec![Some("large"), None],
         );
