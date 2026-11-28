@@ -1881,7 +1881,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialState",
-        "the trial bundle's consumption-stack relationship is an impl invariant on ParserState, and the bundle is constructed only by new_with_recovery",
+        "the bundle is mutated in place on hot paths and bityzba wrappers have no DerefMut, so its relationships (consumption-stack length, consumed <= directives, abandoned-range order, construction-only target maps) are stated as impl invariants on ParserState",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRuleObservationNode",
