@@ -999,10 +999,25 @@ pub(super) struct RecoveryFrameRank {
     pub(super) rank: SyntaxFrameRank,
 }
 
+/// Why a memo rule frame must not replay an insensitive memo entry.
+/// The two reasons are different facts and must not share one flag: a
+/// frame that consumed recovery directive state depends on the trial,
+/// while a traced frame only has to actually run so its trace events
+/// exist. Before this split, tracing marked every frame with the
+/// directive reason, and trial-only code could not tell them apart
+/// (#1089).
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SyntaxMemoSensitivity {
+    Insensitive,
+    RecoveryDirective,
+    TraceNoReplay,
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone)]
 struct SyntaxMemoRuleFrame<'tokens> {
-    recovery_sensitive: bool,
+    sensitivity: SyntaxMemoSensitivity,
     rule_observation: Option<SyntaxRuleObservation>,
     child_rule_observation_nodes: Vec<usize>,
     finalized_rule_observation_node: Option<usize>,
@@ -1407,6 +1422,8 @@ pub(super) struct ParserState<'tokens> {
     "syntax location offsets include one EOF offset after token anchors"
 )]
 #[invariant(self.recovery_trial.as_ref().is_none_or(|trial| trial.effective_fail_token_indices.len() == trial.consumed_directives))]
+#[invariant(self.recovery_trial.as_ref().is_none_or(|trial| trial.consumed_directives <= trial.directives.len()))]
+#[invariant(self.recovery_trial.is_none() || self.recovery_checkpoint_collection.is_some())]
 #[invariant(self.continuation_sentinel_index.is_some() || self.continuation_diagnostic_candidates.is_empty())]
 #[expensive_invariant(
     true,
@@ -1614,7 +1631,7 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.is_empty() == self.recovery_trial.is_none())]
     fn recovery_directives(&self) -> &[RecoveryDirective] {
         self.recovery_trial
             .as_ref()
@@ -1622,7 +1639,8 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret <= self.recovery_directives().len())]
+    #[ensures(self.recovery_trial.is_none() -> ret == 0)]
     fn consumed_recovery_directives(&self) -> usize {
         self.recovery_trial
             .as_ref()
@@ -1679,7 +1697,7 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(true)]
     #[ensures(self.syntax_memo_rule_frames.len() == old(self.syntax_memo_rule_frames.len()) + 1)]
-    #[ensures(!self.syntax_memo_rule_frames.last().map_or(true, |frame| frame.recovery_sensitive))]
+    #[ensures(!self.syntax_memo_rule_frames.last().map_or(true, |frame| frame.sensitivity != SyntaxMemoSensitivity::Insensitive))]
     pub(super) fn begin_syntax_memo_rule_frame(&mut self) {
         let recovery_checkpoint_observation_start = self
             .recovery_checkpoint_collection
@@ -1701,7 +1719,7 @@ impl<'tokens> ParserState<'tokens> {
             None => SyntaxDiagnosticObservationId::Strict { frame_id },
         };
         self.syntax_memo_rule_frames.push(SyntaxMemoRuleFrame {
-            recovery_sensitive: false,
+            sensitivity: SyntaxMemoSensitivity::Insensitive,
             rule_observation: None,
             child_rule_observation_nodes: Vec::new(),
             finalized_rule_observation_node: None,
@@ -1758,21 +1776,47 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
-    #[ensures(self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.recovery_sensitive))]
-    pub(super) fn mark_syntax_memo_rule_recovery_sensitive(&mut self) {
+    #[ensures(self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective))]
+    pub(super) fn mark_syntax_memo_rule_directive_sensitive(&mut self) {
         self.syntax_memo_rule_frames
             .last_mut()
             .expect("syntax memo rule frame is active")
-            .recovery_sensitive = true;
+            .sensitivity = SyntaxMemoSensitivity::RecoveryDirective;
+    }
+
+    /// Mark the frame as traced: it must actually run so that its trace
+    /// events exist, but it has not consumed any recovery directive state.
+    /// A frame already marked for the directive reason keeps that reason.
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.sensitivity != SyntaxMemoSensitivity::Insensitive))]
+    pub(super) fn mark_syntax_memo_rule_trace_no_replay(&mut self) {
+        let frame = self
+            .syntax_memo_rule_frames
+            .last_mut()
+            .expect("syntax memo rule frame is active");
+        if frame.sensitivity == SyntaxMemoSensitivity::Insensitive {
+            frame.sensitivity = SyntaxMemoSensitivity::TraceNoReplay;
+        }
     }
 
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
-    #[ensures(ret == self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.recovery_sensitive))]
-    fn syntax_memo_rule_is_recovery_sensitive(&self) -> bool {
+    #[ensures(ret == self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective))]
+    fn syntax_memo_rule_is_directive_sensitive(&self) -> bool {
         self.syntax_memo_rule_frames
             .last()
             .expect("syntax memo rule frame is active")
-            .recovery_sensitive
+            .sensitivity
+            == SyntaxMemoSensitivity::RecoveryDirective
+    }
+
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(ret == self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.sensitivity != SyntaxMemoSensitivity::Insensitive))]
+    fn syntax_memo_rule_blocks_memo_replay(&self) -> bool {
+        self.syntax_memo_rule_frames
+            .last()
+            .expect("syntax memo rule frame is active")
+            .sensitivity
+            != SyntaxMemoSensitivity::Insensitive
     }
 
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
@@ -1813,7 +1857,7 @@ impl<'tokens> ParserState<'tokens> {
                     && frame.child_recovery_checkpoint_observations.is_empty()),
             "a recovered memo frame finalizes every checkpoint observation",
         );
-        let rule_observation_node = if frame.recovery_sensitive {
+        let rule_observation_node = if frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective {
             None
         } else {
             self.recovery_trial.as_ref().and_then(|trial| {
@@ -1827,8 +1871,8 @@ impl<'tokens> ParserState<'tokens> {
             self.mark_syntax_diagnostic_observation_applied(replay.observations.id);
         }
         if let Some(parent) = self.syntax_memo_rule_frames.last_mut() {
-            if frame.recovery_sensitive {
-                parent.recovery_sensitive = true;
+            if frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective {
+                parent.sensitivity = SyntaxMemoSensitivity::RecoveryDirective;
             }
             if let Some(node) = rule_observation_node {
                 parent.child_rule_observation_nodes.push(node);
@@ -1850,14 +1894,14 @@ impl<'tokens> ParserState<'tokens> {
             self.root_diagnostic_observations
                 .push(new!(SyntaxDiagnosticObservation::Nested(replay)));
         }
-        frame.recovery_sensitive
+        frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective
     }
 
     #[requires(true)]
-    #[ensures(!self.syntax_memo_rule_frames.is_empty() -> self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.recovery_sensitive))]
+    #[ensures(!self.syntax_memo_rule_frames.is_empty() -> self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective))]
     fn observe_recovery_directive_state(&mut self) {
         if !self.syntax_memo_rule_frames.is_empty() {
-            self.mark_syntax_memo_rule_recovery_sensitive();
+            self.mark_syntax_memo_rule_directive_sensitive();
         }
     }
 
@@ -1963,9 +2007,8 @@ impl<'tokens> ParserState<'tokens> {
             .is_none_or(|range| !range.intersects(start_location, end_location))
     }
 
-    #[requires(self.recovery_trial.is_some())]
-    #[requires(self.recovery_trial.as_ref().is_none_or(|trial| trial.abandoned_ranges.last().is_none_or(|previous| previous.end_location <= range.start_location)))]
-    #[ensures(self.recovery_trial.as_ref().is_none_or(|trial| trial.abandoned_ranges.last() == Some(&range)))]
+    #[requires(self.recovery_trial.as_ref().is_some_and(|trial| trial.abandoned_ranges.last().is_none_or(|previous| previous.end_location <= range.start_location)))]
+    #[ensures(self.recovery_trial.as_ref().is_some_and(|trial| trial.abandoned_ranges.last() == Some(&range)))]
     fn record_abandoned_recovery_range(&mut self, range: BoundaryAbandonedRange) {
         self.recovery_trial
             .as_mut()
@@ -1976,7 +2019,7 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(location < self.anchor_token_identities.len())]
     #[requires(self.recovery_trial.is_some())]
-    #[ensures(self.recovery_trial.as_ref().is_none_or(|trial| trial.completed_boundary_location.is_some_and(|completed| completed >= location)))]
+    #[ensures(self.recovery_trial.as_ref().is_some_and(|trial| trial.completed_boundary_location.is_some_and(|completed| completed >= location)))]
     pub(super) fn record_completed_recovery_boundary(&mut self, location: usize) {
         let trial = self
             .recovery_trial
@@ -2186,7 +2229,7 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(self.recovery_trial.is_some())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
-    #[ensures(ret.0.is_some() == !self.syntax_memo_rule_is_recovery_sensitive())]
+    #[ensures(ret.0.is_some() == !self.syntax_memo_rule_is_directive_sensitive())]
     fn current_syntax_memo_observations(
         &mut self,
     ) -> (Option<usize>, Option<SyntaxDiagnosticReplay<'tokens>>) {
@@ -2202,7 +2245,7 @@ impl<'tokens> ParserState<'tokens> {
             .syntax_memo_rule_frames
             .last_mut()
             .expect("syntax memo rule frame is active");
-        let rule_observation_node = if frame.recovery_sensitive {
+        let rule_observation_node = if frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective {
             None
         } else {
             Some(
@@ -2306,7 +2349,7 @@ impl<'tokens> ParserState<'tokens> {
         }
         let (memo, sensitive) = if let Some(trial) = &self.recovery_trial {
             let store = trial.memo_trial.store.borrow();
-            let insensitive = (!self.syntax_memo_rule_is_recovery_sensitive())
+            let insensitive = (!self.syntax_memo_rule_blocks_memo_replay())
                 .then(|| {
                     store
                         .insensitive_successes
@@ -2362,7 +2405,7 @@ impl<'tokens> ParserState<'tokens> {
             ..
         }) = memo.into_data();
         if sensitive {
-            self.mark_syntax_memo_rule_recovery_sensitive();
+            self.mark_syntax_memo_rule_directive_sensitive();
             let trial = self
                 .recovery_trial
                 .as_mut()
@@ -2396,7 +2439,7 @@ impl<'tokens> ParserState<'tokens> {
         if let Some(trial) = &self.recovery_trial {
             let hit = {
                 let store = trial.memo_trial.store.borrow();
-                if !self.syntax_memo_rule_is_recovery_sensitive()
+                if !self.syntax_memo_rule_blocks_memo_replay()
                     && let Some(failure) = store
                         .insensitive_failures
                         .get(&(rule_name, start_location))
@@ -2426,7 +2469,7 @@ impl<'tokens> ParserState<'tokens> {
             }?;
             let (failure, sensitive) = hit;
             if sensitive {
-                self.mark_syntax_memo_rule_recovery_sensitive();
+                self.mark_syntax_memo_rule_directive_sensitive();
             }
             if let Some(node) = failure.rule_observation_node {
                 self.replay_syntax_rule_observation(node);
@@ -2475,12 +2518,16 @@ impl<'tokens> ParserState<'tokens> {
         if !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue) {
             return false;
         }
-        let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
+        let sensitive = self.syntax_memo_rule_is_directive_sensitive();
         let effective_fail_token_indices = if sensitive {
+            // Directive sensitivity is marked only from recovery directive
+            // state or a sensitive memo replay, both of which exist only
+            // inside a recovery trial; tracing marks its own reason and
+            // never reaches this branch.
             let trial = self
                 .recovery_trial
                 .as_ref()
-                .expect("a sensitive rule runs only in a recovery trial");
+                .expect("a directive-sensitive rule runs only in a recovery trial");
             trial.effective_fail_token_indices[context.recovery_index..trial.consumed_directives]
                 .to_vec()
         } else {
@@ -2554,7 +2601,7 @@ impl<'tokens> ParserState<'tokens> {
         if !matches!(parse_stop(&self.cancellation, None), ParseStop::Continue) {
             return false;
         }
-        let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
+        let sensitive = self.syntax_memo_rule_is_directive_sensitive();
         let observations = self
             .recovery_trial
             .is_some()
@@ -3156,7 +3203,7 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(!rule.is_empty())]
-    #[ensures(ret -> self.recovery_trial.as_ref().is_none_or(|trial| trial.active_directive.is_none()))]
+    #[ensures(ret -> self.recovery_trial.as_ref().is_some_and(|trial| trial.active_directive.is_none()))]
     pub(super) fn boundary_resync_catches_field_failure(
         &self,
         rule: &'static str,
@@ -3416,13 +3463,11 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(ret <= self.recovery_directives().len())]
     pub(super) fn unconsumed_recovery_directives(&self) -> usize {
-        self.recovery_directives()
-            .len()
-            .saturating_sub(self.consumed_recovery_directives())
+        self.recovery_directives().len() - self.consumed_recovery_directives()
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.recovery_trial.is_none() -> ret.is_empty())]
     fn recovery_tokens(&self) -> &[Token] {
         self.recovery_trial
             .as_ref()
@@ -3430,7 +3475,7 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.recovery_trial.is_none() -> ret.is_none())]
     fn recovery_source(&self) -> Option<&str> {
         self.recovery_trial
             .as_ref()
@@ -3568,10 +3613,7 @@ impl<'tokens> ParserState<'tokens> {
             completed_recovery_boundary_location,
         ) = match recovery_trial {
             Some(trial) => (
-                trial
-                    .directives
-                    .len()
-                    .saturating_sub(trial.consumed_directives),
+                trial.directives.len() - trial.consumed_directives,
                 trial.effective_fail_token_indices,
                 trial.directives.into_vec(),
                 trial.completed_boundary_location,

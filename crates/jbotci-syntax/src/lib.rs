@@ -3378,6 +3378,62 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn traced_parses_match_untraced_trees() {
+        // Regression for #1089 round 5: tracing must not change parse
+        // results. It used to mark every memo frame with the
+        // recovery-directive sensitivity reason, and a traced strict parse
+        // then panicked where trial-only memo code read that reason.
+        let traced_options = ParseOptions::default().with_trace_options(TraceOptions::enabled(
+            TraceLevel::Top,
+            None,
+            TracePhase::Syntax,
+            1,
+        ));
+        for source in ["mi klama", "gleki ku klama zei klama"] {
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+            let untraced = parse_syntax_tree_recovered_with_source_and_options(
+                &words,
+                source,
+                &ParseOptions::default(),
+            )
+            .expect("untraced recovered parse");
+            let traced = parse_syntax_tree_recovered_with_source_and_options(
+                &words,
+                source,
+                &traced_options,
+            )
+            .expect("traced recovered parse");
+            assert_eq!(traced.errors.len(), untraced.errors.len(), "{source}");
+            assert_eq!(
+                format!("{:?}", traced.parse_tree),
+                format!("{:?}", untraced.parse_tree),
+                "{source}",
+            );
+        }
+        let words = jbotci_morphology::segment_words_with_modifiers("mi klama")
+            .expect("valid words");
+        let strict = parse_syntax_tree_with_source_and_options(
+            &words,
+            "mi klama",
+            &traced_options,
+        )
+        .expect("traced strict parse");
+        let untraced_strict = parse_syntax_tree_with_source_and_options(
+            &words,
+            "mi klama",
+            &ParseOptions::default(),
+        )
+        .expect("untraced strict parse");
+        assert_eq!(
+            format!("{:?}", strict.parse_tree),
+            format!("{:?}", untraced_strict.parse_tree),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn complete_text_expects_tail_terms_and_following_statements() {
         let expectations = expected_continuations_for("mi klama le zarci");
 
