@@ -1880,6 +1880,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a nonzero trial identity and shared memo store are independently valid components",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialState",
+        "the bundle is mutated in place on hot paths and bityzba wrappers have no DerefMut, so its relationships (consumption-stack length, consumed <= directives, abandoned-range order, construction-only target maps) are stated as impl invariants on ParserState",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRuleObservationNode",
         "observation child indices are finalized and checked by the enclosing memo store APIs",
     ),

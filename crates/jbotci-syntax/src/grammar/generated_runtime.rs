@@ -233,7 +233,7 @@ fn rule_enter<'tokens, 'parse>(
     let memo_context = input.state().syntax_memo_context();
     input.state().begin_syntax_memo_rule_frame();
     if input.state().trace_enabled() {
-        input.state().mark_syntax_memo_rule_recovery_sensitive();
+        input.state().mark_syntax_memo_rule_trace_no_replay();
     }
     let replay_hit = input
         .state()

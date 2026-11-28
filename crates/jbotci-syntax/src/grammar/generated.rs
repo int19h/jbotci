@@ -6882,7 +6882,7 @@ pub mod generated_model {
         } else {
             Vec::new()
         };
-        let finish = state.finish();
+        let mut finish = state.finish();
         let result = match result {
             Ok(text) => Ok(GeneratedParsedText {
                 text: text.into_owned(),
@@ -6906,7 +6906,7 @@ pub mod generated_model {
                     furthest_start,
                     frame_ranks,
                     checkpoints: RecoveryCheckpointIndex::from_checkpoints(
-                        finish.recovery_checkpoints,
+                        finish.tracked_recovery_checkpoints(),
                     ),
                 }))
             }
@@ -6960,7 +6960,7 @@ pub mod generated_model {
         } else {
             Vec::new()
         };
-        let finish = state.finish();
+        let mut finish = state.finish();
         recovery_session.memo_session.finish_trial(trial_id);
         let result = match result {
             Ok(text) => Ok(GeneratedRecoveredParsedText {
@@ -6985,7 +6985,7 @@ pub mod generated_model {
                     furthest_start,
                     frame_ranks,
                     checkpoints: RecoveryCheckpointIndex::from_checkpoints(
-                        finish.recovery_checkpoints,
+                        finish.tracked_recovery_checkpoints(),
                     ),
                 }))
             }
