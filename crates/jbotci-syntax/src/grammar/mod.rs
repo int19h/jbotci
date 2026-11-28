@@ -1857,7 +1857,8 @@ impl<'tokens> ParserState<'tokens> {
                     && frame.child_recovery_checkpoint_observations.is_empty()),
             "a recovered memo frame finalizes every checkpoint observation",
         );
-        let rule_observation_node = if frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective {
+        let rule_observation_node = if frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective
+        {
             None
         } else {
             self.recovery_trial.as_ref().and_then(|trial| {
@@ -2245,7 +2246,8 @@ impl<'tokens> ParserState<'tokens> {
             .syntax_memo_rule_frames
             .last_mut()
             .expect("syntax memo rule frame is active");
-        let rule_observation_node = if frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective {
+        let rule_observation_node = if frame.sensitivity == SyntaxMemoSensitivity::RecoveryDirective
+        {
             None
         } else {
             Some(

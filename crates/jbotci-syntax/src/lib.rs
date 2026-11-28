@@ -3411,20 +3411,13 @@ mod tests {
                 "{source}",
             );
         }
-        let words = jbotci_morphology::segment_words_with_modifiers("mi klama")
-            .expect("valid words");
-        let strict = parse_syntax_tree_with_source_and_options(
-            &words,
-            "mi klama",
-            &traced_options,
-        )
-        .expect("traced strict parse");
-        let untraced_strict = parse_syntax_tree_with_source_and_options(
-            &words,
-            "mi klama",
-            &ParseOptions::default(),
-        )
-        .expect("untraced strict parse");
+        let words =
+            jbotci_morphology::segment_words_with_modifiers("mi klama").expect("valid words");
+        let strict = parse_syntax_tree_with_source_and_options(&words, "mi klama", &traced_options)
+            .expect("traced strict parse");
+        let untraced_strict =
+            parse_syntax_tree_with_source_and_options(&words, "mi klama", &ParseOptions::default())
+                .expect("untraced strict parse");
         assert_eq!(
             format!("{:?}", strict.parse_tree),
             format!("{:?}", untraced_strict.parse_tree),
